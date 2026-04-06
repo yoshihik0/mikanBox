@@ -15,20 +15,23 @@ if (empty($_SESSION['csrf_token'])) {
 // --- Authentication ---
 $isLoggedIn = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
 
-// Logout process
-if (isset($_GET['action']) && $_GET['action'] === 'logout') {
-    unset($_SESSION['admin_logged_in']);
-    header('Location: ' . basename($_SERVER['PHP_SELF']));
-    exit;
-}
-
 // Initial setup / Login / Common settings
 // If settings.json does not exist, initialize with an empty array
 $settings = file_exists(SETTINGS_FILE) ? json_decode(file_get_contents(SETTINGS_FILE), true) : [];
 // Pass reference as a global variable (Fix #8)
 $GLOBALS['mikanbox_settings'] = &$settings;
 $passwordHash = $settings['password_hash'] ?? '';
+$isDemoMode = !empty($settings['demo_mode']);
 $loginError = ''; // Initialize loginError
+
+// Logout process
+if (isset($_GET['action']) && $_GET['action'] === 'logout') {
+    unset($_SESSION['admin_logged_in']);
+    // In demo mode, redirect to login form after logout
+    $redirect = $isDemoMode ? basename($_SERVER['PHP_SELF']) . '?login=1' : basename($_SERVER['PHP_SELF']);
+    header('Location: ' . $redirect);
+    exit;
+}
 
 // --- Login / Initial Setup Process ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
@@ -67,7 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
 }
 
 // Show login screen if not logged in
-if (!$isLoggedIn) {
+// In demo mode, allow access without login (unless ?login=1 is requested for full access)
+if (!$isLoggedIn && (!$isDemoMode || isset($_GET['login']))) {
 ?>
 <!DOCTYPE html>
 <html lang="<?= getSystemLanguage() ?>">
@@ -88,12 +92,18 @@ if (!$isLoggedIn) {
                 <button type="submit"><?= t('btn_set_password') ?></button>
             </form>
         <?php else: ?>
+            <?php if ($isDemoMode): ?>
+            <p><?= t('hint_demo_login') ?></p>
+            <?php endif; ?>
             <?php if(!empty($loginError)) echo "<div class='error'>{$loginError}</div>"; ?>
             <form method="post">
                 <input type="hidden" name="login_action" value="login">
                 <input type="password" name="password" placeholder="<?= t('admin_password') ?>" required autofocus>
                 <button type="submit"><?= t('btn_login') ?></button>
             </form>
+            <?php if ($isDemoMode): ?>
+            <p><a href="<?= basename($_SERVER['PHP_SELF']) ?>"><?= t('btn_demo_back') ?></a></p>
+            <?php endif; ?>
         <?php endif; ?>
             <p class="login-hint">
                 <?= t('admin_forgot_password') ?><br>
@@ -218,8 +228,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         die(t('err_csrf'));
     }
 
-    // Demo mode: block all write operations
-    if (!empty($settings['demo_mode'])) {
+    // Demo mode: block write operations if not logged in with password
+    if ($isDemoMode && !$isLoggedIn) {
         $message = t('msg_demo_mode');
         goto skip_post_actions;
     }
@@ -794,7 +804,11 @@ function getIcon($name) {
          ============================================== -->
     <div class="page-top-links">
         <a href="<?= $lastSsgRelPath ?>" target="_blank"><?= t('admin_view_site') ?></a>
+        <?php if ($isDemoMode && !$isLoggedIn): ?>
+        <a href="?login=1"><?= t('btn_login') ?></a>
+        <?php else: ?>
         <a href="?action=logout"><?= t('admin_logout') ?></a>
+        <?php endif; ?>
     </div>
     
 
