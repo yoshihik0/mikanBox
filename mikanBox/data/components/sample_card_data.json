@@ -1,6 +1,0 @@
-{
-    "html": "<div class=\"card\">\r\n<h3>カードで使えるデータの確認用<\/h3>\r\nTITLE:{{TITLE}} :ページタイトル<br>\r\nUPDATE_DATE:{{UPDATE_DATE}} :更新日<br>\r\nUPDATE_DATE:JP:{{UPDATE_DATE:JP}} :更新日・日本語<br>\r\nUPDATE_DATE:SLASH:{{UPDATE_DATE:SLASH}} :更新日・\/区切り<br>\r\nIS_NEW:{{IS_NEW:30}} :N日以内 new、それ以外は空<br>\r\nDESCRIPTION:{{DESCRIPTION}} :ページ概要）<br>\r\nOGP_IMAGE:{{OGP_IMAGE}} :ページのOGP画像のURL<br>\r\nPAGE_URL:{{PAGE_URL}} :ページのフルURL<br>\r\nPOST_MD:{{POST_MD::ITEM}} :データの表示<br>\r\nPOST_MD:{{POST_MD::CATCH}} :データの表示<br>\r\nPOST_MD:{{POST_MD::#MENU:PRICE}} :データの表示ROW<br>\r\nIS_ACTIVE:{{IS_ACTIVE}} :現在のページなら active、それ以外は空<br>\r\n<\/div>\r\n\r\n",
-    "css": ".card{\r\nborder:1px solid gray;\r\nmax-width:50%;\r\n}\r\n.active{\r\nborder:1px solid orange;\r\n}",
-    "is_global": false,
-    "is_wrapper": false
-}
