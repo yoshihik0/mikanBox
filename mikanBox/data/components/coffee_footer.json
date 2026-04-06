@@ -1,6 +1,0 @@
-{
-    "html": "<footer>\r\n  <p class=\"logo\">Little Bean Coffee<\/p>\r\n  <p class=\"copyright\">&copy; 2026 Little Bean Coffee<\/p>\r\n<\/footer>",
-    "css": "footer {\r\n    background-color: var(--color-heading);\r\n    color: #EBE3D5;\r\n    text-align:center;\r\n    padding: 60px 0 30px;\r\n}\r\n.logo {\r\n    font-family: var(--font-serif);\r\n    color: #fff;\r\n    font-size: 1.8rem;\r\n    margin-bottom: 20px;\r\n}\r\n.copyright {\r\n    font-size: 0.85rem;\r\n    color: rgba(235, 227, 213, 0.6);\r\n}",
-    "is_global": false,
-    "is_wrapper": false
-}
