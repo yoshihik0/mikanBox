@@ -131,7 +131,7 @@
                                     $previewUrl = $siteBaseUrl . '/' . $editId;
                                 }
                                 ?>
-                                <a href="<?= htmlspecialchars($previewUrl) ?>" target="_blank" class="btn btn-blue"><?= getIcon('view') ?> プレビュー</a>
+                                <a href="<?= htmlspecialchars($previewUrl) ?>" target="_blank" class="btn btn-blue preview-btn"><?= getIcon('view') ?> プレビュー</a>
                             <?php endif; ?>
                             <a href="admin.php#pages" class="btn btn-gray"><?= getIcon('arrow_back') ?> <?= t('btn_back_to_list') ?></a>
                         </div>

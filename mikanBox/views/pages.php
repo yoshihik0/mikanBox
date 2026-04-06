@@ -6,7 +6,7 @@
             <h1><?= getIcon('page') ?> <?= t('nav_pages') ?><a href="<?= $helpFile ?>#page-mgmt" target="_blank" class="manual-link"><?= t('admin_help') ?></a></h1>
             <a href="?view=pages&new=1#page-editor" class="btn btn-blue"><?= getIcon('add') ?> <?= t('btn_create_new') ?></a>
         </div>
-        <div class="table-responsive">
+        <div class="table-responsive" id="pages-table-wrap">
         <form id="ssg-build-form" method="post">
         <?= csrfField() ?>
         <table>

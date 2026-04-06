@@ -6,7 +6,7 @@
             <h1><?= getIcon('component') ?> <?= t('nav_design') ?><a href="<?= $helpFile ?>#design-mgmt" target="_blank" class="manual-link"><?= t('admin_help') ?></a></h1>
             <a href="?view=design&new=1#design-editor" class="btn btn-blue"><?= getIcon('add') ?> <?= t('btn_create_new') ?></a>
         </div>
-        <div class="table-responsive <?= ($view === 'components' && ($editId !== null || isset($_GET['new']))) ? 'mb-0' : 'ssg-build-row no-editor' ?>">
+        <div class="table-responsive <?= ($view === 'components' && ($editId !== null || isset($_GET['new']))) ? 'mb-0' : 'ssg-build-row no-editor' ?>" id="comps-table-wrap">
         <table>
             <tr><th class="td-narrow"><?= t('btn_edit') ?></th><th class="td-narrow"><?= t('label_component_id') ?></th><th class="td-narrow"><?= t('label_type') ?></th><th><?= t('label_tag_name') ?></th></tr>
             <?php
