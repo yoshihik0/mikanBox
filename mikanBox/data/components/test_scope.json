@@ -1,7 +1,0 @@
-{
-    "name": "CSSスコープテスト",
-    "html": "<div>\n  <h2>コンポーネント内の見出し</h2>\n  <p class=\"note\">このp.noteのスタイルはこのコンポーネント内だけに適用されるはずです。</p>\n  <ul>\n    <li>リスト項目1</li>\n    <li>リスト項目2</li>\n  </ul>\n</div>",
-    "css": "h2 { color: #f97316; border-bottom: 2px solid #f97316; }\n.note { background: #fef3c7; padding: 8px; border-radius: 4px; font-style: italic; }\nul { background: #f0fdf4; padding: 12px 24px; border-radius: 4px; }\nli { color: #16a34a; }",
-    "is_global": false,
-    "updated_at": "2026-03-25 00:00:00"
-}
