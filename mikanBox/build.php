@@ -24,7 +24,7 @@ echo "Output Directory: $outputDir\n";
 
 $renderer = new MikanBoxRenderer($GLOBALS['mikanbox_settings']);
 $ssg = new MikanBoxSSG($renderer, $outputDir, [
-    'structure' => 'directory'
+    'structure' => $GLOBALS['mikanbox_settings']['ssg_structure'] ?? 'directory'
 ]);
 
 $results = $ssg->build();

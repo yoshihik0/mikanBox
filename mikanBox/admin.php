@@ -513,7 +513,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         require_once __DIR__ . '/lib/ssg.php';
 
         $ssgOpts = [
-            'structure' => $_POST['ssg_structure'] ?? 'directory',
+            'structure' => $_POST['ssg_structure'] ?? ($settings['ssg_structure'] ?? 'directory'),
             'selected_pages' => [] // Build all that are public_static
         ];
 
@@ -600,12 +600,33 @@ skip_post_actions:
 
 // Return JSON response for AJAX saves and skip rendering page
 if (isset($_POST['ajax_request'])) {
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
+    $responseData = [
         'success' => true,
         'message' => $message ?? t('msg_update_success'),
         'editId' => $editId ?? null
-    ], JSON_UNESCAPED_UNICODE);
+    ];
+    // Compute preview URL for page saves so JS can inject/update the preview button
+    if (($_POST['save_action'] ?? '') === 'save_page' && !empty($editId)) {
+        $savedStatus = $_POST['status'] ?? 'draft';
+        $ssgStruct = $settings['ssg_structure'] ?? 'directory';
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $siteDir = dirname(dirname($_SERVER['SCRIPT_NAME']));
+        if ($siteDir === '/' || $siteDir === '.') $siteDir = '';
+        $siteBaseUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . $siteDir;
+        if ($editId === 'index') {
+            $responseData['preview_url'] = $siteBaseUrl . '/';
+        } elseif ($savedStatus === 'public_static') {
+            $ssgDirForUrl = $settings['ssg_dir'] ?? '';
+            $staticRoot = !empty($settings['ssg_root_url'])
+                ? rtrim($settings['ssg_root_url'], '/')
+                : $siteBaseUrl . (($ssgDirForUrl !== '') ? '/' . trim($ssgDirForUrl, '/') : '');
+            $responseData['preview_url'] = $staticRoot . '/' . $editId . ($ssgStruct === 'directory' ? '/' : '.html');
+        } else {
+            $responseData['preview_url'] = $siteBaseUrl . '/' . $editId;
+        }
+    }
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($responseData, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -643,6 +664,30 @@ if (isset($_GET['ajax_editor'])) {
 if (isset($_GET['ajax_media'])) {
     ob_start();
     include __DIR__ . '/views/media.php';
+    $html = ob_get_clean();
+    header('Content-Type: text/html; charset=UTF-8');
+    echo $html;
+    exit;
+}
+
+// --- AJAX Pages List Fragment Endpoint ---
+if (isset($_GET['ajax_pages'])) {
+    $helpFile = (getSystemLanguage() === 'ja') ? 'https://yoshihiko.com/mikanbox/help_ja.html' : 'https://yoshihiko.com/mikanbox/help_en.html';
+    $editId = null;
+    ob_start();
+    include __DIR__ . '/views/pages.php';
+    $html = ob_get_clean();
+    header('Content-Type: text/html; charset=UTF-8');
+    echo $html;
+    exit;
+}
+
+// --- AJAX Comps List Fragment Endpoint ---
+if (isset($_GET['ajax_comps'])) {
+    $helpFile = (getSystemLanguage() === 'ja') ? 'https://yoshihiko.com/mikanbox/help_ja.html' : 'https://yoshihiko.com/mikanbox/help_en.html';
+    $editId = null;
+    ob_start();
+    include __DIR__ . '/views/design.php';
     $html = ob_get_clean();
     header('Content-Type: text/html; charset=UTF-8');
     echo $html;
@@ -841,6 +886,30 @@ function getIcon($name) {
             const newGrid = temp.querySelector('.media-grid');
             const oldGrid = document.querySelector('.media-grid');
             if (newGrid && oldGrid) oldGrid.outerHTML = newGrid.outerHTML;
+        } catch(err) {}
+    }
+
+    async function refreshPageList() {
+        try {
+            const res = await fetch('?ajax_pages=1&view=pages');
+            const html = await res.text();
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+            const newWrap = temp.querySelector('#pages-table-wrap');
+            const oldWrap = document.querySelector('#pages-table-wrap');
+            if (newWrap && oldWrap) oldWrap.outerHTML = newWrap.outerHTML;
+        } catch(err) {}
+    }
+
+    async function refreshCompList() {
+        try {
+            const res = await fetch('?ajax_comps=1&view=design');
+            const html = await res.text();
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+            const newWrap = temp.querySelector('#comps-table-wrap');
+            const oldWrap = document.querySelector('#comps-table-wrap');
+            if (newWrap && oldWrap) oldWrap.outerHTML = newWrap.outerHTML;
         } catch(err) {}
     }
 
@@ -1229,6 +1298,10 @@ function getIcon($name) {
                 if (slot) slot.innerHTML = '';
                 if (navEdit) navEdit.remove();
 
+                // Refresh the list to reflect any changes made in the editor
+                if (type === 'page') refreshPageList();
+                else refreshCompList();
+
                 // URL更新
                 history.pushState({ spaEditor: false }, '', 'admin.php#' + sectionId);
 
@@ -1507,6 +1580,31 @@ function getIcon($name) {
                         const oldIdInput = form.querySelector('input[name="old_id"]');
                         if (oldIdInput && idInput && !oldIdInput.value) {
                             oldIdInput.value = idInput.value;
+                        }
+
+                        // Refresh page/comp list in background after save
+                        if (action === 'save_page') {
+                            refreshPageList();
+                            // Inject or update preview button after first save of a new page
+                            if (json.preview_url) {
+                                const editor = document.getElementById('page-editor');
+                                if (editor) {
+                                    let previewBtn = editor.querySelector('.preview-btn');
+                                    if (!previewBtn) {
+                                        const saveBtn = editor.querySelector('button[value="save_page"]');
+                                        if (saveBtn) {
+                                            previewBtn = document.createElement('a');
+                                            previewBtn.target = '_blank';
+                                            previewBtn.className = 'btn btn-blue preview-btn';
+                                            previewBtn.innerHTML = '<span class="material-symbols-outlined icon">visibility</span> プレビュー';
+                                            saveBtn.insertAdjacentElement('afterend', previewBtn);
+                                        }
+                                    }
+                                    if (previewBtn) previewBtn.href = json.preview_url;
+                                }
+                            }
+                        } else if (action === 'save_comp') {
+                            refreshCompList();
                         }
                     } else {
                         showToast('保存に失敗しました', true);
