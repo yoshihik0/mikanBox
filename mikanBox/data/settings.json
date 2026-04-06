@@ -1,8 +1,8 @@
 {
-    "site_name": "🍊mikanBox Demo",
-    "description": "AI時代のパーツ組み立て型・超軽量CMS",
-    "keywords": "CMS, PHP, Flat-file, AI-friendly",
-    "ogp_image": "mikanBox.jpg",
+    "site_name": "🍊mikanBox",
+    "description": "",
+    "keywords": "",
+    "ogp_image": "",
     "memo": "🍊mikanBoxへようこそ！",
     "ai_prompt": "",
     "registered_categories": "news,test",
@@ -11,5 +11,4 @@
     "last_ssg_dir": "",
     "ssg_structure": "file",
     "ssg_root_url": "",
-    "demo_mode": false
 }
