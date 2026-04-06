@@ -1,0 +1,6 @@
+{
+    "html": "<!-- Global Head Tags -->\r\n<!-- 例: Google Analytics や Web Fonts などの読み込み -->\r\n\r\n<meta charset=\"UTF-8\">\r\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n<meta name=\"description\" content=\"{{DESCRIPTION}}\">\r\n<meta name=\"keywords\" content=\"{{KEYWORDS}}\">\r\n<meta property=\"og:image\" content=\"{{OGP_IMAGE}}\">\r\n<title>{{FULL_TITLE}}<\/title>\r\n{{HEAD_CSS}}\r\n",
+    "css": "\/* リセットCSSおよびサイト全体のグローバルCSS *\/\r\nbody { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; color: #333; background: #fdfdfd; }\r\n.container { max-width: 800px; margin: 0 auto; padding: 20px; }",
+    "is_global": true,
+    "is_wrapper": false
+}

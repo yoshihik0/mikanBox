@@ -1,0 +1,13 @@
+{
+    "title": "404",
+    "category": "",
+    "status": "public_dynamic",
+    "description": "",
+    "keywords": "",
+    "ogp_image": "",
+    "content_md": "<div class=\"notfound-wrap\">\r\n  <div class=\"notfound-icon\">🍊<\/div>\r\n  <div class=\"notfound-code\">404<\/div>\r\n  <p class=\"notfound-msg\">このページは見つかりませんでした。<br>このみかん箱は空です。<\/p>\r\n  <a href=\"\/\" class=\"notfound-btn\">トップへもどる<\/a>\r\n<\/div>",
+    "css": ".notfound-wrap {\r\n  text-align: center;\r\n  padding: 80px 20px;\r\n}\r\n.notfound-icon {\r\n  font-size: 4rem;\r\n  animation: bounce 1.8s ease-in-out infinite;\r\n}\r\n.notfound-code {\r\n  font-size: 6rem;\r\n  font-weight: bold;\r\n  color: #f90;\r\n  line-height: 1;\r\n  margin: 10px 0;\r\n}\r\n.notfound-msg {\r\n  color: #666;\r\n  margin: 20px 0 32px;\r\n  line-height: 1.8;\r\n}\r\n.notfound-btn {\r\n  display: inline-block;\r\n  padding: 10px 28px;\r\n  background: #f90;\r\n  color: #fff;\r\n  border-radius: 999px;\r\n  text-decoration: none;\r\n  font-weight: bold;\r\n}\r\n.notfound-btn:hover {\r\n  background: #e68a00;\r\n}\r\n@keyframes bounce {\r\n  0%, 100% { transform: translateY(0); }\r\n  50% { transform: translateY(-12px); }\r\n}",
+    "wrapper_comp": "_layout",
+    "sort_order": -1,
+    "updated_at": "2026-03-30 17:55:08"
+}

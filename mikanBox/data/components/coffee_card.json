@@ -1,0 +1,6 @@
+{
+    "html": "<a href=\"{{LINK}}\" class=\"card-item\">\r\n  <div class=\"card-badge\">{{POST_MD::BADGE}}<\/div>\r\n  <div class=\"card-body\">\r\n    <h3 class=\"card-title\">{{POST_MD::ITEM}}<\/h3>\r\n    <p class=\"card-catch\">{{POST_MD::CATCH}}<\/p>\r\n    <p class=\"card-price\">¥{{POST_MD::PRICE}}<\/p>\r\n  <\/div>\r\n<\/a>",
+    "css": ".nav-cards { display: flex; flex-wrap: wrap; gap: 16px; }\r\n.card-item { display: flex; flex-direction: column; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; text-decoration: none; color: inherit; transition: box-shadow 0.2s; width: 220px; }\r\n.card-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }\r\n.card-badge { background: #f59e0b; color: #fff; font-size: 0.72rem; font-weight: bold; padding: 2px 8px; align-self: flex-start; border-radius: 0 0 6px 0; }\r\n.card-body { padding: 12px 14px; }\r\n.card-title { font-size: 0.95rem; font-weight: bold; margin: 0 0 4px; }\r\n.card-catch { font-size: 0.8rem; color: #64748b; margin: 0 0 8px; }\r\n.card-price { font-size: 1rem; font-weight: bold; color: #dc2626; margin: 0; }",
+    "is_global": false,
+    "is_wrapper": false
+}
