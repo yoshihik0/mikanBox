@@ -77,7 +77,7 @@ if (!$isLoggedIn && (!$isDemoMode || isset($_GET['login']))) {
 <html lang="<?= getSystemLanguage() ?>">
 <head>
     <meta charset="UTF-8">
-    <title><?= t('admin_login') ?> - mikanBox</title>
+    <title>🍊mikanBox - <?= t('admin_login') ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet">
     <link rel="stylesheet" href="admin.css">
 </head>
@@ -713,7 +713,7 @@ $helpFile = (getSystemLanguage() === 'ja') ? 'https://yoshihiko.com/mikanbox/hel
 <html lang="<?= getSystemLanguage() ?>">
 <head>
     <meta charset="UTF-8">
-    <title><?= t('admin_site_title') ?> - mikanBox</title>
+    <title>🍊mikanBox - <?= t('admin_site_title') ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet">
     <link rel="stylesheet" href="admin.css">
 </head>
