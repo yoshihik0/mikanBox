@@ -12,6 +12,8 @@
     "nav_design": "Design",
     "nav_media": "Media",
     "btn_login": "Login",
+    "btn_demo_back": "Continue without logging in",
+    "hint_demo_login": "Log in with the password to enable saving and all features.",
     "btn_set_password": "Set Password and Login",
     "btn_save": "Save",
     "btn_delete": "Delete",
