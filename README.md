@@ -175,14 +175,12 @@ https://yoursite.com/podcast.xml
 
 **適している用途：** 個人サイト、小規模店舗・企業サイト、イベントページ、ポートフォリオ（目安：50ページ以内）
 
-**スコープ外：** 検索機能、ページネーション、ユーザー管理、お問い合わせフォーム
-
 ---
 
 ## ドキュメント
 
-- [日本語ヘルプ](help_ja.md)
-- [English Help](help_en.md)
+- [日本語ヘルプ](https://yoshihiko.com/mikanbox/help_ja.html)
+- [English Help](https://yoshihiko.com/mikanbox/help_en.html)
 
 ---
 
