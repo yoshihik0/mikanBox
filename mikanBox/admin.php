@@ -582,6 +582,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             }
         }
     }
+    elseif ($_POST['save_action'] === 'generate_mcp_key') {
+        $settings['mcp_api_key'] = bin2hex(random_bytes(24));
+        if (file_put_contents(SETTINGS_FILE, json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT))) {
+            $_SESSION['admin_message'] = t('msg_mcp_key_generated');
+        } else {
+            $_SESSION['admin_message'] = t('err_save_failed');
+        }
+        header('Location: ' . basename(__FILE__) . '#mcp-api-key');
+        exit;
+    }
     elseif ($_POST['save_action'] === 'change_status') {
         $id = $_POST['id'];
         $status = $_POST['status'];
