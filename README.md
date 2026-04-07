@@ -18,7 +18,6 @@
 - **AI生成コードをそのまま配置可能** — 手作業でのデザイン不要
 - **静的（SSG）・動的・混在** — レスポンスの速い静的サイトにもできる
 - **DB Less DB** — ページにデータを埋め込んでAPIで出力。ヘッドレスCMSにも
-- **MCP対応でAIによる運用可能** — MCP対応で、記事作成やデザイン変更などAIが直接作業できる
 - **ポッドキャスト** — RSSを自動生成してポッドキャスト配信も可能
 
 ---
@@ -50,10 +49,12 @@
 ### 2つの運用スタイル
 
 **継続的なコンテンツ**（ブログ、サービスページなど）
+
 - Markdownで書いて、画像はファイル名だけで参照
 - 継続更新・コンテンツの再利用に向いた構造
 
 **短期ページ**（ランディングページ、イベントページなど）
+
 - AIが生成したHTML/CSS/JSをそのままペーストして公開
 - 手作業でのデザイン作業が不要
 
@@ -70,12 +71,12 @@
 
 ### ページの公開ステータス
 
-| ステータス | 動作 |
-|:---|:---|
-| 下書き | 非公開（管理者のみ閲覧可） |
-| 公開（動的） | PHPで動的に配信 |
-| 公開（静的） | 静的HTMLとして書き出し |
-| DB | ページ自体は非公開。`{{DATAROW}}` データをAPIとして公開 |
+| ステータス   | 動作                                                    |
+| :----------- | :------------------------------------------------------ |
+| 下書き       | 非公開（管理者のみ閲覧可）                              |
+| 公開（動的） | PHPで動的に配信                                         |
+| 公開（静的） | 静的HTMLとして書き出し                                  |
+| DB           | ページ自体は非公開。`{{DATAROW}}` データをAPIとして公開 |
 
 ---
 
@@ -88,7 +89,6 @@
 - コードベースがコンパクトで構造が単純なため、AIが仕様を理解しやすい
 - AIが仕様を理解しやすいので、説明不要で、専用のデザインを簡単に作らせられる
 - AIが仕様を理解しやすいので、機能の追加も簡単にできる。プラグイン不要
-- MCP対応で、AIに指示するだけで、記事の作成やデザイン変更などの作業ができる
 
 ---
 
@@ -145,6 +145,7 @@ https://yoursite.com/podcast.xml
 ```
 
 必須フィールド：
+
 ```
 {{DATA:AUDIO_FILE:GHOST}}episode01.mp3{{/DATA}}
 ```
@@ -155,10 +156,10 @@ https://yoursite.com/podcast.xml
 
 ## サイトマップ・RSS
 
-| URL | 内容 |
-|:---|:---|
-| `/sitemap.xml` | XMLサイトマップ |
-| `/rss.xml` | RSSフィード |
+| URL            | 内容                                       |
+| :------------- | :----------------------------------------- |
+| `/sitemap.xml` | XMLサイトマップ                            |
+| `/rss.xml`     | RSSフィード                                |
 | `/podcast.xml` | ポッドキャスト用RSS（podcastカテゴリのみ） |
 
 ---
@@ -202,4 +203,4 @@ A file-based CMS for building small-to-medium websites (up to ~50 pages) with no
 
 **Key features:** Modeless single-screen UI · Markdown + HTML/CSS/JS · Scoped CSS per component · AI-generated code works as-is · Static site generation (SSG) · DB Less DB (embedded data + API) · Podcast RSS
 
-[Full documentation in English →](help_en.md)
+[Full documentation in English →](README_en.md)
