@@ -2,22 +2,23 @@
 
 **AI-era, parts-assembly, ultra-lightweight CMS**
 
-🍊mikanBox is a file-based CMS designed to build and operate small-to-medium websites (a few to a few dozen pages) in the fastest and most secure way possible. No database required — just upload to any PHP-enabled server and you're ready to go.
+🍊mikanBox is a file-based CMS designed to build and operate small-to-medium websites (a few to a few dozen pages) in the fastest and most secure way possible. No database required. It works simply by placing it on a PHP-enabled server.
 
 ---
 
 ## Features
 
-- **File-based (JSON)** — No database required. Upload to any PHP-enabled server
-- **Modeless UI** — No page transitions; all work done on a single screen for a snappy experience
-- **Markdown support** — Easily edit and reuse content
-- **Component structure** — Reusable and reorderable building blocks
-- **Per-component scoped CSS** — Write CSS in small scopes without worrying about interference
-- **AI-generated code works as-is** — No manual design work needed
-- **Static (SSG), dynamic, or mixed** — Can be published as a fast static site
-- **DB Less DB** — Embed data in pages and output via API for headless CMS use
+- **File-based (JSON)** — No database required. Just place on a PHP-enabled server
+- **Modeless UI** — No page transitions; all work completed on a single screen for a snappy experience
+- **Markdown Support** — Easily edit and reuse content
+- **Component Structure** — Reusable and reorderable building blocks (parts)
+- **Per-component Scoped CSS** — Write CSS in small scopes without worrying about interference
+- **AI-generated Code Works As-Is** — No manual design work needed
+- **AI Agent Integration (MCP)** — AI understands the site structure and directly reads/writes files
+- **Multimodal AI Support** — AI generates images and sends/places them directly in the media folder
+- **Static (SSG), Dynamic, or Mixed** — Can be published as a high-speed static site
+- **DB Less DB** — Embed data in pages and output via API. Can also be used as a headless CMS
 - **Podcast** — Auto-generate RSS for podcast distribution
-- **MCP support** — Connect with AI tools like Claude via MCP for automated operations
 
 ---
 
@@ -36,7 +37,7 @@
 ## Installation
 
 1. Upload the `mikanBox` folder and `index.php` to your server
-2. For security, it is recommended to rename the `mikanBox` folder to something unique (if renamed, also update `$core_dir` at the top of `index.php` to match)
+2. For security, we recommend renaming the `mikanBox` folder to a name of your choice (if renamed, also update the `$core_dir` variable at the top of `index.php` to match)
 3. Access `mikanBox/admin.php` to set your admin password
 
 That's all.
@@ -47,52 +48,59 @@ That's all.
 
 ### Two Operating Styles
 
-**Ongoing content** (blogs, service pages, etc.)
+**Continuous Content** (blogs, service pages, etc.)
 
 - Write in Markdown and reference images by filename only
-- Well-suited for continuous updates and content reuse
+- Well-suited for ongoing updates and content reuse
 
-**Short-term pages** (landing pages, event pages, etc.)
+**Short-term Pages** (landing pages, event pages, etc.)
 
-- Paste AI-generated HTML/CSS/JS directly into the content field and publish
-- No manual design work needed
+- Paste AI-generated HTML/CSS/JS directly to publish
+- Elimination of manual design work
 
 ### Design (Components)
 
-- **Page components** — Wrappers that define the overall page layout
-- **Parts components** — Reusable parts embedded in pages or other components
+- **Page Components** — Wrappers that define the overall layout of the page
+- **Parts Components** — Reusable parts embedded in pages or other components
 
-Components have HTML and scoped CSS, and can be nested.
+Components contain HTML and scoped CSS, and can be nested.
 
 ### Static Site Generation (SSG)
 
-Export all pages as static HTML with a single click. Static and dynamic pages can coexist.
+Export all pages as static HTML with a single click. You can also mix static and dynamic pages.
 
 ### Page Publish Status
 
 | Status | Behavior |
-| :--- | :--- |
+| :------- | :------- |
 | Draft | Private (admin only) |
 | Public (Dynamic) | Served dynamically via PHP |
 | Public (Static) | Exported as static HTML |
-| DB | Page itself is private; `{{DATAROW}}` data is published as an API |
+| DB | Page itself is private; exposes data as an API |
 
 ---
 
 ## AI Integration
 
-🍊mikanBox is designed with AI tools in mind.
+🍊mikanBox is designed with a strong focus on compatibility with AI tools.
 
-- AI-generated HTML pages can be pasted directly into the content field and published
-- Using `{{EXT_MD:url}}` to load external Markdown files (e.g., from GitHub), you can keep your site updated simply by "instructing an AI agent to update the repository" — without ever opening the admin panel
+- AI-generated HTML pages can be pasted directly into the content field for instant publishing
 - The codebase is compact and simply structured, making it easy for AI to understand the specifications
-- Because AI can easily understand the specs, you can have it create custom designs with no explanation needed
-- New features can be added easily by having AI rewrite the source — no plugins required
-- **MCP (Model Context Protocol) support** — AI tools like Claude can directly operate mikanBox to create and update pages, manage components, and build the static site
+- MCP support allows AI agents to understand the site structure and directly edit/update contents or components
+- Multimodal input (like images) from AI can be directly received, automating uploads to the media folder and placement on pages
+- Simple specifications mean AI can be tasked to create custom designs and plugin-like components without needing detailed explanations
+
+### MCP Support
+
+mikanBox supports the Model Context Protocol (MCP), providing a bridge for AI agents to safely interact with server files. This allows for page creation, design adjustments, and component building through AI conversation alone, without the user ever needing to touch the admin panel.
 
 ---
 
 ## Data Embedding & API
+
+### Loading Other Pages or External Markdown
+
+You can load other pages or Markdown files from external sites like GitHub. This is useful for embedding frequently updated sections (like news) into complex pages.
 
 ### Embed Data in a Page
 
@@ -100,7 +108,7 @@ Export all pages as static HTML with a single click. Static and dynamic pages ca
 {{DATA:price:GHOST}}4800{{/DATA}}
 ```
 
-Reference from same page: `{{POST_MD::price}}`
+Reference from the same page: `{{POST_MD::price}}`  
 Reference from another page: `{{POST_MD:pageID:price}}`
 
 ### Table-style Data (DB Less DB)
@@ -116,23 +124,15 @@ Reference: `{{POST_MD:pageID#row1:name}}`
 
 ### Publish as an API
 
-Set a page's status to **DB** to expose its `{{DATAROW}}` data as a public JSON API.
+Set a page's status to **DB** to expose its data externally as a JSON API.
 
 ```
 https://yoursite.com/api/pageID
 ```
 
-### Load External Markdown
-
-Load Markdown files from GitHub or other external sources.
-
-```
-{{EXT_MD:https://raw.githubusercontent.com/user/repo/main/file.md}}
-```
-
 ### CSV Import
 
-A built-in tool in the Site menu converts CSV files (from Excel, etc.) into `{{DATAROW}}` format in bulk.
+The site menu includes a built-in feature to convert CSV files (from Excel, etc.) into `{{DATAROW}}` format in bulk.
 
 ---
 
@@ -144,39 +144,33 @@ Set a page's category to `podcast` and embed an audio file to auto-generate an R
 https://yoursite.com/podcast.xml
 ```
 
-Required field:
-
-```
-{{DATA:AUDIO_FILE:GHOST}}episode01.mp3{{/DATA}}
-```
-
-Then simply submit that feed to Apple Podcasts, Spotify, Amazon Music, and others.
+Then simply submit that feed to Apple Podcasts, Spotify, Amazon Music, or other platforms.
 
 ---
 
 ## Sitemap · RSS
 
 | URL | Content |
-| :--- | :--- |
-| `/sitemap.xml` | XML sitemap |
-| `/rss.xml` | RSS feed |
-| `/podcast.xml` | Podcast RSS (podcast category only) |
+| :---| :---|
+| `/sitemap.xml` | XML Sitemap |
+| `/rss.xml`     | RSS Feed |
+| `/podcast.xml` | Podcast RSS (Includes only "podcast" category) |
 
 ---
 
 ## Security
 
-- No database means no SQL injection attack surface
-- Small codebase with no plugin dependencies
-- SSG keeps PHP files and JSON data out of the public directory, minimizing the risk of tampering
+- Since no database is used, there is no attack surface for SQL injection
+- Small codebase with no dependency on plugins
+- By operating locally and uploading static files, you can keep PHP and JSON files out of the public directory, minimizing tampering risks
 - Renaming the admin directory makes the URL harder to guess
-- `.htaccess` restricts direct access to admin files
+- `.htaccess` restricts direct access to management files
 
 ---
 
 ## Intended Use & Scale
 
-**Best suited for:** Personal sites, small business or company sites, event pages, portfolios (guideline: up to 50 pages)
+**Ideal for:** Personal sites, small business/corporate sites, event pages, and portfolios (Guideline: up to 50 pages)
 
 ---
 
