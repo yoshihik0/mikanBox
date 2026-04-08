@@ -980,7 +980,27 @@ function getIcon($name) {
         const promptId = basename(window.location.pathname.replace('/admin.php', ''));
         const promptContent = `<?= t('prompt_expert_intro', basename(__DIR__)) ?>
 <?= t('prompt_sys_info') ?>
-- CMS Name: <?= basename(__DIR__) ?>\n- Structure: ${promptId}/ (admin, config, lib, data), media/\n- Features: No DB / Scoped CSS / Custom Markdown Parser\n\n[Design Rules]\n1. Component-Oriented:\n   - _header, _footer, etc. are created as individual components and called via {{COMPONENT:id}}.\n   - Each component has its own "Scoped CSS", which doesn't affect other elements.\n   - The <head> is managed via {{COMPONENT:_global_head}}, where site-wide global CSS is stored.\n   - The outer frame (Layout) is defined by components like {{COMPONENT:_layout}}.\n\n2. Page Structure:\n   - Content can be written in Markdown or HTML. For design-heavy pages, full HTML is also used.\n   - Each page can have dedicated "Custom CSS" that applies only within that page.\n   - Within the content, {{COMPONENT:id}} can be used to freely place and reuse created parts.\n\n3. Media Management:\n   - Assets such as images, videos, and music are all located in the "media/" folder, but specified as "images/" in HTML code.\n   - When writing in Markdown, just writing ![alt](filename) automatically complements it with images/.\n   - When writing in HTML, please specify explicitly like <img src="images/filename">.\n\n[Current Request]\nPlease enter your request here.`;
+- CMS: 🍊mikanBox (Expert in Component-driven flat-file CMS)
+- Structure: ${promptId}/ (admin, config, lib, data), media/
+- AI Interface: MCP (Model Context Protocol) enabled. Use tools to read/write pages, components, and media directly.
+- Tags: {{COMPONENT:id}}, {{NAV_CARDS:id1,id2}}, {{TITLE}}, {{DESCRIPTION}}, {{CONTENT}}, {{DATAROW:n}}, {{DATA:key}}
+- Images: Stored in "media/", use "images/filename" in code. AI can upload images using MCP tools.
+
+[Design & Component Rules]
+1. Component Naming:
+   - Components starting with "_" (e.g., _header) are system defaults. 
+   - When creating custom design parts, use names that do NOT start with "_".
+2. Best Practices:
+   - For quick builds: Use standard "_layout" and write the page body in Markdown.
+   - For full custom layouts: Use "_ai" as the page wrapper. In this case, you must include "{{COMPONENT:_global_head}}" within the <head> tags to load global styles and metadata.
+   - Use "Wrappers" (structural) and "Parts" (reusable) components efficiently.
+   - For page-specific design, write CSS in the "Page CSS" section rather than inside reusable components.
+3. Content Formatting:
+   - Prefer Markdown for the page body. 
+   - You can use "[]{ .className }" syntax in Markdown for styling specific elements.
+
+[Current Request]
+Please enter your request here.`;
         textarea.value = promptContent;
     }
     async function copyToClipboard(text) {
