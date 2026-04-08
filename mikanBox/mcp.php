@@ -143,6 +143,18 @@ function toolDefinitions() {
             'inputSchema' => $noProps,
         ],
         [
+            'name' => 'upload_media',
+            'description' => '画像をメディアフォルダにアップロードする。',
+            'inputSchema' => [
+                'type' => 'object',
+                'properties' => [
+                    'filename' => ['type' => 'string', 'description' => 'ファイル名（例: "sample.jpg"）。media/ フォルダ内に保存されます。'],
+                    'content_base64' => ['type' => 'string', 'description' => 'Base64エンコードされたファイル内容'],
+                ],
+                'required' => ['filename', 'content_base64']
+            ],
+        ],
+        [
             'name' => 'build_ssg',
             'description' => 'public_static のページをすべて静的HTMLとしてビルドする。',
             'inputSchema' => $noProps,
@@ -282,6 +294,28 @@ function toolGetSettings() {
     return $settings;
 }
 
+function toolUploadMedia($args) {
+    if (empty($args['filename']))       return ['error' => 'filename は必須です。'];
+    if (empty($args['content_base64'])) return ['error' => 'content_base64 は必須です。'];
+
+    $filename = basename($args['filename']);
+    $content  = base64_decode($args['content_base64']);
+
+    if ($content === false) return ['error' => 'Base64のデコードに失敗しました。'];
+
+    if (!is_dir(MEDIA_DIR)) {
+        if (!mkdir(MEDIA_DIR, 0777, true)) {
+            return ['error' => 'メディアフォルダの作成に失敗しました。'];
+        }
+    }
+
+    $dest = MEDIA_DIR . '/' . $filename;
+    if (file_put_contents($dest, $content)) {
+        return ['success' => true, 'filename' => $filename, 'message' => "ファイル '{$filename}' をアップロードしました。"];
+    }
+    return ['error' => 'ファイルの保存に失敗しました。許可属性（パーミッション）を確認してください。'];
+}
+
 function toolBuildSSG($settings) {
     require_once __DIR__ . '/lib/renderer.php';
     require_once __DIR__ . '/lib/ssg.php';
@@ -332,7 +366,7 @@ function executeTool($name, $args, $settings) {
     $GLOBALS['mcp_settings'] = $settings;
 
     // デモモード中は書き込み系ツールをブロック
-    $writeTools = ['create_page', 'update_page', 'delete_page', 'update_component', 'build_ssg'];
+    $writeTools = ['create_page', 'update_page', 'delete_page', 'update_component', 'upload_media', 'build_ssg'];
     if (!empty($settings['demo_mode']) && in_array($name, $writeTools)) {
         return ['error' => 'デモモードのため保存できません。'];
     }
@@ -346,6 +380,7 @@ function executeTool($name, $args, $settings) {
         'list_components'  => toolListComponents(),
         'get_component'    => toolGetComponent($args['id'] ?? ''),
         'update_component' => toolUpdateComponent($args),
+        'upload_media'     => toolUploadMedia($args),
         'get_settings'     => toolGetSettings(),
         'build_ssg'        => toolBuildSSG($settings),
         default            => ['error' => "ツール '{$name}' は存在しません。"]
