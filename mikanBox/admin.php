@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
                 $siteRoot = dirname(CORE_DIR);
                 $htaccessPath = $siteRoot . '/.htaccess';
                 if (!file_exists($htaccessPath)) {
-                    $htaccessContent = "DirectoryIndex index.php\n\n<IfModule mod_rewrite.c>\n    RewriteEngine On\n    RewriteCond %{REQUEST_FILENAME} -f\n    RewriteRule ^ - [L]\n    RewriteRule ^(media|" . basename(CORE_DIR) . ")(/|$) - [L]\n    RewriteRule ^ index.php [L,QSA]\n</IfModule>\n";
+                    $htaccessContent = "DirectoryIndex index.php\n\n<IfModule mod_rewrite.c>\n    RewriteEngine On\n    RewriteCond %{REQUEST_FILENAME} -f [OR]\n    RewriteCond %{REQUEST_FILENAME} -d\n    RewriteRule ^ - [L]\n    RewriteRule ^ index.php [L,QSA]\n</IfModule>\n";
                     @file_put_contents($htaccessPath, $htaccessContent);
                 }
                 $_SESSION['admin_logged_in'] = true;
@@ -583,12 +583,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         }
     }
     elseif ($_POST['save_action'] === 'generate_mcp_key') {
-        $settings['mcp_api_key'] = bin2hex(random_bytes(24));
-        if (file_put_contents(SETTINGS_FILE, json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT))) {
-            $_SESSION['admin_message'] = t('msg_mcp_key_generated');
-        } else {
-            $_SESSION['admin_message'] = t('err_save_failed');
+        $newKey = bin2hex(random_bytes(24));
+        $settings['mcp_api_key'] = $newKey;
+        $saved = (bool)file_put_contents(SETTINGS_FILE, json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        if (isset($_POST['ajax_request'])) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success'     => $saved,
+                'message'     => $saved ? t('msg_mcp_key_generated') : t('err_save_failed'),
+                'mcp_api_key' => $saved ? $newKey : '',
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
         }
+        $_SESSION['admin_message'] = $saved ? t('msg_mcp_key_generated') : t('err_save_failed');
         header('Location: ' . basename(__FILE__) . '#mcp-api-key');
         exit;
     }
@@ -1573,7 +1580,7 @@ function getIcon($name) {
             const actionInput = (submitter && submitter.name === 'save_action') ? submitter : form.querySelector('input[name="save_action"]');
             const action = actionInput ? actionInput.value : '';
             
-            const ajaxActions = ['save_page', 'save_comp', 'save_settings', 'save_prompt', 'save_memo', 'ssg_save_settings'];
+            const ajaxActions = ['save_page', 'save_comp', 'save_settings', 'save_prompt', 'save_memo', 'ssg_save_settings', 'generate_mcp_key'];
             
             if (ajaxActions.includes(action)) {
                 e.preventDefault();
@@ -1592,6 +1599,10 @@ function getIcon($name) {
                         const json = await res.json().catch(()=>({}));
                         window.isDirty = false;
                         showToast(json.message || '<?= t('msg_update_success') ?? '保存しました' ?>');
+                        if (action === 'generate_mcp_key' && json.mcp_api_key) {
+                            const keyDisplay = document.getElementById('mcp-key-display');
+                            if (keyDisplay) keyDisplay.value = json.mcp_api_key;
+                        }
 
                         // Language change requires full reload to apply server-side translations
                         if (action === 'save_settings' && formData.has('system_lang')) {
