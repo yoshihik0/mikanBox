@@ -41,6 +41,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
         if (strlen($pass) < 4) {
             $loginError = t('err_password_chars');
         } else {
+            // Populate defaults on first-time setup
+            if (empty($settings)) {
+                $settings = [
+                    'site_name'   => '🍊mikanBox',
+                    'description' => '',
+                    'keywords'    => '',
+                    'memo'        => 'Welcome to 🍊mikanBox!',
+                    'system_lang' => '',
+                    'ssg_structure' => 'file'
+                ];
+            }
             $settings['password_hash'] = password_hash($pass, PASSWORD_DEFAULT);
             if (file_put_contents(SETTINGS_FILE, json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT))) {
                 // 初回セットアップ時に .htaccess が未生成であれば自動作成
