@@ -426,6 +426,11 @@ if (php_sapi_name() === 'cli') {
         exit;
     }
 
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        http_response_code(405);
+        exit;
+    }
+
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         http_response_code(405);
         echo json_encode(mcpErrorResponse(null, -32700, 'POST リクエストのみ受け付けます。'), JSON_UNESCAPED_UNICODE);
@@ -472,6 +477,8 @@ if (php_sapi_name() === 'cli') {
         $provided = trim($m[1]);
     } elseif (!empty($apiKeyHeader)) {
         $provided = trim($apiKeyHeader);
+    } elseif (!empty($_GET['api_key'])) {
+        $provided = trim($_GET['api_key']);
     }
 
     if (!hash_equals($apiKey, $provided)) {
