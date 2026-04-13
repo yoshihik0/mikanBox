@@ -123,6 +123,21 @@ function toolDefinitions() {
             ],
         ],
         [
+            'name' => 'create_component',
+            'description' => '新規コンポーネントを作成する。',
+            'inputSchema' => [
+                'type' => 'object',
+                'properties' => [
+                    'id'         => ['type' => 'string',  'description' => 'コンポーネントID（英数字・ハイフン・アンダースコア。先頭に _ でグローバル系）'],
+                    'html'       => ['type' => 'string',  'description' => 'HTMLテンプレート'],
+                    'css'        => ['type' => 'string',  'description' => 'CSS'],
+                    'is_global'  => ['type' => 'boolean', 'description' => 'CSSをグローバル適用するか（trueでスコープなし）'],
+                    'is_wrapper' => ['type' => 'boolean', 'description' => 'レイアウトラッパーかどうか'],
+                ],
+                'required' => ['id']
+            ],
+        ],
+        [
             'name' => 'update_component',
             'description' => '既存コンポーネントを更新する。',
             'inputSchema' => [
@@ -271,6 +286,27 @@ function toolGetComponent($id) {
     return $d;
 }
 
+function toolCreateComponent($args) {
+    $id = $args['id'] ?? '';
+    if (empty($id)) return ['error' => 'id は必須です。'];
+
+    if (loadData(COMPONENTS_DIR, $id) !== null) {
+        return ['error' => "コンポーネント '{$id}' はすでに存在します。更新する場合は update_component を使ってください。"];
+    }
+
+    $data = [
+        'html'       => $args['html']       ?? '',
+        'css'        => $args['css']        ?? '',
+        'is_global'  => $args['is_global']  ?? false,
+        'is_wrapper' => $args['is_wrapper'] ?? false,
+    ];
+
+    if (saveData(COMPONENTS_DIR, $id, $data)) {
+        return ['success' => true, 'id' => $id, 'message' => "コンポーネント '{$id}' を作成しました。"];
+    }
+    return ['error' => 'コンポーネントの保存に失敗しました。'];
+}
+
 function toolUpdateComponent($args) {
     $id = $args['id'] ?? '';
     if (empty($id)) return ['error' => 'id は必須です。'];
@@ -366,7 +402,7 @@ function executeTool($name, $args, $settings) {
     $GLOBALS['mcp_settings'] = $settings;
 
     // デモモード中は書き込み系ツールをブロック
-    $writeTools = ['create_page', 'update_page', 'delete_page', 'update_component', 'upload_media', 'build_ssg'];
+    $writeTools = ['create_page', 'update_page', 'delete_page', 'create_component', 'update_component', 'upload_media', 'build_ssg'];
     if (!empty($settings['demo_mode']) && in_array($name, $writeTools)) {
         return ['error' => 'デモモードのため保存できません。'];
     }
@@ -379,6 +415,7 @@ function executeTool($name, $args, $settings) {
         'delete_page'      => toolDeletePage($args['id'] ?? ''),
         'list_components'  => toolListComponents(),
         'get_component'    => toolGetComponent($args['id'] ?? ''),
+        'create_component' => toolCreateComponent($args),
         'update_component' => toolUpdateComponent($args),
         'upload_media'     => toolUploadMedia($args),
         'get_settings'     => toolGetSettings(),
