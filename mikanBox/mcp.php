@@ -131,8 +131,8 @@ function toolDefinitions() {
                     'id'         => ['type' => 'string',  'description' => 'コンポーネントID（英数字・ハイフン・アンダースコア。先頭に _ でグローバル系）'],
                     'html'       => ['type' => 'string',  'description' => 'HTMLテンプレート'],
                     'css'        => ['type' => 'string',  'description' => 'CSS'],
-                    'is_global'  => ['type' => 'boolean', 'description' => 'CSSをグローバル適用するか（trueでスコープなし）'],
-                    'is_wrapper' => ['type' => 'boolean', 'description' => 'レイアウトラッパーかどうか'],
+                    'is_global'  => ['type' => 'boolean', 'description' => 'CSSをグローバル適用するか。falseだとCSSが自動スコープされコンポーネント外の要素に当たらなくなる。ページコンテンツのDOMを走査するJS/CSSを持つ場合はtrue必須。'],
+                    'is_wrapper' => ['type' => 'boolean', 'description' => 'レイアウトラッパーかどうか（{{CONTENT}}を含むコンポーネントの場合true）'],
                 ],
                 'required' => ['id']
             ],
@@ -146,8 +146,8 @@ function toolDefinitions() {
                     'id'         => ['type' => 'string',  'description' => '更新対象のコンポーネントID'],
                     'html'       => ['type' => 'string',  'description' => 'HTMLテンプレート'],
                     'css'        => ['type' => 'string',  'description' => 'CSS'],
-                    'is_global'  => ['type' => 'boolean', 'description' => 'CSSをグローバル適用するか（trueでスコープなし）'],
-                    'is_wrapper' => ['type' => 'boolean', 'description' => 'レイアウトラッパーかどうか'],
+                    'is_global'  => ['type' => 'boolean', 'description' => 'CSSをグローバル適用するか。falseだとCSSが自動スコープされコンポーネント外の要素に当たらなくなる。ページコンテンツのDOMを走査するJS/CSSを持つ場合はtrue必須。'],
+                    'is_wrapper' => ['type' => 'boolean', 'description' => 'レイアウトラッパーかどうか（{{CONTENT}}を含むコンポーネントの場合true）'],
                 ],
                 'required' => ['id']
             ],

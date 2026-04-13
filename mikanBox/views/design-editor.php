@@ -36,6 +36,7 @@
                         <label class="checkbox-label checkbox-flex">
                             <input type="checkbox" name="is_wrapper" value="1" <?= !empty($editData['is_wrapper']) ? 'checked' : '' ?>> <?= t('label_use_wrapper') ?>
                         </label>
+                        <small class="sub-text sub-text-indent"><?= t('use_wrapper_hint') ?></small>
                     </div>
                 </div>
                 

@@ -46,6 +46,7 @@
     "label_html": "HTML",
     "label_scope_css": "CSSをスコープ化する (他の部品への影響を防止)",
     "label_use_wrapper": "ページコンポーネントとして使用する",
+    "use_wrapper_hint": "ページ全体のレイアウトを担うコンポーネントに使用します。{{CONTENT}} タグを含め、ページ本文の出力位置を指定してください。",
     "label_site_name": "サイト名",
     "label_site_desc": "サイトの共通概要",
     "label_site_keywords": "共通キーワード",

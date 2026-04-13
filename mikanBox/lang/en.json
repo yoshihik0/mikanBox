@@ -45,6 +45,7 @@
     "label_html": "HTML",
     "label_scope_css": "Scope CSS (Prevent leaking to other parts)",
     "label_use_wrapper": "Use as a Page Component (Wrapper)",
+    "use_wrapper_hint": "Use for components that define the overall page layout. Include {{CONTENT}} to specify where the page body will be inserted.",
     "label_site_name": "Site Name",
     "label_site_desc": "Site Description",
     "label_site_keywords": "Common Keywords",
