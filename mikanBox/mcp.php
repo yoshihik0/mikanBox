@@ -61,14 +61,14 @@ function toolDefinitions() {
             'inputSchema' => [
                 'type' => 'object',
                 'properties' => [
-                    'id'           => ['type' => 'string',  'description' => 'スラッグ/ID（英数字・ハイフン・アンダースコア・スラッシュ）'],
+                    'id'           => ['type' => 'string',  'description' => 'スラッグ/ID（英数字・ハイフン・アンダースコア・スラッシュ）。スラッシュでサブディレクトリ構造になる（例: "news/2024"）'],
                     'title'        => ['type' => 'string',  'description' => 'ページタイトル'],
                     'content_md'   => ['type' => 'string',  'description' => 'ページ本文（MarkdownまたはHTML）'],
                     'status'       => ['type' => 'string',  'description' => 'ステータス: draft / public_dynamic / public_static', 'enum' => ['draft', 'public_dynamic', 'public_static']],
                     'description'  => ['type' => 'string',  'description' => 'メタ description'],
                     'keywords'     => ['type' => 'string',  'description' => 'メタ keywords'],
                     'category'     => ['type' => 'string',  'description' => 'カテゴリ'],
-                    'wrapper_comp' => ['type' => 'string',  'description' => 'レイアウトコンポーネントID（省略時: _layout）'],
+                    'wrapper_comp' => ['type' => 'string',  'description' => 'レイアウトコンポーネントID（省略時: _layout）。{{CONTENT}} タグを含むコンポーネントを指定する'],
                     'sort_order'   => ['type' => 'integer', 'description' => '表示順（数値が小さいほど上位）'],
                 ],
                 'required' => ['id', 'title']
@@ -87,7 +87,7 @@ function toolDefinitions() {
                     'description'  => ['type' => 'string'],
                     'keywords'     => ['type' => 'string'],
                     'category'     => ['type' => 'string'],
-                    'wrapper_comp' => ['type' => 'string'],
+                    'wrapper_comp' => ['type' => 'string',  'description' => 'レイアウトコンポーネントID。{{CONTENT}} タグを含むコンポーネントを指定する'],
                     'sort_order'   => ['type' => 'integer'],
                     'css'          => ['type' => 'string'],
                     'ogp_image'    => ['type' => 'string'],
