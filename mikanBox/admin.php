@@ -1,4 +1,5 @@
 <?php
+ob_start();
 // ==========================================
 // mikanBox Admin Panel (admin.php)
 // ==========================================
@@ -83,6 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
 // Show login screen if not logged in
 // In demo mode, allow access without login (unless ?login=1 is requested for full access)
 if (!$isLoggedIn && (!$isDemoMode || isset($_GET['login']))) {
+    if (ob_get_length()) ob_clean();
 ?>
 <!DOCTYPE html>
 <html lang="<?= getSystemLanguage() ?>">
@@ -664,6 +666,7 @@ if (isset($_POST['ajax_request'])) {
         }
     }
     header('Content-Type: application/json; charset=utf-8');
+    if (ob_get_length()) ob_clean();
     echo json_encode($responseData, JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -692,9 +695,10 @@ if (isset($_GET['ajax_editor'])) {
     } elseif ($view === 'components') {
         include __DIR__ . '/views/design-editor.php';
     }
-    $html = ob_get_clean();
+    $htmlFromFragment = ob_get_clean();
+    if (ob_get_length()) ob_clean(); // Clean the top-level buffer
     header('Content-Type: text/html; charset=UTF-8');
-    echo $html;
+    echo $htmlFromFragment;
     exit;
 }
 
@@ -736,6 +740,7 @@ if (isset($_GET['ajax_comps'])) {
 // Admin Panel HTML
 // ==========================================
 $helpFile = (getSystemLanguage() === 'ja') ? 'https://yoshihiko.com/mikanbox/help_ja.html' : 'https://yoshihiko.com/mikanbox/help_en.html';
+if (ob_get_length()) ob_clean();
 ?>
 <!DOCTYPE html>
 <html lang="<?= getSystemLanguage() ?>">

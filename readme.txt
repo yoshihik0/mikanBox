@@ -15,4 +15,3 @@ https://yoshihiko.com/mikanbox/help_ja.html
 
 English Help
 https://yoshihiko.com/mikanbox/help_en.html
-

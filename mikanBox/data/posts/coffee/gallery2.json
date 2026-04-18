@@ -1,0 +1,13 @@
+{
+    "title": "Espresso Machine",
+    "category": "gallery_item,sample",
+    "status": "public_static",
+    "description": "こだわりのエスプレッソマシン。",
+    "keywords": "",
+    "ogp_image": "gallery2.jpg",
+    "content_md": "<section class=\"section\">\r\n<div class=\"container text-center\">\r\n\r\n## Espresso Machine\r\n\r\n![エスプレッソマシン](gallery2.jpg)\r\n\r\n{{DATA:CATCH}}最高の抽出を引き出すエスプレッソマシン。{{\/DATA}}\r\n\r\n{{DATA:ITEM:GHOST}}Espresso{{\/DATA}}\r\n{{DATA:PRICE:GHOST}}350円{{\/DATA}}\r\n{{DATA:BADGE:GHOST}}定番{{\/DATA}}\r\n\r\n{{DATAROW:MENU}}\r\n{{DATA:ITEM}}Espresso{{\/DATA}}\r\n{{DATA:PRICE}}350円{{\/DATA}}\r\n{{\/DATAROW}}\r\n\r\nPhoto by {{DATA:name}}John{{\/DATA}}\r\n{{DATA:date:GHOST}}2025-05-02{{\/DATA}}\r\n\r\n<\/div>\r\n<\/section>\r\n",
+    "css": "",
+    "wrapper_comp": "coffee_layout",
+    "sort_order": 22,
+    "updated_at": "2026-03-08 16:30:00"
+}

@@ -1,0 +1,13 @@
+{
+    "title": "Coffee Beans",
+    "category": "gallery_item,sample",
+    "status": "public_static",
+    "description": "自家焙煎のコーヒー豆。",
+    "keywords": "",
+    "ogp_image": "gallery3.jpg",
+    "content_md": "<section class=\"section\">\r\n<div class=\"container text-center\">\r\n\r\n## Coffee Beans\r\n\r\n![コーヒー豆](gallery3.jpg)\r\n\r\n{{DATA:CATCH}}新鮮な状態で焙煎したこだわりの豆です。{{\/DATA}}\r\n\r\n{{DATA:ITEM:GHOST}}Americano{{\/DATA}}\r\n{{DATA:PRICE:GHOST}}550円{{\/DATA}}\r\n{{DATA:BADGE:GHOST}}入荷{{\/DATA}}\r\n\r\n{{DATAROW:MENU}}\r\n{{DATA:ITEM}}Americano{{\/DATA}}\r\n{{DATA:PRICE}}550円{{\/DATA}}\r\n{{\/DATAROW}}\r\n\r\nPhoto by {{DATA:name}}Geoge{{\/DATA}}\r\n{{DATA:date:GHOST}}2025-05-03{{\/DATA}}\r\n\r\n<\/div>\r\n<\/section>\r\n",
+    "css": "",
+    "wrapper_comp": "coffee_layout",
+    "sort_order": 23,
+    "updated_at": "2026-03-08 16:30:00"
+}

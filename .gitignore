@@ -1,0 +1,21 @@
+# Settings and private data
+mikanBox/data/settings.json
+mikanBox/data/mcp_key.txt
+
+# User content (except base index)
+mikanBox/data/posts/*.json
+!mikanBox/data/posts/404.json
+mikanBox/data/components/*
+!mikanBox/data/components/
+!mikanBox/data/components/_*.json
+
+# Media files
+media/*
+!media/.gitkeep
+
+# System and temp files
+*.log
+.DS_Store
+gomi/
+.vscode/
+.claude/

@@ -186,7 +186,27 @@ class MikanBoxRenderer {
         $html = preg_replace('/\{\{\s*HEAD_CSS\s*\}\}/i', $cssLinkTag, $html);
         $html = str_ireplace(['{{HEAD_CSS}}', '{{ HEAD_CSS }}'], $cssLinkTag, $html);
 
-        return $html;
+        return $this->enforceStandardMode($html);
+    }
+
+    /**
+     * Enforces Standards Mode by ensuring the HTML starts with <!DOCTYPE html>
+     * and removing any duplicate or misplaced DOCTYPE declarations.
+     */
+    private function enforceStandardMode($html) {
+        // Only apply to HTML content (basic check)
+        if (strpos(trim($html), '<html') === false && strpos(trim($html), '<!DOCTYPE') === false) {
+             return $html;
+        }
+
+        // 1. Remove all existing DOCTYPE declarations to consolidate
+        $html = preg_replace('/<!DOCTYPE[^>]*>/i', '', $html);
+        
+        // 2. Trim whitespace
+        $html = trim($html);
+        
+        // 3. Prepend the standard DOCTYPE
+        return "<!DOCTYPE html>\n" . $html;
     }
 
     private function parseComponents($content, array $visited = []) {

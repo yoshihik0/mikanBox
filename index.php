@@ -1,4 +1,6 @@
 <?php
+ob_start();
+
 /**
  * mikanBox Front-end Controller
  */
@@ -57,31 +59,47 @@ if (str_starts_with($pageId, 'api/')) {
     header('Access-Control-Allow-Origin: *');
     if (!$targetData) {
         http_response_code(404);
+        if (ob_get_length()) ob_clean();
         echo json_encode(['error' => 'not found']); exit;
     }
     if (($targetData['status'] ?? '') !== 'db') {
         http_response_code(403);
+        if (ob_get_length()) ob_clean();
         echo json_encode(['error' => 'forbidden']); exit;
     }
     $renderer = new MikanBoxRenderer($GLOBALS['mikanbox_settings']);
-    echo json_encode($renderer->getPageDataBlocks($targetId), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    $jsonOutput = json_encode($renderer->getPageDataBlocks($targetId), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    if (ob_get_length()) ob_clean();
+    echo $jsonOutput;
     exit;
 }
 
 // 4. XML Feeds
 if ($pageId === 'sitemap.xml') {
     header('Content-Type: application/xml; charset=utf-8');
-    echo generateSitemapXml($GLOBALS['mikanbox_settings']); exit;
+    $xml = generateSitemapXml($GLOBALS['mikanbox_settings']);
+    if (ob_get_length()) ob_clean();
+    echo $xml; exit;
 }
 if ($pageId === 'rss.xml') {
     header('Content-Type: application/rss+xml; charset=utf-8');
-    echo generateRssXml($GLOBALS['mikanbox_settings']); exit;
+    $xml = generateRssXml($GLOBALS['mikanbox_settings']);
+    if (ob_get_length()) ob_clean();
+    echo $xml; exit;
 }
 if ($pageId === 'podcast.xml') {
     header('Content-Type: application/rss+xml; charset=utf-8');
-    echo generatePodcastXml($GLOBALS['mikanbox_settings']); exit;
+    $xml = generatePodcastXml($GLOBALS['mikanbox_settings']);
+    if (ob_get_length()) ob_clean();
+    echo $xml; exit;
 }
 
 // 5. Rendering
 $renderer = new MikanBoxRenderer($GLOBALS['mikanbox_settings']);
-echo $renderer->render($pageId);
+$output = $renderer->render($pageId);
+
+// Clean up any accidental output (whitespace, etc.) from logic/includes
+if (ob_get_length()) {
+    ob_clean();
+}
+echo $output;
