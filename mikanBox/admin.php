@@ -1014,8 +1014,10 @@ Use these tags in Content (page body) and Component HTML:
 
 [Images]
 - All media files are stored in the "media/" folder.
-- Reference in HTML/CSS: images/filename  |  Reference in Markdown: just the filename
-- AI can upload images directly using MCP tools.
+- Reference in HTML src attributes: images/filename or media/filename (auto-converted to full URL)
+- Reference in CSS (background-image, etc.): images/filename or media/filename (auto-converted)
+- Reference in Markdown: just the filename (e.g. photo.jpg)
+- AI can upload images directly using MCP tools (upload_media).
 
 [CSS — Where to Write It]
 This is the most important rule. NEVER write <style> blocks in page Content or component HTML.

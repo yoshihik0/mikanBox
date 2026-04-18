@@ -178,7 +178,7 @@ class MikanBoxRenderer {
         // 8. Process CSS Buffer
         foreach ($this->globalCssBuffer as &$cssLine) {
             $cssLine = $this->replaceBasicTags($cssLine, $pageData, $pageTitle, $pageDesc, $pageKeywords, $ogpImage);
-            $cssLine = str_replace('images/', $this->getSiteBasePath() . 'media/', $cssLine);
+            $cssLine = preg_replace('/\b(?:images|media)\//', $this->getSiteBasePath() . 'media/', $cssLine);
         }
 
         // 9. Embed CSS
