@@ -282,6 +282,7 @@
                         <div class="flex-row">
                             <button type="submit" class="btn btn-gray btn-small"><?= getIcon('save') ?> <?= t('btn_save_prompt') ?></button>
                             <button type="button" class="btn btn-gray btn-small" onclick="copyAiPrompt()"><?= getIcon('copy') ?> <?= t('btn_copy_prompt') ?></button>
+                            <button type="button" class="btn btn-gray btn-small" onclick="resetAiPrompt()"><?= getIcon('reset') ?> <?= t('btn_reset_prompt') ?></button>
                         </div>
                     </form>
                 </div>

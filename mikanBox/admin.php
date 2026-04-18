@@ -782,7 +782,8 @@ function getIcon($name) {
         'arrow_back' => 'arrow_back',
         'add' => 'add',
         'copy' => 'content_copy',
-        'open_in_new' => 'open_in_new'
+        'open_in_new' => 'open_in_new',
+        'reset' => 'restart_alt'
     ];
     $iconName = $icons[$name] ?? '';
     return $iconName ? '<span class="material-symbols-outlined icon">' . $iconName . '</span>' : '';
@@ -985,40 +986,77 @@ function getIcon($name) {
     function basename(path) {
         return path.split('/').reverse()[0];
     }
-    function initAiPrompt() {
-        const textarea = document.getElementById('ai-prompt-editor');
-        if (!textarea) return;
-
-        const savedPrompt = <?= json_encode($settings['ai_prompt'] ?? '') ?>;
-        if (savedPrompt) {
-            textarea.value = savedPrompt;
-            return;
-        }
+    function buildDefaultPrompt() {
         const promptId = basename(window.location.pathname.replace('/admin.php', ''));
         const promptContent = `<?= t('prompt_expert_intro', basename(__DIR__)) ?>
 <?= t('prompt_sys_info') ?>
-- CMS: 🍊mikanBox (Expert in Component-driven flat-file CMS)
+- CMS: 🍊mikanBox (Component-driven flat-file CMS)
 - Structure: ${promptId}/ (admin, config, lib, data), media/
 - AI Interface: MCP (Model Context Protocol) enabled. Use tools to read/write pages, components, and media directly.
-- Tags: {{COMPONENT:id}}, {{NAV_CARDS:id1,id2}}, {{TITLE}}, {{DESCRIPTION}}, {{CONTENT}}, {{DATAROW:n}}, {{DATA:key}}
-- Images: Stored in "media/", use "images/filename" in code. AI can upload images using MCP tools.
 
-[Design & Component Rules]
-1. Component Naming:
-   - Components starting with "_" (e.g., _header) are system defaults. 
-   - When creating custom design parts, use names that do NOT start with "_".
-2. Best Practices:
-   - For quick builds: Use standard "_layout" and write the page body in Markdown.
-   - For full custom layouts: Use "_ai" as the page wrapper. In this case, you must include "{{COMPONENT:_global_head}}" within the <head> tags to load global styles and metadata.
-   - Use "Wrappers" (structural) and "Parts" (reusable) components efficiently.
-   - For page-specific design, write CSS in the "Page CSS" section rather than inside reusable components.
-3. Content Formatting:
-   - Prefer Markdown for the page body. 
-   - You can use "[]{ .className }" syntax in Markdown for styling specific elements.
+[Page Fields]
+Each page has the following fields:
+- Title / ID (slug) / Status (draft | public-dynamic | public-static | DB)
+- Category / Keywords / Description / OGP Image
+- Content: the page body, written in Markdown (default) or HTML
+- Raw HTML mode: enable this checkbox when the body is pure complex HTML — disables Markdown processing
+- Page CSS: page-specific CSS, auto-scoped to this page (keep "Scope CSS" ON)
+
+[Available Tags]
+Use these tags in Content (page body) and Component HTML:
+- {{TITLE}}, {{DESCRIPTION}}, {{KEYWORDS}}, {{OGP_IMAGE}}, {{FULL_TITLE}}
+- {{CONTENT}} — outputs the page body (Wrappers only)
+- {{HEAD_CSS}} — outputs all component CSS; place inside <head> in the wrapper component
+- {{COMPONENT:id}} — embeds a component by ID
+- {{NAV_LINKS:category}} / {{NAV_CARDS:category}} — auto-generated navigation lists
+- {{UPDATE_DATE}}, {{IS_NEW:30}}, {{IS_ACTIVE}}
+- {{DATAROW:n}}, {{DATA:key}} — database row access
+
+[Images]
+- All media files are stored in the "media/" folder.
+- Reference in HTML/CSS: images/filename  |  Reference in Markdown: just the filename
+- AI can upload images directly using MCP tools.
+
+[CSS — Where to Write It]
+This is the most important rule. NEVER write <style> blocks in page Content or component HTML.
+1. Page-specific styles → Page "CSS" field. Scoped automatically to that page.
+2. Component-specific styles → Component "CSS" field. Scoped to that component.
+3. Global styles shared across all pages → "_ai" component CSS field.
+4. Fonts (Google Fonts, @font-face, etc.) → "_ai" component CSS field using @import or @font-face.
+   OR add <link rel="preconnect"> / <link rel="stylesheet"> tags directly in "_ai" component HTML inside <head>.
+5. Third-party CSS libraries → add <link> tags in "_ai" component HTML inside <head>.
+
+[Wrapper & Head Section]
+- The "_ai" component is the global page wrapper (is_wrapper: true, is_global: true).
+- It defines the full page shell: <html>, <head>, <body>.
+- {{HEAD_CSS}} inside <head> loads all scoped component CSS and page CSS automatically.
+- To add global <link>, <meta>, or <script> tags, edit "_ai" component HTML directly.
+- Do NOT create a custom wrapper unless the page truly needs a different page-level structure.
+
+[Content: Markdown vs Raw HTML]
+- Default: write the page body in Markdown. HTML block elements (div, section, etc.) can be freely mixed in.
+- Apply CSS classes in Markdown: [text]{.className} for inline spans, or {.className} at the end of a block line.
+- Enable "Raw HTML" mode only when the entire body is complex HTML that must not be processed by Markdown.
+- When "Raw HTML" is ON, the body is output as-is — no Markdown processing, no <br> insertion.
+
+[Component Naming]
+- "_" prefix (e.g., _ai, _header): system/global components. Edit carefully.
+- No prefix: custom components for this site. Create freely.
 
 [Current Request]
 Please enter your request here.`;
-        textarea.value = promptContent;
+        return promptContent;
+    }
+    function initAiPrompt() {
+        const textarea = document.getElementById('ai-prompt-editor');
+        if (!textarea) return;
+        const savedPrompt = <?= json_encode($settings['ai_prompt'] ?? '') ?>;
+        textarea.value = savedPrompt || buildDefaultPrompt();
+    }
+    function resetAiPrompt() {
+        const textarea = document.getElementById('ai-prompt-editor');
+        if (!textarea) return;
+        textarea.value = buildDefaultPrompt();
     }
     async function copyToClipboard(text) {
         try {
