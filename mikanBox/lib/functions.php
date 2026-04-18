@@ -358,7 +358,8 @@ class MikanBoxMarkdown {
                 $content = implode("\n", $currentParagraph);
                 $content = $this->parseInline($content);
                 if (strpos($content, "\n") !== false) {
-                    $content = str_replace("\n", "<br>\n", $content);
+                    // HTMLタグの境界（>の後、<の前）には<br>を挿入しない
+                    $content = preg_replace('/(?<!>)\n(?!<)/', "<br>\n", $content);
                 }
                 if ($paragraphStartedAfterBlank && $followedByBlank) {
                     $result[] = $applyAttributes($content, 'p');
@@ -370,7 +371,7 @@ class MikanBoxMarkdown {
         };
 
         // HTMLブロックとして認識するブロックレベルタグ
-        $htmlBlockTags = 'address|article|aside|blockquote|body|canvas|caption|col|colgroup|dd|details|dialog|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|meta|nav|noscript|ol|optgroup|option|p|pre|script|section|select|source|style|summary|table|tbody|td|tfoot|th|thead|title|tr|ul|video|audio';
+        $htmlBlockTags = 'a|address|article|aside|blockquote|body|button|canvas|caption|col|colgroup|dd|details|dialog|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|meta|nav|noscript|ol|optgroup|option|p|pre|script|section|select|source|span|style|summary|table|tbody|td|tfoot|th|thead|title|tr|ul|video|audio';
 
         foreach ($lines as $line) {
             // コードブロック
