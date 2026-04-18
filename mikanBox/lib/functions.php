@@ -321,12 +321,15 @@ class MikanBoxMarkdown {
         $result = [];
         $currentParagraph = [];
         $inCodeBlock = false;
+        $inHtmlBlock = false;
+        $prevWasBlank = true;               // コンテンツ先頭は「空白行の後」扱い
+        $paragraphStartedAfterBlank = true; // <p> を付けるか判定する前側フラグ
 
         // --- 属性（.class や #id）を抽出してタグを組み立てる共通関数 ---
         $applyAttributes = function($content, $tag = 'p') {
             $idAttr = '';
             $classAttr = '';
-            
+
             // 文末の {.class #id} を探す (より確実な正規表現に変更)
             if (preg_match('/\s*\{([.#][^\{\}]+)\}\s*$/', $content, $matches)) {
                 $attrString = $matches[1];
@@ -339,29 +342,38 @@ class MikanBoxMarkdown {
                     $idAttr = ' id="' . $idMatch[1] . '"';
                 }
             }
-            
+
             // タグが null の場合は、属性なしのコンテンツのみを返す
             if ($tag === null) return [trim($content), $idAttr, $classAttr];
 
             return "<{$tag}{$idAttr}{$classAttr}>" . trim($content) . "</{$tag}>";
         };
 
-        $closeParagraph = function() use (&$result, &$currentParagraph, $applyAttributes) {
+        // <p> を付けるか判定：
+        //   $followedByBlank=true  → 後ろが空白行/Markdownブロック/コンテンツ末尾
+        //   $followedByBlank=false → 後ろがHTMLブロック（空白行なし隣接）
+        // 前後どちらかがHTMLに隣接していれば <p> なし
+        $closeParagraph = function($followedByBlank = true) use (&$result, &$currentParagraph, &$paragraphStartedAfterBlank, $applyAttributes) {
             if (!empty($currentParagraph)) {
                 $content = implode("\n", $currentParagraph);
                 $content = $this->parseInline($content);
-                
-                // 改行処理
                 if (strpos($content, "\n") !== false) {
                     $content = str_replace("\n", "<br>\n", $content);
                 }
-
-                $result[] = $applyAttributes($content, 'p');
+                if ($paragraphStartedAfterBlank && $followedByBlank) {
+                    $result[] = $applyAttributes($content, 'p');
+                } else {
+                    $result[] = trim($content);
+                }
                 $currentParagraph = [];
             }
         };
 
+        // HTMLブロックとして認識するブロックレベルタグ
+        $htmlBlockTags = 'address|article|aside|blockquote|body|canvas|caption|col|colgroup|dd|details|dialog|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|meta|nav|noscript|ol|optgroup|option|p|pre|script|section|select|source|style|summary|table|tbody|td|tfoot|th|thead|title|tr|ul|video|audio';
+
         foreach ($lines as $line) {
+            // コードブロック
             if (preg_match('/^```/', $line)) {
                 $closeParagraph();
                 if ($inCodeBlock) {
@@ -371,6 +383,7 @@ class MikanBoxMarkdown {
                     $result[] = '<pre><code>';
                     $inCodeBlock = true;
                 }
+                $prevWasBlank = true; // コードブロック境界 = Markdownブロック扱い
                 continue;
             }
             if ($inCodeBlock) {
@@ -378,51 +391,73 @@ class MikanBoxMarkdown {
                 continue;
             }
 
-            if (trim($line) === '') {
-                $closeParagraph();
-                continue;
-            }
-
-            // HTMLブロックの判定（独自タグ {{ }} はここで「段落」として扱うために除外）
-            $isHtmlBlockLine = preg_match('/^\s*(<\/?(!|html|head|body|link|meta|script|style|div|section|article|aside|header|footer|p|h[1-6]|ul|ol|li|table|blockquote|pre|form|!--))/i', $line);
-
-            if ($isHtmlBlockLine) {
-                $closeParagraph();
-                // HTMLブロックにもクラス付与を有効にするための処理
-                list($content, $id, $class) = $applyAttributes($this->parseInline($line), null);
-                if ($class || $id) {
-                    // もし属性があれば p で囲む
-                    $result[] = "<p{$id}{$class}>{$content}</p>";
+            // HTMLブロックモード中
+            if ($inHtmlBlock) {
+                if (trim($line) === '') {
+                    $inHtmlBlock = false;
+                    $prevWasBlank = true; // 空行でHTMLブロック終了 → 次は空白行の後
                 } else {
-                    $result[] = $content;
+                    $result[] = $line;
+                    // 単独の閉じブロックタグ（行全体が </div> などのみ）で終了
+                    if (preg_match('/^\s*<\/(?:' . $htmlBlockTags . ')\s*>\s*$/i', $line)) {
+                        $inHtmlBlock = false;
+                        $prevWasBlank = false; // 閉じタグ = HTMLコンテンツ隣接
+                    }
                 }
                 continue;
             }
 
+            // 空行
+            if (trim($line) === '') {
+                $closeParagraph(true);
+                $prevWasBlank = true;
+                continue;
+            }
+
+            // HTMLブロック開始
+            $isHtmlBlockLine = preg_match('/^\s*(<\/?(?:' . $htmlBlockTags . '|!--|!DOCTYPE)[\s\/>])/i', $line);
+            if ($isHtmlBlockLine) {
+                $closeParagraph(false); // HTML隣接 → <p> なし
+                $result[] = $line;
+                $inHtmlBlock = true;
+                $prevWasBlank = false;
+                continue;
+            }
+
+            // Markdownブロック要素（見出し・引用・リスト等）
+            // → 前後の段落を <p> ありで閉じ、自身は境界として扱う
             if (preg_match('/^\s*>(?:\s|　)?(.*)/', $line, $matches)) {
-                $closeParagraph();
+                $closeParagraph(true);
                 $result[] = '<blockquote>' . $this->parseInline($matches[1]) . '</blockquote>';
+                $prevWasBlank = true;
             } elseif (preg_match('/^\s*(#{1,6})(?:\s|　)+(.*)/', $line, $matches)) {
-                $closeParagraph();
+                $closeParagraph(true);
                 $level = strlen($matches[1]);
-                // 見出しにもクラス付与を有効化！
                 $result[] = $applyAttributes($this->parseInline($matches[2]), "h{$level}");
+                $prevWasBlank = true;
             } elseif (preg_match('/^(\-{3,}|\*{3,}|_{3,})$/', $line)) {
-                $closeParagraph();
+                $closeParagraph(true);
                 $result[] = '<hr>';
+                $prevWasBlank = true;
             } elseif (preg_match('/^\s*[\*\-\+](?:\s|　)+(.*)/', $line, $matches)) {
-                $closeParagraph();
+                $closeParagraph(true);
                 $result[] = '<ul><li>' . $this->parseInline($matches[1]) . '</li></ul>';
+                $prevWasBlank = true;
             } elseif (preg_match('/^\s*\d+\.(?:\s|　)+(.*)/', $line, $matches)) {
-                $closeParagraph();
-                // 修正：ol> を <ol> に
+                $closeParagraph(true);
                 $result[] = '<ol><li>' . $this->parseInline($matches[1]) . '</li></ol>';
+                $prevWasBlank = true;
             } else {
+                // テキスト段落の蓄積
+                if (empty($currentParagraph)) {
+                    $paragraphStartedAfterBlank = $prevWasBlank;
+                }
                 $currentParagraph[] = $line;
+                $prevWasBlank = false;
             }
         }
 
-        $closeParagraph();
+        $closeParagraph(true); // コンテンツ末尾 = 境界扱い
 
         $output = implode("\n", $result);
         $output = preg_replace('/<\/ul>\n<ul>/', "\n", $output);

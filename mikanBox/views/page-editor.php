@@ -103,6 +103,10 @@
                     </div>
                     <div class="form-group">
                         <label><?= t('label_content') ?></label>
+                        <label class="checkbox-label" style="font-size:0.85em; margin-bottom:4px; display:flex; align-items:center; gap:6px; font-weight:normal;">
+                            <input type="checkbox" name="is_html" value="1" <?= !empty($editData['is_html']) ? 'checked' : '' ?>>
+                            <?= t('label_raw_html') ?>
+                        </label>
                         <textarea name="content_md" class="textarea-lg textarea-mono"><?= htmlspecialchars($editData['content_md']??'') ?></textarea>
                     </div>
                     <div class="form-group">

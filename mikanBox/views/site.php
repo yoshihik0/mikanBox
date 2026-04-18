@@ -22,6 +22,40 @@
         </div>
     </div> <!-- /#site -->
 
+    <!-- Version Info -->
+    <?php
+    $latestVersion = null;
+    $vCacheKey = 'mikanbox_latest_ver';
+    $vCacheTime = 'mikanbox_latest_ver_time';
+    if (isset($_SESSION[$vCacheKey]) && (time() - ($_SESSION[$vCacheTime] ?? 0)) < 21600) {
+        $latestVersion = $_SESSION[$vCacheKey];
+    } else {
+        $ctx = stream_context_create(['http' => ['timeout' => 3, 'header' => "User-Agent: mikanBox-admin\r\n"]]);
+        $json = @file_get_contents('https://api.github.com/repos/yoshihik0/mikanBox/releases/latest', false, $ctx);
+        if ($json) {
+            $vData = json_decode($json, true);
+            $latestVersion = $vData['tag_name'] ?? null;
+        }
+        if (!$latestVersion) {
+            $json = @file_get_contents('https://api.github.com/repos/yoshihik0/mikanBox/tags', false, $ctx);
+            if ($json) {
+                $vData = json_decode($json, true);
+                $latestVersion = $vData[0]['name'] ?? null;
+            }
+        }
+        $_SESSION[$vCacheKey] = $latestVersion;
+        $_SESSION[$vCacheTime] = time();
+    }
+    $isOutdated = $latestVersion && $latestVersion !== 'v' . MIKANBOX_VERSION && $latestVersion !== MIKANBOX_VERSION;
+    ?>
+    <div class="section-container section-tight">
+        <div style="font-size:0.82em; color:var(--text-sub,#888); padding:6px 2px; display:flex; gap:1.5em; align-items:center; flex-wrap:wrap;">
+            <span><?= t('version_current') ?>: <?= htmlspecialchars(MIKANBOX_VERSION) ?></span>
+            <span><?= t('version_latest') ?>: <?= $latestVersion ? htmlspecialchars($latestVersion) : '—' ?><?php if ($isOutdated): ?> <span style="color:#e07000;">▲ <?= t('version_update_available') ?></span><?php endif; ?></span>
+            <a href="https://github.com/yoshihik0/mikanBox" target="_blank" rel="noopener" style="color:inherit;">GitHub</a>
+        </div>
+    </div>
+
     <!-- SSG Build Section -->
     <div id="ssg-accordion">
         <div class="section-container section-tight">

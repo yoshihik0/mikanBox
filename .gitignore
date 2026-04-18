@@ -5,6 +5,8 @@ mikanBox/data/mcp_key.txt
 # User content (except base index)
 mikanBox/data/posts/*.json
 !mikanBox/data/posts/404.json
+!mikanBox/data/posts/help_ja.json
+!mikanBox/data/posts/help_en.json
 mikanBox/data/components/*
 !mikanBox/data/components/
 !mikanBox/data/components/_*.json

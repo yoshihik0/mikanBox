@@ -118,7 +118,7 @@ class MikanBoxRenderer {
         $contentMd = $this->extractDataBlocks($contentMd, $this->currentPageData);
         $contentMd = $this->restoreCodeSpans($contentMd, $codeMap);
 
-        if (preg_match('/^\s*<!DOCTYPE/i', $contentMd)) {
+        if (!empty($pageData['is_html'])) {
             $contentHtml = $contentMd;
         } else {
             // Protect tags
