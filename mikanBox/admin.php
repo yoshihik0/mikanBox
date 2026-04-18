@@ -1039,6 +1039,15 @@ This is the most important rule. NEVER write <style> blocks in page Content or c
 - Enable "Raw HTML" mode only when the entire body is complex HTML that must not be processed by Markdown.
 - When "Raw HTML" is ON, the body is output as-is — no Markdown processing, no <br> insertion.
 
+[Shared Header / Footer — Custom Wrapper Pattern]
+When multiple pages need the same header and footer, create a custom wrapper component instead of editing "_ai" directly.
+1. Create a new component (e.g., ID: "mysite_layout") with is_wrapper: true. Scope CSS OFF recommended.
+2. Base its HTML on "_ai". Add header and footer HTML inside <body>. Keep {{CONTENT}} where the page body goes.
+3. Write shared CSS (typography, colors, layout) in this component's CSS field.
+4. On each page using this layout, set "Design Component" to "mysite_layout".
+5. Each page's Content field then only needs the <main> or <article> body (Markdown is fine).
+Reason: editing "_ai" affects ALL pages. A custom wrapper isolates site-specific layout from the base template.
+
 [Component Naming]
 - "_" prefix (e.g., _ai, _header): system/global components. Edit carefully.
 - No prefix: custom components for this site. Create freely.
