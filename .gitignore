@@ -5,8 +5,6 @@ mikanBox/data/mcp_key.txt
 # User content (except base index)
 mikanBox/data/posts/*.json
 !mikanBox/data/posts/404.json
-!mikanBox/data/posts/help_ja.json
-!mikanBox/data/posts/help_en.json
 mikanBox/data/components/*
 !mikanBox/data/components/
 !mikanBox/data/components/_*.json
@@ -15,9 +13,15 @@ mikanBox/data/components/*
 media/*
 !media/.gitkeep
 
+# Auto-generated files
+.htaccess
+mikanBox/.htaccess
+mikanBox/data/.htaccess
+
 # System and temp files
 *.log
 .DS_Store
 gomi/
 .vscode/
 .claude/
+CLAUDE.md
