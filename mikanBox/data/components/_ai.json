@@ -1,5 +1,5 @@
 {
-    "html": "{{CONTENT}}",
+    "html": "<!DOCTYPE html>\r\n<html lang=\"ja\">\r\n<head>\r\n<meta charset=\"UTF-8\">\r\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n<meta name=\"description\" content=\"{{DESCRIPTION}}\">\r\n<meta name=\"keywords\" content=\"{{KEYWORDS}}\">\r\n<meta property=\"og:image\" content=\"{{OGP_IMAGE}}\">\r\n<title>{{FULL_TITLE}}<\/title>\r\n{{HEAD_CSS}}\r\n<\/head>\r\n<body>\r\n{{CONTENT}}\r\n<\/body>\r\n<\/html>",
     "css": "",
     "is_global": true,
     "is_wrapper": true
