@@ -358,6 +358,8 @@ class MikanBoxMarkdown {
                 $content = implode("\n", $currentParagraph);
                 $content = $this->parseInline($content);
                 if (strpos($content, "\n") !== false) {
+                    // {.class} や {#id} だけの末尾行は属性指定なので前の改行を除去して同行に結合
+                    $content = preg_replace('/\n(\s*\{[.#][^\{\}]+\}\s*)$/', ' $1', $content);
                     // HTMLタグの境界（>の後、<の前）には<br>を挿入しない
                     $content = preg_replace('/(?<!>)\n(?!<)/', "<br>\n", $content);
                 }
