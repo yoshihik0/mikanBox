@@ -1,0 +1,8 @@
+{
+    "html": "{{COMPONENT:_global_head}}\n{{CONTENT}}",
+    "css": "",
+    "is_global": true,
+    "is_wrapper": true,
+    "is_ai_doc": false,
+    "memo": "A simple component for AI-generated pages.\nIntended use: when you want to paste in a finished single HTML file created externally (e.g. by ChatGPT or another AI that doesn't know mikanBox's system) as-is and publish it directly. Since the pasted content is assumed to already be a complete file containing <html>\/<head>\/<body>, this component itself has no <html> tag etc. — it simply continues straight on from _global_head's output with the pasted content.\n\nHow to use: on the page editor screen, choose this \"_ai\" as the \"Design Component,\" paste the finished HTML into the body field, check \"Raw HTML,\" and save.\n\nNote: if you're having an AI agent connected via MCP build the page directly, don't use this — use _layout (+ _header \/ _footer) instead and write the body in Markdown."
+}

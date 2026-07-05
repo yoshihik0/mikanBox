@@ -1,0 +1,8 @@
+{
+    "html": "<a href=\"{{PAGE_URL}}\" class=\"nav-card {{IS_ACTIVE}}\">\r\n  <div class=\"nav-card-img\" style=\"background-image:url('{{OGP_IMAGE}}');\">\r\n  <\/div>\r\n  <div class=\"nav-card-content\">\r\n    <h3 class=\"nav-card-title\">{{TITLE}}<\/h3>\r\n    <p class=\"nav-card-desc\">{{DESCRIPTION}}<\/p>\r\n    <p class=\"nav-card-date\">{{UPDATE_DATE}}<\/p>\r\n  <\/div>\r\n<\/a>",
+    "css": ".nav-cards {\r\n  display: grid;\r\n  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));\r\n  gap: 20px;\r\n  margin: 20px 0;\r\n}\r\n.nav-card {\r\n  display: block;\r\n  border: 1px solid #eee;\r\n  border-radius: 8px;\r\n  overflow: hidden;\r\n  text-decoration: none;\r\n  color: inherit;\r\n  transition: transform 0.2s;\r\n  background: #fff;\r\n}\r\n.nav-card:hover {\r\n  transform: translateY(-5px);\r\n  box-shadow: 0 4px 15px rgba(0,0,0,0.1);\r\n}\r\n.nav-card-img {\r\n  width: 100%;\r\n  height: 180px;\r\n  background-color: #fff7ed;\r\n  background-size: cover;\r\n  background-position: center;\r\n  background-repeat: no-repeat;\r\n}\r\n.nav-card-content {\r\n  padding: 15px;\r\n}\r\n.nav-card-title {\r\n  margin: 0 0 8px;\r\n  font-size: 1.2rem;\r\n  color: #333;\r\n}\r\n.nav-card-desc {\r\n  font-size: 0.9rem;\r\n  color: #666;\r\n  margin: 0 0 8px;\r\n  line-height: 1.5;\r\n}\r\n.nav-card-date {\r\n  font-size: 0.8rem;\r\n  color: #999;\r\n  margin: 0;\r\n}\r\n.nav-card.active {\r\n  outline: 2px solid #f97316;\r\n}",
+    "is_global": false,
+    "is_wrapper": false,
+    "is_ai_doc": false,
+    "memo": "カード型ナビゲーションをデザインします。{{NAV_CARDS:カテゴリ名:コンポーネントID}}で、カテゴリごとにカード形式のHTMLを出力できます。"
+}

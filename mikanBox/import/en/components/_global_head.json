@@ -1,0 +1,8 @@
+{
+    "html": "<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<meta name=\"description\" content=\"{{DESCRIPTION}}\">\n<meta name=\"keywords\" content=\"{{KEYWORDS}}\">\n<meta property=\"og:image\" content=\"{{OGP_IMAGE}}\">\n<title>{{FULL_TITLE}}<\/title>\n{{HEAD_CSS}}",
+    "css": "",
+    "is_global": true,
+    "is_wrapper": false,
+    "is_ai_doc": false,
+    "memo": "Global head tags. {{HEAD_CSS}} is required for CSS management — make sure it appears exactly once in the page. Load things like Google Analytics or web fonts here."
+}

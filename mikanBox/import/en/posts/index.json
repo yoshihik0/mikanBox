@@ -1,0 +1,14 @@
+{
+    "title": "Welcome to 🍊mikanBox",
+    "category": "",
+    "status": "public_dynamic",
+    "description": "Mikan is the Japanese word for a small, easy-to-peel mandarin orange — the fruit that gave mikanBox its name.\r\n",
+    "keywords": "mikanBox, CMS, sample",
+    "ogp_image": "",
+    "content_md": "This is what your site looks like right after installing 🍊mikanBox — sample content, so feel free to rewrite it however you like, including this page (`index`) itself.\r\n\r\n{{NAV_CARDS:sample:sample_card}}",
+    "css": "",
+    "is_html": false,
+    "wrapper_comp": "_layout",
+    "sort_order": 0,
+    "updated_at": "2026-07-04 15:34:59"
+}

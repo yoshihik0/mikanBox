@@ -1,0 +1,75 @@
+<?php defined('MIKANBOX') or die(); ?>
+
+    <div id="design" class="section-anchor">
+        <div class="section-container section-large-bottom">
+            <div class="header">
+            <h1><?= getIcon('component') ?> <?= t('nav_design') ?><a href="<?= $helpFile ?>#design-mgmt" target="_blank" class="manual-link"><?= t('admin_help') ?></a></h1>
+            <a href="?view=design&new=1#design-editor" class="btn btn-blue"><?= getIcon('add') ?> <?= t('btn_create_new') ?></a>
+        </div>
+        <div class="table-responsive <?= ($view === 'components' && ($editId !== null || isset($_GET['new']))) ? 'mb-0' : 'ssg-build-row no-editor' ?>" id="comps-table-wrap">
+        <table>
+            <tr><th class="td-narrow"><?= t('btn_edit') ?></th><th class="td-narrow"><?= t('label_component_id') ?></th><th class="td-narrow"><?= t('label_type') ?></th><th><?= t('label_tag_name') ?></th></tr>
+            <?php
+            $compsListDesign = getFileList(COMPONENTS_DIR);
+            $compDataListDesign = [];
+            foreach($compsListDesign as $cid) {
+                $cd = loadData(COMPONENTS_DIR, $cid);
+                $compDataListDesign[] = [
+                    'id' => $cid,
+                    'is_wrapper' => !empty($cd['is_wrapper']),
+                    'is_ai_doc' => !empty($cd['is_ai_doc'])
+                ];
+            }
+            usort($compDataListDesign, function($a, $b) {
+                $typePriority = function($item) {
+                    if ($item['is_wrapper']) return 1;
+                    if ($item['is_ai_doc']) return 3;
+                    return 2;
+                };
+                $pA = $typePriority($a);
+                $pB = $typePriority($b);
+                if ($pA !== $pB) return $pA - $pB;
+
+                $priority = ['global_head' => 1, 'header' => 2, 'footer' => 3];
+                $pA2 = $priority[$a['id']] ?? 99;
+                $pB2 = $priority[$b['id']] ?? 99;
+                if ($pA2 !== $pB2) return $pA2 - $pB2;
+                return strcmp($a['id'], $b['id']);
+            });
+            foreach($compDataListDesign as $cItem):
+                $cid = $cItem['id'];
+                $cData = loadData(COMPONENTS_DIR, $cid);
+                if (!empty($cData['is_wrapper'])) {
+                    $typeLabel = t('comp_type_page') ?: 'ページ';
+                    $typeClass = 'type-badge wrapper';
+                } elseif (!empty($cData['is_ai_doc'])) {
+                    $typeLabel = t('comp_type_aidoc') ?: 'AI指示';
+                    $typeClass = 'type-badge aidoc';
+                } else {
+                    $typeLabel = t('comp_type_part') ?: 'パーツ';
+                    $typeClass = 'type-badge';
+                }
+            ?>
+            <tr>
+                <td class="td-narrow">
+                    <div class="flex-center">
+                         <a href="?view=design&edit=<?= $cid ?>#design-editor" class="btn btn-sm btn-blue"><?= getIcon('edit') ?> <?= t('btn_edit') ?></a>
+                    </div>
+                </td>
+                <td class="td-narrow">
+                    <a href="?view=design&edit=<?= $cid ?>#design-editor" class="comp-id-link"><code><?= $cid ?></code></a>
+                </td>
+                <td class="td-narrow"><span class="<?= $typeClass ?>"><?= $typeLabel ?></span></td>
+                <td><input type="text" value="{{COMPONENT:<?= $cid ?>}}" readonly onclick="copyToClipboard(this.value); this.select();" class="copy-input" title="<?= t('click_to_copy') ?>"></td>
+            </tr>
+            <?php endforeach; ?>
+        </table>
+        </div>
+        </div> <!-- /.section-container -->
+    </div> <!-- /#design -->
+
+    <div id="design-editor-slot">
+    <?php if ($view === 'components' && ($editId !== null || isset($_GET['new']))): ?>
+        <?php include __DIR__ . '/design-editor.php'; ?>
+    <?php endif; ?>
+    </div>

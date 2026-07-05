@@ -1,0 +1,15 @@
+{
+    "title": "データサンプル",
+    "category": "sample",
+    "status": "db",
+    "description": "「独自タグ サンプル」で使用しているデータ",
+    "keywords": "",
+    "ogp_image": "",
+    "content_md": "## 定義されたデータの表示\r\n「他ページのデータを表示」で使用しているデータ\r\n\r\n{{DATA:BOOK_TITLE}}Macbeth{{\/DATA}}\r\n{{DATA:AUTHOR}}Shakespeare{{\/DATA}}\r\n\r\n\r\n## データベースの定義\r\n「他ページのデータベースのデータを表示」で使用しているデータ\r\n\r\n{{DATAROW:1}}\r\n{{DATA:GOODS}}Apple{{\/DATA}}\r\n{{DATA:PRICE}}300{{\/DATA}}\r\n{{\/DATAROW}}\r\n\r\n{{DATAROW:2}}\r\n{{DATA:GOODS}}Banana{{\/DATA}}\r\n{{DATA:PRICE}}200{{\/DATA}}\r\n{{\/DATAROW}}\r\n",
+    "css": "",
+    "is_html": false,
+    "wrapper_comp": "_ai",
+    "sort_order": 101,
+    "updated_at": "2026-07-04 13:29:18",
+    "memo": "機能をご紹介するためのページです。"
+}

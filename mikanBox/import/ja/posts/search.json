@@ -1,0 +1,15 @@
+{
+    "title": "検索結果",
+    "category": "system",
+    "status": "public_dynamic",
+    "description": "サイト内検索の結果ページです。",
+    "keywords": "",
+    "ogp_image": "",
+    "content_md": "{{SEARCH_RESULTS:_search_result_item}}",
+    "memo": "検索結果を表示するデザインは_search_result_itemコンポーネントで編集できます。",
+    "css": "",
+    "is_html": false,
+    "wrapper_comp": "_layout",
+    "sort_order": -1,
+    "updated_at": "2026-07-04 15:40:34"
+}

@@ -1,0 +1,8 @@
+{
+    "html": "<div class=\"search-result-item\">\r\n  <h3><a href=\"{{RESULT_URL}}\">{{RESULT_TITLE}}<\/a><\/h3>\r\n  <p class=\"search-snippet\">{{RESULT_SNIPPET}}<\/p>\r\n  <span class=\"search-date\">{{RESULT_DATE}}<\/span>\r\n<\/div>",
+    "css": ".search-result-item {\r\n  margin-bottom: 24px;\r\n  padding-bottom: 16px;\r\n  border-bottom: 1px solid #e2e8f0;\r\n}\r\n.search-result-item h3 {\r\n  margin: 0 0 8px 0;\r\n  font-size: 1.25rem;\r\n}\r\n.search-result-item h3 a {\r\n  color: #ea580c;\r\n  text-decoration: none;\r\n  font-weight: 700;\r\n}\r\n.search-result-item h3 a:hover {\r\n  text-decoration: underline;\r\n}\r\n.search-result-item .search-snippet {\r\n  color: #475569;\r\n  font-size: 0.95rem;\r\n  line-height: 1.6;\r\n  margin: 0 0 8px 0;\r\n}\r\n.search-result-item strong.search-highlight {\r\n  background: #fef08a;\r\n  color: #0f172a;\r\n  padding: 2px 4px;\r\n  border-radius: 4px;\r\n  font-weight: bold;\r\n}\r\n.search-result-item .search-date {\r\n  font-size: 0.8rem;\r\n  color: #94a3b8;\r\n}",
+    "is_global": false,
+    "is_wrapper": false,
+    "is_ai_doc": false,
+    "memo": "検索結果の１件ごとの表示をデザインします。{{SEARCH_RESULTS:_search_result_item}}で検索結果を表示するページに配置します。"
+}

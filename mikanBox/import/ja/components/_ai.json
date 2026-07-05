@@ -1,0 +1,8 @@
+{
+    "html": "{{COMPONENT:_global_head}}\r\n{{CONTENT}}",
+    "css": "",
+    "is_global": true,
+    "is_wrapper": true,
+    "is_ai_doc": false,
+    "memo": "AI生成ページ用のシンプルなコンポーネントです。\n想定用途：外部（ChatGPTなど、mikanBoxの仕組みを知らないAI）で作った\n完成済みの1枚のHTMLファイルを、そのままコピペして公開したいとき用。\n貼り付ける内容がすでに <html>\/<head>\/<body> を含む完全な1ファイルである前提のため、\nこのコンポーネント自身は <html> 等のタグを持たず、_global_head の出力の後に\n貼り付け内容をそのまま続けます。\n\n使い方：ページ編集画面の「デザインコンポーネント」でこの _ai を選び、\n本文欄に完成HTMLをそのまま貼り付けて、「Raw HTML」にチェックを入れて保存してください。\n\n※ MCPでつながったAIエージェントに直接ページを作らせる場合はこちらは使わず、\n_layout（+ _header \/ _footer）を使い、本文はMarkdownで作成してください。"
+}

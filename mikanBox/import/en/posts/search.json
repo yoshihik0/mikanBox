@@ -1,0 +1,15 @@
+{
+    "title": "Search Results",
+    "category": "system",
+    "status": "public_dynamic",
+    "description": "The site search results page.",
+    "memo": "The design used to display search results can be edited via the _search_result_item component.",
+    "keywords": "",
+    "ogp_image": "",
+    "content_md": "{{SEARCH_RESULTS:_search_result_item}}",
+    "css": "",
+    "is_html": false,
+    "wrapper_comp": "_layout",
+    "sort_order": -1,
+    "updated_at": "2026-07-04 15:40:34"
+}

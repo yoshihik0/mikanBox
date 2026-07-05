@@ -1,0 +1,14 @@
+{
+    "title": "🍊mikanBoxへようこそ",
+    "category": "",
+    "status": "public_dynamic",
+    "description": "初期インストール時のサンプルコンテンツです。自由に書き換えてご利用ください。",
+    "keywords": "mikanBox, CMS, サンプル",
+    "ogp_image": "",
+    "content_md": "このサイトは🍊mikanBoxをインストールした直後の状態です。\r\nこのページ（`index`）も自由に書き換えてご利用ください。\r\n\r\n{{NAV_CARDS:sample:sample_card}}",
+    "css": "",
+    "is_html": false,
+    "wrapper_comp": "_layout",
+    "sort_order": 0,
+    "updated_at": "2026-07-04 15:34:59"
+}

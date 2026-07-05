@@ -1,0 +1,15 @@
+{
+    "title": "Markdown Include Sample",
+    "category": "sample",
+    "status": "db",
+    "description": "Data used by the \"Custom Tags Sample\" page",
+    "keywords": "",
+    "ogp_image": "",
+    "content_md": "### Markdown loaded from another page\n\nYou can pull in and display Markdown content from another page.\nFor example, you could keep a dedicated \"announcements\" page and pull its content into your homepage.",
+    "css": "",
+    "is_html": false,
+    "wrapper_comp": "_ai",
+    "sort_order": 101,
+    "updated_at": "2026-07-03 14:39:44",
+    "memo": "This page exists to demonstrate a feature."
+}

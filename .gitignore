@@ -1,0 +1,35 @@
+# Settings and private data
+.mcp.json
+mikanBox/data/settings.json
+mikanBox/data/mcp_key.txt
+mikanBox/data/*.sqlite
+mikanBox/data/*.db
+mikanBox/data/login_attempts.json
+
+# User content: seeded at first run from import/{lang}, not tracked directly.
+mikanBox/data/posts/*.json
+mikanBox/data/components/*
+!mikanBox/data/components/
+
+# Media files
+media/*
+!media/.gitkeep
+
+# Auto-generated files
+/.htaccess
+mikanBox/data/.htaccess
+/sitemap.xml
+/rss.xml
+/podcast.xml
+
+# System and temp files
+*.log
+.DS_Store
+gomi/
+.vscode/
+.claude/
+CLAUDE.md
+
+# Scratch and zip files
+scratch/
+mikanBox-main.zip

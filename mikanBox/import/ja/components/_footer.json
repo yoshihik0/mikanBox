@@ -1,0 +1,7 @@
+{
+    "html": "<footer>\r\n  <p>\r\n    &copy; <script>document.write(new Date().getFullYear())<\/script>, {{SITE_NAME}}\r\n  <\/p>\r\n<\/footer>",
+    "css": "footer {\r\n  padding: 1rem;\r\n  margin-top: 40px;\r\n  text-align: center;\r\n  color: #64748b;\r\n  font-size: 0.85rem;\r\n}",
+    "is_global": false,
+    "is_wrapper": false,
+    "memo": ""
+}

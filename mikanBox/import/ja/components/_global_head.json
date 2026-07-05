@@ -1,0 +1,8 @@
+{
+    "html": "<meta charset=\"UTF-8\">\r\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n<meta name=\"description\" content=\"{{DESCRIPTION}}\">\r\n<meta name=\"keywords\" content=\"{{KEYWORDS}}\">\r\n<meta property=\"og:image\" content=\"{{OGP_IMAGE}}\">\r\n<title>{{FULL_TITLE}}<\/title>\r\n{{HEAD_CSS}}",
+    "css": "",
+    "is_global": true,
+    "is_wrapper": false,
+    "is_ai_doc": false,
+    "memo": "Global Head Tags。{{HEAD_CSS}}はCSS管理に必ず必要です — ページ内に1回だけ含まれるようにしてください。ここにGoogle AnalyticsやWeb Fontsなどを読み込みます。"
+}

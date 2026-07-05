@@ -1,0 +1,15 @@
+{
+    "title": "ページ作成例",
+    "category": "sample,nav",
+    "status": "public_dynamic",
+    "description": "画像・検索・お問い合わせの使い方をまとめたサンプルページです。",
+    "keywords": "",
+    "ogp_image": "",
+    "content_md": "## カード型デザイン\r\n\r\n<div class=\"tip-cards\">\r\n<div class=\"tip-card\">\r\n\r\n### 📝 Markdownで記事執筆\r\n\r\n見出しや本文、リストなどは、Markdown記法で書くことができます。HTMLと混在させることも可能です。コンテンツを見やすい状態で管理・運用することができます。デザインはAIにまかせて、情報の更新などは人が素早く修正するといった運用も可能です。\r\n\r\n<\/div>\r\n<div class=\"tip-card\">\r\n\r\n### 🧩 コンポーネント\r\n\r\nヘッダー・フッターやカード・検索ボックスなどは、コンポーネントとして呼び出せます。ぞれぞれのパーツごとにCSS持つことができ自由にデザインでき、しかも他の部分へ影響を与えません。\r\n\r\n<\/div>\r\n<div class=\"tip-card\">\r\n\r\n### 🖼️ 画像の管理\r\n\r\nメディアにアップロードした画像は、ファイル名を指定するだけで表示できます。ファイルのパスなどを考える必要はありません。また、カテゴリごとにまとめて管理することもできます。\r\n\r\n<\/div>\r\n<div class=\"tip-card\">\r\n\r\n### 🤖 MCPでAI対応\r\n\r\nMCPでAIとつながることで、記事の作成だけでなく、デザインや画像生成まで行うことができます。共通のパーツを用いて、統一されたデザイン基調でデザインさせることも可能です。\r\n\r\n<\/div>\r\n<div class=\"tip-card\">\r\n\r\n### 🗂️ カテゴリごとのワークスペース\r\n\r\nカテゴリごとに素早くページを絞り込むことができます。このとき、カテゴリ名の接頭辞のついた画像ファイルも絞り込むことができるので、ページ数、情報量の多いサイトでも、効率的に作業できます。\r\n\r\n<\/div>\r\n<div class=\"tip-card\">\r\n\r\n### ⚡ 素早く使えるUI\r\n\r\nページを行き来することなく、スクロールで操作できるUI。ページを書きながら、画像ファイルを読み込むといったことも並行して行えます。\r\n\r\n<\/div>\r\n<\/div>\r\n\r\n\r\n## 検索ボックス\r\n\r\n{{COMPONENT:_search_box}}\r\n\r\n## お問い合わせ\r\n\r\nGoogleフォームの埋め込みコード（iframe）を貼り付けるか、Googleフォームのページにリンクを張ってください。",
+    "css": ".tip-cards {\r\n  display: grid;\r\n  grid-template-columns: repeat(3, 1fr);\r\n  gap: 20px;\r\n  margin: 20px 0 40px;\r\n}\r\n.tip-card {\r\n  background: #fff;\r\n  padding: 20px;\r\n  border-radius: 8px;\r\n  border: 1px solid #d1d5db;\r\n  box-shadow: 0 8px 16px rgba(0,0,0,0.06);\r\n}\r\n.tip-card h3 { margin: 0 0 10px; font-size: 1.05rem; color: #1e293b; }\r\n.tip-card p { color: #475569; font-size: 0.9rem; line-height: 1.6; margin: 0 0 8px; }\r\n.tip-card pre { background: #1e293b; color: #f8fafc; padding: 10px 12px; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; }\r\n@media (max-width: 768px) {\r\n  .tip-cards { grid-template-columns: 1fr; }\r\n}",
+    "is_html": false,
+    "wrapper_comp": "_layout",
+    "sort_order": 0,
+    "updated_at": "2026-07-03 04:11:56",
+    "memo": "機能をご紹介するためのページです。サイト公開時には、「下書き」にするか、削除してください。"
+}

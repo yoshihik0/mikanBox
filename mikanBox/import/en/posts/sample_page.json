@@ -1,0 +1,15 @@
+{
+    "title": "Page Creation Example",
+    "category": "sample,nav",
+    "status": "public_dynamic",
+    "description": "A sample page covering how to use images, search, and a contact section.",
+    "keywords": "",
+    "ogp_image": "",
+    "content_md": "## Card-based design\n\n<div class=\"tip-cards\">\n<div class=\"tip-card\">\n\n### 📝 Write articles in Markdown\n\nHeadings, body text, lists, and more can be written using Markdown syntax. You can also mix in raw HTML. This keeps content easy to manage and maintain — you can leave the design to AI and let a human quickly handle content updates.\n\n<\/div>\n<div class=\"tip-card\">\n\n### 🧩 Components\n\nHeaders, footers, cards, search boxes, and more can be called in as components. Each part can have its own CSS, so you're free to design it however you like without affecting anything else.\n\n<\/div>\n<div class=\"tip-card\">\n\n### 🖼️ Image management\n\nImages you upload to the media library can be displayed just by specifying the filename — no need to think about file paths. You can also organize images by category.\n\n<\/div>\n<div class=\"tip-card\">\n\n### 🤖 AI-ready via MCP\n\nConnecting an AI through MCP lets it not just write articles, but also handle design and even image generation. Using shared parts, you can have AI design consistently across your whole site.\n\n<\/div>\n<div class=\"tip-card\">\n\n### 🗂️ Category-based workspaces\n\nYou can quickly filter pages down by category. Image files with a matching category prefix get filtered along with them, so you can work efficiently even on sites with many pages and lots of content.\n\n<\/div>\n<div class=\"tip-card\">\n\n### ⚡ A UI built for speed\n\nA scroll-based UI means you never have to jump between pages. You can write a page and load image files at the same time, in parallel.\n\n<\/div>\n<\/div>\n\n\n## Search box\n\n{{COMPONENT:_search_box}}\n\n## Contact\n\nPaste in your Google Form embed code (an iframe), or link to your Google Form page.",
+    "css": ".tip-cards {\n  display: grid;\n  grid-template-columns: repeat(3, 1fr);\n  gap: 20px;\n  margin: 20px 0 40px;\n}\n.tip-card {\n  background: #fff;\n  padding: 20px;\n  border-radius: 8px;\n  border: 1px solid #d1d5db;\n  box-shadow: 0 8px 16px rgba(0,0,0,0.06);\n}\n.tip-card h3 { margin: 0 0 10px; font-size: 1.05rem; color: #1e293b; }\n.tip-card p { color: #475569; font-size: 0.9rem; line-height: 1.6; margin: 0 0 8px; }\n.tip-card pre { background: #1e293b; color: #f8fafc; padding: 10px 12px; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; }\n@media (max-width: 768px) {\n  .tip-cards { grid-template-columns: 1fr; }\n}",
+    "is_html": false,
+    "wrapper_comp": "_layout",
+    "sort_order": 0,
+    "updated_at": "2026-07-03 04:11:56",
+    "memo": "This page exists to introduce mikanBox's features. When you publish your site, set it to \"Draft\" or delete it."
+}

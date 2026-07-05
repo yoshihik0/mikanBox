@@ -1,0 +1,8 @@
+{
+    "html": "<div class=\"search-result-item\">\n  <h3><a href=\"{{RESULT_URL}}\">{{RESULT_TITLE}}<\/a><\/h3>\n  <p class=\"search-snippet\">{{RESULT_SNIPPET}}<\/p>\n  <span class=\"search-date\">{{RESULT_DATE}}<\/span>\n<\/div>",
+    "css": ".search-result-item {\n  margin-bottom: 24px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid #e2e8f0;\n}\n.search-result-item h3 {\n  margin: 0 0 8px 0;\n  font-size: 1.25rem;\n}\n.search-result-item h3 a {\n  color: #ea580c;\n  text-decoration: none;\n  font-weight: 700;\n}\n.search-result-item h3 a:hover {\n  text-decoration: underline;\n}\n.search-result-item .search-snippet {\n  color: #475569;\n  font-size: 0.95rem;\n  line-height: 1.6;\n  margin: 0 0 8px 0;\n}\n.search-result-item strong.search-highlight {\n  background: #fef08a;\n  color: #0f172a;\n  padding: 2px 4px;\n  border-radius: 4px;\n  font-weight: bold;\n}\n.search-result-item .search-date {\n  font-size: 0.8rem;\n  color: #94a3b8;\n}",
+    "is_global": false,
+    "is_wrapper": false,
+    "is_ai_doc": false,
+    "memo": "Designs how a single search result is displayed. Place {{SEARCH_RESULTS:_search_result_item}} on the page that shows search results."
+}

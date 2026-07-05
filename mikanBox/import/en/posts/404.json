@@ -1,0 +1,14 @@
+{
+    "title": "404",
+    "category": "system",
+    "status": "public_dynamic",
+    "description": "",
+    "keywords": "",
+    "ogp_image": "",
+    "content_md": "<div class=\"notfound-wrap\">\n  <div class=\"notfound-icon\">🍊<\/div>\n  <div class=\"notfound-code\">404<\/div>\n  <p class=\"notfound-msg\">This page could not be found.<br>This mikan box is empty.<\/p>\n  <a href=\"{{SITE_URL}}\" class=\"notfound-btn\">Back to Home<\/a>\n<\/div>",
+    "css": ".hero_box{display:none;}\n.notfound-wrap {\n  text-align: center;\n  padding: 80px 20px;\n}\n.notfound-icon {\n  font-size: 4rem;\n  animation: bounce 1.8s ease-in-out infinite;\n}\n.notfound-code {\n  font-size: 6rem;\n  font-weight: bold;\n  color: #f90;\n  line-height: 1;\n  margin: 10px 0;\n}\n.notfound-msg {\n  color: #666;\n  margin: 20px 0 32px;\n  line-height: 1.8;\n}\n.notfound-btn {\n  display: inline-block;\n  padding: 10px 28px;\n  background: #f90;\n  color: #fff;\n  border-radius: 999px;\n  text-decoration: none;\n  font-weight: bold;\n}\n.notfound-btn:hover {\n  background: #e68a00;\n}\n@keyframes bounce {\n  0%, 100% { transform: translateY(0); }\n  50% { transform: translateY(-12px); }\n}",
+    "is_html": false,
+    "wrapper_comp": "_layout",
+    "sort_order": -1,
+    "updated_at": "2026-07-04 15:40:34"
+}

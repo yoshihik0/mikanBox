@@ -1,0 +1,15 @@
+{
+    "title": "マークダウン読み込みサンプル",
+    "category": "sample",
+    "status": "db",
+    "description": "「独自タグ サンプル」で使用しているデータ",
+    "keywords": "",
+    "ogp_image": "",
+    "content_md": "### 他のページから読み込んだMarkDown\r\n\r\n他のページから読み込んだMarkDownを表示できます。\r\nお知らせ更新用のページを作っておき、トップページから読み取るというようなことも可能です。",
+    "css": "",
+    "is_html": false,
+    "wrapper_comp": "_ai",
+    "sort_order": 101,
+    "updated_at": "2026-07-03 14:39:44",
+    "memo": "機能をご紹介するためのページです。"
+}

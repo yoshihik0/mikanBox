@@ -1,0 +1,15 @@
+{
+    "title": "Data Sample",
+    "category": "sample",
+    "status": "db",
+    "description": "Data used by the \"Custom Tags Sample\" page",
+    "keywords": "",
+    "ogp_image": "",
+    "content_md": "## Displaying defined data\nData used by \"Displaying data from another page\"\n\n{{DATA:BOOK_TITLE}}Macbeth{{\/DATA}}\n{{DATA:AUTHOR}}Shakespeare{{\/DATA}}\n\n\n## Defining a database\nData used by \"Displaying data from another page's database\"\n\n{{DATAROW:1}}\n{{DATA:GOODS}}Apple{{\/DATA}}\n{{DATA:PRICE}}300{{\/DATA}}\n{{\/DATAROW}}\n\n{{DATAROW:2}}\n{{DATA:GOODS}}Banana{{\/DATA}}\n{{DATA:PRICE}}200{{\/DATA}}\n{{\/DATAROW}}\n",
+    "css": "",
+    "is_html": false,
+    "wrapper_comp": "_ai",
+    "sort_order": 101,
+    "updated_at": "2026-07-04 13:29:18",
+    "memo": "This page exists to demonstrate a feature."
+}
