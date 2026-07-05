@@ -211,7 +211,7 @@
     "error_save_failed": "Error: Failed to save.",
     "hint_existing_categories": "Existing categories",
     "sett_cat_readonly_hint": "Categories are freely set on each page. Currently used categories are shown here automatically.",
-    "label_design_component": "Type",
+    "label_design_component": "Design Component",
     "ssg_head": "Static Site Generation (SSG)",
     "ssg_hint": "Exports the site as HTML files. Can be published as a fast and secure static site.",
     "label_ssg_structure": "Output Structure / URL Format",
