@@ -7,7 +7,8 @@ mikanBox/data/*.db
 mikanBox/data/login_attempts.json
 
 # User content: seeded at first run from import/{lang}, not tracked directly.
-mikanBox/data/posts/*.json
+# (trailing slash so this also covers nested pages, e.g. data/posts/coffee/)
+mikanBox/data/posts/
 mikanBox/data/components/*
 !mikanBox/data/components/
 
