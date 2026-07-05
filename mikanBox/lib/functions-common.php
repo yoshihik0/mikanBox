@@ -467,22 +467,35 @@ class MikanBoxMarkdown {
         $text = preg_replace('/~~(.*?)~~/', '<del>$1</del>', $text);
 
         // 3.5 Inline span with class/id: [text]{.class #id}
-        $text = preg_replace_callback('/\[([^\]]+)\]\{([^}]+)\}/', function($m) use (&$map) {
-            $classAttr = '';
-            $idAttr = '';
-            if (preg_match_all('/\.([\w-]+)/', $m[2], $cm)) {
-                $classAttr = ' class="' . implode(' ', $cm[1]) . '"';
-            }
-            if (preg_match('/#([\w-]+)/', $m[2], $im)) {
-                $idAttr = ' id="' . $im[1] . '"';
-            }
-            $ph = "\x02SPAN" . count($map) . "\x03";
-            $map[$ph] = "<span{$idAttr}{$classAttr}>{$m[1]}</span>";
-            return $ph;
-        }, $text);
+        // 入れ子対応: 内容に [ ] を含まないもの（最内側）から順にプレースホルダー化し、
+        // 変化がなくなるまで反復する。プレースホルダーはブラケットを含まないため、
+        // 次の周回で外側の [ ... ]{...} がマッチする。これにより
+        // [[save]{.material-symbols-outlined}保存]{.m-btn .m-btn-blue} のような
+        // アイコン入りボタン等の入れ子スパンが書ける。
+        $prev = null;
+        $guard = 0;
+        while ($prev !== $text && $guard++ < 10) {
+            $prev = $text;
+            $text = preg_replace_callback('/\[([^\[\]]+)\]\{([^}]+)\}/', function($m) use (&$map) {
+                $classAttr = '';
+                $idAttr = '';
+                if (preg_match_all('/\.([\w-]+)/', $m[2], $cm)) {
+                    $classAttr = ' class="' . implode(' ', $cm[1]) . '"';
+                }
+                if (preg_match('/#([\w-]+)/', $m[2], $im)) {
+                    $idAttr = ' id="' . $im[1] . '"';
+                }
+                $ph = "\x02SPAN" . count($map) . "\x03";
+                $map[$ph] = "<span{$idAttr}{$classAttr}>{$m[1]}</span>";
+                return $ph;
+            }, $text);
+        }
 
         // 4. Restore placeholders
-        foreach ($map as $ph => $html) {
+        // 逆順で復元する: 後から作られたプレースホルダー（外側のスパン等）のHTMLの中に、
+        // 先に作られたプレースホルダー（インラインコード・リンク・内側のスパン）が
+        // 含まれることがあるため、外側から復元しないと生のプレースホルダーが残る。
+        foreach (array_reverse($map, true) as $ph => $html) {
             $text = str_replace($ph, $html, $text);
         }
 
