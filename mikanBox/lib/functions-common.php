@@ -109,6 +109,24 @@ function resolveSafeDataPath($baseDir, $id, $suffix = '.json', $createParent = f
 function scopeCss($css, $prefix) {
     if (empty(trim($css))) return '';
 
+    // セレクタ全体を :global(...) で囲んだ場合はスコープ外へ出す。
+    // 例: :global(.hero_box) -> .hero_box
+    // 部分指定（:global(.foo) .bar）は意図的にサポートしない。
+    $scopeSelector = function($selector) use ($prefix) {
+        $sel = trim($selector);
+        if (empty($sel)) return '';
+
+        if (preg_match('/^:global\((.+)\)$/s', $sel, $matches)) {
+            return trim($matches[1]);
+        }
+
+        if (strpos($sel, '@') === 0) return $sel;
+        if ($sel === ':root' || $sel === 'body' || $sel === 'html') {
+            return $prefix . ' ' . ltrim($sel, ':');
+        }
+        return $prefix . ' ' . $sel;
+    };
+
     // テンプレートタグ {{...}} を一時退避（中括弧がCSS解析を壊すため）
     $tagMap = [];
     $css = preg_replace_callback('/\{\{[A-Z_]+\}\}/', function($m) use (&$tagMap) {
@@ -137,16 +155,8 @@ function scopeCss($css, $prefix) {
                 $selectors = explode(',', $buffer);
                 $scopedSelectors = [];
                 foreach ($selectors as $selector) {
-                    $sel = trim($selector);
-                    if (empty($sel)) continue;
-                    
-                    if (strpos($sel, '@') === 0) {
-                        $scopedSelectors[] = $sel;
-                    } elseif ($sel === ':root' || $sel === 'body' || $sel === 'html') {
-                        $scopedSelectors[] = $prefix . ' ' . ltrim($sel, ':');
-                    } else {
-                        $scopedSelectors[] = $prefix . ' ' . $sel;
-                    }
+                    $scopedSelector = $scopeSelector($selector);
+                    if ($scopedSelector !== '') $scopedSelectors[] = $scopedSelector;
                 }
                 $scopedCss .= implode(', ', $scopedSelectors) . ' {';
             } else {
@@ -159,9 +169,8 @@ function scopeCss($css, $prefix) {
                      $innerSelectors = explode(',', $currentRule);
                      $scopedInner = [];
                      foreach($innerSelectors as $is) {
-                         $is = trim($is);
-                         if (empty($is)) continue;
-                         $scopedInner[] = $prefix . ' ' . $is;
+                         $scopedSelector = $scopeSelector($is);
+                         if ($scopedSelector !== '') $scopedInner[] = $scopedSelector;
                      }
                      $currentRule = implode(', ', $scopedInner);
                 }
