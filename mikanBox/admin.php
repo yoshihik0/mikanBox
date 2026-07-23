@@ -460,6 +460,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $message = t('msg_demo_mode');
         goto skip_post_actions;
     }
+
+    if (in_array($_POST['save_action'], ['system_update', 'system_restore'], true)) {
+        require_once __DIR__ . '/lib/updater.php';
+        try {
+            if ($_POST['save_action'] === 'system_update') {
+                $result = mikanBoxInstallUpdate(
+                    'yoshihik0/mikanBox',
+                    MIKANBOX_VERSION,
+                    CORE_DIR,
+                    DATA_DIR,
+                    $_POST['target_version'] ?? null,
+                    $_POST['update_ref'] ?? 'main'
+                );
+                $message = !empty($result['success'])
+                    ? t('msg_system_update_success', $result['version'])
+                    : t('update_error_' . ($result['code'] ?? 'internal'));
+            } else {
+                $result = mikanBoxRestorePreviousVersion(CORE_DIR, DATA_DIR);
+                $message = !empty($result['success'])
+                    ? t('msg_system_restore_success', $result['version'])
+                    : t('update_error_' . ($result['code'] ?? 'internal'));
+            }
+        } catch (Throwable $e) {
+            $message = t('update_error_internal');
+        }
+        unset($_SESSION['mikanbox_latest_ver_' . md5('yoshihik0/mikanBox')]);
+        $_SESSION['admin_message'] = $message;
+        header('Location: admin.php?view=settings');
+        exit;
+    }
     
     // Path Context for Actions
     $activeSsgDir = isset($_POST['ssg_dir']) ? (string)$_POST['ssg_dir'] : $ssgDir;
