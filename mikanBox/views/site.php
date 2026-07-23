@@ -5,34 +5,50 @@
     <!-- Version Info -->
     <?php
     $latestVersion = null;
-    $vCacheKey = 'mikanbox_latest_ver';
-    $vCacheTime = 'mikanbox_latest_ver_time';
-    if (isset($_SESSION[$vCacheKey]) && (time() - ($_SESSION[$vCacheTime] ?? 0)) < 21600) {
-        $latestVersion = $_SESSION[$vCacheKey];
+    $githubRepo = 'yoshihik0/mikanBox';
+    $vCacheKey = 'mikanbox_latest_ver_' . md5($githubRepo);
+    $cachedVersion = $_SESSION[$vCacheKey] ?? null;
+    if (is_array($cachedVersion) && (time() - ($cachedVersion['checked_at'] ?? 0)) < 21600) {
+        $latestVersion = $cachedVersion['version'] ?? null;
     } else {
-        $ctx = stream_context_create(['http' => ['timeout' => 3, 'header' => "User-Agent: mikanBox-admin\r\n"]]);
-        $json = @file_get_contents('https://api.github.com/repos/yoshihik0/mikanBox/releases/latest', false, $ctx);
+        $ctx = stream_context_create(['http' => [
+            'timeout' => 3,
+            'ignore_errors' => true,
+            'header' => "User-Agent: mikanBox-admin\r\nAccept: application/vnd.github+json\r\n",
+        ]]);
+        $json = @file_get_contents("https://api.github.com/repos/{$githubRepo}/releases/latest", false, $ctx);
         if ($json) {
             $vData = json_decode($json, true);
             $latestVersion = $vData['tag_name'] ?? null;
         }
         if (!$latestVersion) {
-            $json = @file_get_contents('https://api.github.com/repos/yoshihik0/mikanBox/tags', false, $ctx);
+            $json = @file_get_contents("https://api.github.com/repos/{$githubRepo}/tags", false, $ctx);
             if ($json) {
                 $vData = json_decode($json, true);
-                $latestVersion = $vData[0]['name'] ?? null;
+                $versions = array_values(array_filter(array_map(
+                    fn($tag) => $tag['name'] ?? null,
+                    is_array($vData) ? $vData : []
+                )));
+                usort($versions, fn($a, $b) => version_compare(ltrim($b, 'vV'), ltrim($a, 'vV')));
+                $latestVersion = $versions[0] ?? null;
             }
         }
-        $_SESSION[$vCacheKey] = $latestVersion;
-        $_SESSION[$vCacheTime] = time();
+        if (!$latestVersion) {
+            $configPhp = @file_get_contents("https://raw.githubusercontent.com/{$githubRepo}/main/mikanBox/config.php", false, $ctx);
+            if ($configPhp && preg_match('/define\\s*\\(\\s*[\'"]MIKANBOX_VERSION[\'"]\\s*,\\s*[\'"]([^\'"]+)[\'"]\\s*\\)/', $configPhp, $versionMatch)) {
+                $latestVersion = $versionMatch[1];
+            }
+        }
+        $_SESSION[$vCacheKey] = ['version' => $latestVersion, 'checked_at' => time()];
     }
-    $isOutdated = $latestVersion && $latestVersion !== 'v' . MIKANBOX_VERSION && $latestVersion !== MIKANBOX_VERSION;
+    $isOutdated = $latestVersion
+        && version_compare(ltrim($latestVersion, 'vV'), ltrim(MIKANBOX_VERSION, 'vV'), '>');
     ?>
     <div class="section-container section-tight">
         <div style="font-size:0.82em; color:var(--text-sub,#888); padding:6px 2px; display:flex; gap:1.5em; align-items:center; flex-wrap:wrap;">
             <span><?= t('version_current') ?>: <?= htmlspecialchars(MIKANBOX_VERSION) ?></span>
             <span><?= t('version_latest') ?>: <?= $latestVersion ? htmlspecialchars($latestVersion) : '—' ?><?php if ($isOutdated): ?> <span style="color:#e07000;">▲ <?= t('version_update_available') ?></span><?php endif; ?></span>
-            <a href="https://github.com/yoshihik0/mikanBox" target="_blank" rel="noopener" style="color:inherit;">GitHub</a>
+            <a href="https://github.com/<?= htmlspecialchars($githubRepo) ?>" target="_blank" rel="noopener" style="color:inherit;">GitHub</a>
         </div>
     </div>
 
@@ -221,5 +237,4 @@
             </details>
         </div>
     </div>
-
 

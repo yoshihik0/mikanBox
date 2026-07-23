@@ -24,7 +24,10 @@ echo "Output Directory: $outputDir\n";
 
 $renderer = new MikanBoxRenderer($GLOBALS['mikanbox_settings']);
 $ssg = new MikanBoxSSG($renderer, $outputDir, [
-    'structure' => $GLOBALS['mikanbox_settings']['ssg_structure'] ?? 'directory'
+    'structure' => $GLOBALS['mikanbox_settings']['ssg_structure'] ?? 'directory',
+    'output_mode' => $GLOBALS['mikanbox_settings']['ssg_mode'] ?? 'server',
+    'link_mode' => $GLOBALS['mikanbox_settings']['ssg_link_mode'] ?? 'absolute',
+    'copy_media' => ($GLOBALS['mikanbox_settings']['ssg_mode'] ?? 'server') === 'export',
 ]);
 
 $results = $ssg->build();

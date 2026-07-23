@@ -153,7 +153,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
                     'keywords'    => '',
                     'memo'        => 'Welcome to 🍊mikanBox!',
                     'system_lang' => '',
-                    'ssg_structure' => 'file'
+                    'ssg_structure' => 'directory',
+                    'ssg_server_structure' => 'directory',
+                    'ssg_export_structure' => 'file'
                 ];
                 saveSettings($settings);
             }
@@ -549,7 +551,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             require_once __DIR__ . '/lib/ssg.php';
             $ssgOpts = [
                 'structure' => $settings['ssg_structure'] ?? 'directory',
-                'copy_media' => false,
+                'copy_media' => ($settings['ssg_mode'] ?? 'server') === 'export',
                 'selected_pages' => [$id]
             ];
             $ssg = new MikanBoxSSG($renderer, $activeSsgAbsPath, $ssgOpts);
@@ -979,7 +981,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     }
     elseif ($_POST['save_action'] === 'ssg_save_settings') {
         $settings['ssg_dir'] = $_POST['ssg_dir'] ?? '';
-        $settings['ssg_structure'] = $_POST['ssg_structure'] ?? 'directory';
+        $settings['ssg_mode'] = in_array($_POST['ssg_mode'] ?? '', ['server', 'export'], true) ? $_POST['ssg_mode'] : 'server';
+        $settings['ssg_server_structure'] = in_array($_POST['ssg_server_structure'] ?? '', ['directory', 'file'], true) ? $_POST['ssg_server_structure'] : 'directory';
+        $settings['ssg_export_structure'] = in_array($_POST['ssg_export_structure'] ?? '', ['directory', 'file'], true) ? $_POST['ssg_export_structure'] : 'file';
+        $settings['ssg_structure'] = $settings['ssg_mode'] === 'export' ? $settings['ssg_export_structure'] : $settings['ssg_server_structure'];
+        $settings['ssg_link_mode'] = in_array($_POST['ssg_link_mode'] ?? '', ['relative', 'absolute'], true) ? $_POST['ssg_link_mode'] : 'relative';
+        if (isset($_POST['ssg_root_url'])) $settings['ssg_root_url'] = trim($_POST['ssg_root_url']);
         if (saveSettings($settings)) {
             $message = t('msg_update_success');
         } else {
@@ -992,9 +999,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     elseif ($_POST['save_action'] === 'ssg_build') {
         require_once __DIR__ . '/lib/ssg.php';
 
+        $ssgMode = in_array($_POST['ssg_mode'] ?? ($settings['ssg_mode'] ?? 'server'), ['server', 'export'], true)
+            ? ($_POST['ssg_mode'] ?? ($settings['ssg_mode'] ?? 'server'))
+            : 'server';
+        $ssgLinkMode = in_array($_POST['ssg_link_mode'] ?? ($settings['ssg_link_mode'] ?? 'relative'), ['relative', 'absolute'], true)
+            ? ($_POST['ssg_link_mode'] ?? ($settings['ssg_link_mode'] ?? 'relative'))
+            : 'relative';
+        if ($ssgMode === 'server') $ssgLinkMode = 'absolute';
+        if ($ssgMode === 'export' && trim($activeSsgDir) === '') {
+            $activeSsgDir = 'export';
+            $activeSsgAbsPath = $siteRoot . '/export';
+            $activeSsgRelPath = '../export/';
+        }
+
+        $ssgServerStructure = in_array($_POST['ssg_server_structure'] ?? ($settings['ssg_server_structure'] ?? 'directory'), ['directory', 'file'], true)
+            ? ($_POST['ssg_server_structure'] ?? ($settings['ssg_server_structure'] ?? 'directory'))
+            : 'directory';
+        $ssgExportStructure = in_array($_POST['ssg_export_structure'] ?? ($settings['ssg_export_structure'] ?? 'file'), ['directory', 'file'], true)
+            ? ($_POST['ssg_export_structure'] ?? ($settings['ssg_export_structure'] ?? 'file'))
+            : 'file';
+        $ssgStructure = in_array($_POST['ssg_structure'] ?? '', ['directory', 'file'], true)
+            ? $_POST['ssg_structure']
+            : ($ssgMode === 'export' ? $ssgExportStructure : $ssgServerStructure);
+        if ($ssgMode === 'export') {
+            $ssgExportStructure = $ssgStructure;
+        } else {
+            $ssgServerStructure = $ssgStructure;
+        }
+
+        $settings['ssg_dir'] = $activeSsgDir;
+        $settings['ssg_structure'] = $ssgStructure;
+        $settings['ssg_server_structure'] = $ssgServerStructure;
+        $settings['ssg_export_structure'] = $ssgExportStructure;
+        $settings['ssg_mode'] = $ssgMode;
+        $settings['ssg_link_mode'] = $ssgLinkMode;
+        if (isset($_POST['ssg_root_url'])) $settings['ssg_root_url'] = trim($_POST['ssg_root_url']);
+        $renderer = new MikanBoxRenderer($settings);
+
         $ssgOpts = [
-            'structure' => $_POST['ssg_structure'] ?? ($settings['ssg_structure'] ?? 'directory'),
-            'selected_pages' => [] // Build all that are public_static
+            'structure' => $settings['ssg_structure'],
+            'selected_pages' => [], // Build all that are public_static
+            'output_mode' => $ssgMode,
+            'link_mode' => $ssgLinkMode,
+            'copy_media' => $ssgMode === 'export',
         ];
 
         $ssg = new MikanBoxSSG($renderer, $activeSsgAbsPath, $ssgOpts);
@@ -1006,10 +1053,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         if (!empty($errors)) $message .= ' / ' . implode(', ', $errors);
         if (empty($results)) $message .= t('msg_html_pages_none');
         
-        // Save settings as well
-        $settings['ssg_dir'] = $activeSsgDir;
-        $settings['ssg_structure'] = $ssgOpts['structure'];
-        file_put_contents(SETTINGS_FILE, json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        if (!saveSettings($settings)) {
+            $message .= ' / ' . t('err_save_failed');
+        }
         $_SESSION['admin_message'] = $message;
         header("Location: admin.php?view=settings#ssg");
         exit;
@@ -1146,7 +1192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                 require_once __DIR__ . '/lib/ssg.php';
                 $ssgOpts = [
                     'structure' => $settings['ssg_structure'] ?? 'directory',
-                    'copy_media' => false,
+                    'copy_media' => ($settings['ssg_mode'] ?? 'server') === 'export',
                     'selected_pages' => [$id]
                 ];
                 $ssg = new MikanBoxSSG($renderer, $activeSsgAbsPath, $ssgOpts);

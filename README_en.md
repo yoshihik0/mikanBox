@@ -107,7 +107,7 @@ Components contain HTML and scoped CSS, and can be nested.
 
 ### Static Site Generation (SSG)
 
-Export all pages as static HTML with a single click. You can also mix static and dynamic pages.
+Export all pages as static HTML with a single click. You can also mix static and dynamic pages. Choose between generating pages in the current server or creating an upload-ready folder containing portable relative links and a copied media folder.
 
 ### Page Publish Status
 

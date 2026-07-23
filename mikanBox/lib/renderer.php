@@ -12,6 +12,7 @@ class MikanBoxRenderer {
     private $depth = 0;
     private $depthSetManually = false;
     private $ssgStructure = 'directory';
+    private $ssgLinkMode = 'absolute';
     private $currentPageData = []; // DATA blocks of current page
 
     public function __construct($settings) {
@@ -64,11 +65,12 @@ class MikanBoxRenderer {
         ];
     }
 
-    public function setStaticMode($enabled, $depth = 0, $structure = 'directory') {
+    public function setStaticMode($enabled, $depth = 0, $structure = 'directory', $linkMode = 'absolute') {
         $this->staticMode = $enabled;
         $this->depth = $depth;
         $this->depthSetManually = true; // Use manual depth (from SSG)
         $this->ssgStructure = $structure;
+        $this->ssgLinkMode = in_array($linkMode, ['absolute', 'relative'], true) ? $linkMode : 'absolute';
     }
 
     /**
@@ -227,7 +229,14 @@ class MikanBoxRenderer {
         // 8. Process CSS Buffer
         foreach ($this->globalCssBuffer as &$cssLine) {
             $cssLine = $this->replaceBasicTags($cssLine, $pageData, $pageTitle, $pageDesc, $pageKeywords, $ogpImage);
-            $cssLine = preg_replace('/\b(?:images|media)\//', $this->getSiteBasePath() . 'media/', $cssLine);
+            $cssMediaBase = $this->isRelativeStaticMode()
+                ? $this->getStaticRootPrefix() . 'media/'
+                : $this->getSiteBasePath() . 'media/';
+            $cssLine = preg_replace_callback(
+                '/url\(\s*(["\']?)(?:images|media)\/([^)"\']+)\1\s*\)/i',
+                fn($m) => 'url(' . $m[1] . $cssMediaBase . $m[2] . $m[1] . ')',
+                $cssLine
+            );
         }
 
         // 9. Embed CSS
@@ -313,22 +322,24 @@ class MikanBoxRenderer {
     }
 
     private function replaceBasicTags($text, $pageData, $pageTitle, $pageDesc, $pageKeywords, $ogpImage) {
-        $siteUrl = $this->getSiteUrl();
+        $siteUrl = $this->isRelativeStaticMode()
+            ? $this->getRelativeSiteRoot()
+            : $this->getSiteUrl();
 
         $replacements = [
             '/\{\{\s*SITE_NAME\s*\}\}/' => htmlspecialchars($this->siteSettings['site_name']),
             '/\{\{\s*SITE_DESCRIPTION\s*\}\}/' => htmlspecialchars($this->siteSettings['description']),
             '/\{\{\s*SITE_KEYWORDS\s*\}\}/' => htmlspecialchars($this->siteSettings['keywords']),
-            '/\{\{\s*SITE_OGP_IMAGE\s*\}\}/' => $this->resolveAbsoluteUrl(resolveMediaPath($this->siteSettings['ogp_image'])),
+            '/\{\{\s*SITE_OGP_IMAGE\s*\}\}/' => $this->resolveMediaUrl(resolveMediaPath($this->siteSettings['ogp_image'])),
 
             '/\{\{\s*PAGE_TITLE\s*\}\}/' => htmlspecialchars($pageData['title'] ?? ''),
             '/\{\{\s*PAGE_DESCRIPTION\s*\}\}/' => htmlspecialchars($pageData['description'] ?? ''),
             '/\{\{\s*PAGE_KEYWORDS\s*\}\}/' => htmlspecialchars($pageData['keywords'] ?? ''),
-            '/\{\{\s*PAGE_OGP_IMAGE\s*\}\}/' => $this->resolveAbsoluteUrl(resolveMediaPath($pageData['ogp_image'] ?? '')),
+            '/\{\{\s*PAGE_OGP_IMAGE\s*\}\}/' => $this->resolveMediaUrl(resolveMediaPath($pageData['ogp_image'] ?? '')),
 
             '/\{\{\s*TITLE\s*\}\}/' => htmlspecialchars($pageData['title'] ?? $this->siteSettings['site_name']),
             '/\{\{\s*DESCRIPTION\s*\}\}/' => htmlspecialchars($pageDesc),
-            '/\{\{\s*OGP_IMAGE\s*\}\}/' => $this->resolveAbsoluteUrl(resolveMediaPath($ogpImage)),
+            '/\{\{\s*OGP_IMAGE\s*\}\}/' => $this->resolveMediaUrl(resolveMediaPath($ogpImage)),
             '/\{\{\s*FULL_TITLE\s*\}\}/' => htmlspecialchars($pageTitle),
             '/\{\{\s*KEYWORDS\s*\}\}/' => htmlspecialchars($pageKeywords),
 
@@ -341,7 +352,9 @@ class MikanBoxRenderer {
         $id = $this->currentPageId;
         $pageStatus = $pageData['status'] ?? 'draft';
         $isDirStyle = ($this->ssgStructure === 'directory');
-        if ($pageStatus === 'public_static') {
+        if ($this->isRelativeStaticMode()) {
+            $pageFullUrl = $this->getPageLink($id, '');
+        } elseif ($pageStatus === 'public_static') {
             // Static page: URL matches the actual static file
             if ($id === 'index') {
                 $pageRelPath = '/';
@@ -405,6 +418,23 @@ class MikanBoxRenderer {
         return $scheme . '://' . $host . rtrim($this->getSiteBasePath(), '/');
     }
 
+    public function getConfiguredSiteUrl() {
+        return rtrim(trim($this->siteSettings['ssg_root_url'] ?? ''), '/');
+    }
+
+    private function isRelativeStaticMode() {
+        return $this->staticMode && $this->ssgLinkMode === 'relative';
+    }
+
+    private function getStaticRootPrefix() {
+        return str_repeat('../', max(0, (int)$this->depth));
+    }
+
+    private function getRelativeSiteRoot() {
+        $prefix = $this->getStaticRootPrefix();
+        return $prefix === '' ? '.' : rtrim($prefix, '/');
+    }
+
     private function getSiteBasePath() {
         // 1. index.phpが直接計算した値（動的モードで最も確実）
         if (!empty($this->siteSettings['_site_base'])) {
@@ -444,6 +474,22 @@ class MikanBoxRenderer {
         if (empty($url)) return $url;
         if (preg_match('/^https?:\/\//', $url)) return $url;
         return rtrim($this->getSiteUrl(), '/') . '/' . ltrim($url, '/');
+    }
+
+    private function resolveMediaUrl($url) {
+        if (empty($url)) return $url;
+        if (preg_match('/^(?:https?:\/\/|data:)/i', $url)) return $url;
+        if ($this->isRelativeStaticMode()) {
+            return $this->getStaticRootPrefix() . ltrim($url, '/');
+        }
+        return $this->resolveAbsoluteUrl($url);
+    }
+
+    private function buildPageUrl($postId) {
+        if ($this->isRelativeStaticMode()) {
+            return $this->getPageLink($postId, '');
+        }
+        return $this->buildFullUrl($this->getSiteUrl(), $this->getPageLink($postId, ''));
     }
 
     private function protectCodeSpans($content, array &$codeMap) {
@@ -493,7 +539,9 @@ class MikanBoxRenderer {
         }
 
         // Media Tags (Direct expansion, though applyPathCompletion also handles standard tags)
-        $mediaBase = rtrim($this->getSiteUrl(), '/') . '/media/';
+        $mediaBase = $this->isRelativeStaticMode()
+            ? $this->getStaticRootPrefix() . 'media/'
+            : rtrim($this->getSiteUrl(), '/') . '/media/';
         $html = preg_replace('/\{\{VIDEO:([a-zA-Z0-9_\-\.]+)\}\}/', '<video src="' . $mediaBase . '$1" controls style="max-width:100%; height:auto;"></video>', $html);
         $html = preg_replace('/\{\{IMAGE:([a-zA-Z0-9_\-\.]+)\}\}/', '<img src="' . $mediaBase . '$1" style="max-width:100%; height:auto;">', $html);
         $html = preg_replace('/\{\{AUDIO:([a-zA-Z0-9_\-\.]+)\}\}/', '<audio src="' . $mediaBase . '$1" controls style="width:100%; margin:10px 0;"></audio>', $html);
@@ -681,31 +729,65 @@ class MikanBoxRenderer {
         $html = preg_replace_callback('/href=["\'](\.?\/?)([^"\']+)["\']/i', function($matches) use ($allPosts) {
             $prefix = $matches[1];
             $url = $matches[2];
+            $originalUrl = $prefix . $url;
 
             // Skip external links, hashes, mailto, or already absolute paths
-            // Check full original URL (prefix + url) to catch root-relative paths like /mikanbox/page
-            if (preg_match('/^(?:https?:\/\/|#|mailto:|\/)/i', $url) || $prefix === '/') {
+            if (preg_match('/^(?:https?:\/\/|\/\/|#|mailto:|tel:)/i', $originalUrl)) {
+                return $matches[0];
+            }
+            if (!$this->isRelativeStaticMode() && str_starts_with($originalUrl, '/')) {
+                return $matches[0];
+            }
+            // Links already emitted by portable SSG must not be interpreted as page IDs again.
+            if ($this->isRelativeStaticMode()
+                && preg_match('/(?:^|\/)[^?#]+\.html(?:[?#].*)?$/i', $originalUrl)) {
                 return $matches[0];
             }
 
-            // Normalize: strip .html and trailing slash for comparison
-            $checkId = $url;
-            if (str_ends_with(strtolower($checkId), '.html')) {
+            $path = parse_url($originalUrl, PHP_URL_PATH);
+            $path = $path === null || $path === false ? $originalUrl : $path;
+            $query = parse_url($originalUrl, PHP_URL_QUERY);
+            $fragment = parse_url($originalUrl, PHP_URL_FRAGMENT);
+            $suffix = ($query !== null && $query !== false ? '?' . $query : '')
+                . ($fragment !== null && $fragment !== false ? '#' . $fragment : '');
+
+            if ($this->isRelativeStaticMode() && str_starts_with($path, '/')) {
+                $basePath = trim($this->getSiteBasePath(), '/');
+                $path = ltrim($path, '/');
+                if ($basePath !== '' && ($path === $basePath || str_starts_with($path, $basePath . '/'))) {
+                    $path = ltrim(substr($path, strlen($basePath)), '/');
+                }
+            }
+            if ($this->isRelativeStaticMode()) {
+                $path = preg_replace('#^(?:(?:\./)|(?:\.\./))+#', '', $path);
+            }
+
+            // Normalize generated URL forms for comparison with page IDs.
+            $checkId = trim($path, '/');
+            if (str_ends_with(strtolower($checkId), '/index.html')) {
+                $checkId = substr($checkId, 0, -11);
+            } elseif (str_ends_with(strtolower($checkId), '.html')) {
                 $checkId = substr($checkId, 0, -5);
             }
-            $checkId = trim($checkId, '/');
+            if ($checkId === 'index') $checkId = 'index';
 
             // Find matching post (case-insensitive)
             foreach ($allPosts as $pid) {
                 if (strcasecmp($checkId, $pid) === 0) {
-                    return 'href="' . $this->buildFullUrl($this->getSiteUrl(), $this->getPageLink($pid, '')) . '"';
+                    if ($this->isRelativeStaticMode()) {
+                        $post = loadData(POSTS_DIR, $pid);
+                        if (($post['status'] ?? '') !== 'public_static') {
+                            return $matches[0];
+                        }
+                    }
+                    return 'href="' . $this->buildPageUrl($pid) . $suffix . '"';
                 }
             }
 
             // Special fallback: if it looks like an ID (no extension, has slash etc.)
             // and we didn't find a direct match, but it's clearly an internal link attempt
-            if (preg_match('/^[a-z0-9_\-\/]+$/i', $checkId)) {
-                return 'href="' . $this->buildFullUrl($this->getSiteUrl(), $this->getPageLink($checkId, '')) . '"';
+            if (!$this->isRelativeStaticMode() && preg_match('/^[a-z0-9_\-\/]+$/i', $checkId)) {
+                return 'href="' . $this->buildPageUrl($checkId) . '"';
             }
 
             // No match, return original
@@ -713,12 +795,16 @@ class MikanBoxRenderer {
         }, $html);
 
         // Fix Home link "./" to site base
-        $siteUrl = $this->getSiteUrl();
+        $siteUrl = $this->isRelativeStaticMode()
+            ? $this->getPageLink('index', '')
+            : $this->getSiteUrl();
         $html = preg_replace('/href=["\']\.\/["\']/', 'href="' . $siteUrl . '"', $html);
 
         // 2. Rewrite media paths to full URLs (e.g. https://example.com/mikanbox/media/...)
-        $mediaBase = rtrim($siteUrl, '/') . '/media/';
-        return preg_replace_callback('/<(img|video|audio|source)\b([^>]*)\bsrc=["\']([^"\'\s>]+)["\']/i', function($m) use ($mediaBase) {
+        $mediaBase = $this->isRelativeStaticMode()
+            ? $this->getStaticRootPrefix() . 'media/'
+            : rtrim($siteUrl, '/') . '/media/';
+        $html = preg_replace_callback('/<(img|video|audio|source)\b([^>]*)\bsrc=["\']([^"\'\s>]+)["\']/i', function($m) use ($mediaBase) {
             $tag = $m[1];
             $attrs = $m[2];
             $src = $m[3];
@@ -731,6 +817,11 @@ class MikanBoxRenderer {
             $filename = basename($src);
             return "<{$tag}{$attrs}src=\"{$mediaBase}{$filename}\"";
         }, $html);
+        return preg_replace_callback(
+            '/url\(\s*(["\']?)(?:images|media)\/([^)"\']+)\1\s*\)/i',
+            fn($m) => 'url(' . $m[1] . $mediaBase . $m[2] . $m[1] . ')',
+            $html
+        );
     }
 
     private function generateNavLinks($targetCategory) {
@@ -740,6 +831,7 @@ class MikanBoxRenderer {
         foreach ($postsList as $postId) {
             $postInfo = loadData(POSTS_DIR, $postId);
             if (in_array($postInfo['status'] ?? 'public', ['draft', 'db'])) continue;
+            if ($this->isRelativeStaticMode() && ($postInfo['status'] ?? '') !== 'public_static') continue;
             if (($postInfo['sort_order'] ?? 0) < 0) continue;
 
             $catStr = $postInfo['category'] ?? '';
@@ -751,7 +843,7 @@ class MikanBoxRenderer {
 
             $title = htmlspecialchars($postInfo['title'] ?? $postId, ENT_QUOTES);
             $activeClass = ($this->currentPageId === $postId) ? ' class="active"' : '';
-            $link = $this->buildFullUrl($this->getSiteUrl(), $this->getPageLink($postId, ''));
+            $link = $this->buildPageUrl($postId);
             $html .= "<li{$activeClass}><a href=\"{$link}\">{$title}</a></li>";
         }
         $html .= '</ul>';
@@ -803,7 +895,7 @@ class MikanBoxRenderer {
             $snippet = getSearchSnippet($item['content_md'], $keyword);
             
             // Build absolute URL for scroll-to-text-fragment
-            $link = $this->buildFullUrl($this->getSiteUrl(), $this->getPageLink($item['id'], ''));
+            $link = $this->buildPageUrl($item['id']);
             
             // Text Fragment highlight
             $fragment = '#:~:text=' . urlencode($keyword);
@@ -848,6 +940,7 @@ class MikanBoxRenderer {
         foreach ($postsList as $postId) {
             $postInfo = loadData(POSTS_DIR, $postId);
             if (in_array($postInfo['status'] ?? 'public', ['draft', 'db'])) continue;
+            if ($this->isRelativeStaticMode() && ($postInfo['status'] ?? '') !== 'public_static') continue;
             if (($postInfo['sort_order'] ?? 0) < 0) continue;
 
             $catStr = $postInfo['category'] ?? '';
@@ -861,14 +954,14 @@ class MikanBoxRenderer {
             $desc = htmlspecialchars($postInfo['description'] ?? '', ENT_QUOTES);
             $rawImg = resolveMediaPath($postInfo['ogp_image'] ?? '');
             if (!empty($rawImg) && !preg_match('/^(?:https?:\/\/|data:)/', $rawImg)) {
-                $rawImg = rtrim($this->getSiteUrl(), '/') . '/' . ltrim($rawImg, '/');
+                $rawImg = $this->resolveMediaUrl($rawImg);
             }
             if (empty($rawImg)) {
                 $rawImg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='210'%3E%3Crect width='400' height='210' fill='%23e0e0e0'/%3E%3C/svg%3E";
             }
             $img = htmlspecialchars($rawImg, ENT_QUOTES);
 
-            $link = $this->buildFullUrl($this->getSiteUrl(), $this->getPageLink($postId, ''));
+            $link = $this->buildPageUrl($postId);
             $pageUrl = $link;
             $updateDate = substr($postInfo['updated_at'] ?? date('Y-m-d H:i:s'), 0, 10);
             $isActive = ($this->currentPageId === $postId) ? 'active' : '';
@@ -917,6 +1010,20 @@ class MikanBoxRenderer {
         $root = $this->getSiteBasePath();
         
         if ($this->staticMode) {
+            if ($this->ssgLinkMode === 'relative') {
+                $parts = explode('/', $postId);
+                $encodedParts = array_map('urlencode', $parts);
+                $path = implode('/', $encodedParts);
+                $rootPrefix = $this->getStaticRootPrefix();
+
+                if ($postId === 'index') {
+                    return $rootPrefix . 'index.html';
+                }
+                return $isDirStyle
+                    ? $rootPrefix . $path . '/index.html'
+                    : $rootPrefix . $path . '.html';
+            }
+
             // Static Build Context: 
             // In directory style, we link to '/path/'. In file style, '/path.html'.
             if ($postId === 'index') {
