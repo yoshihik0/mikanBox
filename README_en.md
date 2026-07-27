@@ -77,7 +77,9 @@ For campaign or event sites, shop sites — sites with few pages but that need r
 
 1. Upload the `mikanBox` folder and `index.php` to your server
 2. For security, we recommend renaming the `mikanBox` folder to a name of your choice (if renamed, also update the `$core_dir` variable at the top of `index.php` to match)
-3. Access `mikanBox/admin.php` to set your admin password
+3. Access `{your-admin-folder}/admin.php` to set your admin password
+
+Site-specific data is created on first access in `mikanData` beside `index.php`. Existing `mikanBox/data` sites are migrated automatically only when the directory can be moved safely.
 
 That's all.
 

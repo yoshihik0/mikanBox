@@ -1,4 +1,15 @@
 <?php defined('MIKANBOX') or die(); ?>
+    <?php
+    $dataLocationNotice = $GLOBALS['mikanbox_data_location_notice'] ?? null;
+    $dataLocationNeedsAttention = $dataLocationNotice
+        && !in_array($dataLocationNotice, ['created', 'migrated'], true);
+    ?>
+    <?php if ($dataLocationNeedsAttention): ?>
+        <div class="alert alert-warning" style="background:#fffbeb; border:1px solid #fef3c7; color:#92400e; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
+            <?= getIcon('warning') ?>
+            <?= htmlspecialchars(t('data_location_warning', DATA_DIR)) ?>
+        </div>
+    <?php endif; ?>
     <!-- Site Settings & Management Memo -->
 <?php require __DIR__ . '/site-sections/memo.php'; ?>
 

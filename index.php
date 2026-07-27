@@ -33,14 +33,35 @@ header("Pragma: no-cache");
 
 if ($pageId === '' || $pageId === 'index.php') {
     $reqUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $requestPath = $reqUri;
+    if ($basePath !== '' && str_starts_with($requestPath, rtrim($basePath, '/') . '/')) {
+        $requestPath = substr($requestPath, strlen(rtrim($basePath, '/')));
+    }
+    $requestPath = trim($requestPath, '/');
+
+    // Defense in depth: when the active data directory is beside index.php,
+    // never hand its URL to the web server, even if .htaccess is unavailable.
+    // If migration was skipped to preserve a legacy page with the same ID,
+    // DATA_DIR still lives under CORE_DIR and the page remains routable.
+    $dataIsInSiteRoot = defined('DATA_DIR')
+        && dirname(rtrim(DATA_DIR, '/\\')) === __DIR__;
+    $activeDataDirName = $dataIsInSiteRoot ? basename(DATA_DIR) : null;
+    if ($activeDataDirName !== null
+        && (strcasecmp($requestPath, $activeDataDirName) === 0
+            || stripos($requestPath, $activeDataDirName . '/') === 0)) {
+        http_response_code(404);
+        if (ob_get_length()) ob_clean();
+        echo 'Not Found';
+        exit;
+    }
 
     // Safety: If the requested path exists as a real file/folder at the root,
     // let the server handle it (required for admin accessing / mikanBox etc.)
-    if ($reqUri !== '/' && \file_exists(__DIR__ . $reqUri)) {
+    if ($requestPath !== '' && \file_exists(__DIR__ . '/' . $requestPath)) {
         return false;
     }
 
-    $path = str_replace($basePath, '', $reqUri);
+    $path = $requestPath;
     $path = str_replace('index.php', '', $path);
     $path = trim($path, '/');
     $pageId = ($path !== '') ? $path : 'index';

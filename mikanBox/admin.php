@@ -510,14 +510,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
 
         // Reserved slug check: block system directory names
         $coreDirName = basename(CORE_DIR); // e.g. "mikanBox"
-        $reservedPrefixes = [$coreDirName, 'media', 'api'];
+        $dataDirName = defined('MIKANBOX_DATA_DIR_BASENAME')
+            ? MIKANBOX_DATA_DIR_BASENAME
+            : 'mikanData';
+        $activeRootDataDirName = defined('DATA_DIR')
+            && dirname(rtrim(DATA_DIR, '/\\')) === dirname(CORE_DIR)
+                ? basename(DATA_DIR)
+                : null;
+        $reservedPrefixes = array_values(array_unique(array_filter([
+            $coreDirName, $dataDirName, $activeRootDataDirName, 'media', 'api'
+        ])));
         $isReserved = false;
         foreach ($reservedPrefixes as $r) {
             if (strcasecmp($id, $r) === 0 || stripos($id, $r . '/') === 0) {
                 $isReserved = true; break;
             }
         }
-        if ($isReserved) {
+        // A legacy page that prevented automatic directory migration remains
+        // editable as long as its ID is not changed.
+        $isUnchangedLegacyReservedId = $isReserved
+            && !empty($oldId)
+            && strcasecmp((string)$oldId, (string)$id) === 0
+            && loadData(POSTS_DIR, $oldId) !== null;
+        if ($isReserved && !$isUnchangedLegacyReservedId) {
             $message = t('err_slug_reserved', $id);
         } // Duplicate slug check: warn if creating new page with existing ID
         elseif (empty($oldId) && loadData(POSTS_DIR, $id) !== null) {

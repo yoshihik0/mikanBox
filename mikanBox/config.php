@@ -2,30 +2,37 @@
 // ==========================================
 // mikanBox Basic Settings
 // ==========================================
-define('MIKANBOX_VERSION', '2.3.1');
+define('MIKANBOX_VERSION', '2.4');
 if (!defined('CORE_DIR')) define('CORE_DIR', __DIR__);
 
-// Directory path settings (supports folder renaming by using __DIR__ as the base)
-define('DATA_DIR', __DIR__ . '/data');
+// Site-specific options survive self-updates because local-config.php is not
+// part of the update package. Example:
+// define('MIKANBOX_DATA_DIR_NAME', 'mikanData');
+if (!defined('MIKANBOX_CONFIG_LOADING')) define('MIKANBOX_CONFIG_LOADING', true);
+$localConfigFile = __DIR__ . '/local-config.php';
+if (is_file($localConfigFile)) require_once $localConfigFile;
+if (!defined('MIKANBOX_DATA_DIR_NAME')) define('MIKANBOX_DATA_DIR_NAME', 'mikanData');
+
+require_once __DIR__ . '/lib/storage.php';
+define(
+    'MIKANBOX_DATA_DIR_BASENAME',
+    mikanBoxNormalizeDataDirectoryName(
+        MIKANBOX_DATA_DIR_NAME,
+        [basename(__DIR__), 'media', 'api']
+    )
+);
+
+// Data and media are siblings of the core directory, wherever index.php lives.
+// Existing core/data sites are migrated atomically, or kept in place on failure.
+define(
+    'DATA_DIR',
+    mikanBoxResolveDataDirectory(dirname(__DIR__), __DIR__, MIKANBOX_DATA_DIR_BASENAME)
+);
 define('POSTS_DIR', DATA_DIR . '/posts');
 define('COMPONENTS_DIR', DATA_DIR . '/components');
 define('MEDIA_DIR', dirname(__DIR__) . '/media');
 define('SETTINGS_FILE', DATA_DIR . '/settings.json');
 define('DB_FILE', DATA_DIR . '/mikanBox.sqlite');
-
-// --- Security: Auto-generate .htaccess to block direct access ---
-function secureDirectory($dirPath) {
-    if (!is_dir($dirPath)) {
-        @mkdir($dirPath, 0777, true);
-    }
-    $htaccessPath = $dirPath . '/.htaccess';
-    if (!file_exists($htaccessPath)) {
-        $content = "Order deny,allow\nDeny from all\n";
-        @file_put_contents($htaccessPath, $content);
-    }
-}
-// Protect the data directory
-secureDirectory(DATA_DIR);
 
 // --- Security: Prevent uploaded files (e.g. disguised .php) from being executed ---
 function secureMediaDirectory($dirPath) {

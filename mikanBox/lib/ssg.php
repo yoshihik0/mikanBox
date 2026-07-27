@@ -26,11 +26,17 @@ class MikanBoxSSG {
     }
 
     public function build() {
-        // Safety: Do not write into core directory or any subdirectory of it
+        // Safety: Do not write into core/data directories or their subdirectories.
         $realOut  = realpath($this->outputDir) ?: $this->outputDir;
         $realCore = realpath(CORE_DIR) ?: CORE_DIR;
         if (strpos(rtrim($realOut, '/') . '/', rtrim($realCore, '/') . '/') === 0) {
             return ["Error: Output directory cannot be inside the mikanBox core directory."];
+        }
+        if (defined('DATA_DIR')) {
+            $realData = realpath(DATA_DIR) ?: DATA_DIR;
+            if (strpos(rtrim($realOut, '/') . '/', rtrim($realData, '/') . '/') === 0) {
+                return ["Error: Output directory cannot be inside the mikanBox data directory."];
+            }
         }
 
         if (($this->options['output_mode'] ?? 'server') === 'export') {
@@ -149,6 +155,9 @@ class MikanBoxSSG {
         $media = defined('MEDIA_DIR')
             ? $this->normalizePath(realpath(MEDIA_DIR) ?: MEDIA_DIR)
             : $siteRoot . '/media';
+        $data = defined('DATA_DIR')
+            ? $this->normalizePath(realpath(DATA_DIR) ?: DATA_DIR)
+            : $siteRoot . '/mikanData';
 
         if ($output === '' || $output === '/' || $output === $siteRoot) {
             return 'Upload-package output must be a dedicated folder, not the site root.';
@@ -161,6 +170,9 @@ class MikanBoxSSG {
         }
         if ($output === $media || strpos($output . '/', rtrim($media, '/') . '/') === 0) {
             return 'Upload-package output cannot be the media directory or a folder inside it.';
+        }
+        if ($output === $data || strpos($output . '/', rtrim($data, '/') . '/') === 0) {
+            return 'Upload-package output cannot be the data directory or a folder inside it.';
         }
         if (is_dir($output) && !is_file($output . '/.mikanbox-export')) {
             $existing = array_values(array_diff(scandir($output) ?: [], ['.', '..', '.DS_Store']));

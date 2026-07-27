@@ -119,6 +119,18 @@ function mikanBoxUpdateProgramFiles(string $packageRoot): array {
     return array_values($relativeFiles);
 }
 
+/**
+ * Release archives always use mikanBox/ as the core directory name, while an
+ * installed site may rename that directory.
+ */
+function mikanBoxUpdateTargetRelativePath(string $packageRelative, string $coreDir): string {
+    if ($packageRelative === 'mikanBox') return basename($coreDir);
+    if (str_starts_with($packageRelative, 'mikanBox/')) {
+        return basename($coreDir) . substr($packageRelative, strlen('mikanBox'));
+    }
+    return $packageRelative;
+}
+
 function mikanBoxUpdateReadVersion(string $configPath): ?string {
     $source = @file_get_contents($configPath);
     if ($source && preg_match('/define\\s*\\(\\s*[\'"]MIKANBOX_VERSION[\'"]\\s*,\\s*[\'"]([^\'"]+)[\'"]\\s*\\)/', $source, $match)) {
@@ -308,13 +320,14 @@ function mikanBoxInstallUpdate(
 
     $manifestFiles = [];
     foreach ($programFiles as $relative) {
-        $target = $siteRoot . '/' . $relative;
+        $targetRelative = mikanBoxUpdateTargetRelativePath($relative, $coreDir);
+        $target = $siteRoot . '/' . $targetRelative;
         $existed = is_file($target);
-        $manifestFiles[] = ['path' => $relative, 'existed' => $existed];
+        $manifestFiles[] = ['path' => $targetRelative, 'existed' => $existed];
         if ($existed) {
             // The .bak suffix prevents backed-up PHP files from being executed
             // even on servers where data/.htaccess is not honored.
-            $backupFile = $pendingBackup . '/files/' . $relative . '.bak';
+            $backupFile = $pendingBackup . '/files/' . $targetRelative . '.bak';
             if (!mikanBoxUpdateCopyFile($target, $backupFile)) {
                 mikanBoxUpdateRemoveTree($workDir);
                 mikanBoxUpdateRemoveTree($pendingBackup);
@@ -342,7 +355,11 @@ function mikanBoxInstallUpdate(
 
     $installed = true;
     foreach ($programFiles as $relative) {
-        if (!mikanBoxUpdateCopyFile($packageRoot . '/' . $relative, $siteRoot . '/' . $relative)) {
+        $targetRelative = mikanBoxUpdateTargetRelativePath($relative, $coreDir);
+        if (!mikanBoxUpdateCopyFile(
+            $packageRoot . '/' . $relative,
+            $siteRoot . '/' . $targetRelative
+        )) {
             $installed = false;
             break;
         }
@@ -376,7 +393,43 @@ function mikanBoxRestorePreviousVersion(string $coreDir, string $dataDir): array
     if (!$backup || empty($backup['directory'])) {
         return ['success' => false, 'code' => 'restore_missing'];
     }
-    if (!mikanBoxUpdateRestoreFromDirectory($backup['directory'], dirname($coreDir))) {
+
+    $backupDir = $backup['directory'];
+    $coreConfigRelative = basename($coreDir) . '/config.php';
+    $previousConfigBackup = $backupDir . '/files/' . $coreConfigRelative . '.bak';
+    $previousConfig = is_file($previousConfigBackup)
+        ? (string)file_get_contents($previousConfigBackup)
+        : '';
+    $previousUsesLegacyData = (bool)preg_match(
+        '/define\s*\(\s*[\'"]DATA_DIR[\'"]\s*,\s*__DIR__\s*\.\s*[\'"]\/data[\'"]\s*\)/',
+        $previousConfig
+    );
+
+    $legacyDataDir = rtrim($coreDir, '/\\') . '/data';
+    $movedDataForRestore = false;
+    if ($previousUsesLegacyData
+        && rtrim($dataDir, '/\\') !== rtrim($legacyDataDir, '/\\')) {
+        if (file_exists($legacyDataDir)) {
+            return ['success' => false, 'code' => 'restore_failed'];
+        }
+
+        $normalizedDataDir = rtrim($dataDir, '/\\');
+        if (!str_starts_with($backupDir, $normalizedDataDir . '/')) {
+            return ['success' => false, 'code' => 'restore_failed'];
+        }
+        $relativeBackupDir = substr($backupDir, strlen($normalizedDataDir));
+        if ($relativeBackupDir === false
+            || !@rename(rtrim($dataDir, '/\\'), $legacyDataDir)) {
+            return ['success' => false, 'code' => 'restore_failed'];
+        }
+        $movedDataForRestore = true;
+        $backupDir = $legacyDataDir . $relativeBackupDir;
+    }
+
+    if (!mikanBoxUpdateRestoreFromDirectory($backupDir, dirname($coreDir))) {
+        if ($movedDataForRestore && !file_exists($dataDir)) {
+            @rename($legacyDataDir, rtrim($dataDir, '/\\'));
+        }
         return ['success' => false, 'code' => 'restore_failed'];
     }
     return ['success' => true, 'version' => $backup['from_version']];

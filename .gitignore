@@ -1,16 +1,9 @@
-# Settings and private data
+# Site-specific settings and private data (new and legacy layouts)
 .mcp.json
-mikanBox/data/settings.json
-mikanBox/data/mcp_key.txt
-mikanBox/data/*.sqlite
-mikanBox/data/*.db
-mikanBox/data/login_attempts.json
-
-# User content: seeded at first run from import/{lang}, not tracked directly.
-# (trailing slash so this also covers nested pages, e.g. data/posts/coffee/)
-mikanBox/data/posts/
-mikanBox/data/components/*
-!mikanBox/data/components/
+mikanBox/local-config.php
+mikanBox/.data-migration.lock
+mikanData/
+mikanBox/data/
 
 # Media files
 media/*
@@ -18,7 +11,6 @@ media/*
 
 # Auto-generated files
 /.htaccess
-mikanBox/data/.htaccess
 /sitemap.xml
 /rss.xml
 /podcast.xml
