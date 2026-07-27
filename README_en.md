@@ -136,6 +136,8 @@ Export all pages as static HTML with a single click. You can also mix static and
 
 mikanBox supports the Model Context Protocol (MCP), providing a bridge for AI agents to safely operate on server files. This lets page creation, design changes, and component building all happen through conversation with AI alone, without the user ever touching the admin panel.
 
+When several mikanBox sites are connected at once, the `get_site_info` tool returns the site's immutable ID, name, public URL, and environment (production, staging, development, or local). AI can verify the target before write operations, reducing the risk of editing the wrong site.
+
 ---
 
 ## Data Embedding & API

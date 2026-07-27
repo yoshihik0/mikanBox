@@ -990,7 +990,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     elseif ($_POST['save_action'] === 'save_settings' || $_POST['save_action'] === 'save_memo') {
         // Shared logic for saving settings (Fix #8)
         if ($_POST['save_action'] === 'save_settings') {
+            if (empty($settings['site_id'])) {
+                $postedSiteId = trim((string)($_POST['site_id'] ?? ''));
+                $settings['site_id'] = preg_match('/^site-[a-f0-9]{16}$/', $postedSiteId)
+                    ? $postedSiteId
+                    : 'site-' . bin2hex(random_bytes(8));
+            }
             if (isset($_POST['site_name'])) $settings['site_name'] = $_POST['site_name'];
+            if (isset($_POST['site_url'])) {
+                $siteUrl = rtrim(trim((string)$_POST['site_url']), '/');
+                $siteUrlScheme = strtolower((string)parse_url($siteUrl, PHP_URL_SCHEME));
+                $settings['site_url'] = $siteUrl === '' || (
+                    in_array($siteUrlScheme, ['http', 'https'], true)
+                    && filter_var($siteUrl, FILTER_VALIDATE_URL)
+                ) ? $siteUrl : '';
+            }
+            $allowedSiteEnvironments = ['production', 'staging', 'development', 'local', 'unspecified'];
+            $postedSiteEnvironment = (string)($_POST['site_environment'] ?? 'unspecified');
+            $settings['site_environment'] = in_array($postedSiteEnvironment, $allowedSiteEnvironments, true)
+                ? $postedSiteEnvironment
+                : 'unspecified';
             if (isset($_POST['system_lang'])) $settings['system_lang'] = $_POST['system_lang'];
             if (isset($_POST['ssg_root_url'])) $settings['ssg_root_url'] = $_POST['ssg_root_url'];
             if (isset($_POST['description'])) $settings['description'] = $_POST['description'];

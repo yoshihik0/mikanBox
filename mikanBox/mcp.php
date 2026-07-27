@@ -45,6 +45,11 @@ function toolDefinitions() {
 
     return [
         [
+            'name' => 'get_site_info',
+            'description' => '現在接続しているmikanBoxサイトの不変ID・サイト名・URL・環境を取得する。複数サイト利用時は、他のツールを使う前に必ずこの情報で対象サイトを確認する。',
+            'inputSchema' => $noProps,
+        ],
+        [
             'name' => 'list_pages',
             'description' => 'ページ一覧を取得する。ID・タイトル・ステータス・更新日時を返す。',
             'inputSchema' => $noProps,
@@ -429,6 +434,45 @@ function toolGetSettings() {
     return $settings;
 }
 
+function toolGetSiteInfo($settings) {
+    $siteId = trim((string)($settings['site_id'] ?? ''));
+
+    // Existing installations receive a persistent identity on first use.
+    // This is intentionally generated once rather than derived from a mutable
+    // site name, URL, filesystem path, or API key.
+    if ($siteId === '') {
+        $siteId = 'site-' . bin2hex(random_bytes(8));
+        $settings['site_id'] = $siteId;
+        saveSettings($settings);
+    }
+
+    $environment = (string)($settings['site_environment'] ?? 'unspecified');
+    $allowedEnvironments = ['production', 'staging', 'development', 'local', 'unspecified'];
+    if (!in_array($environment, $allowedEnvironments, true)) {
+        $environment = 'unspecified';
+    }
+
+    $siteUrl = trim((string)($settings['site_url'] ?? ''));
+    if ($siteUrl === '') {
+        $siteUrl = trim((string)($settings['ssg_root_url'] ?? ''));
+    }
+
+    $siteName = trim((string)($settings['site_name'] ?? ''));
+    if ($siteName === '') {
+        $siteName = trim((string)SITE_NAME);
+    }
+    if ($siteName === '') {
+        $siteName = 'mikanBox';
+    }
+
+    return [
+        'site_id'     => $siteId,
+        'site_name'   => $siteName,
+        'site_url'    => rtrim($siteUrl, '/'),
+        'environment' => $environment,
+    ];
+}
+
 function toolUploadMedia($args) {
     if (empty($args['filename']))       return ['error' => t('mcp_err_filename_required')];
     if (empty($args['content_base64'])) return ['error' => t('mcp_err_content_base64_required')];
@@ -523,6 +567,7 @@ function executeTool($name, $args, $settings) {
     }
 
     return match($name) {
+        'get_site_info'     => toolGetSiteInfo($settings),
         'list_pages'       => toolListPages(),
         'get_page'         => toolGetPage($args['id'] ?? ''),
         'create_page'      => toolCreatePage($args),
@@ -548,6 +593,7 @@ function handleRequest($method, $id, $params, $settings) {
             'protocolVersion' => '2024-11-05',
             'capabilities'    => ['tools' => new stdClass()],
             'serverInfo'      => ['name' => 'mikanBox MCP', 'version' => MIKANBOX_VERSION],
+            'instructions'    => '複数のmikanBoxサイトを接続している場合は、初期接続時と書き込み操作の前にget_site_infoを呼び、site_id・site_name・site_url・environmentで対象サイトを確認してください。',
         ]);
     }
 
