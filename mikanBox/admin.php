@@ -487,7 +487,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         }
         unset($_SESSION['mikanbox_latest_ver_' . md5('yoshihik0/mikanBox')]);
         $_SESSION['admin_message'] = $message;
-        header('Location: admin.php?view=settings');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Location: admin.php?view=settings&update_checked=' . rawurlencode((string)microtime(true)), true, 303);
         exit;
     }
     

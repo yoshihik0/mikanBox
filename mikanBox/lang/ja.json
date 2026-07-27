@@ -119,6 +119,8 @@
     "version_update_available": "アップデートあり",
     "version_latest_current": "最新版です",
     "btn_system_update": "更新する",
+    "msg_system_updating": "更新中…",
+    "msg_system_restoring": "復元中…",
     "version_restore_available": "復元可能なバージョン",
     "btn_system_restore": "元に戻す",
     "confirm_system_update": "mikanBoxを%sへ更新します。\n現在のバージョンは復元用として保存されます。",

@@ -32,7 +32,7 @@
             <div style="display:inline-flex; gap:8px; align-items:center;">
                 <?= t('version_latest') ?>: <?= $latestVersion ? htmlspecialchars($latestVersion) : '—' ?>
                 <?php if ($isOutdated): ?>
-                    <form method="post" style="display:inline;" onsubmit="return confirm(<?= htmlspecialchars(json_encode(t('confirm_system_update', $latestVersion), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>);">
+                    <form method="post" style="display:inline;" onsubmit="if (!confirm(<?= htmlspecialchars(json_encode(t('confirm_system_update', $latestVersion), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)) return false; const button = this.querySelector('button[type=submit]'); button.disabled = true; button.textContent = <?= htmlspecialchars(json_encode(t('msg_system_updating'), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>; this.setAttribute('aria-busy', 'true'); return true;">
                         <?= csrfField() ?>
                         <input type="hidden" name="save_action" value="system_update">
                         <input type="hidden" name="target_version" value="<?= htmlspecialchars($latestVersion, ENT_QUOTES) ?>">
@@ -47,7 +47,7 @@
             <?php if ($updateBackup): ?>
                 <div style="display:inline-flex; gap:8px; align-items:center;">
                     <?= t('version_restore_available') ?>: <?= htmlspecialchars($updateBackup['from_version']) ?>
-                    <form method="post" style="display:inline;" onsubmit="return confirm(<?= htmlspecialchars(json_encode(t('confirm_system_restore', $updateBackup['from_version']), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>);">
+                    <form method="post" style="display:inline;" onsubmit="if (!confirm(<?= htmlspecialchars(json_encode(t('confirm_system_restore', $updateBackup['from_version']), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)) return false; const button = this.querySelector('button[type=submit]'); button.disabled = true; button.textContent = <?= htmlspecialchars(json_encode(t('msg_system_restoring'), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>; this.setAttribute('aria-busy', 'true'); return true;">
                         <?= csrfField() ?>
                         <input type="hidden" name="save_action" value="system_restore">
                         <button type="submit" class="btn btn-gray btn-small"><?= t('btn_system_restore') ?></button>

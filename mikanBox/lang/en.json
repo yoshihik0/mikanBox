@@ -118,6 +118,8 @@
     "version_update_available": "Update available",
     "version_latest_current": "Up to date",
     "btn_system_update": "Update",
+    "msg_system_updating": "Updating…",
+    "msg_system_restoring": "Restoring…",
     "version_restore_available": "Restorable version",
     "btn_system_restore": "Restore",
     "confirm_system_update": "Update mikanBox to %s?\nThe current version will be saved for restoration.",
