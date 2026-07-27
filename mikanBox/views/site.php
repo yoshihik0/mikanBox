@@ -61,7 +61,7 @@
                     <form method="post" style="display:inline;" onsubmit="if (!confirm(<?= htmlspecialchars(json_encode(t('confirm_system_restore', $updateBackup['from_version']), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)) return false; const button = this.querySelector('button[type=submit]'); button.disabled = true; button.textContent = <?= htmlspecialchars(json_encode(t('msg_system_restoring'), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>; this.setAttribute('aria-busy', 'true'); return true;">
                         <?= csrfField() ?>
                         <input type="hidden" name="save_action" value="system_restore">
-                        <button type="submit" class="btn btn-gray btn-small"><?= t('btn_system_restore') ?></button>
+                        <button type="submit" style="font:inherit; color:inherit; background:none; border:0; padding:0; text-decoration:underline; cursor:pointer;"><?= t('btn_system_restore') ?></button>
                     </form>
                 </div>
             <?php endif; ?>
