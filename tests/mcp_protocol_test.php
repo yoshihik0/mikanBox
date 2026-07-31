@@ -40,6 +40,10 @@ checkMcp(
     'discover must expose serverInfo inside result _meta'
 );
 checkMcp(($discover['result']['cacheScope'] ?? null) === 'private', 'discover cache must be private');
+checkMcp(
+    str_contains($discover['result']['instructions'] ?? '', 'get_ai_context'),
+    'discover must instruct AI to load site-specific AI context'
+);
 
 $discoverWithExtra = modernRequest(9, 'server/discover', ['unexpected' => true]);
 checkMcp(
@@ -53,6 +57,10 @@ checkMcp(($list['result']['resultType'] ?? null) === 'complete', 'tools/list mus
 checkMcp(is_int($list['result']['ttlMs'] ?? null), 'tools/list must include ttlMs');
 checkMcp(($list['result']['cacheScope'] ?? null) === 'private', 'tools/list cache must be private');
 checkMcp(count($list['result']['tools'] ?? []) > 0, 'tools/list must return tools');
+checkMcp(
+    in_array('get_ai_context', array_column($list['result']['tools'] ?? [], 'name'), true),
+    'tools/list must expose get_ai_context'
+);
 
 $callRequest = modernRequest(3, 'tools/call', [
     'name' => 'get_site_info',
@@ -69,6 +77,17 @@ checkMcp(($call['result']['isError'] ?? true) === false, 'successful tool call m
 checkMcp(
     ($call['result']['structuredContent']['site_id'] ?? null) === 'site-test',
     'tools/call must include structuredContent'
+);
+
+$contextRequest = modernRequest(10, 'tools/call', [
+    'name' => 'get_ai_context',
+    'arguments' => [],
+]);
+$context = handleRequest('tools/call', 10, $contextRequest['params'], []);
+checkMcp(($context['result']['isError'] ?? true) === false, 'get_ai_context must succeed');
+checkMcp(
+    is_array($context['result']['structuredContent']['documents'] ?? null),
+    'get_ai_context must return a documents array'
 );
 
 $unknown = handleRequest('tools/call', 4, modernRequest(4, 'tools/call', [

@@ -142,6 +142,8 @@ Starting with mikanBox 2.5, the server supports only the stable MCP 2026-07-28 s
 
 When several mikanBox sites are connected at once, the `get_site_info` tool returns the site's immutable ID, name, public URL, and environment (production, staging, development, or local). AI can verify the target before write operations, reducing the risk of editing the wrong site.
 
+Starting with 2.5.1, AI calls `get_ai_context` after connecting to load DESIGN.md, BRAND.md, CONTENTS.md, and every other AI-instruction component in one response. Instructions remain independently manageable while reaching AI efficiently as site-specific project guidance.
+
 ---
 
 ## Data Embedding & API

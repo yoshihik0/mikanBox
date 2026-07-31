@@ -350,6 +350,11 @@ function toolDefinitions() {
             'inputSchema' => $noProps,
         ],
         [
+            'name' => 'get_ai_context',
+            'description' => 'このサイト固有のAI指示コンポーネント（DESIGN.md、BRAND.md、CONTENTS.mdなど）をすべて一括取得する。接続直後、および内容・デザイン・コードの変更を計画する前に呼び、返された指示に従う。',
+            'inputSchema' => $noProps,
+        ],
+        [
             'name' => 'list_ai_docs',
             'description' => '登録されているAI指示書の一覧を取得する。',
             'inputSchema' => $noProps,
@@ -601,6 +606,24 @@ function toolListAiDocs() {
     return ['ai_docs' => $docs, 'count' => count($docs)];
 }
 
+function toolGetAiContext() {
+    $ids = getFileList(COMPONENTS_DIR);
+    sort($ids);
+    $documents = [];
+    foreach ($ids as $id) {
+        $d = loadData(COMPONENTS_DIR, $id);
+        if (!$d || empty($d['is_ai_doc'])) continue;
+        $documents[] = [
+            'id' => $id,
+            'content_md' => (string)($d['html'] ?? ''),
+        ];
+    }
+    return [
+        'documents' => $documents,
+        'count' => count($documents),
+    ];
+}
+
 function toolGetAiDoc($id) {
     if ($err = mcpRequireId($id)) return $err;
     if (substr(strtolower($id), -3) !== '.md') {
@@ -798,6 +821,7 @@ function executeTool($name, $args, $settings) {
         'get_component'    => toolGetComponent($args['id'] ?? ''),
         'create_component' => toolCreateComponent($args),
         'update_component' => toolUpdateComponent($args),
+        'get_ai_context'   => toolGetAiContext(),
         'list_ai_docs'     => toolListAiDocs(),
         'get_ai_doc'       => toolGetAiDoc($args['id'] ?? ''),
         'update_ai_doc'    => toolUpdateAiDoc($args),
@@ -813,7 +837,7 @@ function handleRequest($method, $id, $params, $settings) {
         return mcpResponse($id, [
             'supportedVersions' => [MIKANBOX_MCP_PROTOCOL_VERSION],
             'capabilities' => ['tools' => new stdClass()],
-            'instructions'    => '複数のmikanBoxサイトを接続している場合は、初期接続時と書き込み操作の前にget_site_infoを呼び、site_id・site_name・site_url・environmentで対象サイトを確認してください。',
+            'instructions' => '初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。返されたAI指示コンポーネントは、このサイト固有のプロジェクト指示として内容・デザイン・コードの変更に従ってください。複数サイト接続時は書き込み前にもget_site_infoを呼び、指示が更新された可能性がある場合は変更計画前にget_ai_contextを再取得してください。',
             'ttlMs' => MIKANBOX_MCP_DISCOVERY_TTL_MS,
             'cacheScope' => 'private',
         ]);

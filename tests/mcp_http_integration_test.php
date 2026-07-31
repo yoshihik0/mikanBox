@@ -147,6 +147,21 @@ try {
         'tools/call must return the expected site identity'
     );
 
+    $contextRequest = modernHttpRequest(5, 'tools/call', [
+        'name' => 'get_ai_context',
+        'arguments' => [],
+    ]);
+    $context = httpPost($url, $contextRequest, [
+        ...$baseHeaders,
+        'Mcp-Method: tools/call',
+        'Mcp-Name: get_ai_context',
+    ]);
+    checkHttp($context['status'] === 200, 'get_ai_context must return HTTP 200');
+    checkHttp(
+        is_array($context['json']['result']['structuredContent']['documents'] ?? null),
+        'get_ai_context must return a documents array'
+    );
+
     $noAuthHeaders = array_values(array_filter(
         [...$baseHeaders, 'Mcp-Method: tools/list'],
         fn($header) => !str_starts_with($header, 'X-API-Key:')
