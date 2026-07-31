@@ -136,7 +136,9 @@ Export all pages as static HTML with a single click. You can also mix static and
 
 ### MCP Support
 
-mikanBox supports the Model Context Protocol (MCP), providing a bridge for AI agents to safely operate on server files. This lets page creation, design changes, and component building all happen through conversation with AI alone, without the user ever touching the admin panel.
+mikanBox supports the Model Context Protocol (MCP), providing a native connection for AI agents to safely operate on server files. This lets page creation, design changes, and component building all happen through conversation with AI alone, without the user ever touching the admin panel.
+
+Starting with mikanBox 2.5, the server supports only the stable MCP 2026-07-28 specification. Connect from an up-to-date AI app using native Remote MCP (Streamable HTTP). The legacy `mcp-remote` bridge is not supported.
 
 When several mikanBox sites are connected at once, the `get_site_info` tool returns the site's immutable ID, name, public URL, and environment (production, staging, development, or local). AI can verify the target before write operations, reducing the risk of editing the wrong site.
 

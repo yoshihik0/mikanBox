@@ -10,16 +10,172 @@ ini_set('display_errors', '0');
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/lib/functions.php';
 
+const MIKANBOX_MCP_PROTOCOL_VERSION = '2026-07-28';
+const MIKANBOX_MCP_LIST_TTL_MS = 300000;
+const MIKANBOX_MCP_DISCOVERY_TTL_MS = 3600000;
+
 // ==========================================
 // Helpers
 // ==========================================
 
 function mcpResponse($id, $result) {
+    $meta = $result['_meta'] ?? [];
+    if (!is_array($meta)) $meta = [];
+    $meta['io.modelcontextprotocol/serverInfo'] = [
+        'name' => 'mikanBox MCP',
+        'version' => MIKANBOX_VERSION,
+    ];
+
+    $result['resultType'] = $result['resultType'] ?? 'complete';
+    $result['_meta'] = $meta;
+
     return ['jsonrpc' => '2.0', 'id' => $id, 'result' => $result];
 }
 
-function mcpErrorResponse($id, $code, $message) {
-    return ['jsonrpc' => '2.0', 'id' => $id, 'error' => ['code' => $code, 'message' => $message]];
+function mcpErrorResponse($id, $code, $message, $data = null) {
+    $error = ['code' => $code, 'message' => $message];
+    if ($data !== null) $error['data'] = $data;
+    return ['jsonrpc' => '2.0', 'id' => $id, 'error' => $error];
+}
+
+function mcpUnsupportedVersionResponse($id, $requested = null) {
+    $data = ['supported' => [MIKANBOX_MCP_PROTOCOL_VERSION]];
+    if (is_string($requested) && $requested !== '') $data['requested'] = $requested;
+
+    return mcpErrorResponse(
+        $id,
+        -32022,
+        'This mikanBox server requires an MCP 2026-07-28 compatible client. Update your AI application and connect using native Remote MCP.',
+        $data
+    );
+}
+
+function mcpRequestMeta($params) {
+    if (!is_array($params)) return null;
+    $meta = $params['_meta'] ?? null;
+    return is_array($meta) ? $meta : null;
+}
+
+function mcpValidateRequest($request) {
+    $id = $request['id'] ?? null;
+
+    if (($request['jsonrpc'] ?? null) !== '2.0'
+        || !is_string($request['method'] ?? null)
+        || $request['method'] === ''
+        || !array_key_exists('id', $request)
+        || $request['id'] === null) {
+        return mcpErrorResponse($id, -32600, 'Invalid Request');
+    }
+
+    $method = $request['method'];
+    $params = $request['params'] ?? null;
+
+    // Give legacy clients an actionable upgrade message instead of a generic
+    // missing-header or unknown-method error.
+    if ($method === 'initialize' || $method === 'notifications/initialized') {
+        $requested = is_array($params) ? ($params['protocolVersion'] ?? null) : null;
+        return mcpUnsupportedVersionResponse($id, $requested);
+    }
+
+    $meta = mcpRequestMeta($params);
+    if ($meta === null) {
+        return mcpErrorResponse($id, -32602, 'Invalid params: params._meta is required.');
+    }
+
+    $requested = $meta['io.modelcontextprotocol/protocolVersion'] ?? null;
+    if (!is_string($requested) || $requested === '') {
+        return mcpErrorResponse(
+            $id,
+            -32602,
+            'Invalid params: io.modelcontextprotocol/protocolVersion is required.'
+        );
+    }
+    if ($requested !== MIKANBOX_MCP_PROTOCOL_VERSION) {
+        return mcpUnsupportedVersionResponse($id, $requested);
+    }
+
+    if (!array_key_exists('io.modelcontextprotocol/clientCapabilities', $meta)
+        || !is_array($meta['io.modelcontextprotocol/clientCapabilities'])) {
+        return mcpErrorResponse(
+            $id,
+            -32602,
+            'Invalid params: io.modelcontextprotocol/clientCapabilities is required.'
+        );
+    }
+
+    if ($method === 'server/discover') {
+        $extraParams = array_diff(array_keys($params), ['_meta']);
+        if ($extraParams) {
+            return mcpErrorResponse(
+                $id,
+                -32602,
+                'Invalid params: server/discover accepts only standard _meta.'
+            );
+        }
+    }
+
+    return null;
+}
+
+function mcpHttpHeader($name) {
+    $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+    if (isset($_SERVER[$key])) return trim((string)$_SERVER[$key]);
+
+    if (function_exists('getallheaders')) {
+        foreach (getallheaders() as $headerName => $value) {
+            if (strcasecmp($headerName, $name) === 0) return trim((string)$value);
+        }
+    }
+    return '';
+}
+
+function mcpDecodeHeaderValue($value) {
+    if (str_starts_with($value, '=?base64?') && str_ends_with($value, '?=')) {
+        $decoded = base64_decode(substr($value, 9, -2), true);
+        return $decoded === false ? null : $decoded;
+    }
+    return $value;
+}
+
+function mcpValidateHttpHeaders($request) {
+    $id = $request['id'] ?? null;
+    $method = $request['method'] ?? '';
+    $params = $request['params'] ?? [];
+    $meta = mcpRequestMeta($params) ?? [];
+
+    $protocolHeader = mcpHttpHeader('MCP-Protocol-Version');
+    $methodHeader = mcpHttpHeader('Mcp-Method');
+    $bodyVersion = $meta['io.modelcontextprotocol/protocolVersion'] ?? null;
+
+    if ($protocolHeader === '' || $protocolHeader !== $bodyVersion) {
+        return mcpErrorResponse($id, -32020, 'Header mismatch: MCP-Protocol-Version is missing or does not match the request body.');
+    }
+    if ($methodHeader === '' || $methodHeader !== $method) {
+        return mcpErrorResponse($id, -32020, 'Header mismatch: Mcp-Method is missing or does not match the request body.');
+    }
+
+    if ($method === 'tools/call') {
+        $nameHeader = mcpHttpHeader('Mcp-Name');
+        $decodedName = $nameHeader === '' ? null : mcpDecodeHeaderValue($nameHeader);
+        $bodyName = is_array($params) ? ($params['name'] ?? null) : null;
+        if ($decodedName === null || $decodedName !== $bodyName) {
+            return mcpErrorResponse($id, -32020, 'Header mismatch: Mcp-Name is missing, malformed, or does not match the request body.');
+        }
+    }
+
+    return null;
+}
+
+function mcpOriginIsAllowed() {
+    $origin = mcpHttpHeader('Origin');
+    if ($origin === '') return true;
+
+    $originHost = parse_url($origin, PHP_URL_HOST);
+    $requestHost = preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST'] ?? '');
+    return is_string($originHost)
+        && $originHost !== ''
+        && $requestHost !== ''
+        && strcasecmp($originHost, $requestHost) === 0;
 }
 
 // id引数必須チェック（各tool*関数の冒頭で共通利用）
@@ -29,10 +185,13 @@ function mcpRequireId($id) {
 
 function toolContent($data) {
     return [
+        'resultType' => 'complete',
         'content' => [[
             'type' => 'text',
             'text' => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
-        ]]
+        ]],
+        'structuredContent' => $data,
+        'isError' => is_array($data) && array_key_exists('error', $data),
     ];
 }
 
@@ -41,9 +200,14 @@ function toolContent($data) {
 // ==========================================
 
 function toolDefinitions() {
-    $noProps = ['type' => 'object', 'properties' => new stdClass(), 'required' => []];
+    $noProps = [
+        'type' => 'object',
+        'properties' => new stdClass(),
+        'required' => [],
+        'additionalProperties' => false,
+    ];
 
-    return [
+    $tools = [
         [
             'name' => 'get_site_info',
             'description' => '現在接続しているmikanBoxサイトの不変ID・サイト名・URL・環境を取得する。複数サイト利用時は、他のツールを使う前に必ずこの情報で対象サイトを確認する。',
@@ -215,6 +379,63 @@ function toolDefinitions() {
             ],
         ],
     ];
+
+    foreach ($tools as &$tool) {
+        $tool['inputSchema']['additionalProperties'] = false;
+    }
+    unset($tool);
+
+    return $tools;
+}
+
+function mcpValidateToolArguments($name, $args) {
+    $definition = null;
+    foreach (toolDefinitions() as $tool) {
+        if ($tool['name'] === $name) {
+            $definition = $tool;
+            break;
+        }
+    }
+    if ($definition === null) return t('mcp_err_tool_not_found', $name);
+
+    $schema = $definition['inputSchema'];
+    $properties = is_array($schema['properties'] ?? null) ? $schema['properties'] : [];
+
+    foreach ($schema['required'] ?? [] as $required) {
+        if (!array_key_exists($required, $args)) {
+            return "Invalid params: {$required} is required.";
+        }
+    }
+
+    if (($schema['additionalProperties'] ?? true) === false) {
+        $unknown = array_diff(array_keys($args), array_keys($properties));
+        if ($unknown) {
+            return 'Invalid params: unknown argument ' . reset($unknown) . '.';
+        }
+    }
+
+    foreach ($args as $key => $value) {
+        if (!isset($properties[$key])) continue;
+        $property = $properties[$key];
+        $type = $property['type'] ?? null;
+        $validType = match($type) {
+            'string' => is_string($value),
+            'integer' => is_int($value),
+            'number' => is_int($value) || is_float($value),
+            'boolean' => is_bool($value),
+            'object' => is_array($value),
+            'array' => is_array($value),
+            default => true,
+        };
+        if (!$validType) {
+            return "Invalid params: {$key} must be {$type}.";
+        }
+        if (isset($property['enum']) && !in_array($value, $property['enum'], true)) {
+            return "Invalid params: {$key} has an unsupported value.";
+        }
+    }
+
+    return null;
 }
 
 // ==========================================
@@ -588,30 +809,38 @@ function executeTool($name, $args, $settings) {
 }
 
 function handleRequest($method, $id, $params, $settings) {
-    if ($method === 'initialize') {
+    if ($method === 'server/discover') {
         return mcpResponse($id, [
-            'protocolVersion' => '2024-11-05',
-            'capabilities'    => ['tools' => new stdClass()],
-            'serverInfo'      => ['name' => 'mikanBox MCP', 'version' => MIKANBOX_VERSION],
+            'supportedVersions' => [MIKANBOX_MCP_PROTOCOL_VERSION],
+            'capabilities' => ['tools' => new stdClass()],
             'instructions'    => '複数のmikanBoxサイトを接続している場合は、初期接続時と書き込み操作の前にget_site_infoを呼び、site_id・site_name・site_url・environmentで対象サイトを確認してください。',
+            'ttlMs' => MIKANBOX_MCP_DISCOVERY_TTL_MS,
+            'cacheScope' => 'private',
         ]);
-    }
-
-    if (strpos($method, 'notifications/') === 0) {
-        return null; // 返答不要
-    }
-
-    if ($method === 'ping') {
-        return mcpResponse($id, new stdClass());
     }
 
     switch ($method) {
         case 'tools/list':
-            return mcpResponse($id, ['tools' => toolDefinitions()]);
+            return mcpResponse($id, [
+                'tools' => toolDefinitions(),
+                'ttlMs' => MIKANBOX_MCP_LIST_TTL_MS,
+                'cacheScope' => 'private',
+            ]);
 
         case 'tools/call':
             $name   = $params['name']      ?? '';
             $args   = $params['arguments'] ?? [];
+            $knownTools = array_column(toolDefinitions(), 'name');
+            if ($name === '' || !in_array($name, $knownTools, true)) {
+                return mcpErrorResponse($id, -32602, t('mcp_err_tool_not_found', $name));
+            }
+            if (!is_array($args)) {
+                return mcpErrorResponse($id, -32602, 'Invalid params: arguments must be an object.');
+            }
+            $argumentError = mcpValidateToolArguments($name, $args);
+            if ($argumentError !== null) {
+                return mcpErrorResponse($id, -32602, $argumentError);
+            }
             $result = executeTool($name, $args, $settings);
             return mcpResponse($id, toolContent($result));
 
@@ -634,7 +863,25 @@ if (realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'])) {
             if ($line === false || trim($line) === '') continue;
 
             $request = json_decode(trim($line), true);
-            if (!$request || !isset($request['method'])) continue;
+            if (!is_array($request)) {
+                echo json_encode(mcpErrorResponse(null, -32700, t('mcp_err_parse_failed')), JSON_UNESCAPED_UNICODE) . "\n";
+                flush();
+                continue;
+            }
+
+            // stdio cancellation is advisory. mikanBox does not keep
+            // long-running request state, so there is nothing to release.
+            if (($request['method'] ?? null) === 'notifications/cancelled'
+                && !array_key_exists('id', $request)) {
+                continue;
+            }
+
+            $validationError = mcpValidateRequest($request);
+            if ($validationError !== null) {
+                echo json_encode($validationError, JSON_UNESCAPED_UNICODE) . "\n";
+                flush();
+                continue;
+            }
 
             $response = handleRequest(
                 $request['method'],
@@ -651,9 +898,20 @@ if (realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'])) {
     } else {
         // --- HTTP transport ---
         header('Content-Type: application/json; charset=utf-8');
-        header('Access-Control-Allow-Origin: *');
         header('Access-Control-Allow-Methods: POST, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key');
+        header('Access-Control-Allow-Headers: Content-Type, Accept, Authorization, X-API-Key, MCP-Protocol-Version, Mcp-Method, Mcp-Name');
+
+        if (!mcpOriginIsAllowed()) {
+            http_response_code(403);
+            echo json_encode(mcpErrorResponse(null, -32000, 'Forbidden origin.'), JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $origin = mcpHttpHeader('Origin');
+        if ($origin !== '') {
+            header('Access-Control-Allow-Origin: ' . $origin);
+            header('Vary: Origin');
+        }
 
         if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
             http_response_code(204);
@@ -671,10 +929,19 @@ if (realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'])) {
             exit;
         }
 
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        $mediaType = strtolower(trim(explode(';', $contentType, 2)[0]));
+        if ($mediaType !== 'application/json') {
+            http_response_code(415);
+            echo json_encode(mcpErrorResponse(null, -32600, 'Content-Type must be application/json.'), JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
         $body    = file_get_contents('php://input');
         $request = json_decode($body, true);
 
-        if (json_last_error() !== JSON_ERROR_NONE || !isset($request['method'])) {
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($request)) {
+            http_response_code(400);
             echo json_encode(mcpErrorResponse(null, -32700, t('mcp_err_parse_failed')), JSON_UNESCAPED_UNICODE);
             exit;
         }
@@ -683,18 +950,24 @@ if (realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'])) {
         $id     = $request['id'] ?? null;
         $params = $request['params'] ?? [];
 
-        // initialize と notifications は認証不要
-        if ($method === 'initialize' || strpos($method, 'notifications/') === 0 || $method === 'ping') {
-            $response = handleRequest($method, $id, $params, []);
-            if ($response !== null) {
-                echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-            } else {
-                http_response_code(202);
+        $isLegacyOpening = $method === 'initialize' || $method === 'notifications/initialized';
+        if (!$isLegacyOpening) {
+            $headerError = mcpValidateHttpHeaders($request);
+            if ($headerError !== null) {
+                http_response_code(400);
+                echo json_encode($headerError, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+                exit;
             }
+        }
+
+        $validationError = mcpValidateRequest($request);
+        if ($validationError !== null) {
+            http_response_code(400);
+            echo json_encode($validationError, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
             exit;
         }
 
-        // それ以外は API キー認証
+        // すべてのMCPリクエストでAPIキー認証
         $settings = loadSettings();
         $apiKey   = $settings['mcp_api_key'] ?? '';
 
@@ -722,6 +995,9 @@ if (realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'])) {
         }
 
         $response = handleRequest($method, $id, $params, $settings);
+        if (($response['error']['code'] ?? null) === -32601) {
+            http_response_code(404);
+        }
         echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 }

@@ -153,7 +153,7 @@
     "msg_update_success": "Settings updated.",
     "msg_mcp_key_generated": "API key generated.",
     "mcp_key_head": "MCP API Key",
-    "mcp_key_hint": "API key for connecting AI tools like Claude via MCP. Copy this key into your Claude Desktop settings.",
+    "mcp_key_hint": "API key for native Remote MCP connections from an up-to-date AI app that supports MCP 2026-07-28. The legacy mcp-remote bridge is not used.",
     "mcp_key_label": "API Key",
     "btn_generate_mcp_key": "Generate API Key",
     "btn_regenerate_mcp_key": "Regenerate API Key",

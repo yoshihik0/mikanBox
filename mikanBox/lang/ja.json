@@ -154,7 +154,7 @@
     "msg_update_success": "設定を更新しました。",
     "msg_mcp_key_generated": "APIキーを生成しました。",
     "mcp_key_head": "MCP APIキー",
-    "mcp_key_hint": "ClaudeなどのAIとMCPで連携するためのAPIキーです。生成したキーをClaude Desktopの設定に貼り付けてください。",
+    "mcp_key_hint": "MCP 2026-07-28対応の最新版AIアプリから、ネイティブRemote MCP接続で使用するAPIキーです。旧方式のmcp-remoteは使用しません。",
     "mcp_key_label": "APIキー",
     "btn_generate_mcp_key": "APIキーを生成",
     "btn_regenerate_mcp_key": "APIキーを再生成",
