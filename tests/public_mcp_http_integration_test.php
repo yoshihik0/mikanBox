@@ -153,6 +153,19 @@ try {
     publicMcpCheck(count($legacyList['json']['result']['tools'] ?? []) === 4, 'legacy tools/list must expose four read-only tools');
     publicMcpCheck(!isset($legacyList['json']['result']['resultType']), 'legacy responses must not include 2026-only result metadata');
 
+    $claudeStyleCall = publicMcpRequest($url, 'POST', [
+        'jsonrpc' => '2.0',
+        'id' => 14,
+        'method' => 'tools/call',
+        'params' => [
+            'name' => 'get_product_info',
+            'arguments' => ['language' => 'ja'],
+            '_meta' => ['progressToken' => 'claude-progress-1'],
+        ],
+    ], ['Content-Type: application/json', 'Accept: application/json, text/event-stream', 'MCP-Protocol-Version: 2025-06-18']);
+    publicMcpCheck($claudeStyleCall['status'] === 200, 'legacy tool calls with non-version _meta must not be mistaken for 2026 requests');
+    publicMcpCheck(($claudeStyleCall['json']['result']['structuredContent']['version'] ?? null) === '2.6', 'Claude-style legacy tool call must execute normally');
+
     $legacyDefault = publicMcpRequest($url, 'POST', [
         'jsonrpc' => '2.0',
         'id' => 12,

@@ -423,7 +423,11 @@ if (defined('MIKANBOX_PUBLIC_MCP_ROUTE')
         exit;
     }
 
-    $isModernRequest = publicHelpMcpRequestMeta($request) !== null;
+    $requestMeta = publicHelpMcpRequestMeta($request) ?? [];
+    $bodyProtocolVersion = $requestMeta['io.modelcontextprotocol/protocolVersion'] ?? null;
+    $headerProtocolVersion = publicHelpMcpHeader('MCP-Protocol-Version');
+    $isModernRequest = $bodyProtocolVersion === MIKANBOX_PUBLIC_MCP_PROTOCOL_VERSION
+        || $headerProtocolVersion === MIKANBOX_PUBLIC_MCP_PROTOCOL_VERSION;
     $transportError = $isModernRequest
         ? publicHelpMcpValidateHeaders($request)
         : publicHelpMcpValidateLegacyRequest($request);
