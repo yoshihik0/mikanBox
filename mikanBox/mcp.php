@@ -11,6 +11,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/lib/functions.php';
 
 const MIKANBOX_MCP_PROTOCOL_VERSION = '2026-07-28';
+const MIKANBOX_MCP_LEGACY_PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
 const MIKANBOX_MCP_LIST_TTL_MS = 300000;
 const MIKANBOX_MCP_DISCOVERY_TTL_MS = 3600000;
 
@@ -39,15 +40,87 @@ function mcpErrorResponse($id, $code, $message, $data = null) {
 }
 
 function mcpUnsupportedVersionResponse($id, $requested = null) {
-    $data = ['supported' => [MIKANBOX_MCP_PROTOCOL_VERSION]];
+    $data = ['supported' => [MIKANBOX_MCP_PROTOCOL_VERSION, ...MIKANBOX_MCP_LEGACY_PROTOCOL_VERSIONS]];
     if (is_string($requested) && $requested !== '') $data['requested'] = $requested;
 
     return mcpErrorResponse(
         $id,
         -32022,
-        'This mikanBox server requires an MCP 2026-07-28 compatible client. Update your AI application and connect using native Remote MCP.',
+        'Unsupported MCP protocol version.',
         $data
     );
+}
+
+function mcpValidateInitialize($request) {
+    $id = $request['id'] ?? null;
+    $params = $request['params'] ?? null;
+    if (($request['jsonrpc'] ?? null) !== '2.0'
+        || ($request['method'] ?? null) !== 'initialize'
+        || !array_key_exists('id', $request)
+        || $id === null
+        || !is_array($params)) {
+        return mcpErrorResponse($id, -32600, 'Invalid Request');
+    }
+    if (!is_string($params['protocolVersion'] ?? null)
+        || !is_array($params['capabilities'] ?? null)
+        || !is_array($params['clientInfo'] ?? null)
+        || !is_string($params['clientInfo']['name'] ?? null)
+        || !is_string($params['clientInfo']['version'] ?? null)) {
+        return mcpErrorResponse($id, -32602, 'Invalid initialize params.');
+    }
+    return null;
+}
+
+function mcpInitializeResponse($request) {
+    $requested = (string)$request['params']['protocolVersion'];
+    $version = in_array($requested, MIKANBOX_MCP_LEGACY_PROTOCOL_VERSIONS, true)
+        ? $requested
+        : MIKANBOX_MCP_LEGACY_PROTOCOL_VERSIONS[0];
+    return [
+        'jsonrpc' => '2.0',
+        'id' => $request['id'],
+        'result' => [
+            'protocolVersion' => $version,
+            'capabilities' => ['tools' => ['listChanged' => false]],
+            'serverInfo' => [
+                'name' => 'mikanBox MCP',
+                'version' => MIKANBOX_VERSION,
+            ],
+            'instructions' => '初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。書き込み前にもget_site_infoで対象サイトを再確認してください。',
+        ],
+    ];
+}
+
+function mcpValidateLegacyRequest($request) {
+    $id = $request['id'] ?? null;
+    if (($request['jsonrpc'] ?? null) !== '2.0'
+        || !is_string($request['method'] ?? null)
+        || $request['method'] === ''
+        || !array_key_exists('id', $request)
+        || $id === null) {
+        return mcpErrorResponse($id, -32600, 'Invalid Request');
+    }
+    if (array_key_exists('params', $request) && !is_array($request['params'])) {
+        return mcpErrorResponse($id, -32602, 'Invalid params.');
+    }
+    $version = mcpHttpHeader('MCP-Protocol-Version');
+    if ($version === '') $version = '2025-03-26';
+    if (!in_array($version, MIKANBOX_MCP_LEGACY_PROTOCOL_VERSIONS, true)) {
+        return mcpUnsupportedVersionResponse($id, $version);
+    }
+    return null;
+}
+
+function mcpLegacyResponse($response) {
+    if (isset($response['result']) && is_array($response['result'])) {
+        unset(
+            $response['result']['resultType'],
+            $response['result']['_meta'],
+            $response['result']['ttlMs'],
+            $response['result']['cacheScope']
+        );
+    }
+    return $response;
 }
 
 function mcpRequestMeta($params) {
@@ -69,13 +142,6 @@ function mcpValidateRequest($request) {
 
     $method = $request['method'];
     $params = $request['params'] ?? null;
-
-    // Give legacy clients an actionable upgrade message instead of a generic
-    // missing-header or unknown-method error.
-    if ($method === 'initialize' || $method === 'notifications/initialized') {
-        $requested = is_array($params) ? ($params['protocolVersion'] ?? null) : null;
-        return mcpUnsupportedVersionResponse($id, $requested);
-    }
 
     $meta = mcpRequestMeta($params);
     if ($meta === null) {
@@ -877,7 +943,8 @@ function handleRequest($method, $id, $params, $settings) {
 // Transport: stdio (CLI) または HTTP
 // ==========================================
 
-if (realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'])) {
+if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
+    || realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'])) {
     if (php_sapi_name() === 'cli') {
         // --- stdio transport ---
         $settings = loadSettings();
@@ -900,7 +967,28 @@ if (realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'])) {
                 continue;
             }
 
-            $validationError = mcpValidateRequest($request);
+            if (($request['method'] ?? null) === 'initialize') {
+                $initializeError = mcpValidateInitialize($request);
+                echo json_encode(
+                    $initializeError ?? mcpInitializeResponse($request),
+                    JSON_UNESCAPED_UNICODE
+                ) . "\n";
+                flush();
+                continue;
+            }
+
+            if (($request['method'] ?? null) === 'notifications/initialized'
+                && !array_key_exists('id', $request)) {
+                continue;
+            }
+
+            $requestMeta = mcpRequestMeta($request['params'] ?? []) ?? [];
+            $isModernRequest = ($requestMeta['io.modelcontextprotocol/protocolVersion'] ?? null)
+                === MIKANBOX_MCP_PROTOCOL_VERSION;
+
+            $validationError = $isModernRequest
+                ? mcpValidateRequest($request)
+                : mcpValidateLegacyRequest($request);
             if ($validationError !== null) {
                 echo json_encode($validationError, JSON_UNESCAPED_UNICODE) . "\n";
                 flush();
@@ -915,6 +1003,7 @@ if (realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'])) {
             );
 
             if ($response !== null) {
+                if (!$isModernRequest) $response = mcpLegacyResponse($response);
                 echo json_encode($response, JSON_UNESCAPED_UNICODE) . "\n";
                 flush();
             }
@@ -974,23 +1063,6 @@ if (realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'])) {
         $id     = $request['id'] ?? null;
         $params = $request['params'] ?? [];
 
-        $isLegacyOpening = $method === 'initialize' || $method === 'notifications/initialized';
-        if (!$isLegacyOpening) {
-            $headerError = mcpValidateHttpHeaders($request);
-            if ($headerError !== null) {
-                http_response_code(400);
-                echo json_encode($headerError, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-                exit;
-            }
-        }
-
-        $validationError = mcpValidateRequest($request);
-        if ($validationError !== null) {
-            http_response_code(400);
-            echo json_encode($validationError, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-            exit;
-        }
-
         // すべてのMCPリクエストでAPIキー認証
         $settings = loadSettings();
         $apiKey   = $settings['mcp_api_key'] ?? '';
@@ -1018,7 +1090,52 @@ if (realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'])) {
             exit;
         }
 
+        if ($method === 'initialize') {
+            $initializeError = mcpValidateInitialize($request);
+            if ($initializeError !== null) {
+                http_response_code(400);
+                echo json_encode($initializeError, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+                exit;
+            }
+            echo json_encode(mcpInitializeResponse($request), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            exit;
+        }
+
+        if ($method === 'notifications/initialized' && !array_key_exists('id', $request)) {
+            $version = mcpHttpHeader('MCP-Protocol-Version');
+            if ($version !== '' && !in_array($version, MIKANBOX_MCP_LEGACY_PROTOCOL_VERSIONS, true)) {
+                http_response_code(400);
+                echo json_encode(mcpUnsupportedVersionResponse(null, $version), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+                exit;
+            }
+            http_response_code(202);
+            exit;
+        }
+
+        $requestMeta = mcpRequestMeta($request['params'] ?? []) ?? [];
+        $bodyProtocolVersion = $requestMeta['io.modelcontextprotocol/protocolVersion'] ?? null;
+        $headerProtocolVersion = mcpHttpHeader('MCP-Protocol-Version');
+        $isModernRequest = $bodyProtocolVersion === MIKANBOX_MCP_PROTOCOL_VERSION
+            || $headerProtocolVersion === MIKANBOX_MCP_PROTOCOL_VERSION;
+
+        $transportError = $isModernRequest
+            ? mcpValidateHttpHeaders($request)
+            : mcpValidateLegacyRequest($request);
+        if ($transportError !== null) {
+            http_response_code(400);
+            echo json_encode($transportError, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            exit;
+        }
+
+        $validationError = $isModernRequest ? mcpValidateRequest($request) : null;
+        if ($validationError !== null) {
+            http_response_code(400);
+            echo json_encode($validationError, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            exit;
+        }
+
         $response = handleRequest($method, $id, $params, $settings);
+        if (!$isModernRequest) $response = mcpLegacyResponse($response);
         if (($response['error']['code'] ?? null) === -32601) {
             http_response_code(404);
         }

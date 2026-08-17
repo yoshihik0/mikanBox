@@ -18,6 +18,16 @@ require_once CORE_DIR . '/config.php';
 require_once CORE_DIR . '/lib/functions.php';
 require_once CORE_DIR . '/lib/renderer.php';
 
+// Administration MCP clean URL. Match before base-path normalization so this
+// also works behind a subdirectory and with PHP's built-in test router.
+$rawRequestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$adminMcpPattern = '#/' . preg_quote(trim($core_dir, '/'), '#') . '/mcp/?$#';
+if (preg_match($adminMcpPattern, $rawRequestPath) === 1) {
+    define('MIKANBOX_ADMIN_MCP_ROUTE', true);
+    require CORE_DIR . '/mcp.php';
+    exit;
+}
+
 // 1. サイトベースパスを確定（index.phpの場所から確実に算出）
 $basePath = dirname($_SERVER['SCRIPT_NAME']);
 if ($basePath === DIRECTORY_SEPARATOR || $basePath === '.') $basePath = '';
@@ -82,7 +92,7 @@ if ($pageId === '' || $pageId === 'index.php') {
 }
 
 // 2.8 Public read-only MCP endpoint: /mcp
-// The administration MCP remains under /mikanBox/mcp.php and requires an API key.
+// The administration MCP remains under /mikanBox/mcp and requires an API key.
 if ($pageId === 'mcp') {
     define('MIKANBOX_PUBLIC_MCP_ROUTE', true);
     require CORE_DIR . '/public-mcp.php';

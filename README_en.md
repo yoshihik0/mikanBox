@@ -138,7 +138,7 @@ Export all pages as static HTML with a single click. You can also mix static and
 
 mikanBox supports the Model Context Protocol (MCP), providing a native connection for AI agents to safely operate on server files. This lets page creation, design changes, and component building all happen through conversation with AI alone, without the user ever touching the admin panel.
 
-Starting with mikanBox 2.5, the server supports only the stable MCP 2026-07-28 specification. Connect from an up-to-date AI app using native Remote MCP (Streamable HTTP). The legacy `mcp-remote` bridge is not supported.
+The administration MCP supports MCP 2026-07-28 and initialize-based MCP 2025-11-25, 2025-06-18, and 2025-03-26. Send the administration API key in an `Authorization: Bearer` or `X-API-Key` header. Claude custom connector OAuth Client ID and Client Secret fields are not API-key fields, so the administration MCP cannot be registered there until mikanBox supports OAuth.
 
 When several mikanBox sites are connected at once, the `get_site_info` tool returns the site's immutable ID, name, public URL, and environment (production, staging, development, or local). AI can verify the target before write operations, reducing the risk of editing the wrong site.
 

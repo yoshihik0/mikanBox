@@ -5,7 +5,9 @@ defined('MIKANBOX') or die();
  * mikanBox self-updater.
  *
  * Only program files are replaced. DATA_DIR, media, generated static files,
- * .htaccess files, and local connection settings are never included.
+ * site-root/data/media .htaccess files and local connection settings are
+ * never included. The core mikanBox/.htaccess is a versioned program file
+ * because it provides required routing and Authorization-header forwarding.
  */
 
 function mikanBoxUpdateRemoveTree(string $path): void {
@@ -90,7 +92,7 @@ function mikanBoxUpdateProgramFiles(string $packageRoot): array {
     foreach (['index.php'] as $relative) {
         if (is_file($packageRoot . '/' . $relative)) $relativeFiles[] = $relative;
     }
-    foreach (['admin.php', 'admin.css', 'ai-question.js', 'build.php', 'config.php', 'convert.php', 'mcp.php', 'public-mcp.php'] as $filename) {
+    foreach (['.htaccess', 'admin.php', 'admin.css', 'ai-question.js', 'build.php', 'config.php', 'convert.php', 'mcp.php', 'public-mcp.php'] as $filename) {
         $relative = 'mikanBox/' . $filename;
         if (is_file($packageRoot . '/' . $relative)) $relativeFiles[] = $relative;
     }

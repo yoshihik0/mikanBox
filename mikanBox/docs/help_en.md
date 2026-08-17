@@ -209,7 +209,7 @@ For GPT, the same prompt is also copied to the clipboard in case the service doe
 
 The prompt begins by stating that it only requests guidance from the public manual and does not request actions on external services or access to personal or private information.
 
-WebMCP and the public MCP endpoint are optional capabilities for in-browser agents and structured retrieval. The public endpoint is `site URL/mcp`; it is anonymous and read-only. It is separate from the administration endpoint at `site URL/mikanBox/mcp.php` and never exposes API keys, admin memos, private pages, site settings, or write tools. Regular external-AI questions use the official public manual URL as their primary source.
+WebMCP and the public MCP endpoint are optional capabilities for in-browser agents and structured retrieval. The public endpoint is `site URL/mcp`; it is anonymous and read-only. It is separate from the administration endpoint at `site URL/mikanBox/mcp` and never exposes API keys, admin memos, private pages, site settings, or write tools. Regular external-AI questions use the official public manual URL as their primary source.
 
 `/mcp` is the HTTP endpoint for Remote MCP clients. WebMCP tools on the page use the same public endpoint and expose only `search_help`, `get_help_section`, `get_product_info`, and `get_agent_instructions`. The old `mikanBox/public-mcp.php` URL remains available for compatibility.
 
@@ -474,15 +474,17 @@ Saves the language setting.
 
 Issue and manage the API key that lets an AI agent (like Claude Code) connect to this site over MCP.
 
-Starting with mikanBox 2.5, the MCP server supports only the stable **MCP 2026-07-28** specification. It does not support the legacy `initialize` flow, sessions, or `Mcp-Session-Id`. Update your AI application to its latest version before using MCP.
+The mikanBox administration MCP server supports stateless **MCP 2026-07-28** and, during the compatibility transition, initialize-based MCP 2025-11-25, 2025-06-18, and 2025-03-26. Every protocol mode requires the administration API key.
 
 Connect with the AI application's native Remote MCP (Streamable HTTP) feature.
 
-- MCP endpoint: `site URL/mikanBox/mcp.php`
-- Protocol: `2026-07-28`
+- MCP endpoint: `site URL/mikanBox/mcp` (the old `mcp.php` URL also remains available)
+- Protocols: `2026-07-28`, `2025-11-25`, `2025-06-18`, and `2025-03-26`
 - Authentication: `Authorization: Bearer your-issued-API-key` or `X-API-Key: your-issued-API-key`
 
-The legacy `mcp-remote@0.1.38` bridge does not support the new protocol and should not be used. Remove any previous bridge configuration and register the site again as a native Remote MCP connection. When an old client connects, the server returns an actionable error asking the user to update the AI application and switch to a native connection.
+In clients that support fixed request headers, configure the issued API key using either header above. Never put the API key in the URL query string.
+
+Claude's custom connector screen supports authless or OAuth authentication. Its OAuth Client ID and OAuth Client Secret fields are not API-key fields. Until mikanBox implements OAuth, the administration MCP cannot be registered safely as a Claude custom connector. Do not paste the API key into the Client ID or Client Secret field. The authless public help MCP can be registered as a custom connector using only its URL.
 
 Treat the API key like a password. Never store it in a public repository or shared file. If several mikanBox sites are connected, AI calls `get_site_info` on first connection and before writes to confirm the target site.
 

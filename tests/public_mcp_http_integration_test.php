@@ -164,7 +164,7 @@ try {
         ],
     ], ['Content-Type: application/json', 'Accept: application/json, text/event-stream', 'MCP-Protocol-Version: 2025-06-18']);
     publicMcpCheck($claudeStyleCall['status'] === 200, 'legacy tool calls with non-version _meta must not be mistaken for 2026 requests');
-    publicMcpCheck(($claudeStyleCall['json']['result']['structuredContent']['version'] ?? null) === '2.6', 'Claude-style legacy tool call must execute normally');
+    publicMcpCheck(($claudeStyleCall['json']['result']['structuredContent']['version'] ?? null) === '2.6.1', 'Claude-style legacy tool call must execute normally');
 
     $legacyDefault = publicMcpRequest($url, 'POST', [
         'jsonrpc' => '2.0',

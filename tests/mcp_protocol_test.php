@@ -117,14 +117,30 @@ $legacy = [
     'jsonrpc' => '2.0',
     'id' => 5,
     'method' => 'initialize',
-    'params' => ['protocolVersion' => '2024-11-05'],
+    'params' => [
+        'protocolVersion' => '2025-11-25',
+        'capabilities' => [],
+        'clientInfo' => ['name' => 'Legacy protocol test', 'version' => '1.0.0'],
+    ],
 ];
-$legacyError = mcpValidateRequest($legacy);
-checkMcp(($legacyError['error']['code'] ?? null) === -32022, 'legacy initialize must return UnsupportedProtocolVersion');
+$legacyError = mcpValidateInitialize($legacy);
+checkMcp($legacyError === null, 'legacy initialize must validate');
+$legacyResponse = mcpInitializeResponse($legacy);
 checkMcp(
-    ($legacyError['error']['data']['supported'] ?? null) === ['2026-07-28'],
-    'legacy error must advertise the supported version'
+    ($legacyResponse['result']['protocolVersion'] ?? null) === '2025-11-25',
+    'legacy initialize must negotiate 2025-11-25'
 );
+
+$legacyListRequest = [
+    'jsonrpc' => '2.0',
+    'id' => 11,
+    'method' => 'tools/list',
+    'params' => [],
+];
+unset($_SERVER['HTTP_MCP_PROTOCOL_VERSION']);
+checkMcp(mcpValidateLegacyRequest($legacyListRequest) === null, 'legacy tools/list must validate');
+$legacyListResponse = mcpLegacyResponse(handleRequest('tools/list', 11, [], []));
+checkMcp(!isset($legacyListResponse['result']['resultType']), 'legacy response must omit resultType');
 
 $missingMeta = [
     'jsonrpc' => '2.0',
