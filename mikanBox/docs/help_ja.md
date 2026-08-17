@@ -219,7 +219,7 @@ WebMCPと公開MCP窓口は、対応ブラウザ内のエージェントや構�
 
 公開MCPの情報源は、CMS上の公開ページ `help_ja` と `help_en` です。対象ページが `public_dynamic` または `public_static` の場合だけ本文を見出し単位で読み取り、下書きや他のページは公開しません。対象ページが存在しない場合は、mikanBoxに同梱された読み取り専用マニュアルへフォールバックします。
 
-公開ページや紹介ページに同じ質問ボックスを置く場合は、本文へ `{{AI_QUESTION}}` を記述します。特定のHelpセクションを初期コンテキストにする場合は、`{{AI_QUESTION:page-edit}}` のようにセクションIDを指定します。
+公開ページや紹介ページに同じ質問ボックスを置く場合は、本文へ `{{COMPONENT:_ai_question}}` を記述します。`_ai_question` コンポーネントの内部で `{{AI_QUESTION}}` タグを呼び出すため、必要に応じてコンポーネントのHTMLや配置を編集できます。特定のHelpセクションを明示する高度な使い方では、`{{AI_QUESTION:page-edit}}` のようにタグを直接記述します。
 
 質問文は選択した外部AIへ送信され、そのサービスの履歴等に保存される場合があります。APIキー、パスワード、個人情報、公開前の内容は入力しないでください。
 
@@ -1104,6 +1104,7 @@ GitHubなど、他のサイトに設置したMarkdown文書を `{{EXT_MD:url}}` 
 |`_header`|[パーツ]{.type-badge .badge-part}|サイト共通のヘッダー。サイト名・ナビゲーションリンクを含む標準的なヘッダーコンポーネントです。|
 |`_footer`|[パーツ]{.type-badge .badge-part}|サイト共通のフッター。コピーライト・フッターナビゲーション等を含む標準的なフッターコンポーネントです。|
 |`_nav_card`|[パーツ]{.type-badge .badge-part}|カード型ナビゲーションでコンポーネントIDを省略した場合に使用される標準カードデザインです。サムネイル画像・タイトル・概要・日付を表示するカードを出力します。|
+|`_ai_question`|[パーツ]{.type-badge .badge-part}|公開ページ用のAI質問ボックス。`{{COMPONENT:_ai_question}}` で配置し、質問、現在のページ、公式公開マニュアルを外部AIへ案内します。|
 |`_search_box`|[パーツ]{.type-badge .badge-part}|検索ボックスのデザイン。フォーム内に `<input type="hidden" name="page" value="search">` が書かれているため、送信すると「search」ページ（`_search_result_item` を使って検索結果を表示するページ）に遷移する仕組みです。|
 |`_search_result_item`|[パーツ]{.type-badge .badge-part}|検索結果の１件ごとの表示デザイン。`{{SEARCH_RESULTS:_search_result_item}}` の形で検索結果ページに配置します。|
 |`DESIGN_sample.md`|[AI指示]{.type-badge .badge-ai}|AIにデザインを生成・編集させる際の指示書のサンプルです。IDを `DESIGN.md` に変更すると有効化されます。内容はAI自身に書かせることもできます。同様の使い方ができるファイルとして、`BRAND.md`（ブランド情報）や `CONTENTS.md`（コンテンツ方針）なども考えられます。|

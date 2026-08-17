@@ -1,0 +1,8 @@
+{
+    "html": "{{AI_QUESTION}}",
+    "css": "",
+    "is_global": true,
+    "is_wrapper": false,
+    "is_ai_doc": false,
+    "memo": "Places the public AI question box. Add {{COMPONENT:_ai_question}} to a page body. It sends only the question, current page, and official public manual reference to the external AI; it does not handle API keys or private information."
+}

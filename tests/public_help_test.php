@@ -17,6 +17,16 @@ $GLOBALS['mikanbox_public_help_docs_dir'] = $docsDir;
 checkPublicHelp(is_file($docsDir . '/help_ja.md'), 'Japanese canonical help copy must exist');
 checkPublicHelp(is_file($docsDir . '/help_en.md'), 'English canonical help copy must exist');
 
+$componentFile = dirname(__DIR__) . '/mikanData/components/_ai_question.json';
+$component = is_file($componentFile) ? json_decode((string)file_get_contents($componentFile), true) : null;
+checkPublicHelp(is_array($component), 'bundled _ai_question component must exist');
+checkPublicHelp(($component['html'] ?? null) === '{{AI_QUESTION}}', '_ai_question component must render the public AI question tag');
+checkPublicHelp(
+    is_file(dirname(__DIR__) . '/mikanBox/import/ja/components/_ai_question.json')
+        && is_file(dirname(__DIR__) . '/mikanBox/import/en/components/_ai_question.json'),
+    'Japanese and English imports must include the _ai_question component'
+);
+
 $GLOBALS['mikanbox_public_help_page_loader'] = static fn(string $id): ?array => $id === 'help_ja' ? [
     'status' => 'public_static',
     'content_md' => "## CMS公開ヘルプ {#cms-public}\n\nCMS上の公開ページを参照しています。",

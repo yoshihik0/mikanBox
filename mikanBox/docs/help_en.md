@@ -203,7 +203,7 @@ Opens this help page (in a new tab).
 
 #### Ask AI
 
-Shown next to each Help button. It opens a question field and lets you launch GPT, Claude, or Gemini in a new tab. Only the question, current page and Help section, and the corresponding official public manual URL are passed to the external AI. The administration MCP API key, admin memo, private pages, and site settings are never included.
+Shown next to each Help button. It opens a question field and lets you launch GPT in a new tab or copy a Gemini-ready prompt. Only the question, current page and Help section, and the corresponding official public manual URL are passed to the external AI. The administration MCP API key, admin memo, private pages, and site settings are never included.
 
 For GPT, the same prompt is also copied to the clipboard in case the service does not prefill its input. The Gemini button copies a Gemini-ready prompt. Japanese pages use an entirely Japanese prompt and only the corresponding Japanese manual URL (`https://yoshihiko.com/mikanbox/help_ja.html`). All other page languages use an English prompt and the English manual. This lets an external AI use the public documentation even when the question is launched from a local mikanBox installation.
 
@@ -219,7 +219,7 @@ The external-AI bootstrap prompt includes both the human-readable official manua
 
 The public MCP sources are the published CMS pages `help_ja` and `help_en`. Their content is split by heading only when the page status is `public_dynamic` or `public_static`; drafts and all other pages are excluded. If a designated page does not exist, mikanBox falls back to its packaged read-only manual.
 
-To place the same question box on a public or product-introduction page, add `{{AI_QUESTION}}` to the page body. To provide a Help section as initial context, use a section ID such as `{{AI_QUESTION:page-edit}}`.
+To place the same question box on a public or product-introduction page, add `{{COMPONENT:_ai_question}}` to the page body. The `_ai_question` component calls the `{{AI_QUESTION}}` tag internally, so you can edit the component HTML or placement when needed. For the advanced case of explicitly selecting a Help section, place a tag such as `{{AI_QUESTION:page-edit}}` directly.
 
 The question is sent to the selected external AI and may be stored in that service's history. Do not enter API keys, passwords, personal information, or unpublished content.
 
@@ -1102,6 +1102,7 @@ The components bundled with a fresh install. You can view and edit these in the 
 |`_header`|[Part]{.type-badge .badge-part}|The site's shared header. A standard header component including the site name and navigation links.|
 |`_footer`|[Part]{.type-badge .badge-part}|The site's shared footer. A standard footer component including copyright and footer navigation.|
 |`_nav_card`|[Part]{.type-badge .badge-part}|The standard card design used for card-style navigation when a component ID is omitted. Outputs a card showing the thumbnail image, title, description, and date.|
+|`_ai_question`|[Part]{.type-badge .badge-part}|The public AI question box. Place it with `{{COMPONENT:_ai_question}}` to pass the question, current page, and official public manual reference to an external AI.|
 |`_search_box`|[Part]{.type-badge .badge-part}|The design for a search box. Its form includes `<input type="hidden" name="page" value="search">`, so submitting it takes you to the "search" page (which displays results using `_search_result_item`).|
 |`_search_result_item`|[Part]{.type-badge .badge-part}|The design for a single search result entry. Placed on the search results page as `{{SEARCH_RESULTS:_search_result_item}}`.|
 |`DESIGN_sample.md`|[AI Instructions]{.type-badge .badge-ai}|A sample instruction document for having AI generate or edit your design. Rename its ID to `DESIGN.md` to activate it. You can even have AI write the content itself. Similarly useful files include `BRAND.md` (brand information) and `CONTENTS.md` (content policy).|

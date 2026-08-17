@@ -1,0 +1,8 @@
+{
+    "html": "{{AI_QUESTION}}",
+    "css": "",
+    "is_global": true,
+    "is_wrapper": false,
+    "is_ai_doc": false,
+    "memo": "公開ページにAI質問ボックスを配置するパーツです。ページ本文へ {{COMPONENT:_ai_question}} と記述して使います。質問、現在のページ、公式公開マニュアルだけを外部AIへ渡し、APIキーや非公開情報は扱いません。"
+}
