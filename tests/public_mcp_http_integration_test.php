@@ -54,6 +54,7 @@ function publicMcpRequest(string $url, string $method = 'GET', ?array $json = nu
     preg_match('/\s(\d{3})\s/', $responseHeaders[0] ?? '', $match);
     return [
         'status' => isset($match[1]) ? (int)$match[1] : 0,
+        'body' => is_string($body) ? $body : '',
         'json' => is_string($body) ? json_decode($body, true) : null,
     ];
 }
@@ -108,6 +109,60 @@ try {
     $search = publicMcpRequest($url . '?action=search_help&language=ja&query=' . rawurlencode('MCP APIキー'));
     publicMcpCheck($search['status'] === 200, 'public help search GET must return HTTP 200');
     publicMcpCheck(count($search['json']['results'] ?? []) > 0, 'public help search must return manual sections');
+
+    $initialize = publicMcpRequest($url, 'POST', [
+        'jsonrpc' => '2.0',
+        'id' => 10,
+        'method' => 'initialize',
+        'params' => [
+            'protocolVersion' => '2025-11-25',
+            'capabilities' => [],
+            'clientInfo' => ['name' => 'Claude-compatible test', 'version' => '1.0'],
+        ],
+    ], ['Content-Type: application/json', 'Accept: application/json, text/event-stream']);
+    publicMcpCheck($initialize['status'] === 200, 'legacy initialize must succeed without MCP metadata headers');
+    publicMcpCheck(($initialize['json']['result']['protocolVersion'] ?? null) === '2025-11-25', 'initialize must negotiate the requested supported version');
+    publicMcpCheck(isset($initialize['json']['result']['capabilities']['tools']), 'initialize must advertise read-only tools');
+
+    $claudeInitialize = publicMcpRequest($url, 'POST', [
+        'jsonrpc' => '2.0',
+        'id' => 13,
+        'method' => 'initialize',
+        'params' => [
+            'protocolVersion' => '2025-06-18',
+            'capabilities' => [],
+            'clientInfo' => ['name' => 'Claude-compatible test', 'version' => '1.0'],
+        ],
+    ], ['Content-Type: application/json', 'Accept: application/json, text/event-stream']);
+    publicMcpCheck(($claudeInitialize['json']['result']['protocolVersion'] ?? null) === '2025-06-18', 'Claude-compatible initialize version must be accepted');
+
+    $initialized = publicMcpRequest($url, 'POST', [
+        'jsonrpc' => '2.0',
+        'method' => 'notifications/initialized',
+    ], ['Content-Type: application/json', 'MCP-Protocol-Version: 2025-11-25']);
+    publicMcpCheck($initialized['status'] === 202, 'initialized notification must return HTTP 202');
+    publicMcpCheck($initialized['body'] === '', 'initialized notification response must have no body');
+
+    $legacyList = publicMcpRequest($url, 'POST', [
+        'jsonrpc' => '2.0',
+        'id' => 11,
+        'method' => 'tools/list',
+        'params' => [],
+    ], ['Content-Type: application/json', 'MCP-Protocol-Version: 2025-11-25']);
+    publicMcpCheck($legacyList['status'] === 200, 'legacy tools/list must not require 2026 routing headers');
+    publicMcpCheck(count($legacyList['json']['result']['tools'] ?? []) === 4, 'legacy tools/list must expose four read-only tools');
+    publicMcpCheck(!isset($legacyList['json']['result']['resultType']), 'legacy responses must not include 2026-only result metadata');
+
+    $legacyDefault = publicMcpRequest($url, 'POST', [
+        'jsonrpc' => '2.0',
+        'id' => 12,
+        'method' => 'ping',
+        'params' => [],
+    ], ['Content-Type: application/json']);
+    publicMcpCheck($legacyDefault['status'] === 200, 'missing legacy version header must fall back to 2025-03-26');
+
+    $sseGet = publicMcpRequest($url, 'GET', null, ['Accept: text/event-stream']);
+    publicMcpCheck($sseGet['status'] === 405, 'GET event stream must return 405 when SSE is not offered');
 
     $listRequest = publicMcpModernRequest(1, 'tools/list');
     $list = publicMcpRequest($url, 'POST', $listRequest, [
