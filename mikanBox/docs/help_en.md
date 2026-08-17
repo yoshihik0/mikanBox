@@ -203,19 +203,21 @@ Opens this help page (in a new tab).
 
 #### Ask AI
 
-Shown next to each Help button. It opens a question field and lets you launch GPT in a new tab or copy a Gemini-ready prompt. Only the question, current page and Help section, and the corresponding official public manual URL are passed to the external AI. The administration MCP API key, admin memo, private pages, and site settings are never included.
+Shown next to each Help button. It opens a question field and lets you launch GPT or Claude in a new tab. Only the question, current page and Help section, and the public information source needed for the answer are passed to the external AI. The administration MCP API key, admin memo, private pages, and site settings are never included.
 
-For GPT, the same prompt is also copied to the clipboard in case the service does not prefill its input. The Gemini button copies a Gemini-ready prompt. Japanese pages use an entirely Japanese prompt and only the corresponding Japanese manual URL (`https://yoshihiko.com/mikanbox/help_ja.html`). All other page languages use an English prompt and the English manual. This lets an external AI use the public documentation even when the question is launched from a local mikanBox installation.
+The prompt is also copied to the clipboard in case the service does not prefill its input. GPT is directed to the official public manual for the current Help section. Japanese pages use the Japanese manual (`https://yoshihiko.com/mikanbox/help_ja.html`); all other page languages use the English manual.
 
-The prompt begins by stating that it only requests guidance from the public manual and does not request actions on external services or access to personal or private information.
+Claude is not given an HTML manual URL. It is directed only to the anonymous, read-only public MCP at `https://yoshihiko.com/mikanbox/mcp`. Before using the Claude button, add that URL as the remote MCP server under Settings > Connectors > Add > Add custom connector.
 
-WebMCP and the public MCP endpoint are optional capabilities for in-browser agents and structured retrieval. The public endpoint is `site URL/mcp`; it is anonymous and read-only. It is separate from the administration endpoint at `site URL/mikanBox/mcp` and never exposes API keys, admin memos, private pages, site settings, or write tools. Regular external-AI questions use the official public manual URL as their primary source.
+The prompt begins by stating that it only requests guidance from official public information and does not request actions on external services or access to personal or private information.
+
+WebMCP and the public MCP endpoint are optional capabilities for in-browser agents and structured retrieval. The public endpoint is `site URL/mcp`; it is anonymous and read-only. It is separate from the administration endpoint at `site URL/mikanBox/mcp` and never exposes API keys, admin memos, private pages, site settings, or write tools. GPT uses the official public manual URL; Claude uses the public MCP.
 
 `/mcp` is the HTTP endpoint for Remote MCP clients. WebMCP tools on the page use the same public endpoint and expose only `search_help`, `get_help_section`, `get_product_info`, and `get_agent_instructions`. The old `mikanBox/public-mcp.php` URL remains available for compatibility.
 
 In addition to stateless MCP 2026-07-28 requests, the public endpoint accepts initialize-based Streamable HTTP connections for MCP 2025-11-25, 2025-06-18, and 2025-03-26 for Remote MCP client compatibility. Every mode remains anonymous and read-only, exposes only the same four tools, and requires neither OAuth nor an API key.
 
-The external-AI bootstrap prompt includes both the human-readable official manual URL and an AI-readable public URL in the form `/mcp?action=get_help_section&language=en&id=section-id`. This URL returns only the requested section as JSON, so the full manual does not need to be embedded in the prompt.
+The GPT bootstrap prompt includes the human-readable official manual URL. The Claude prompt contains no HTML manual URL and instead instructs the connected public MCP to use `search_help`, `get_help_section`, `get_product_info`, and `get_agent_instructions`. Neither prompt embeds the full manual.
 
 The public MCP sources are the published CMS pages `help_ja` and `help_en`. Their content is split by heading only when the page status is `public_dynamic` or `public_static`; drafts and all other pages are excluded. If a designated page does not exist, mikanBox falls back to its packaged read-only manual.
 
@@ -483,6 +485,8 @@ Connect with the AI application's native Remote MCP (Streamable HTTP) feature.
 - Authentication: `Authorization: Bearer your-issued-API-key` or `X-API-Key: your-issued-API-key`
 
 In clients that support fixed request headers, configure the issued API key using either header above. Never put the API key in the URL query string.
+
+Every tool carries annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`) that state whether it only reads data or may overwrite or delete existing data. MCP clients that understand these annotations use them to ask for confirmation before high-impact operations such as updating or deleting a page. Tools that return page or component bodies also carry `untrustedContentHint`, so the retrieved text is treated as reference material and never as instructions to the AI.
 
 Claude's custom connector screen supports authless or OAuth authentication. Its OAuth Client ID and OAuth Client Secret fields are not API-key fields. Until mikanBox implements OAuth, the administration MCP cannot be registered safely as a Claude custom connector. Do not paste the API key into the Client ID or Client Secret field. The authless public help MCP can be registered as a custom connector using only its URL.
 

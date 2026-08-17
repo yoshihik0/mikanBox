@@ -265,6 +265,52 @@ function toolContent($data) {
 // Tool Definitions
 // ==========================================
 
+// 各ツールの性質。MCPクライアントはこれを見て確認ダイアログの要否を判断するため、
+// ツールを追加したら必ずここにも追加する。読み書きの分類はこの表が唯一の正で、
+// executeTool() のデモモード判定もここから導出される（mcpWriteToolNames() を参照）。
+//   readOnlyHint         … 環境を変更しない
+//   destructiveHint      … 既存データを上書き・削除しうる（readOnlyHint=false のときのみ意味を持つ）
+//   idempotentHint       … 同じ引数で繰り返しても結果が変わらない（同上）
+//   untrustedContentHint … 戻り値に利用者・AIが書いた本文が含まれ、指示として扱ってはならない
+function mcpToolAnnotations(): array {
+    return [
+        // 読み取り専用
+        'get_site_info'    => ['readOnlyHint' => true, 'untrustedContentHint' => false],
+        'get_settings'     => ['readOnlyHint' => true, 'untrustedContentHint' => false],
+        'list_pages'       => ['readOnlyHint' => true, 'untrustedContentHint' => true],
+        'get_page'         => ['readOnlyHint' => true, 'untrustedContentHint' => true],
+        'list_components'  => ['readOnlyHint' => true, 'untrustedContentHint' => true],
+        'get_component'    => ['readOnlyHint' => true, 'untrustedContentHint' => true],
+        'get_ai_context'   => ['readOnlyHint' => true, 'untrustedContentHint' => true],
+        'list_ai_docs'     => ['readOnlyHint' => true, 'untrustedContentHint' => true],
+        'get_ai_doc'       => ['readOnlyHint' => true, 'untrustedContentHint' => true],
+
+        // 書き込み
+        // create_* は新規作成のみで既存を壊さない。同じIDで再実行すると失敗するため非冪等。
+        'create_page'      => ['readOnlyHint' => false, 'destructiveHint' => false, 'idempotentHint' => false],
+        'create_component' => ['readOnlyHint' => false, 'destructiveHint' => false, 'idempotentHint' => false],
+        // update_* / delete_* は既存データを上書き・削除する。同じ引数なら結果は同じ。
+        'update_page'      => ['readOnlyHint' => false, 'destructiveHint' => true,  'idempotentHint' => true],
+        'delete_page'      => ['readOnlyHint' => false, 'destructiveHint' => true,  'idempotentHint' => true],
+        'update_component' => ['readOnlyHint' => false, 'destructiveHint' => true,  'idempotentHint' => true],
+        'update_ai_doc'    => ['readOnlyHint' => false, 'destructiveHint' => true,  'idempotentHint' => true],
+        // resolveMediaSaveName() が連番で重複を避けるため既存ファイルを上書きしない。
+        // 同じ画像を2回送ると別名で2つ保存されるので非冪等。
+        'upload_media'     => ['readOnlyHint' => false, 'destructiveHint' => false, 'idempotentHint' => false],
+        // 出力先を作り直すが、元データからいつでも再生成できるため非破壊。
+        'build_ssg'        => ['readOnlyHint' => false, 'destructiveHint' => false, 'idempotentHint' => true],
+    ];
+}
+
+// 書き込み系ツール名。mcpToolAnnotations() から導出するので、分類を二重に持たない。
+function mcpWriteToolNames(): array {
+    $names = [];
+    foreach (mcpToolAnnotations() as $name => $annotations) {
+        if (empty($annotations['readOnlyHint'])) $names[] = $name;
+    }
+    return $names;
+}
+
 function toolDefinitions() {
     $noProps = [
         'type' => 'object',
@@ -451,8 +497,11 @@ function toolDefinitions() {
         ],
     ];
 
+    $annotations = mcpToolAnnotations();
     foreach ($tools as &$tool) {
         $tool['inputSchema']['additionalProperties'] = false;
+        // 対象はこのサイト自身のコンテンツに限られ、外部サービスは操作しない。
+        $tool['annotations'] = ($annotations[$tool['name']] ?? []) + ['openWorldHint' => false];
     }
     unset($tool);
 
@@ -871,7 +920,7 @@ function executeTool($name, $args, $settings) {
     $GLOBALS['mcp_settings'] = $settings;
 
     // デモモード中は書き込み系ツールをブロック
-    $writeTools = ['create_page', 'update_page', 'delete_page', 'create_component', 'update_component', 'upload_media', 'build_ssg', 'update_ai_doc'];
+    $writeTools = mcpWriteToolNames();
     if (!empty($settings['demo_mode']) && in_array($name, $writeTools)) {
         return ['error' => t('mcp_err_demo_mode')];
     }
