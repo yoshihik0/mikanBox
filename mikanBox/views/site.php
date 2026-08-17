@@ -20,28 +20,34 @@
     $latestRef = null;
     $githubRepo = 'yoshihik0/mikanBox';
     $vCacheKey = 'mikanbox_latest_ver_' . md5($githubRepo);
+    $forceVersionRefresh = isset($_GET['refresh_updates']);
     $cachedVersion = $_SESSION[$vCacheKey] ?? null;
     $cachedLatest = is_array($cachedVersion) ? ($cachedVersion['version'] ?? null) : null;
-    $cacheIsCurrent = !$cachedLatest
-        || version_compare(ltrim($cachedLatest, 'vV'), ltrim(MIKANBOX_VERSION, 'vV'), '>=');
-    if (is_array($cachedVersion) && $cacheIsCurrent && (time() - ($cachedVersion['checked_at'] ?? 0)) < 21600) {
+    $cacheIsCurrent = $cachedLatest
+        && version_compare(ltrim($cachedLatest, 'vV'), ltrim(MIKANBOX_VERSION, 'vV'), '>=');
+    if (!$forceVersionRefresh && is_array($cachedVersion) && $cacheIsCurrent && (time() - ($cachedVersion['checked_at'] ?? 0)) < 1800) {
         $latestVersion = $cachedVersion['version'] ?? null;
         $latestRef = $cachedVersion['ref'] ?? 'main';
     } else {
         $latestInfo = mikanBoxFetchLatestVersion($githubRepo);
         $latestVersion = $latestInfo['version'];
         $latestRef = $latestInfo['ref'];
-        $_SESSION[$vCacheKey] = ['version' => $latestVersion, 'ref' => $latestRef, 'checked_at' => time()];
+        if ($latestVersion) {
+            $_SESSION[$vCacheKey] = ['version' => $latestVersion, 'ref' => $latestRef, 'checked_at' => time()];
+        } else {
+            unset($_SESSION[$vCacheKey]);
+        }
     }
     $isOutdated = $latestVersion
         && version_compare(ltrim($latestVersion, 'vV'), ltrim(MIKANBOX_VERSION, 'vV'), '>');
     $updateBackup = mikanBoxGetUpdateBackup(DATA_DIR);
+    if (!mikanBoxUpdateBackupMatchesVersion($updateBackup, MIKANBOX_VERSION)) $updateBackup = null;
     ?>
     <div class="section-container section-tight">
         <div style="font-size:0.82em; color:var(--text-sub,#888); padding:6px 2px; display:flex; gap:1.5em; align-items:center; flex-wrap:wrap;">
             <span><?= t('version_current') ?>: <?= htmlspecialchars(MIKANBOX_VERSION) ?></span>
             <div style="display:inline-flex; gap:8px; align-items:center;">
-                <?= t('version_latest') ?>: <?= $latestVersion ? htmlspecialchars($latestVersion) : '—' ?>
+                <?= t('version_latest') ?>: <?= $latestVersion ? htmlspecialchars($latestVersion) : t('version_check_failed') ?>
                 <?php if ($isOutdated): ?>
                     <form method="post" style="display:inline;" onsubmit="if (!confirm(<?= htmlspecialchars(json_encode(t('confirm_system_update', $latestVersion), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)) return false; const button = this.querySelector('button[type=submit]'); button.disabled = true; button.textContent = <?= htmlspecialchars(json_encode(t('msg_system_updating'), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>; this.setAttribute('aria-busy', 'true'); return true;">
                         <?= csrfField() ?>
@@ -53,6 +59,7 @@
                 <?php elseif ($latestVersion): ?>
                     <span><?= t('version_latest_current') ?></span>
                 <?php endif; ?>
+                <a href="admin.php?view=settings&amp;refresh_updates=1" style="color:inherit; font-size:0.92em;"><?= t('btn_check_updates') ?></a>
             </div>
             <a href="https://github.com/<?= htmlspecialchars($githubRepo) ?>" target="_blank" rel="noopener" style="color:inherit;">GitHub</a>
             <?php if ($updateBackup): ?>

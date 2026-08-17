@@ -141,15 +141,38 @@ function mikanBoxUpdateReadVersion(string $configPath): ?string {
     return null;
 }
 
-function mikanBoxFetchLatestVersion(string $githubRepo): array {
+function mikanBoxUpdateFetchText(string $url, int $timeout = 10): ?string {
+    if (function_exists('curl_init')) {
+        $handle = curl_init($url);
+        if ($handle !== false) {
+            curl_setopt_array($handle, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_CONNECTTIMEOUT => min(5, $timeout),
+                CURLOPT_TIMEOUT => $timeout,
+                CURLOPT_USERAGENT => 'mikanBox-admin',
+                CURLOPT_HTTPHEADER => ['Accept: application/vnd.github+json'],
+                CURLOPT_FAILONERROR => true,
+            ]);
+            $body = curl_exec($handle);
+            if (is_string($body) && $body !== '') return $body;
+        }
+    }
+
     $context = stream_context_create(['http' => [
-        'timeout' => 4,
-        'ignore_errors' => true,
+        'timeout' => $timeout,
+        'ignore_errors' => false,
+        'follow_location' => 1,
         'header' => "User-Agent: mikanBox-admin\r\nAccept: application/vnd.github+json\r\n",
     ]]);
+    $body = @file_get_contents($url, false, $context);
+    return is_string($body) && $body !== '' ? $body : null;
+}
+
+function mikanBoxFetchLatestVersion(string $githubRepo): array {
     $candidates = [];
 
-    $releaseJson = @file_get_contents("https://api.github.com/repos/{$githubRepo}/releases/latest", false, $context);
+    $releaseJson = mikanBoxUpdateFetchText("https://api.github.com/repos/{$githubRepo}/releases/latest");
     if ($releaseJson) {
         $release = json_decode($releaseJson, true);
         if (!empty($release['tag_name'])) {
@@ -157,7 +180,7 @@ function mikanBoxFetchLatestVersion(string $githubRepo): array {
         }
     }
 
-    $tagsJson = @file_get_contents("https://api.github.com/repos/{$githubRepo}/tags", false, $context);
+    $tagsJson = mikanBoxUpdateFetchText("https://api.github.com/repos/{$githubRepo}/tags");
     if ($tagsJson) {
         $tags = json_decode($tagsJson, true);
         foreach (is_array($tags) ? $tags : [] as $tag) {
@@ -165,10 +188,8 @@ function mikanBoxFetchLatestVersion(string $githubRepo): array {
         }
     }
 
-    $configPhp = @file_get_contents(
-        "https://raw.githubusercontent.com/{$githubRepo}/main/mikanBox/config.php",
-        false,
-        $context
+    $configPhp = mikanBoxUpdateFetchText(
+        "https://raw.githubusercontent.com/{$githubRepo}/main/mikanBox/config.php"
     );
     if ($configPhp && preg_match('/define\\s*\\(\\s*[\'"]MIKANBOX_VERSION[\'"]\\s*,\\s*[\'"]([^\'"]+)[\'"]\\s*\\)/', $configPhp, $match)) {
         $candidates[] = ['version' => $match[1], 'ref' => 'main'];
@@ -224,6 +245,15 @@ function mikanBoxGetUpdateBackup(string $dataDir): ?array {
     if (!$candidates) return null;
     usort($candidates, fn($a, $b) => ($b['created_at'] ?? 0) <=> ($a['created_at'] ?? 0));
     return $candidates[0];
+}
+
+function mikanBoxUpdateBackupMatchesVersion(?array $backup, string $currentVersion): bool {
+    if (!$backup || empty($backup['to_version'])) return false;
+    return version_compare(
+        ltrim((string)$backup['to_version'], 'vV'),
+        ltrim($currentVersion, 'vV'),
+        '=='
+    );
 }
 
 function mikanBoxInstallUpdate(
@@ -394,6 +424,10 @@ function mikanBoxRestorePreviousVersion(string $coreDir, string $dataDir): array
     $backup = mikanBoxGetUpdateBackup($dataDir);
     if (!$backup || empty($backup['directory'])) {
         return ['success' => false, 'code' => 'restore_missing'];
+    }
+    $currentVersion = mikanBoxUpdateReadVersion($coreDir . '/config.php');
+    if (!$currentVersion || !mikanBoxUpdateBackupMatchesVersion($backup, $currentVersion)) {
+        return ['success' => false, 'code' => 'restore_stale'];
     }
 
     $backupDir = $backup['directory'];
