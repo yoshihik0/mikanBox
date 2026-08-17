@@ -90,11 +90,11 @@ function mikanBoxUpdateProgramFiles(string $packageRoot): array {
     foreach (['index.php'] as $relative) {
         if (is_file($packageRoot . '/' . $relative)) $relativeFiles[] = $relative;
     }
-    foreach (['admin.php', 'admin.css', 'build.php', 'config.php', 'convert.php', 'mcp.php'] as $filename) {
+    foreach (['admin.php', 'admin.css', 'ai-question.js', 'build.php', 'config.php', 'convert.php', 'mcp.php', 'public-mcp.php'] as $filename) {
         $relative = 'mikanBox/' . $filename;
         if (is_file($packageRoot . '/' . $relative)) $relativeFiles[] = $relative;
     }
-    foreach (['lib', 'views', 'lang'] as $directory) {
+    foreach (['docs', 'lib', 'views', 'lang'] as $directory) {
         $sourceDir = $packageRoot . '/mikanBox/' . $directory;
         if (!is_dir($sourceDir)) continue;
         $iterator = new RecursiveIteratorIterator(

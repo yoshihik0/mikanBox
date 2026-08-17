@@ -1,4 +1,5 @@
 <?php defined('MIKANBOX') or die(); ?>
+<script src="ai-question.js?v=<?php echo rawurlencode((string)@filemtime(__DIR__ . '/../ai-question.js')); ?>" defer></script>
 
     <div id="pages" class="section-anchor">
         <div class="section-container section-large-bottom">

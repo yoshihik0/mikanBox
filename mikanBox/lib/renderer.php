@@ -513,6 +513,24 @@ class MikanBoxRenderer {
     }
 
     private function replaceSpecialTags($html) {
+        // Public AI question box: {{AI_QUESTION}} or {{AI_QUESTION:help-section-id}}
+        // The external script also registers the four public read-only WebMCP tools.
+        $html = preg_replace_callback('/\{\{\s*AI_QUESTION\s*(?::\s*([a-zA-Z0-9_-]+)\s*)?\}\}/u', function($matches) {
+            $section = isset($matches[1]) ? trim($matches[1]) : '';
+            $coreName = defined('CORE_DIR') ? basename(CORE_DIR) : 'mikanBox';
+            $scriptFile = defined('CORE_DIR') ? CORE_DIR . '/ai-question.js' : '';
+            $scriptVersion = $scriptFile !== '' && is_file($scriptFile) ? (string)@filemtime($scriptFile) : '';
+            $scriptUrl = rtrim($this->getSiteBasePath(), '/') . '/' . rawurlencode($coreName) . '/ai-question.js'
+                . ($scriptVersion !== '' ? '?v=' . rawurlencode($scriptVersion) : '');
+            return '<div data-mikanbox-ai-question data-section="'
+                . htmlspecialchars($section, ENT_QUOTES)
+                . '" data-context="'
+                . htmlspecialchars($this->currentPageId, ENT_QUOTES)
+                . '"></div><script src="'
+                . htmlspecialchars($scriptUrl, ENT_QUOTES)
+                . '" defer></script>';
+        }, $html);
+
         // 3. Navigation Tags: {{NAV_LINKS:category}}, {{NAV_CARDS:category:template}}
         $html = preg_replace_callback('/\{\{\s*(NAV_LINKS|NAV_CARDS)\s*(?::\s*([^:}\s]*)\s*)?(?::\s*([a-zA-Z0-9_\-]+)\s*)?\}\}/u', function($matches) {
             $tagType = trim($matches[1]);
