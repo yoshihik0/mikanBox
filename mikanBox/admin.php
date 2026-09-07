@@ -3123,7 +3123,14 @@ function getIcon($name) {
                         }
                         if (action === 'generate_mcp_key' && json.mcp_api_key) {
                             const keyDisplay = document.getElementById('mcp-key-display');
-                            if (keyDisplay) keyDisplay.value = json.mcp_api_key;
+                            if (keyDisplay) {
+                                keyDisplay.value = json.mcp_api_key;
+                            } else {
+                                // First-time generation: the key field is not rendered yet
+                                // (views/site-sections/mcp-key.php only outputs it once a key
+                                // exists), so reload to show the saved key and its copy button.
+                                setTimeout(() => { window.location.reload(); }, 600);
+                            }
                         }
 
                         // Language change requires full reload to apply server-side translations
