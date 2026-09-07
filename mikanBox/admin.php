@@ -1235,7 +1235,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     elseif ($_POST['save_action'] === 'generate_mcp_key') {
         $newKey = bin2hex(random_bytes(24));
         $settings['mcp_api_key'] = $newKey;
-        $saved = (bool)file_put_contents(SETTINGS_FILE, json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        // settings.json への直接書き込みでは、loadSettings() が読むデータベースに
+        // 反映されず、発行したキーが mcp.php から見えない。保存はストレージ層へ通す。
+        $saved = saveSettings($settings);
         if (isset($_POST['ajax_request'])) {
             header('Content-Type: application/json');
             echo json_encode([
