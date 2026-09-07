@@ -58,6 +58,17 @@
                     </form>
                 <?php elseif ($latestVersion): ?>
                     <span><?= t('version_latest_current') ?></span>
+                    <?php // Reinstalling the current version is the recovery path when an update
+                          // left a program file in a bad state; otherwise the only way out would
+                          // be to wait for the next release. ?>
+                    <form method="post" style="display:inline;" onsubmit="if (!confirm(<?= htmlspecialchars(json_encode(t('confirm_system_reinstall', $latestVersion), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)) return false; const button = this.querySelector('button[type=submit]'); button.disabled = true; button.textContent = <?= htmlspecialchars(json_encode(t('msg_system_updating'), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>; this.setAttribute('aria-busy', 'true'); return true;">
+                        <?= csrfField() ?>
+                        <input type="hidden" name="save_action" value="system_update">
+                        <input type="hidden" name="target_version" value="<?= htmlspecialchars($latestVersion, ENT_QUOTES) ?>">
+                        <input type="hidden" name="update_ref" value="<?= htmlspecialchars($latestRef ?? 'main', ENT_QUOTES) ?>">
+                        <input type="hidden" name="reinstall" value="1">
+                        <button type="submit" style="font:inherit; color:inherit; background:none; border:0; padding:0; text-decoration:underline; cursor:pointer;"><?= t('btn_system_reinstall') ?></button>
+                    </form>
                 <?php endif; ?>
                 <a href="admin.php?view=settings&amp;refresh_updates=1" style="color:inherit; font-size:0.92em;"><?= t('btn_check_updates') ?></a>
             </div>

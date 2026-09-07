@@ -471,7 +471,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                     CORE_DIR,
                     DATA_DIR,
                     $_POST['target_version'] ?? null,
-                    $_POST['update_ref'] ?? 'main'
+                    $_POST['update_ref'] ?? 'main',
+                    !empty($_POST['reinstall'])
                 );
                 $message = !empty($result['success'])
                     ? t('msg_system_update_success', $result['version'])
@@ -3122,15 +3123,14 @@ function getIcon($name) {
                             }
                         }
                         if (action === 'generate_mcp_key' && json.mcp_api_key) {
+                            // Show the key in place. A reload would close the accordion this
+                            // section lives in, hiding the key just as it is issued.
                             const keyDisplay = document.getElementById('mcp-key-display');
-                            if (keyDisplay) {
-                                keyDisplay.value = json.mcp_api_key;
-                            } else {
-                                // First-time generation: the key field is not rendered yet
-                                // (views/site-sections/mcp-key.php only outputs it once a key
-                                // exists), so reload to show the saved key and its copy button.
-                                setTimeout(() => { window.location.reload(); }, 600);
-                            }
+                            if (keyDisplay) keyDisplay.value = json.mcp_api_key;
+                            const issued = document.getElementById('mcp-key-issued');
+                            if (issued) issued.style.display = '';
+                            const generate = document.getElementById('mcp-key-generate');
+                            if (generate) generate.style.display = 'none';
                         }
 
                         // Language change requires full reload to apply server-side translations

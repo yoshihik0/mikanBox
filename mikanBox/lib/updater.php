@@ -291,7 +291,8 @@ function mikanBoxInstallUpdate(
     string $coreDir,
     string $dataDir,
     ?string $expectedVersion = null,
-    string $archiveRef = 'main'
+    string $archiveRef = 'main',
+    bool $allowReinstall = false
 ): array {
     if (!class_exists('ZipArchive')) return ['success' => false, 'code' => 'zip_unavailable'];
     if (function_exists('set_time_limit')) @set_time_limit(120);
@@ -366,7 +367,11 @@ function mikanBoxInstallUpdate(
         mikanBoxUpdateRemoveTree($pendingBackup);
         return ['success' => false, 'code' => 'archive_invalid'];
     }
-    if (version_compare(ltrim($newVersion, 'vV'), ltrim($currentVersion, 'vV'), '<=')) {
+    // Reinstalling the current version is allowed on request: if an update left a
+    // program file in a bad state, waiting for the next release to repair it is
+    // not an acceptable recovery path. Older versions are still refused.
+    $comparison = version_compare(ltrim($newVersion, 'vV'), ltrim($currentVersion, 'vV'));
+    if ($comparison < 0 || ($comparison === 0 && !$allowReinstall)) {
         mikanBoxUpdateRemoveTree($workDir);
         mikanBoxUpdateRemoveTree($pendingBackup);
         return ['success' => false, 'code' => 'no_update'];

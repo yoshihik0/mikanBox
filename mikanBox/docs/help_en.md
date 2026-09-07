@@ -411,6 +411,8 @@ Saves the memo's content.
 
 Displays the installed version and the latest version available on GitHub. When a newer version is available, use the [Update] button to update mikanBox.
 
+When you are already on the latest version, [Reinstall] is offered instead. It installs the program files for the same version again, and exists as a recovery path for when an update did not apply cleanly and left the program files incomplete. Your pages, settings and media are untouched.
+
 Only program files are replaced. Pages, settings, media, the database, and generated static files are left untouched. One generation of the previous program files is stored in a protected area on the server. A failed update is restored automatically, and after a successful update you can use the [Restore] button to return to the immediately preceding version.
 
 After you confirm an update, the button changes to [Updating…] and remains disabled until the operation finishes. When the update completes, the admin screen reloads automatically and shows the new version number and a completion message. The restore operation similarly displays [Restoring…] while it is running.
