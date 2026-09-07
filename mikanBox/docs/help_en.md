@@ -136,7 +136,7 @@ Requires a server running PHP 8.0 or later. [SQLite Edition]{.type-badge .badge-
 
 ### Installation
 
-Upload the `mikanBox` folder into the same directory as `index.php`. This folder name can be changed — doing so is recommended for security, since it makes the location of the admin panel (`admin.php`) harder to guess. If you rename it, update `$core_dir` near the top of `index.php` accordingly. This document refers to it as the `mikanBox` directory throughout.
+Upload the `mikanBox` folder into the same directory as `index.php`. This folder name can be changed — doing so is recommended for security, since it makes the location of the admin panel (`admin.php`) harder to guess. If you rename it, update `$core_dir` near the top of `index.php` accordingly. From 2.6.4 on that setting survives system updates, because the updater writes back the folder it is running from. Up to 2.6.3 every update discarded it and the site stopped rendering; if you are in that state, running a system update from the admin panel repairs it. This document refers to it as the `mikanBox` directory throughout.
 
 Site-specific data is created on first access in a `mikanData` folder beside `index.php`. If the legacy `mikanBox/data` directory exists, it is migrated automatically only when it can be moved safely. If the destination already exists or conflicts with a page URL, mikanBox keeps using the legacy location instead of switching to empty data.
 

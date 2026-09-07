@@ -5,6 +5,9 @@ ob_start();
  * mikanBox Front-end Controller
  */
 
+// The core folder ships as mikanBox/ and may be renamed after installation.
+// Set it here when you rename it; the updater rewrites this line with the folder
+// it is running from, so the value survives system updates.
 $core_dir = 'mikanBox';
 foreach ([$core_dir, 'admin', 'system'] as $dir) {
     if (file_exists(__DIR__ . '/' . $dir . '/config.php')) {

@@ -133,6 +133,35 @@ function mikanBoxUpdateTargetRelativePath(string $packageRelative, string $coreD
     return $packageRelative;
 }
 
+/**
+ * Release archives ship index.php with the default core folder name, but an
+ * installed site may have renamed that folder. The update runs from admin.php,
+ * which lives inside the core folder, so the real name is known for certain --
+ * bake it into the staged file instead of making index.php guess at runtime.
+ *
+ * Returns false only when the name is known to differ and the value could not be
+ * written; installing the default in that case would take the front end down.
+ */
+function mikanBoxUpdatePrepareFrontController(string $packageRoot, string $coreDir): bool {
+    $path = $packageRoot . '/index.php';
+    if (!is_file($path)) return true;
+    $name = basename($coreDir);
+    if ($name === '' || $name === 'mikanBox') return true;
+    if (!preg_match('/^[A-Za-z0-9_-]+$/', $name)) return false;
+    $source = @file_get_contents($path);
+    if ($source === false) return false;
+    $count = 0;
+    $patched = preg_replace_callback(
+        '/\$core_dir\s*=\s*([\'"])mikanBox\1\s*;/',
+        static fn(): string => "\$core_dir = '" . $name . "';",
+        $source,
+        1,
+        $count
+    );
+    if ($patched === null || $count !== 1) return false;
+    return @file_put_contents($path, $patched) !== false;
+}
+
 function mikanBoxUpdateReadVersion(string $configPath): ?string {
     $source = @file_get_contents($configPath);
     if ($source && preg_match('/define\\s*\\(\\s*[\'"]MIKANBOX_VERSION[\'"]\\s*,\\s*[\'"]([^\'"]+)[\'"]\\s*\\)/', $source, $match)) {
@@ -383,6 +412,12 @@ function mikanBoxInstallUpdate(
         mikanBoxUpdateRemoveTree($workDir);
         mikanBoxUpdateRemoveTree($pendingBackup);
         return ['success' => false, 'code' => 'backup_failed'];
+    }
+
+    if (!mikanBoxUpdatePrepareFrontController($packageRoot, $coreDir)) {
+        mikanBoxUpdateRemoveTree($workDir);
+        mikanBoxUpdateRemoveTree($pendingBackup);
+        return ['success' => false, 'code' => 'core_dir_write_failed'];
     }
 
     $installed = true;
