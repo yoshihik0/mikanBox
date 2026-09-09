@@ -79,6 +79,9 @@ class MikanBoxRenderer {
     public function render($pageId) {
         $this->currentPageId = $pageId;
         $this->globalCssBuffer = [];
+        // The "first large image is eager, the rest are lazy" rule in
+        // mediaImgAttrs() is per page, so clear the flag before each render.
+        mediaResetImageFlow();
         
         // Calculate depth automatically in dynamic mode if not set manually
         if (!$this->depthSetManually) {
@@ -561,7 +564,9 @@ class MikanBoxRenderer {
             ? $this->getStaticRootPrefix() . 'media/'
             : rtrim($this->getSiteUrl(), '/') . '/media/';
         $html = preg_replace('/\{\{VIDEO:([a-zA-Z0-9_\-\.]+)\}\}/', '<video src="' . $mediaBase . '$1" controls style="max-width:100%; height:auto;"></video>', $html);
-        $html = preg_replace('/\{\{IMAGE:([a-zA-Z0-9_\-\.]+)\}\}/', '<img src="' . $mediaBase . '$1" style="max-width:100%; height:auto;">', $html);
+        $html = preg_replace_callback('/\{\{IMAGE:([a-zA-Z0-9_\-\.]+)\}\}/', function($m) use ($mediaBase) {
+            return '<img src="' . $mediaBase . $m[1] . '" style="max-width:100%; height:auto;"' . mediaImgAttrs($m[1]) . '>';
+        }, $html);
         $html = preg_replace('/\{\{AUDIO:([a-zA-Z0-9_\-\.]+)\}\}/', '<audio src="' . $mediaBase . '$1" controls style="width:100%; margin:10px 0;"></audio>', $html);
 
         // EXT_MD:url#rowID:KEY or EXT_MD:url:KEY — extract DATA block (must come before full EXT_MD)
@@ -1012,7 +1017,7 @@ class MikanBoxRenderer {
                 }
                 $innerHtml .= $itemHtml;
             } else {
-                $imgHtml = $img ? '<div class="nav-card-img"><img src="' . $img . '" alt=""></div>' : '';
+                $imgHtml = $img ? '<div class="nav-card-img"><img src="' . $img . '" alt="" loading="lazy" decoding="async"></div>' : '';
                 $innerHtml .= sprintf('<a href="%s" class="nav-card">%s<div class="nav-card-content"><h3 class="nav-card-title">%s</h3>%s</div></a>', 
                     $link, $imgHtml, $title, ($desc ? '<p class="nav-card-desc">' . $desc . '</p>' : ''));
             }

@@ -1378,6 +1378,33 @@ textarea {
 }
 .resize-arrow { font-size: 0.7rem; margin-right: 2px; }
 
+/* --- Upload Options (collapsed panel under the upload button) --- */
+.upload-options { margin-top: 8px; }
+.upload-options-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-card);
+    max-width: 420px;
+}
+.upload-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+.upload-option .resize-input { width: 60px; }
+.upload-option-note {
+    font-size: 0.72rem;
+    color: var(--text-sub);
+    line-height: 1.5;
+}
+
 /* --- Upload Info --- */
 .upload-info {
     margin-top: 10px;

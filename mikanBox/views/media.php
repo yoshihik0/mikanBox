@@ -15,6 +15,27 @@
                         <input type="file" name="image" id="file-input" accept="image/*,video/*,audio/*" required>
                         <button type="submit" class="btn btn-blue" id="upload-btn"><?= getIcon('upload') ?> <?= t('btn_upload') ?></button>
                     </div>
+                    <?php if (function_exists('imagecreatefromjpeg')): ?>
+                    <details class="resize-details upload-options" id="upload-options">
+                        <summary class="resize-summary">
+                            <span class="resize-arrow">▼</span><?= t('upload_options') ?>...
+                        </summary>
+                        <div class="upload-options-body">
+                            <label class="upload-option">
+                                <input type="checkbox" name="opt_resize" value="1" id="opt-resize" checked>
+                                <?= t('upload_opt_resize') ?>
+                                <input type="text" name="opt_max_dim" id="opt-max-dim" value="2000" class="resize-input" inputmode="numeric" pattern="[0-9]*"> px
+                            </label>
+                            <?php if (function_exists('imagewebp')): ?>
+                            <label class="upload-option">
+                                <input type="checkbox" name="opt_webp" value="1" id="opt-webp">
+                                <?= t('upload_opt_webp') ?>
+                            </label>
+                            <?php endif; ?>
+                            <div class="upload-option-note"><?= t('upload_opt_note') ?></div>
+                        </div>
+                    </details>
+                    <?php endif; ?>
                     <div class="upload-info">
                         <?= t('media_support_types') ?>: jpg, png, gif, webp, svg, mp3, m4a, mp4<br>
                         <?= t('media_max_size') ?>: <?= ini_get('upload_max_filesize') ?> / <?= t('media_post_limit') ?>: <?= ini_get('post_max_size') ?> (<?= t('media_server_limit') ?>)<br>
@@ -87,7 +108,9 @@
                     $ext = strtolower(pathinfo($fname, PATHINFO_EXTENSION));
                     $webPath = '../media/' . $fname;
                     $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']);
-                    $canResize = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                    // gif is intentionally absent: GD reads only the first frame,
+                    // so resizing an animated gif would silently flatten it.
+                    $canResize = in_array($ext, ['jpg', 'jpeg', 'png', 'webp']);
                     $isAudio = in_array($ext, ['mp3', 'm4a']);
                     $isVideo = ($ext === 'mp4');
                     

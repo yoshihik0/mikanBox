@@ -821,6 +821,19 @@ Click "Choose File" to select the file to upload. Dragging and dropping a file o
 
 Uploads the selected file.
 
+#### Upload Options...
+
+Click "Upload Options..." to expand it. These choices apply only at upload time and are remembered by your browser, so the same settings are reused next time. They apply to drag-and-drop uploads as well.
+
+- **Limit long edge to N px** — When an image's long edge exceeds the given value, it is scaled down on upload while keeping its aspect ratio. The default is 2000px. Photos straight from a phone or camera are often several thousand pixels wide, which badly hurts page speed; this setting prevents that.
+- **Convert to WebP (jpg / png only)** — Re-encodes the image as WebP, typically 25-35% smaller. The extension becomes `.webp`, so the filename changes. jpg is converted lossily (quality 82) and png losslessly, so text and thin lines in screenshots and diagrams are not smeared.
+
+Both options are destructive: **the original image data is not kept.** Do not use them for files you intend to distribute at full size.
+
+gif and svg are never converted - gif because the animation would be lost, and svg because it is a vector format that never degrades when scaled.
+
+If an image has too many pixels to fit in the server's memory limit, it is stored unchanged and a message says so; the upload itself still succeeds.
+
 #### Supported Formats &amp; Limits
 
 Supports jpg, png, gif, webp, svg, mp3, m4a, and mp4. The maximum file size depends on your server's configuration.
@@ -866,7 +879,11 @@ Deletes the media file. This cannot be undone.
 
 #### Resize...
 
-Click "Resize..." to expand it. Enter either Width (W) or Height (H) and press [[save]{.material-symbols-outlined}]{.m-btn .m-btn-blue} to resize it while keeping the aspect ratio (jpg, png, gif, and webp only).
+Click "Resize..." to expand it. Enter either Width (W) or Height (H) and press [[save]{.material-symbols-outlined}]{.m-btn .m-btn-blue} to resize it while keeping the aspect ratio (jpg, png, and webp only). A resize cannot be undone.
+
+gif is not supported. The image library used here can only read the first frame of a gif, so resizing one would discard the animation. To change the size of a gif, rebuild it with a dedicated tool and upload the result.
+
+If an image has too many pixels to fit in the server's memory limit, it is left unchanged and a message says so.
 
 #### Rename...
 
@@ -955,6 +972,18 @@ HTML: `<img src="image URL" alt="image description">`
 
 Custom tag: `{{IMAGE:filename}}`
 HTML: `<img src="image URL">`
+
+#### Automatically Added Attributes
+
+When you reference an image that lives in the `media` directory, the generated `<img>` tag carries a few performance attributes automatically. Nothing changes in how you write the page.
+
+- `width` / `height` - the image's intrinsic pixel size. The browser can reserve the right space before the image arrives, so the layout no longer shifts as images appear.
+- `fetchpriority="high"` - added to the first large image on the page, so the image that defines the first impression is fetched with priority.
+- `loading="lazy" decoding="async"` - added to large images after the first, deferring them until they are near the viewport.
+
+Small images under 200px in both dimensions (logos, icons, dividers) get only `width` / `height` and no loading hint: deferring a few kilobytes saves nothing and only delays rendering.
+
+Nothing is added for svg, for images at external URLs, or for filenames not present in the `media` directory. An `<img>` tag written directly into a wrapper or component is output exactly as written.
 
 Custom tag: `{{AUDIO:filename}}`
 HTML: `<audio src="audio URL" controls></audio>`

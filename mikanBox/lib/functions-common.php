@@ -461,7 +461,7 @@ class MikanBoxMarkdown {
             $url = $m[2];
             if (!preg_match('/^(?:https?:\/\/|\/|media\/)/', $url)) { $url = 'media/' . $url; }
             $ph = "\x02LINK" . count($map) . "\x03";
-            $map[$ph] = '<img src="' . $url . '" alt="' . $m[1] . '">';
+            $map[$ph] = '<img src="' . $url . '" alt="' . $m[1] . '"' . mediaImgAttrs($url) . '>';
             return $ph;
         }, $text);
         $text = preg_replace_callback('/\[(.*?)\]\((.*?)\)/', function($m) use (&$map) {
@@ -697,6 +697,209 @@ function sanitizeSvgContent($content) {
     $content = preg_replace('/\s+on\w+\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $content);
     $content = preg_replace('/href\s*=\s*["\']javascript:[^"\']*["\']/i', 'href="#"', $content);
     return $content;
+}
+
+// ==========================================
+// メディア画像の自動処理
+// （アップロード時のリサイズ / WebP変換と、出力時の img 属性付与）
+// ==========================================
+
+/**
+ * Convert a php.ini shorthand size ("256M", "1G") into bytes.
+ */
+function mediaParseIniBytes($val) {
+    $val = trim((string)$val);
+    if ($val === '') return 0;
+    $unit = strtolower($val[strlen($val) - 1]);
+    $num = (float)$val;
+    switch ($unit) {
+        case 'g': $num *= 1024; // fall through
+        case 'm': $num *= 1024; // fall through
+        case 'k': $num *= 1024;
+    }
+    return (int)$num;
+}
+
+/**
+ * GD holds images as uncompressed bitmaps, so the memory it needs depends on
+ * the pixel count, not the file size: a 10000x10000 image costs ~400MB however
+ * small its JPEG happens to be. Upload limits are often set to hundreds of
+ * megabytes, so such images do arrive, and loading one blindly would abort the
+ * request with a fatal error. Estimate first and let the caller skip instead.
+ */
+function mediaImageFitsInMemory($srcW, $srcH, $dstW, $dstH) {
+    $limit = mediaParseIniBytes(ini_get('memory_limit'));
+    if ($limit <= 0) return true; // -1 means unlimited
+    $needed = (($srcW * $srcH) + ($dstW * $dstH)) * 4 * 1.2; // 4 bytes/px + GD overhead
+    $available = $limit - memory_get_usage(true);
+    return $needed < ($available * 0.8);
+}
+
+/**
+ * Post-process a freshly uploaded image according to the upload options:
+ * optionally cap its long edge, and optionally re-encode it as WebP.
+ *
+ * Both are opt-in and destructive - the original bytes are not kept. That is
+ * deliberate: keeping variants around would multiply the files that have to be
+ * backed up, synced and garbage collected, which is exactly the WordPress
+ * behaviour this deliberately avoids.
+ *
+ * Converting to WebP changes the extension, and therefore the filename that
+ * pages will reference. This is safe here only because the file has just been
+ * uploaded and nothing links to it yet; never run this over existing media.
+ *
+ * Returns ['filename' => final name, 'skipped' => bool, 'changed' => bool].
+ */
+function mediaProcessUploadedImage($filename, $maxDim, $toWebp) {
+    $result = ['filename' => $filename, 'skipped' => false, 'changed' => false];
+
+    $path = MEDIA_DIR . '/' . $filename;
+    if (!file_exists($path) || !function_exists('imagecreatefromjpeg')) return $result;
+
+    // GIF is excluded because GD reads only the first frame and cannot write
+    // animated WebP, so re-encoding one would silently destroy the animation.
+    // SVG is excluded because rasterising a vector is a downgrade.
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) return $result;
+
+    $info = @getimagesize($path);
+    if (!$info) return $result;
+    $srcW = (int)$info[0];
+    $srcH = (int)$info[1];
+    $type = $info[2];
+    if ($srcW < 1 || $srcH < 1) return $result;
+
+    $toWebp = $toWebp && function_exists('imagewebp') && $type !== IMAGETYPE_WEBP;
+
+    // Resolve the target size before the memory check so the estimate covers
+    // both the source and the destination bitmap.
+    $dstW = $srcW;
+    $dstH = $srcH;
+    if ($maxDim > 0 && max($srcW, $srcH) > $maxDim) {
+        $scale = $maxDim / max($srcW, $srcH);
+        $dstW = max(1, (int)round($srcW * $scale));
+        $dstH = max(1, (int)round($srcH * $scale));
+    }
+    $needsResize = ($dstW !== $srcW || $dstH !== $srcH);
+    if (!$needsResize && !$toWebp) return $result;
+
+    if (!mediaImageFitsInMemory($srcW, $srcH, $dstW, $dstH)) {
+        // Keep the upload, drop the optimisation.
+        $result['skipped'] = true;
+        return $result;
+    }
+
+    switch ($type) {
+        case IMAGETYPE_JPEG: $src = @imagecreatefromjpeg($path); break;
+        case IMAGETYPE_PNG:  $src = @imagecreatefrompng($path); break;
+        case IMAGETYPE_WEBP: $src = function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($path) : null; break;
+        default: $src = null;
+    }
+    if (!$src) return $result;
+
+    $keepAlpha = ($type === IMAGETYPE_PNG || $type === IMAGETYPE_WEBP);
+    if ($needsResize) {
+        $dst = imagecreatetruecolor($dstW, $dstH);
+        if ($keepAlpha) {
+            imagealphablending($dst, false);
+            imagesavealpha($dst, true);
+        }
+        imagecopyresampled($dst, $src, 0, 0, 0, 0, $dstW, $dstH, $srcW, $srcH);
+    } else {
+        $dst = $src;
+        if ($keepAlpha) {
+            imagealphablending($dst, false);
+            imagesavealpha($dst, true);
+        }
+    }
+
+    $outName = $filename;
+    $ok = false;
+    if ($toWebp) {
+        $outName = resolveMediaSaveName(pathinfo($filename, PATHINFO_FILENAME) . '.webp', '');
+        $outPath = MEDIA_DIR . '/' . $outName;
+        // PNG sources are usually screenshots or diagrams, where lossy
+        // re-encoding smears text and thin lines, so keep those lossless.
+        $quality = ($type === IMAGETYPE_PNG && defined('IMG_WEBP_LOSSLESS')) ? IMG_WEBP_LOSSLESS : 82;
+        $ok = @imagewebp($dst, $outPath, $quality);
+        if ($ok && !$needsResize && filesize($outPath) >= filesize($path)) {
+            // A straight conversion that made the file bigger is not worth the
+            // renamed file; keep the original.
+            @unlink($outPath);
+            $ok = false;
+            $outName = $filename;
+        } elseif ($ok) {
+            @unlink($path);
+        }
+    } else {
+        switch ($type) {
+            case IMAGETYPE_JPEG: $ok = @imagejpeg($dst, $path, 85); break;
+            case IMAGETYPE_PNG:  $ok = @imagepng($dst, $path); break;
+            case IMAGETYPE_WEBP: $ok = @imagewebp($dst, $path); break;
+        }
+    }
+
+    if ($ok) {
+        $result['filename'] = $outName;
+        $result['changed'] = true;
+    }
+    return $result;
+}
+
+/**
+ * Reset the per-page image state. Called once per rendered page so that the
+ * "first image" rule below is scoped to the page, not to the whole build.
+ */
+function mediaResetImageFlow() {
+    $GLOBALS['mikanbox_img_large_seen'] = false;
+}
+
+/**
+ * Resolve an image URL used in page content to a readable local media file,
+ * or null when it is remote, missing, or a format with no pixel dimensions.
+ */
+function mediaLocalPathForUrl($url) {
+    if (preg_match('#^(?:https?:)?//#i', $url)) return null;
+    $name = basename((string)parse_url($url, PHP_URL_PATH));
+    if ($name === '' || strtolower(pathinfo($name, PATHINFO_EXTENSION)) === 'svg') return null;
+    $path = MEDIA_DIR . '/' . $name;
+    return file_exists($path) ? $path : null;
+}
+
+/**
+ * Extra <img> attributes for a media URL.
+ *
+ * width/height are the intrinsic pixel size: the browser can then reserve the
+ * right box before the bytes arrive, which removes the layout shift as images
+ * pop in.
+ *
+ * The loading hint is deliberately not uniform. Lazy-loading the first large
+ * image would delay the one most likely to be the LCP element, since lazy
+ * images are skipped by the preload scanner - so the first one is fetched
+ * eagerly and only later ones are deferred. Small images (logos, icons,
+ * dividers) get no hint at all: deferring a few KB saves nothing and only adds
+ * a render delay.
+ */
+function mediaImgAttrs($url) {
+    $path = mediaLocalPathForUrl($url);
+    if ($path === null) return '';
+    $info = @getimagesize($path);
+    if (!$info) return '';
+
+    $w = (int)$info[0];
+    $h = (int)$info[1];
+    if ($w < 1 || $h < 1) return '';
+
+    $attrs = ' width="' . $w . '" height="' . $h . '"';
+    if ($w < 200 && $h < 200) return $attrs;
+
+    if (empty($GLOBALS['mikanbox_img_large_seen'])) {
+        $GLOBALS['mikanbox_img_large_seen'] = true;
+        $attrs .= ' fetchpriority="high"';
+    } else {
+        $attrs .= ' loading="lazy" decoding="async"';
+    }
+    return $attrs;
 }
 
 // ==========================================

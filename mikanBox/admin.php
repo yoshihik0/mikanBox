@@ -712,6 +712,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         if (isset($_FILES['image'])) {
             $err = $_FILES['image']['error'];
             if ($err === UPLOAD_ERR_OK) {
+                $processed = [];
                 $tmpPath = $_FILES['image']['tmp_name'];
                 $originalName = basename($_FILES['image']['name']);
                 
@@ -731,7 +732,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                         if ($ext === 'svg') {
                             file_put_contents($targetPath, sanitizeSvgContent(file_get_contents($targetPath)));
                         }
-                        $message = t('msg_media_uploaded', $resolvedName);
+
+                        // Optional per-upload optimisation. Both options rewrite the
+                        // file that was just stored, and WebP conversion renames it,
+                        // which is only safe because nothing references it yet.
+                        $optMaxDim = !empty($_POST['opt_resize']) ? max(0, (int)($_POST['opt_max_dim'] ?? 0)) : 0;
+                        $optWebp = !empty($_POST['opt_webp']);
+                        if ($optMaxDim > 0 || $optWebp) {
+                            $processed = mediaProcessUploadedImage($resolvedName, $optMaxDim, $optWebp);
+                            $resolvedName = $processed['filename'];
+                            $targetPath = MEDIA_DIR . '/' . $resolvedName;
+                        }
+                        if (!empty($processed['skipped'])) {
+                            $message = t('msg_media_optimize_skipped', $resolvedName);
+                        } elseif (!empty($processed['changed'])) {
+                            $message = t('msg_media_optimized', $resolvedName);
+                        } else {
+                            $message = t('msg_media_uploaded', $resolvedName);
+                        }
                         $success = true;
                         $resolvedFilename = $resolvedName;
                         $editId = $resolvedName;
@@ -766,7 +784,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $name = basename($_POST['filename']);
         $targetPath = MEDIA_DIR . '/' . $name;
         
-        if (file_exists($targetPath) && function_exists('imagecreatefromjpeg')) {
+        if (strtolower(pathinfo($targetPath, PATHINFO_EXTENSION)) === 'gif') {
+            // GD reads only the first frame of a gif, so resizing one would
+            // silently discard the animation. The UI hides the control; this
+            // guards the handler itself.
+            $message = t('err_media_gif_no_resize');
+        } elseif (file_exists($targetPath) && function_exists('imagecreatefromjpeg')) {
             $info = getimagesize($targetPath);
             if ($info) {
                 $srcW = $info[0];
@@ -776,7 +799,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                 $newWidth = !empty($_POST['new_width']) ? (int)$_POST['new_width'] : null;
                 $newHeight = !empty($_POST['new_height']) ? (int)$_POST['new_height'] : null;
 
-                if ($newWidth || $newHeight) {
+                if (($newWidth || $newHeight) && !mediaImageFitsInMemory($srcW, $srcH, $srcW, $srcH)) {
+                    // GD would need more memory than the limit allows; abort with a
+                    // message instead of letting the request die with a fatal error.
+                    $message = t('msg_media_optimize_skipped', $name);
+                } elseif ($newWidth || $newHeight) {
                     if ($newWidth && !$newHeight) {
                         $newHeight = (int)($srcH * ($newWidth / $srcW));
                     } elseif (!$newWidth && $newHeight) {
@@ -793,7 +820,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                             imagesavealpha($dstImg, true);
                             break;
                         case IMAGETYPE_GIF: $srcImg = imagecreatefromgif($targetPath); break;
-                        case IMAGETYPE_WEBP: $srcImg = imagecreatefromwebp($targetPath); break;
+                        // WebP is a compile-time option in GD, so calling the
+                        // function unguarded would be a fatal error where it is off.
+                        case IMAGETYPE_WEBP: $srcImg = function_exists('imagecreatefromwebp') ? imagecreatefromwebp($targetPath) : null; break;
                         default: $srcImg = null;
                     }
                     
@@ -803,7 +832,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                             case IMAGETYPE_JPEG: imagejpeg($dstImg, $targetPath, 85); break;
                             case IMAGETYPE_PNG: imagepng($dstImg, $targetPath); break;
                             case IMAGETYPE_GIF: imagegif($dstImg, $targetPath); break;
-                            case IMAGETYPE_WEBP: imagewebp($dstImg, $targetPath); break;
+                            case IMAGETYPE_WEBP: if (function_exists('imagewebp')) imagewebp($dstImg, $targetPath); break;
                         }
                         $message = t('msg_media_resized', $name);
                     }
@@ -2082,11 +2111,11 @@ function getIcon($name) {
         if (dropZone) dropZone.classList.remove('active');
         const files = e.dataTransfer.files;
         if (files.length > 0 && uploadForm) {
-            const csrfInput = uploadForm.querySelector('input[name="csrf_token"]');
-            const formData = new FormData();
-            formData.append('save_action', 'upload_media');
-            if (csrfInput) formData.append('csrf_token', csrfInput.value);
-            formData.append('image', files[0]);
+            // Build from the form itself rather than by hand, so every field it
+            // carries (csrf token, upload options) is included automatically and
+            // dropped files behave exactly like files picked through the input.
+            const formData = new FormData(uploadForm);
+            formData.set('image', files[0]);
             await doMediaUpload(formData);
         }
     });
@@ -2097,6 +2126,43 @@ function getIcon($name) {
             await doMediaUpload(new FormData(uploadForm));
         });
     }
+
+    // Remember the upload options across page loads. These are per-operator
+    // conveniences rather than site configuration, so they live in the browser
+    // instead of settings.json.
+    (function initUploadOptions() {
+        const optResize = document.getElementById('opt-resize');
+        const optMaxDim = document.getElementById('opt-max-dim');
+        const optWebp = document.getElementById('opt-webp');
+        if (!optResize && !optWebp) return;
+
+        const KEY = 'mikanbox_upload_options';
+        let saved = {};
+        try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { saved = {}; }
+
+        if (optResize && typeof saved.resize === 'boolean') optResize.checked = saved.resize;
+        if (optMaxDim && saved.maxDim) optMaxDim.value = saved.maxDim;
+        if (optWebp && typeof saved.webp === 'boolean') optWebp.checked = saved.webp;
+
+        const details = document.getElementById('upload-options');
+        if (details && saved.open) details.open = true;
+
+        const persist = () => {
+            try {
+                localStorage.setItem(KEY, JSON.stringify({
+                    resize: optResize ? optResize.checked : false,
+                    maxDim: optMaxDim ? optMaxDim.value : '',
+                    webp: optWebp ? optWebp.checked : false,
+                    open: details ? details.open : false
+                }));
+            } catch (e) { /* private mode: fall back to per-session defaults */ }
+        };
+
+        [optResize, optMaxDim, optWebp].forEach((el) => {
+            if (el) el.addEventListener('change', persist);
+        });
+        if (details) details.addEventListener('toggle', persist);
+    })();
 
     async function doMediaUpload(formData) {
         const btn = document.getElementById('upload-btn');
