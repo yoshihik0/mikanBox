@@ -10,6 +10,7 @@ class MikanBoxRenderer {
     private $currentPageId = '';
     private $globalCssBuffer = [];
     private $javascriptBuffer = [];
+    private $javascriptComponentIds = [];
     private $depth = 0;
     private $depthSetManually = false;
     private $ssgStructure = 'directory';
@@ -81,6 +82,7 @@ class MikanBoxRenderer {
         $this->currentPageId = $pageId;
         $this->globalCssBuffer = [];
         $this->javascriptBuffer = [];
+        $this->javascriptComponentIds = [];
         // The "first large image is eager, the rest are lazy" rule in
         // mediaImgAttrs() is per page, so clear the flag before each render.
         mediaResetImageFlow();
@@ -171,7 +173,9 @@ class MikanBoxRenderer {
 
         // 2. Load Wrapper
         $wrapperCompId = isset($pageData['wrapper_comp']) ? $pageData['wrapper_comp'] : '_layout';
-        $wrapperData = loadData(COMPONENTS_DIR, $wrapperCompId) ?: loadData(COMPONENTS_DIR, '_layout');
+        $wrapperData = loadData(COMPONENTS_DIR, $wrapperCompId);
+        $wrapperJsId = $wrapperData ? $wrapperCompId : '_layout';
+        $wrapperData = $wrapperData ?: loadData(COMPONENTS_DIR, '_layout');
         $html = $wrapperData['html'] ?? '{{CONTENT}}';
 
         // Embed main content into the wrapper
@@ -250,14 +254,19 @@ class MikanBoxRenderer {
         $html = str_ireplace(['{{HEAD_CSS}}', '{{ HEAD_CSS }}'], $cssLinkTag, $html);
 
         // Keep JS out of Markdown, template expansion and path rewriting. Component
-        // scripts run in inclusion order, followed by the layout and page scripts.
-        $this->collectJavaScript($wrapperData ?? []);
+        // scripts run once per ID in first-inclusion order, followed by any remaining
+        // layout script and the page script.
+        $this->collectJavaScript($wrapperData ?? [], $wrapperJsId);
         $this->collectJavaScript($pageData);
         return $this->embedJavaScript($this->enforceStandardMode($html));
     }
 
-    private function collectJavaScript(array $data): void {
+    private function collectJavaScript(array $data, ?string $componentId = null): void {
         if (empty($data['is_ai_doc']) && trim((string)($data['js'] ?? '')) !== '') {
+            if ($componentId !== null) {
+                if (isset($this->javascriptComponentIds[$componentId])) return;
+                $this->javascriptComponentIds[$componentId] = true;
+            }
             $this->javascriptBuffer[] = (string)$data['js'];
         }
     }
@@ -333,7 +342,7 @@ class MikanBoxRenderer {
 
             if (!$compData) return "<!-- Component '{$compId}' not found -->";
 
-            $this->collectJavaScript($compData);
+            $this->collectJavaScript($compData, $compId);
 
             $compHtml = $compData['html'] ?? '';
             $compCss  = $compData['css'] ?? '';
@@ -986,7 +995,7 @@ class MikanBoxRenderer {
             );
             
             $outputHtml .= $itemHtml;
-            if ($compData) $this->collectJavaScript($compData);
+            if ($compData) $this->collectJavaScript($compData, $effectiveCompId);
         }
         $outputHtml .= '</div>';
         
@@ -1070,7 +1079,7 @@ class MikanBoxRenderer {
                     }, $itemHtml);
                 }
                 $innerHtml .= $itemHtml;
-                if ($compData) $this->collectJavaScript($compData);
+                if ($compData) $this->collectJavaScript($compData, $effectiveCompId);
             } else {
                 $imgHtml = $img ? '<div class="nav-card-img"><img src="' . $img . '" alt="" loading="lazy" decoding="async"></div>' : '';
                 $innerHtml .= sprintf('<a href="%s" class="nav-card">%s<div class="nav-card-content"><h3 class="nav-card-title">%s</h3>%s</div></a>', 

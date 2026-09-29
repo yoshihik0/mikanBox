@@ -50,7 +50,7 @@
     "label_page_js": "ページ専用JavaScript",
     "label_component_js": "JavaScript",
     "page_js_hint": "scriptタグなしで記述します。ページのHTMLの後に、コンポーネントのJavaScriptに続けて実行されます。",
-    "component_js_hint": "scriptタグなしで記述します。部品を埋め込むたびにページ本文末尾へ出力されます。CSSのスコープ設定はJavaScriptには適用されません。",
+    "component_js_hint": "scriptタグなしで記述します。同じ部品のJSは1ページにつき一回だけ、ページ本文末尾へ出力されます。複数配置した部品はコード内ですべて初期化してください。CSSのスコープ設定はJavaScriptには適用されません。",
     "component_js_url": "JavaScript専用URL",
     "label_updated_at": "更新",
     "label_operation": "編集・プレビュー",

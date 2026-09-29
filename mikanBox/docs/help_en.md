@@ -799,7 +799,9 @@ To keep scoping enabled while making only a specific selector global, wrap the e
 
 #### JavaScript (when Type is "Part" or "Page")
 
-Write code without `<script>` tags in the collapsible field, whose heading uses the same bold weight as the CSS field. With a normal `{{COMPONENT:ID}}` inclusion, the JS field is collected for every inclusion and output at the end of the page body. Nested components are collected in parent-before-child order, followed by layout-wrapper JS and page JS. Card-list and search-result components output JS for each displayed item too. Code is neither automatically scoped nor deduplicated. AI Instructions hide the JS field and are neither served nor executed as JavaScript.
+Since 2.6.12, JS is output once per component ID per page. Versions 2.6.10–2.6.11 output it for each inclusion.
+
+Write code without `<script>` tags in the collapsible field, whose heading uses the same bold weight as the CSS field. With a normal `{{COMPONENT:ID}}` inclusion, JS is output at the end of the page body once per component ID per page. Nested components are collected in parent-before-child order; repeated IDs keep their first collection position. Card-list and search-result templates share the same ID deduplication with normal inclusions. Any layout-wrapper JS not already collected follows, then page JS. Different component IDs and page JS are each output even if their code is identical. Code is not automatically scoped. AI Instructions hide the JS field and are neither served nor executed as JavaScript.
 
 Saved design components show a JavaScript-only URL. `component-js/ID.js` returns only the JS field, regardless of whether the component contains HTML or CSS. Use the exact case of the saved ID. For example, load `Test` with:
 
@@ -809,7 +811,7 @@ Saved design components show a JavaScript-only URL. `component-js/ID.js` returns
 
 This URL form in page or component HTML is resolved from the site root, including on nested pages. Static-site upload packages include JS files under `component-js/`; relative-URL mode adjusts references for the output page depth. Servers without clean-URL rewriting can also use `index.php?component_js=Test` (this query form requires PHP). Missing or invalid IDs and AI Instructions return 404; a normal component with an empty JS field returns empty JavaScript.
 
-JS-field code is used without custom-tag expansion. Combining a normal inclusion and an external script URL does not automatically adjust execution counts. Design initialization for multiple instances and any required loading order in your code. The MCP tools `create_page`, `update_page`, `create_component`, and `update_component` also accept the `js` field.
+JS-field code is used without custom-tag expansion. Combining a normal inclusion and an external script URL does not automatically adjust execution counts. When a component has multiple instances, initialize all of them in one execution using `document.querySelectorAll()` or similar. Design any required loading order in your code. The MCP tools `create_page`, `update_page`, `create_component`, and `update_component` also accept the `js` field.
 
 #### [save]{.material-symbols-outlined} Save{.m-btn .m-btn-blue}
 
