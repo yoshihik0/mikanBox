@@ -375,7 +375,7 @@ To intentionally style an element outside the page scope, wrap the entire select
 
 #### Page JavaScript
 
-Available in mikanBox 2.6.10 and later. Write JavaScript without `<script>` tags in the collapsible field. The field opens automatically when it contains code. The CMS inserts scripts at the end of the page body, normally just before `</body>`; HTML without closing tags receives them at the end. The page code is output once, following component JavaScript. This works in dynamic pages, previews, and static HTML.
+Available in mikanBox 2.6.10 and later. Write JavaScript without `<script>` tags in the collapsible field, whose heading uses the same bold weight as the CSS field. The field opens automatically when it contains code. The CMS inserts scripts at the end of the page body, normally just before `</body>`; HTML without closing tags receives them at the end. The page code is output once, following component JavaScript. This works in dynamic pages, previews, and static HTML.
 
 CSS scoping does not apply to JavaScript. JS fields are used as code, without Markdown conversion, custom-tag expansion, or automatic URL completion. Existing `<script>` tags in the HTML body remain supported. Handle dependencies on external libraries and any required loading order in your code.
 
@@ -799,7 +799,7 @@ To keep scoping enabled while making only a specific selector global, wrap the e
 
 #### JavaScript (when Type is "Part" or "Page")
 
-Write code without `<script>` tags in the collapsible field. With a normal `{{COMPONENT:ID}}` inclusion, the JS field is collected for every inclusion and output at the end of the page body. Nested components are collected in parent-before-child order, followed by layout-wrapper JS and page JS. Card-list and search-result components output JS for each displayed item too. Code is neither automatically scoped nor deduplicated. AI Instructions hide the JS field and are neither served nor executed as JavaScript.
+Write code without `<script>` tags in the collapsible field, whose heading uses the same bold weight as the CSS field. With a normal `{{COMPONENT:ID}}` inclusion, the JS field is collected for every inclusion and output at the end of the page body. Nested components are collected in parent-before-child order, followed by layout-wrapper JS and page JS. Card-list and search-result components output JS for each displayed item too. Code is neither automatically scoped nor deduplicated. AI Instructions hide the JS field and are neither served nor executed as JavaScript.
 
 Saved design components show a JavaScript-only URL. `component-js/ID.js` returns only the JS field, regardless of whether the component contains HTML or CSS. Use the exact case of the saved ID. For example, load `Test` with:
 

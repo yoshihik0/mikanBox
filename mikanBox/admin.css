@@ -590,6 +590,10 @@ label {
     font-weight: 600;
 }
 
+.form-group > summary {
+    font-weight: 600;
+}
+
 .sub-label {
     font-weight: normal;
     color: var(--text-dark-sub);
