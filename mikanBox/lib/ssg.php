@@ -108,6 +108,20 @@ class MikanBoxSSG {
             $results = array_merge($results, $this->copyMediaDirectory());
         }
 
+        // Upload packages must keep explicit component-js URLs usable without PHP.
+        if (($this->options['output_mode'] ?? 'server') === 'export') {
+            $jsDir = $this->outputDir . '/component-js';
+            foreach (getFileList(COMPONENTS_DIR) as $componentId) {
+                $js = mikanBoxComponentJavaScript($componentId);
+                if ($js === null) continue;
+                if (!is_dir($jsDir)) mkdir($jsDir, 0777, true);
+                $jsFile = $jsDir . '/' . $componentId . '.js';
+                $results[] = file_put_contents($jsFile, $js) !== false
+                    ? "Generated: $jsFile"
+                    : "Error: Could not write $jsFile";
+            }
+        }
+
         $siteUrl = rtrim($this->renderer->getConfiguredSiteUrl(), '/');
         if ($siteUrl === '' && ($this->options['output_mode'] ?? 'server') !== 'export') {
             $siteUrl = rtrim($this->renderer->getSiteUrl(), '/');

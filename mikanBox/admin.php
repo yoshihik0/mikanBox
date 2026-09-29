@@ -564,6 +564,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             'ogp_image' => $_POST['ogp_image'] ?? '',
             'content_md' => $_POST['content_md'] ?? '',
             'css' => $_POST['css'] ?? '',
+            'js' => $_POST['js'] ?? '',
             'is_html' => isset($_POST['is_html']) ? true : false,
             'wrapper_comp' => $_POST['wrapper_comp'] ?: '_layout',
             'sort_order' => (int)($_POST['sort_order'] ?? 0),
@@ -681,6 +682,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $data = [
             'html' => $_POST['html'],
             'css' => $_POST['css'] ?? '',
+            'js' => $_POST['js'] ?? '',
             'memo' => $_POST['memo'] ?? '',
             'is_global' => !isset($_POST['use_scope']),
             'is_wrapper' => ($compType === 'wrapper'),

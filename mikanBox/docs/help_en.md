@@ -98,7 +98,7 @@
 
 Pages and components are tied directly to their CSS, so the structure is easy to follow and you don't need to worry about interference between parts. Depending on how you use components, you can design your site as freely and flexibly as you like.
 
-- Pages and components can each hold their own CSS
+- Pages and components can each hold their own CSS and JavaScript
 - CSS is scoped, preventing interference
 - Components can be nested
 - Something like a WordPress theme is easy to build — and AI can build it too
@@ -372,6 +372,12 @@ Write the page's main content using Markdown syntax or HTML. Markdown and HTML c
 Write styles that should apply only to this page. This is automatically scoped, so it never affects other pages or anything outside the body content. Custom tags can also be used inside this CSS.
 
 To intentionally style an element outside the page scope, wrap the entire selector in `:global(...)`. For example, `:global(.hero_box) { display: none; }` applies the rule to `.hero_box` outside the scoped page content, while ordinary selectors remain limited to this page's body content.
+
+#### Page JavaScript
+
+Available in mikanBox 2.6.10 and later. Write JavaScript without `<script>` tags in the collapsible field. The field opens automatically when it contains code. The CMS inserts scripts at the end of the page body, normally just before `</body>`; HTML without closing tags receives them at the end. The page code is output once, following component JavaScript. This works in dynamic pages, previews, and static HTML.
+
+CSS scoping does not apply to JavaScript. JS fields are used as code, without Markdown conversion, custom-tag expansion, or automatic URL completion. Existing `<script>` tags in the HTML body remain supported. Handle dependencies on external libraries and any required loading order in your code.
 
 #### [save]{.material-symbols-outlined} Save{.m-btn .m-btn-blue}
 
@@ -751,7 +757,7 @@ Shows the tag used to embed the component (e.g. `{{COMPONENT:header}}`). Clickin
 
 ## Design Edit {#design-edit}
 
-A screen for defining a component's structure (HTML/CSS) and settings.
+A screen for defining a component's structure (HTML/CSS/JavaScript) and settings.
 
 #### Component ID
 
@@ -790,6 +796,20 @@ Write styles meant to apply only within this component. Custom tags can also be 
 A checkbox. Normally recommended to leave ON. Prevents the CSS you write here from affecting other parts of the site. Only uncheck this when building a global reset CSS meant to apply site-wide, or a part meant for the `<head>`.
 
 To keep scoping enabled while making only a specific selector global, wrap the entire selector in `:global(...)`. Example: `:global(.hero_box) { display: none; }`. Components with scoping disabled are already global, so they do not need `:global(...)`.
+
+#### JavaScript (when Type is "Part" or "Page")
+
+Write code without `<script>` tags in the collapsible field. With a normal `{{COMPONENT:ID}}` inclusion, the JS field is collected for every inclusion and output at the end of the page body. Nested components are collected in parent-before-child order, followed by layout-wrapper JS and page JS. Card-list and search-result components output JS for each displayed item too. Code is neither automatically scoped nor deduplicated. AI Instructions hide the JS field and are neither served nor executed as JavaScript.
+
+Saved design components show a JavaScript-only URL. `component-js/ID.js` returns only the JS field, regardless of whether the component contains HTML or CSS. Use the exact case of the saved ID. For example, load `Test` with:
+
+```html
+<script src="component-js/Test.js" defer></script>
+```
+
+This URL form in page or component HTML is resolved from the site root, including on nested pages. Static-site upload packages include JS files under `component-js/`; relative-URL mode adjusts references for the output page depth. Servers without clean-URL rewriting can also use `index.php?component_js=Test` (this query form requires PHP). Missing or invalid IDs and AI Instructions return 404; a normal component with an empty JS field returns empty JavaScript.
+
+JS-field code is used without custom-tag expansion. Combining a normal inclusion and an external script URL does not automatically adjust execution counts. Design initialization for multiple instances and any required loading order in your code. The MCP tools `create_page`, `update_page`, `create_component`, and `update_component` also accept the `js` field.
 
 #### [save]{.material-symbols-outlined} Save{.m-btn .m-btn-blue}
 

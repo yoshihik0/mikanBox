@@ -64,6 +64,21 @@
                     </label>
                     <small class="sub-text sub-text-indent"><?= t('use_scope_hint') ?></small>
                 </div>
+                <details class="form-group mt-15" id="component-js-group" <?= trim($editData['js'] ?? '') !== '' ? 'open' : '' ?> <?= $currentType === 'ai_doc' ? 'style="display: none;"' : '' ?>>
+                    <summary><?= t('label_component_js') ?></summary>
+                    <small class="sub-text sub-text-block"><?= t('component_js_hint') ?></small>
+                    <textarea name="js" aria-label="<?= t('label_component_js') ?>" class="textarea-md textarea-mono" rows="10"><?= htmlspecialchars($editData['js']??'') ?></textarea>
+                    <?php if ($editId && preg_match('/\A[A-Za-z0-9_-]+\z/', $editId)): ?>
+                    <small class="sub-text sub-text-block"><?= t('component_js_url') ?>:
+                        <?php
+                        $jsBasePath = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/mikanBox/admin.php')), '/');
+                        if ($jsBasePath === '.') $jsBasePath = '';
+                        $jsUrl = $jsBasePath . '/component-js/' . rawurlencode($editId) . '.js';
+                        ?>
+                        <a href="<?= htmlspecialchars($jsUrl) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($jsUrl) ?></a>
+                    </small>
+                    <?php endif; ?>
+                </details>
                 
                 <div class="flex-row flex-between mt-25">
                     <div class="flex-row">
@@ -84,6 +99,7 @@
                 const htmlLabel = document.getElementById('html-editor-label');
                 const cssLabel = document.getElementById('css-editor-label');
                 const scopeGroup = document.getElementById('scope-css-group');
+                const jsGroup = document.getElementById('component-js-group');
                 const tagGuide = document.querySelector('.hint-accordion');
 
                 function updateEditorLabels() {
@@ -94,11 +110,13 @@
                         if (htmlLabel) htmlLabel.textContent = 'Markdown';
                         if (cssLabel) cssLabel.textContent = '<?= addslashes(t('css_editor_label_aidoc')) ?>';
                         if (scopeGroup) scopeGroup.style.display = 'none';
+                        if (jsGroup) jsGroup.style.display = 'none';
                         if (tagGuide) tagGuide.style.display = 'none';
                     } else {
                         if (htmlLabel) htmlLabel.textContent = 'HTML';
                         if (cssLabel) cssLabel.textContent = 'CSS (<?= addslashes(t('component_css_hint')) ?>)';
                         if (scopeGroup) scopeGroup.style.display = 'block';
+                        if (jsGroup) jsGroup.style.display = 'block';
                         if (tagGuide) tagGuide.style.display = 'block';
                     }
                 }

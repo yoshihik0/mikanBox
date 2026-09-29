@@ -9,6 +9,7 @@ class MikanBoxRenderer {
     private $staticMode = false;
     private $currentPageId = '';
     private $globalCssBuffer = [];
+    private $javascriptBuffer = [];
     private $depth = 0;
     private $depthSetManually = false;
     private $ssgStructure = 'directory';
@@ -79,6 +80,7 @@ class MikanBoxRenderer {
     public function render($pageId) {
         $this->currentPageId = $pageId;
         $this->globalCssBuffer = [];
+        $this->javascriptBuffer = [];
         // The "first large image is eager, the rest are lazy" rule in
         // mediaImgAttrs() is per page, so clear the flag before each render.
         mediaResetImageFlow();
@@ -247,7 +249,39 @@ class MikanBoxRenderer {
         $html = preg_replace('/\{\{\s*HEAD_CSS\s*\}\}/i', $cssLinkTag, $html);
         $html = str_ireplace(['{{HEAD_CSS}}', '{{ HEAD_CSS }}'], $cssLinkTag, $html);
 
-        return $this->enforceStandardMode($html);
+        // Keep JS out of Markdown, template expansion and path rewriting. Component
+        // scripts run in inclusion order, followed by the layout and page scripts.
+        $this->collectJavaScript($wrapperData ?? []);
+        $this->collectJavaScript($pageData);
+        return $this->embedJavaScript($this->enforceStandardMode($html));
+    }
+
+    private function collectJavaScript(array $data): void {
+        if (empty($data['is_ai_doc']) && trim((string)($data['js'] ?? '')) !== '') {
+            $this->javascriptBuffer[] = (string)$data['js'];
+        }
+    }
+
+    private function embedJavaScript(string $html): string {
+        if (!$this->javascriptBuffer) return $html;
+        $scripts = '';
+        foreach ($this->javascriptBuffer as $js) {
+            // HTML parsers recognise a closing script tag even inside a JS string.
+            $js = preg_replace('~</script(?=[\s/>])~i', '<\\/script', $js);
+            $scripts .= "\n<script>\n" . $js . "\n</script>\n";
+        }
+
+        // Skip comments and raw-text elements so a literal </body> in existing
+        // code does not become our insertion point.
+        preg_match_all('~<!--[\s\S]*?-->|<(script|style|textarea|title)\b[^>]*>[\s\S]*?</\1\s*>|(?<body></body\s*>)|(?<html></html\s*>)~i', $html, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        $bodyOffset = null;
+        $htmlOffset = null;
+        foreach ($matches as $match) {
+            if (isset($match['body']) && $match['body'][1] >= 0) $bodyOffset = $match['body'][1];
+            if (isset($match['html']) && $match['html'][1] >= 0) $htmlOffset = $match['html'][1];
+        }
+        $offset = $bodyOffset ?? $htmlOffset ?? strlen($html);
+        return substr($html, 0, $offset) . $scripts . substr($html, $offset);
     }
 
     /**
@@ -298,6 +332,8 @@ class MikanBoxRenderer {
             $compData = loadData(COMPONENTS_DIR, $compId);
 
             if (!$compData) return "<!-- Component '{$compId}' not found -->";
+
+            $this->collectJavaScript($compData);
 
             $compHtml = $compData['html'] ?? '';
             $compCss  = $compData['css'] ?? '';
@@ -747,6 +783,23 @@ class MikanBoxRenderer {
 
     private function applyPathCompletion($html) {
         $allPosts = getSortedPostIds();
+
+        // Component asset paths are site-relative even on nested pages. Portable
+        // exports contain these files too, so use the export root in static mode.
+        $html = preg_replace_callback('~(<script\b[^>]*\bsrc\s*=\s*)(["\'])([^"\']+)\2~i', function($m) {
+            $src = $m[3];
+            $basePath = trim($this->getSiteBasePath(), '/');
+            $path = ltrim($src, '/');
+            if (str_starts_with($src, '/') && $basePath !== '' && str_starts_with($path, $basePath . '/')) {
+                $path = substr($path, strlen($basePath) + 1);
+            }
+            $path = preg_replace('~^\./~', '', $path);
+            if (!preg_match('~\Acomponent-js/[A-Za-z0-9_-]+\.js(?:[?#].*)?\z~', $path)) return $m[0];
+            $root = $this->isRelativeStaticMode()
+                ? $this->getStaticRootPrefix()
+                : ($this->staticMode ? rtrim($this->getSiteUrl(), '/') . '/' : $this->getSiteBasePath());
+            return $m[1] . $m[2] . $root . $path . $m[2];
+        }, $html);
         
         // 1. Rewrite internal links to be root-relative (e.g. /pages/p3/)
         $html = preg_replace_callback('/href=["\'](\.?\/?)([^"\']+)["\']/i', function($matches) use ($allPosts) {
@@ -933,6 +986,7 @@ class MikanBoxRenderer {
             );
             
             $outputHtml .= $itemHtml;
+            if ($compData) $this->collectJavaScript($compData);
         }
         $outputHtml .= '</div>';
         
@@ -1016,6 +1070,7 @@ class MikanBoxRenderer {
                     }, $itemHtml);
                 }
                 $innerHtml .= $itemHtml;
+                if ($compData) $this->collectJavaScript($compData);
             } else {
                 $imgHtml = $img ? '<div class="nav-card-img"><img src="' . $img . '" alt="" loading="lazy" decoding="async"></div>' : '';
                 $innerHtml .= sprintf('<a href="%s" class="nav-card">%s<div class="nav-card-content"><h3 class="nav-card-title">%s</h3>%s</div></a>', 

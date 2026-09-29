@@ -350,6 +350,8 @@ function toolDefinitions() {
                     'id'           => ['type' => 'string',  'description' => 'スラッグ/ID（英数字・ハイフン・アンダースコア・スラッシュ）。スラッシュでサブディレクトリ構造になる（例: "news/2024"）'],
                     'title'        => ['type' => 'string',  'description' => 'ページタイトル'],
                     'content_md'   => ['type' => 'string',  'description' => 'ページ本文（MarkdownまたはHTML）'],
+                    'css'          => ['type' => 'string',  'description' => 'ページ専用CSS'],
+                    'js'           => ['type' => 'string',  'description' => 'ページ専用JavaScript（scriptタグ不要。本文末尾へ自動挿入）'],
                     'status'       => ['type' => 'string',  'description' => 'ステータス: draft / public_dynamic / public_static', 'enum' => ['draft', 'public_dynamic', 'public_static']],
                     'description'  => ['type' => 'string',  'description' => 'メタ description'],
                     'keywords'     => ['type' => 'string',  'description' => 'メタ keywords'],
@@ -376,6 +378,7 @@ function toolDefinitions() {
                     'wrapper_comp' => ['type' => 'string',  'description' => 'レイアウトコンポーネントID。{{CONTENT}} タグを含むコンポーネントを指定する'],
                     'sort_order'   => ['type' => 'integer'],
                     'css'          => ['type' => 'string'],
+                    'js'           => ['type' => 'string', 'description' => 'ページ専用JavaScript（scriptタグ不要。本文末尾へ自動挿入）'],
                     'ogp_image'    => ['type' => 'string'],
                 ],
                 'required' => ['id']
@@ -417,7 +420,8 @@ function toolDefinitions() {
                     'id'         => ['type' => 'string',  'description' => 'コンポーネントID（英数字・ハイフン・アンダースコア。先頭に _ でグローバル系）'],
                     'html'       => ['type' => 'string',  'description' => 'HTMLテンプレート'],
                     'css'        => ['type' => 'string',  'description' => 'CSS'],
-                    'is_global'  => ['type' => 'boolean', 'description' => 'CSSをグローバル適用するか。falseだとCSSが自動スコープされコンポーネント外の要素に当たらなくなる。ページコンテンツのDOMを走査するJS/CSSを持つ場合はtrue必須。'],
+                    'js'         => ['type' => 'string',  'description' => 'JavaScript（scriptタグ不要。部品の埋め込み時に本文末尾へ自動挿入。component-js/{id}.jsでJSのみ取得可能）'],
+                    'is_global'  => ['type' => 'boolean', 'description' => 'CSSをグローバル適用するか。falseだとCSSが自動スコープされコンポーネント外の要素に当たらなくなる。JavaScriptの動作範囲には影響しない。'],
                     'is_wrapper' => ['type' => 'boolean', 'description' => 'レイアウトラッパーかどうか（{{CONTENT}}を含むコンポーネントの場合true）'],
                 ],
                 'required' => ['id']
@@ -432,7 +436,8 @@ function toolDefinitions() {
                     'id'         => ['type' => 'string',  'description' => '更新対象のコンポーネントID'],
                     'html'       => ['type' => 'string',  'description' => 'HTMLテンプレート'],
                     'css'        => ['type' => 'string',  'description' => 'CSS'],
-                    'is_global'  => ['type' => 'boolean', 'description' => 'CSSをグローバル適用するか。falseだとCSSが自動スコープされコンポーネント外の要素に当たらなくなる。ページコンテンツのDOMを走査するJS/CSSを持つ場合はtrue必須。'],
+                    'js'         => ['type' => 'string',  'description' => 'JavaScript（scriptタグ不要。部品の埋め込み時に本文末尾へ自動挿入。component-js/{id}.jsでJSのみ取得可能）'],
+                    'is_global'  => ['type' => 'boolean', 'description' => 'CSSをグローバル適用するか。falseだとCSSが自動スコープされコンポーネント外の要素に当たらなくなる。JavaScriptの動作範囲には影響しない。'],
                     'is_wrapper' => ['type' => 'boolean', 'description' => 'レイアウトラッパーかどうか（{{CONTENT}}を含むコンポーネントの場合true）'],
                 ],
                 'required' => ['id']
@@ -620,7 +625,7 @@ function toolUpdatePage($args) {
         return ['error' => t('mcp_err_page_not_found_for_update', $id)];
     }
 
-    foreach (['title', 'content_md', 'status', 'description', 'keywords', 'category', 'wrapper_comp', 'sort_order', 'css', 'ogp_image'] as $f) {
+    foreach (['title', 'content_md', 'status', 'description', 'keywords', 'category', 'wrapper_comp', 'sort_order', 'css', 'js', 'ogp_image'] as $f) {
         if (array_key_exists($f, $args)) $existing[$f] = $args[$f];
     }
     $existing['updated_at'] = date('Y-m-d H:i:s');
@@ -678,6 +683,7 @@ function toolCreateComponent($args) {
     $data = [
         'html'       => $args['html']       ?? '',
         'css'        => $args['css']        ?? '',
+        'js'         => $args['js']         ?? '',
         'is_global'  => $args['is_global']  ?? false,
         'is_wrapper' => $args['is_wrapper'] ?? false,
         'is_ai_doc'  => $args['is_ai_doc']  ?? false,
@@ -696,7 +702,7 @@ function toolUpdateComponent($args) {
     $existing = loadData(COMPONENTS_DIR, $id);
     if ($existing === null) return ['error' => t('mcp_err_component_not_found', $id)];
 
-    foreach (['html', 'css', 'is_global', 'is_wrapper', 'is_ai_doc'] as $f) {
+    foreach (['html', 'css', 'js', 'is_global', 'is_wrapper', 'is_ai_doc'] as $f) {
         if (array_key_exists($f, $args)) $existing[$f] = $args[$f];
     }
 
@@ -910,6 +916,7 @@ function buildPageData($args) {
         'ogp_image'    => $args['ogp_image']    ?? '',
         'content_md'   => $args['content_md']   ?? '',
         'css'          => $args['css']          ?? '',
+        'js'           => $args['js']           ?? '',
         'wrapper_comp' => $args['wrapper_comp'] ?? '_layout',
         'sort_order'   => (int)($args['sort_order'] ?? 0),
         'updated_at'   => date('Y-m-d H:i:s'),

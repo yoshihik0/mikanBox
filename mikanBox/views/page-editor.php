@@ -195,6 +195,11 @@
                         <label><?= t('label_css') ?></label>
                         <textarea name="css" class="textarea-sm textarea-mono"><?= htmlspecialchars($editData['css']??'') ?></textarea>
                     </div>
+                    <details class="form-group" <?= trim($editData['js'] ?? '') !== '' ? 'open' : '' ?>>
+                        <summary><?= t('label_page_js') ?></summary>
+                        <small class="sub-text sub-text-block"><?= t('page_js_hint') ?></small>
+                        <textarea name="js" aria-label="<?= t('label_page_js') ?>" class="textarea-sm textarea-mono" rows="10"><?= htmlspecialchars($editData['js']??'') ?></textarea>
+                    </details>
                     <div class="flex-row flex-between mt-10">
                         <div class="flex-row">
                             <button type="submit" form="page-form" name="save_action" value="save_page" class="btn btn-blue"><?= getIcon('save') ?> <?= t('btn_save') ?></button>

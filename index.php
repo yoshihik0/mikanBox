@@ -36,6 +36,42 @@ $basePath = dirname($_SERVER['SCRIPT_NAME']);
 if ($basePath === DIRECTORY_SEPARATOR || $basePath === '.') $basePath = '';
 $GLOBALS['mikanbox_settings']['_site_base'] = $basePath ? rtrim($basePath, '/') . '/' : '/';
 
+// Public component JavaScript: /component-js/Test.js. The query form also
+// works on servers without clean-URL rewriting: index.php?component_js=Test.
+$assetPath = $rawRequestPath;
+if ($basePath !== '' && str_starts_with($assetPath, rtrim($basePath, '/') . '/')) {
+    $assetPath = substr($assetPath, strlen(rtrim($basePath, '/')));
+}
+$assetPath = ltrim($assetPath, '/');
+if (isset($_GET['component_js']) || str_starts_with($assetPath, 'component-js/')) {
+    $id = $_GET['component_js'] ?? null;
+    if ($id === null && preg_match('~\Acomponent-js/([A-Za-z0-9_-]+)\.js\z~', $assetPath, $assetMatch)) {
+        $id = $assetMatch[1];
+    }
+    header('Content-Type: text/javascript; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: no-cache');
+    if (ob_get_length()) ob_clean();
+    if (!in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
+        header('Allow: GET, HEAD');
+        http_response_code(405);
+        exit;
+    }
+    $js = mikanBoxComponentJavaScript($id);
+    if ($js === null) {
+        http_response_code(404);
+        exit;
+    }
+    $etag = '"' . hash('sha256', $js) . '"';
+    header('ETag: ' . $etag);
+    if (trim($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) {
+        http_response_code(304);
+        exit;
+    }
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') echo $js;
+    exit;
+}
+
 // 2. Request Acquisition
 $pageId = isset($_GET['page']) ? $_GET['page'] : '';
 

@@ -1,4 +1,15 @@
 <?php
+/**
+ * Public JS assets use design component IDs only, never paths or AI documents.
+ * Null means not found; an existing component with no JS returns an empty file.
+ */
+function mikanBoxComponentJavaScript($id): ?string {
+    if (!is_string($id) || !preg_match('/\A[A-Za-z0-9_-]+\z/', $id)) return null;
+    $component = loadData(COMPONENTS_DIR, $id);
+    if (!$component || !empty($component['is_ai_doc'])) return null;
+    return (string)($component['js'] ?? '');
+}
+
 // ==========================================
 // mikanBox 共通ユーティリティ関数
 // flat版・sqlite版で完全に同一の関数のみを集約したファイル。
