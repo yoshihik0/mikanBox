@@ -64,8 +64,8 @@
                     </label>
                     <small class="sub-text sub-text-indent"><?= t('use_scope_hint') ?></small>
                 </div>
-                <details class="form-group mt-15" id="component-js-group" <?= trim($editData['js'] ?? '') !== '' ? 'open' : '' ?> <?= $currentType === 'ai_doc' ? 'style="display: none;"' : '' ?>>
-                    <summary><?= t('label_component_js') ?></summary>
+                <details class="form-group mt-15 js-accordion" id="component-js-group" <?= trim($editData['js'] ?? '') !== '' ? 'open' : '' ?> <?= $currentType === 'ai_doc' ? 'style="display: none;"' : '' ?>>
+                    <summary><?= t('label_component_js') ?> <span class="accordion-arrow">▼</span></summary>
                     <small class="sub-text sub-text-block"><?= t('component_js_hint') ?></small>
                     <textarea name="js" aria-label="<?= t('label_component_js') ?>" class="textarea-md textarea-mono" rows="10"><?= htmlspecialchars($editData['js']??'') ?></textarea>
                     <?php if ($editId && preg_match('/\A[A-Za-z0-9_-]+\z/', $editId)): ?>
@@ -77,6 +77,8 @@
                         ?>
                         <a href="<?= htmlspecialchars($jsUrl) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($jsUrl) ?></a>
                     </small>
+                    <small class="sub-text sub-text-block"><?= t('component_js_embed_hint') ?></small>
+                    <code><?= htmlspecialchars('<script src="' . $editId . '.js" defer></script>') ?></code>
                     <?php endif; ?>
                 </details>
                 

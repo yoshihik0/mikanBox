@@ -594,6 +594,20 @@ label {
     font-weight: 600;
 }
 
+.js-accordion > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.js-accordion > summary::-webkit-details-marker {
+    display: none;
+}
+
 .sub-label {
     font-weight: normal;
     color: var(--text-dark-sub);

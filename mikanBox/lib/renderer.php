@@ -803,6 +803,12 @@ class MikanBoxRenderer {
                 $path = substr($path, strlen($basePath) + 1);
             }
             $path = preg_replace('~^\./~', '', $path);
+            // Like media filenames, a saved component's JS filename needs no
+            // directory. Leave other script assets and absolute URLs untouched.
+            if (!str_starts_with($src, '/') && preg_match('~\A([A-Za-z0-9_-]+)\.js(?:[?#].*)?\z~', $path, $asset)
+                && mikanBoxComponentJavaScript($asset[1]) !== null) {
+                $path = 'component-js/' . $path;
+            }
             if (!preg_match('~\Acomponent-js/[A-Za-z0-9_-]+\.js(?:[?#].*)?\z~', $path)) return $m[0];
             $root = $this->isRelativeStaticMode()
                 ? $this->getStaticRootPrefix()

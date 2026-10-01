@@ -28,6 +28,11 @@
 <main>
 
 <style>
+.manual-version {
+  font-size: 0.5em;
+  font-weight: 400;
+  white-space: nowrap;
+}
 .type-badge {
   display: inline-block;
   padding: 2px 8px;
@@ -48,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.7.0</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -803,15 +808,19 @@ MCP接続時には `get_ai_context` がすべてのAI指示コンポーネント
 
 CSS欄と同じ太字の見出しを持つ、折りたたみ式の専用欄に、`<script>` タグなしでコードを記述します。通常の `{{COMPONENT:ID}}` 呼び出しでは、同じコンポーネントIDのJSを1ページにつき一回だけ、ページ本文末尾へ出力します。入れ子では呼び出し元、子の順に収集し、同じIDが再登場しても最初の収集位置を保ちます。カード一覧・検索結果の部品も、通常の埋め込みと共通で同じIDにつき一回です。その後、まだ収集していないデザインコンポーネント（ラッパー）のJS、ページ専用JSが続きます。異なるIDのJSやページ専用JSは、コードが同じでもそれぞれ出力します。コードの自動スコープ化は行いません。「AI指示」ではJS欄を表示せず、JavaScriptとしての配信・実行もしません。
 
-保存済みのコンポーネントには「JavaScript専用URL」が表示されます。`component-js/ID.js` ではHTML・CSSの有無に関係なく、JS欄の内容だけを取得できます。IDの大文字・小文字は保存したものと一致させてください。例えば `Test` は次のように読み込めます。
+JavaScript欄は他の開閉欄と同じ「JavaScript ▼」の表示で、見出し行全体をクリックして開閉できます。
+
+2.7.0以降は、JSだけを読み込む際にファイル名だけで記述でき、編集画面にもHTMLの記述例を表示します。
+
+保存済みのコンポーネントには「JavaScript専用URL」と、HTMLに貼り付けられる記述例が表示されます。`component-js/ID.js` ではHTML・CSSの有無に関係なく、JS欄の内容だけを取得できます。IDの大文字・小文字は保存したものと一致させてください。例えば `Test` のJSだけを読み込むには、本文や部品のHTMLに次のように書きます。JavaScript欄には書きません。
 
 ```html
-<script src="component-js/Test.js" defer></script>
+<script src="Test.js" defer></script>
 ```
 
-本文やコンポーネントのHTMLに書いたこの形式のURLは、サブディレクトリにあるページでもサイトのルートを基準に補完されます。静的サイトの書き出しでは `component-js/` にJSファイルが同梱され、相対URLモードでは出力ページの階層に合わせて参照が補完されます。URL書き換えを使わない環境では `index.php?component_js=Test` でも取得できます（このクエリ形式はPHPサーバー用です）。存在しないID・不正なID・AI指示は404、JS欄が空の通常コンポーネントは空のJavaScriptを返します。
+保存済みの通常コンポーネントに対応する `ID.js`（`./ID.js` も可）は、画像のファイル名と同じように、設置先とページ階層に合わせて専用URLへ自動補完されます。`component-js/Test.js` と書く方法も使えます。該当する部品がないファイル名や外部URLは補完しません。静的サイトの書き出しでは `component-js/` にJSファイルが同梱され、相対URLモードでは出力ページの階層に合わせて参照が補完されます。URL書き換えを使わない環境では `index.php?component_js=Test` でも取得できます（このクエリ形式はPHPサーバー用です）。存在しないID・不正なID・AI指示は404、JS欄が空の通常コンポーネントは空のJavaScriptを返します。
 
-JS欄のコードは、独自タグを展開せずそのまま使います。外部URLでの読み込みと通常のコンポーネント埋め込みを併用した場合も、自動で実行回数を調整しません。同じ部品を複数配置する場合は、一回の実行で `document.querySelectorAll()` などを使ってすべての部品を初期化してください。読み込み順はコード側で設計してください。MCPの `create_page`・`update_page`・`create_component`・`update_component` でも `js` フィールドで設定できます。
+通常の `{{COMPONENT:Test}}` 埋め込みではJSも自動で出力されるため、上記のscriptタグは不要です。JS欄のコードは、独自タグを展開せずそのまま使います。外部URLでの読み込みと通常のコンポーネント埋め込みを併用した場合も、自動で実行回数を調整しません。例えば同じ部品のボタンを3個置く場合、JSは一回だけ実行されるので、`document.querySelectorAll()` で3個すべてを取得し、一つずつクリック処理を設定します。`document.querySelector()` は最初の一つだけを取得します。読み込み順はコード側で設計してください。MCPの `create_page`・`update_page`・`create_component`・`update_component` でも `js` フィールドで設定できます。
 
 #### [save]{.material-symbols-outlined} 保存{.m-btn .m-btn-blue}
 

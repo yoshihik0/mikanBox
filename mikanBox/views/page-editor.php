@@ -195,8 +195,8 @@
                         <label><?= t('label_css') ?></label>
                         <textarea name="css" class="textarea-sm textarea-mono"><?= htmlspecialchars($editData['css']??'') ?></textarea>
                     </div>
-                    <details class="form-group" <?= trim($editData['js'] ?? '') !== '' ? 'open' : '' ?>>
-                        <summary><?= t('label_page_js') ?></summary>
+                    <details class="form-group js-accordion" <?= trim($editData['js'] ?? '') !== '' ? 'open' : '' ?>>
+                        <summary><?= t('label_page_js') ?> <span class="accordion-arrow">▼</span></summary>
                         <small class="sub-text sub-text-block"><?= t('page_js_hint') ?></small>
                         <textarea name="js" aria-label="<?= t('label_page_js') ?>" class="textarea-sm textarea-mono" rows="10"><?= htmlspecialchars($editData['js']??'') ?></textarea>
                     </details>
