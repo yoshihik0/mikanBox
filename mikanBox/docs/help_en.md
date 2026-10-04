@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.7.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.7.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -572,6 +572,8 @@ Bundles every uploaded file (images, etc.) into a single ZIP and downloads it.
 ### Site Settings {#site-settings}
 
 The first row places the immutable site ID on the left and the site name on the right. Explanations appear below their input fields.
+
+Common site settings show the site name on the left and the read-only site ID on the right in equal-width columns. The site URL follows on the next row, with its explanation below the field. Static generation method hints use normal font weight. In Cloud, open the dedicated Data Import & Migration Tool from site settings for complete JSON backup and restore.
 
 #### Site ID (for AI)
 

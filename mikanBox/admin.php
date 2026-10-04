@@ -234,7 +234,7 @@ if (!$isLoggedIn && (!$isDemoMode || isset($_GET['login']))) {
     <meta charset="UTF-8">
     <title>🍊mikanBox - <?= t('admin_login') ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet">
-    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="admin.css?v=<?= MIKANBOX_VERSION ?>">
 </head>
 <body class="login-body">
     <div class="login-box">
@@ -1705,7 +1705,7 @@ if (ob_get_length()) ob_clean();
     <meta charset="UTF-8">
     <title>🍊mikanBox - <?= t('admin_site_title') ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet">
-    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="admin.css?v=<?= MIKANBOX_VERSION ?>">
 </head>
 <body>
 <script>(function(){

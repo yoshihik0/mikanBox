@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.7.1</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.7.2</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -572,6 +572,8 @@ CSVファイルを選択します。エンコーディング（UTF-8 / Shift-JIS
 ### サイト共通設定 {#site-settings}
 
 最上段は左に変更不可のサイトID、右にサイト名を表示します。サイトURLなどの説明は入力欄の下に配置しています。
+
+サイト共通設定は、最初の行に左側のサイト名と右側の変更できないサイトIDを同じ幅で表示します。次の行にサイトURLを表示し、説明は入力欄の下に配置します。静的サイト生成の作成方法の補足説明は通常の文字の太さで表示します。Cloud版のJSONデータの一括バックアップ・復元は、サイト設定の「データ移行・インポートツール」から専用ページを開きます。
 
 #### サイトID（AI識別用）
 

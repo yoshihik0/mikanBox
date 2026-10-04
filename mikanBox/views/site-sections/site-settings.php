@@ -21,13 +21,13 @@ $siteEnvironment = (string)($settings['site_environment'] ?? 'unspecified');
                         <div class="grid-2col">
                             <div class="site-identity-row grid-span-2">
                             <div class="form-group">
+                                <label><?= t('label_site_name') ?></label>
+                                <input type="text" name="site_name" value="<?= htmlspecialchars($settings['site_name']??'') ?>">
+                            </div>
+                            <div class="form-group">
                                 <label><?= t('label_site_id') ?></label>
                                 <input type="text" name="site_id" value="<?= htmlspecialchars($siteIdentityId) ?>" readonly>
                                 <small class="sub-text"><?= t('hint_site_id') ?></small>
-                            </div>
-                            <div class="form-group">
-                                <label><?= t('label_site_name') ?></label>
-                                <input type="text" name="site_name" value="<?= htmlspecialchars($settings['site_name']??'') ?>">
                             </div>
                             </div>
                             <div class="form-group">
