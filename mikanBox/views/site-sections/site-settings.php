@@ -15,10 +15,11 @@ $siteEnvironment = (string)($settings['site_environment'] ?? 'unspecified');
                     </h2>
                 </summary>
                 <div class="editor-container editor-container-sub">
-                    <form method="post">
+                    <form method="post" class="site-settings-form">
                         <input type="hidden" name="save_action" value="save_settings">
                         <?= csrfField() ?>
                         <div class="grid-2col">
+                            <div class="site-identity-row grid-span-2">
                             <div class="form-group">
                                 <label><?= t('label_site_id') ?></label>
                                 <input type="text" name="site_id" value="<?= htmlspecialchars($siteIdentityId) ?>" readonly>
@@ -27,6 +28,7 @@ $siteEnvironment = (string)($settings['site_environment'] ?? 'unspecified');
                             <div class="form-group">
                                 <label><?= t('label_site_name') ?></label>
                                 <input type="text" name="site_name" value="<?= htmlspecialchars($settings['site_name']??'') ?>">
+                            </div>
                             </div>
                             <div class="form-group">
                                 <label><?= t('label_site_url') ?></label>

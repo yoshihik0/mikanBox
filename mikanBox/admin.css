@@ -615,6 +615,7 @@ label {
 }
 
 input[type="text"],
+input[type="url"],
 input[type="password"],
 input[type="number"],
 textarea,
@@ -742,6 +743,19 @@ textarea {
 
 .grid-2col {
     grid-template-columns: 1fr 1fr;
+}
+
+.site-identity-row {
+    display: grid;
+    grid-template-columns: minmax(190px, 0.65fr) minmax(0, 1.35fr);
+    gap: 20px;
+}
+.site-identity-row .form-group { margin-bottom: 0; }
+.site-settings-form .sub-text { display: block; margin-top: 5px; }
+.ssg-mode-hint { display: block; margin-left: 24px; font-weight: normal; }
+.system-version-row { display: flex; flex-wrap: wrap; align-items: center; gap: 1.5em; padding: 6px 2px; font-size: .82em; color: var(--text-sub, #888); }
+@media (max-width: 600px) {
+    .site-identity-row { grid-template-columns: minmax(0, 1fr); }
 }
 
 .grid-3col {

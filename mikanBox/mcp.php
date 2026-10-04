@@ -819,7 +819,14 @@ function toolGetSiteInfo($settings) {
 
     $siteUrl = trim((string)($settings['site_url'] ?? ''));
     if ($siteUrl === '') {
-        $siteUrl = trim((string)($settings['ssg_root_url'] ?? ''));
+        // Identity belongs to this installed site, not a separate SSG destination.
+        $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+        if ($host !== '') {
+            $scheme = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http';
+            $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+            $base = rtrim(dirname(dirname($script)), '/.');
+            $siteUrl = $scheme . '://' . $host . $base;
+        }
     }
 
     $siteName = trim((string)($settings['site_name'] ?? ''));

@@ -31,12 +31,12 @@
                             <label style="display:block; margin:6px 0;">
                                 <input type="radio" name="ssg_mode" value="server" <?= $ssgMode === 'server' ? 'checked' : '' ?>>
                                 <?= t('label_ssg_mode_server') ?>
-                                <small class="sub-text" style="display:block; margin-left:24px;"><?= t('hint_ssg_mode_server') ?></small>
+                                <small class="sub-text ssg-mode-hint"><?= t('hint_ssg_mode_server') ?></small>
                             </label>
                             <label style="display:block; margin:6px 0;">
                                 <input type="radio" name="ssg_mode" value="export" <?= $ssgMode === 'export' ? 'checked' : '' ?>>
                                 <?= t('label_ssg_mode_export') ?>
-                                <small class="sub-text" style="display:block; margin-left:24px;"><?= t('hint_ssg_mode_export') ?></small>
+                                <small class="sub-text ssg-mode-hint"><?= t('hint_ssg_mode_export') ?></small>
                             </label>
                         </div>
                         <div class="flex-row items-end gap-20 flex-wrap">

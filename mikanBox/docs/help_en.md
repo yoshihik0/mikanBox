@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.7.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.7.1</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -571,6 +571,8 @@ Bundles every uploaded file (images, etc.) into a single ZIP and downloads it.
 
 ### Site Settings {#site-settings}
 
+The first row places the immutable site ID on the left and the site name on the right. Explanations appear below their input fields.
+
 #### Site ID (for AI)
 
 An immutable ID generated for each site. AI uses it to avoid confusing one mikanBox site with another when several sites are connected. On existing sites, it is generated when Site Settings are saved or when AI first requests the site information.
@@ -581,11 +583,13 @@ Sets the site's name. Output via `{{SITE_NAME}}`. `{{FULL_TITLE}}` is displayed 
 
 #### Site URL
 
-Sets the public URL AI uses to confirm the target site. When blank, the root URL configured for Static Site Generation is used.
+Identifies the target site to AI. Normally leave it blank: HTTP connections infer the directory containing the site's `index.php`. This is separate from the SSG output directory or deployment destination. Override only to identify another public URL; it does not move or redirect the site, or change SSG output. CLI connections lack HTTP information, so configure the URL explicitly when needed.
 
 #### Site Environment
 
 Choose Production, Staging, Development, Local, or Unspecified. Through MCP, AI can call `get_site_info` to check this environment together with the site ID, name, and URL.
+
+This is advisory metadata, not an automatic restriction on access or operations. For example, seeing Production before making test edits gives AI a reason to choose a development site or ask for clarification. Check it together with the immutable site ID. It was introduced with MCP site identity support in v2.3.
 
 #### Site Description
 
