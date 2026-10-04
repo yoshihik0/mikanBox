@@ -243,7 +243,7 @@
                 let pageTitle = document.title;
                 if (heading) {
                     const cleanHeading = heading.cloneNode(true);
-                    cleanHeading.querySelectorAll('a,button,.material-symbols-outlined,.icon').forEach(element => element.remove());
+                    cleanHeading.querySelectorAll('a,button,.component-filter-control,.material-symbols-outlined,.icon').forEach(element => element.remove());
                     pageTitle = cleanHeading.textContent.trim() || document.title;
                 }
                 openDialog({ section, pageTitle });
@@ -310,17 +310,58 @@
         });
     }
 
+
+    function filterComponents() {
+        const selector = document.querySelectorAll('#design .component-filter-select')[0];
+        if (!selector) return;
+        const url = new URL(window.location.href);
+        const allowed = ['all', 'category', 'wrapper', 'part', 'ai_doc', 'standard'];
+        const requested = url.searchParams.get('component_filter') || 'all';
+        const mode = allowed.includes(requested) ? requested : 'all';
+        selector.value = mode;
+        document.querySelectorAll('.category-cloud-tag[href]').forEach(link => {
+            if (link.getAttribute('href') === '#') return;
+            const target = new URL(link.href, window.location.href);
+            if (mode === 'all') target.searchParams.delete('component_filter');
+            else target.searchParams.set('component_filter', mode);
+            link.href = target.pathname + target.search + target.hash;
+        });
+        const category = url.searchParams.get('cat') || '';
+        document.querySelectorAll('#design tr[data-component-id]').forEach(row => {
+            const id = row.dataset.componentId;
+            const matches = mode === 'all'
+                || (mode === 'standard' && id.startsWith('_'))
+                || (mode === 'category' && (!category || id.split('_').slice(0, -1).includes(category)))
+                || row.dataset.componentType === mode;
+            row.classList.toggle('component-filter-hidden', !matches);
+        });
+    }
+
     function initialize() {
         addStyles();
         enhanceHelpLinks(document);
         renderPublicWidgets(document);
         registerWebMcpTools();
+        filterComponents();
+        if (document.querySelectorAll('#design .component-filter-select').length) {
+        document.addEventListener('change', event => {
+            if (!event.target.matches('.component-filter-select')) return;
+            const url = new URL(window.location.href);
+            const mode = event.target.value;
+            if (mode === 'all') url.searchParams.delete('component_filter');
+            else url.searchParams.set('component_filter', mode);
+            history.replaceState(null, '', url.pathname + url.search + url.hash);
+            filterComponents();
+        });
+        window.addEventListener('popstate', filterComponents);
+        }
         new MutationObserver(records => {
             records.forEach(record => record.addedNodes.forEach(node => {
                 if (!(node instanceof Element)) return;
                 enhanceHelpLinks(node);
                 renderPublicWidgets(node);
             }));
+            filterComponents();
         }).observe(document.body, { childList: true, subtree: true });
     }
 

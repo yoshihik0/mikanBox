@@ -93,7 +93,7 @@
     "page_list_title": "Title (Click to edit)",
     "comp_edit": "Design Edit",
     "comp_new": "New Component",
-    "component_id_hint": "Identification for the component. Alphanumeric characters and underscores allowed.",
+    "component_id_hint": "Identification for the component. Alphanumeric characters and underscores allowed. A leading _ marks a standard component. Omit it for ordinary new or duplicated components; use it when standard classification is intended.",
     "recommended_size": "Recommended OGP Size: 1200 x 630 px",
     "category_select_hint": "Category options can be set in \"Design\" -> \"Site Settings: Category\".",
     "use_scope_hint": "Recommended to be ON. Prevents CSS from affecting other parts of the site.",
@@ -516,5 +516,12 @@
     "admin_forgot_password_hint_flat": "Clear the password_hash value in settings.json to reset.",
     "backup_head_flat": "Backup",
     "backup_hint_flat": "Download all site data (JSON) and uploaded media files (jpg, svg, etc.) as a ZIP file. Regular backups are recommended.",
-    "backup_media_flat": "Download All Media (files)"
+    "backup_media_flat": "Download All Media (files)",
+    "component_filter_label": "Filter components",
+    "component_filter_all": "All",
+    "component_filter_category": "Selected category",
+    "component_filter_wrapper": "Page",
+    "component_filter_part": "Part",
+    "component_filter_ai_doc": "AI instructions",
+    "component_filter_standard": "Standard components"
 }

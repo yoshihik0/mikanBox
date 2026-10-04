@@ -3,7 +3,7 @@
     <div id="design" class="section-anchor">
         <div class="section-container section-large-bottom">
             <div class="header">
-            <h1><?= getIcon('component') ?> <?= t('nav_design') ?><a href="<?= $helpFile ?>#design-mgmt" target="_blank" class="manual-link"><?= t('admin_help') ?></a></h1>
+            <h1><?= getIcon('component') ?> <?= t('nav_design') ?><a href="<?= $helpFile ?>#design-mgmt" target="_blank" class="manual-link"><?= t('admin_help') ?></a><span class="component-filter-control"><select class="select-auto component-filter-select" aria-label="<?= t('component_filter_label') ?>"><?php foreach (['all','category','wrapper','part','ai_doc','standard'] as $filter): ?><option value="<?= $filter ?>"><?= t('component_filter_' . $filter) ?></option><?php endforeach; ?></select></span></h1>
             <a href="?view=design&new=1#design-editor" class="btn btn-blue"><?= getIcon('add') ?> <?= t('btn_create_new') ?></a>
         </div>
         <div class="table-responsive <?= ($view === 'components' && ($editId !== null || isset($_GET['new']))) ? 'mb-0' : 'ssg-build-row no-editor' ?>" id="comps-table-wrap">
@@ -50,7 +50,7 @@
                     $typeClass = 'type-badge';
                 }
             ?>
-            <tr>
+            <tr data-component-id="<?= htmlspecialchars($cid, ENT_QUOTES) ?>" data-component-type="<?= !empty($cData['is_wrapper']) ? 'wrapper' : (!empty($cData['is_ai_doc']) ? 'ai_doc' : 'part') ?>">
                 <td class="td-narrow">
                     <div class="flex-center">
                          <a href="?view=design&edit=<?= $cid ?>#design-editor" class="btn btn-sm btn-blue"><?= getIcon('edit') ?> <?= t('btn_edit') ?></a>

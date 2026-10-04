@@ -1809,3 +1809,8 @@ input[type="number"] {
 @media (max-width: 768px) {
     .site-settings-form .grid-2col, .site-identity-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Component list filters use the existing select and heading controls. */
+.component-filter-control { display: inline-flex; margin-left: 16px; vertical-align: middle; max-width: 100%; }
+select.component-filter-select { width: auto; max-width: 100%; font-size: .82rem; font-weight: normal; }
+tr.component-filter-hidden { display: none; }

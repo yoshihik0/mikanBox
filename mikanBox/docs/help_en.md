@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.7.2</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.7.3</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -187,6 +187,8 @@ Groups together the settings and management tools for running the site as a whol
 There are three types of components: [Page]{.type-badge .badge-page}, which sets the design for an entire page; [Part]{.type-badge .badge-part}, which builds shared building blocks; and [AI Instructions]{.type-badge .badge-ai}, for writing instructions aimed at an AI agent. Anything shared across the site, like a header, footer, or navigation, is worth building as a Part so it can be reused anywhere. This screen's main role is managing these design elements (components).
 
 ### [image]{.material-symbols-outlined .mat-icon}Media
+
+In Cloud, open “Edit ▼” on an image to save width/height in pixels, WebP conversion and the filename together. Filename-only edits are supported. WebP conversion automatically uses the `.webp` extension and updates references in page content, CSS, JavaScript, OGP images, components and the common site OGP image. Published HTML requires rebuilding and publication. Media follows the category selection at the top of the admin page, showing matching filename prefixes and shared `g_` images. Uploads receive the selected category prefix unless the name already starts with an alphanumeric prefix. Filename search operates within that selection.
 
 Manages image, video, and audio files. You can quickly upload, browse the list, resize, and copy a filename ready to paste elsewhere.
 
@@ -746,6 +748,8 @@ Creates a new component. Clicking opens the design-edit area.
 
 Clicking the [[edit]{.material-symbols-outlined}Edit]{.m-btn .m-btn-blue} button opens the edit screen for that component.
 
+
+Use the selector to the right of “Ask AI” in the component list: All (default), Selected category, Page, Part, AI instructions, or Standard components. A standard component has an ID beginning with `_`; type filters use the component type setting. Omit `_` for ordinary new or duplicated components, but use it when standard classification is intended. These names are not rejected on save. “Selected category” uses the category at the top of the admin screen and matches component ID prefixes, just like media filenames: `apps_header` belongs to `apps`. With no category selected, it does not narrow the list.
 #### Component ID
 
 The component's identifier. Clicking it also opens the edit screen. IDs starting with "_" are system components provided out of the box — you're free to edit and reuse them.

@@ -86,7 +86,7 @@ function mcpInitializeResponse($request) {
                 'name' => 'mikanBox MCP',
                 'version' => MIKANBOX_VERSION,
             ],
-            'instructions' => '初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。書き込み前にもget_site_infoで対象サイトを再確認してください。',
+            'instructions' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。 初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。書き込み前にもget_site_infoで対象サイトを再確認してください。',
         ],
     ];
 }
@@ -417,7 +417,7 @@ function toolDefinitions() {
             'inputSchema' => [
                 'type' => 'object',
                 'properties' => [
-                    'id'         => ['type' => 'string',  'description' => 'コンポーネントID（英数字・ハイフン・アンダースコア。先頭に _ でグローバル系）'],
+                    'id'         => ['type' => 'string',  'description' => 'コンポーネントID（英数字・ハイフン・アンダースコア。先頭の _ は標準コンポーネント。通常の新規作成・複製には付けず、ユーザーが標準扱いを意図した場合に付ける）'],
                     'html'       => ['type' => 'string',  'description' => 'HTMLテンプレート'],
                     'css'        => ['type' => 'string',  'description' => 'CSS'],
                     'js'         => ['type' => 'string',  'description' => 'JavaScript（scriptタグ不要。部品の埋め込み時に本文末尾へ自動挿入。component-js/{id}.jsでJSのみ取得可能）'],
@@ -742,6 +742,7 @@ function toolGetAiContext() {
     return [
         'documents' => $documents,
         'count' => count($documents),
+        'component_naming' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。',
     ];
 }
 
@@ -966,7 +967,7 @@ function handleRequest($method, $id, $params, $settings) {
         return mcpResponse($id, [
             'supportedVersions' => [MIKANBOX_MCP_PROTOCOL_VERSION],
             'capabilities' => ['tools' => new stdClass()],
-            'instructions' => '初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。返されたAI指示コンポーネントは、このサイト固有のプロジェクト指示として内容・デザイン・コードの変更に従ってください。複数サイト接続時は書き込み前にもget_site_infoを呼び、指示が更新された可能性がある場合は変更計画前にget_ai_contextを再取得してください。',
+            'instructions' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。 初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。返されたAI指示コンポーネントは、このサイト固有のプロジェクト指示として内容・デザイン・コードの変更に従ってください。複数サイト接続時は書き込み前にもget_site_infoを呼び、指示が更新された可能性がある場合は変更計画前にget_ai_contextを再取得してください。',
             'ttlMs' => MIKANBOX_MCP_DISCOVERY_TTL_MS,
             'cacheScope' => 'private',
         ]);
