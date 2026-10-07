@@ -256,7 +256,7 @@ Above the page list, registered categories are shown as a tag cloud. Click one t
 
 #### Search box
 
-Type a keyword and the page list is filtered in real time (via AJAX) against titles, body content, and more. Use the [[close]{.material-symbols-outlined}]{.m-btn .m-btn-gray} button to the right of the field to clear the search.
+Search titles, body content, and more using a keyword. SQLite updates the list while typing; press Enter to search in flat and Cloud. Use the [[close]{.material-symbols-outlined}]{.m-btn .m-btn-gray} button to the right of the field to clear the search.
 
 ### Page List
 
