@@ -11,6 +11,8 @@ class MikanBoxRenderer {
     private $globalCssBuffer = [];
     private $javascriptBuffer = [];
     private $javascriptComponentIds = [];
+    private $includedComponentIds = [];
+    private $excludeTracking = false;
     private $depth = 0;
     private $depthSetManually = false;
     private $ssgStructure = 'directory';
@@ -83,6 +85,7 @@ class MikanBoxRenderer {
         $this->globalCssBuffer = [];
         $this->javascriptBuffer = [];
         $this->javascriptComponentIds = [];
+        $this->includedComponentIds = [];
         // The "first large image is eager, the rest are lazy" rule in
         // mediaImgAttrs() is per page, so clear the flag before each render.
         mediaResetImageFlow();
@@ -135,6 +138,8 @@ class MikanBoxRenderer {
             }
         }
 
+        $this->excludeTracking = !empty($pageData['exclude_tracking']);
+
         // Get site metadata for convenience
         $pageTitle = isset($pageData['title']) ? $pageData['title'] . ' - ' . $this->siteSettings['site_name'] : $this->siteSettings['site_name'];
         $pageDesc = isset($pageData['description']) && !empty($pageData['description']) ? $pageData['description'] : $this->siteSettings['description'];
@@ -173,9 +178,10 @@ class MikanBoxRenderer {
 
         // 2. Load Wrapper
         $wrapperCompId = isset($pageData['wrapper_comp']) ? $pageData['wrapper_comp'] : '_layout';
-        $wrapperData = loadData(COMPONENTS_DIR, $wrapperCompId);
+        $wrapperData = $wrapperCompId === '__none' ? null : loadData(COMPONENTS_DIR, $wrapperCompId);
         $wrapperJsId = $wrapperData ? $wrapperCompId : '_layout';
-        $wrapperData = $wrapperData ?: loadData(COMPONENTS_DIR, '_layout');
+        if ($wrapperData) $this->includedComponentIds[$wrapperJsId] = true;
+        $wrapperData = $wrapperCompId === '__none' ? null : ($wrapperData ?: loadData(COMPONENTS_DIR, '_layout'));
         $html = $wrapperData['html'] ?? '{{CONTENT}}';
 
         // Embed main content into the wrapper
@@ -185,6 +191,23 @@ class MikanBoxRenderer {
         // (e.g. via the _ai component) isn't nested inside an extra <div> unnecessarily.
         $hasPageCss = !empty($pageData['css']);
         $contentToEmbed = $hasPageCss ? '<div class="mikan-content-scope">' . $contentHtml . '</div>' : $contentHtml;
+        if ($hasPageCss) {
+            $bodyScoped = false;
+            $scopedDocument = preg_replace_callback('~<!--[\s\S]*?-->|<(script|style|textarea|title)\b[^>]*>[\s\S]*?</\1\s*>|<body\b(?:[^>"\']|"[^"]*"|\'[^\']*\')*>~i', function($m) use (&$bodyScoped) {
+                if ($bodyScoped || !preg_match('~^<body\b~i', $m[0])) return $m[0];
+                $bodyScoped = true;
+                $attrs = substr($m[0], 5, -1);
+                $classPattern = '~(^|\s)class\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))~i';
+                if (preg_match($classPattern, $attrs)) {
+                    $attrs = preg_replace_callback($classPattern, function($a) {
+                        $value = ($a[2] ?? '') !== '' ? $a[2] : (($a[3] ?? '') !== '' ? $a[3] : ($a[4] ?? ''));
+                        return $a[1] . 'class="' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8', false) . ' mikan-content-scope"';
+                    }, $attrs, 1);
+                } else $attrs .= ' class="mikan-content-scope"';
+                return '<body' . $attrs . '>';
+            }, $contentHtml);
+            if ($bodyScoped) $contentToEmbed = $scopedDocument;
+        }
         $html = str_replace('{{CONTENT}}', $contentToEmbed, $html);
 
         // Wrapper CSS
@@ -206,6 +229,16 @@ class MikanBoxRenderer {
 
         // 4. Parse components (recursively)
         $html = $this->parseComponents($html);
+
+        $trackingHtml = '';
+        $trackingId = (string)($this->siteSettings['tracking_component'] ?? '');
+        $tracking = $trackingId !== '' ? loadData(COMPONENTS_DIR, $trackingId) : null;
+        if (!$this->excludeTracking && $tracking && empty($tracking['is_ai_doc']) && empty($tracking['is_wrapper']) && !isset($this->includedComponentIds[$trackingId])) {
+            $trackingHtml = $this->parseComponents('{{COMPONENT:' . $trackingId . '}}');
+        }
+        // Process tracking markup through the same tag/path pipeline as the page.
+        $trackingMarker = "\x02TRACKING\x03";
+        if ($trackingHtml !== '') $html .= $trackingMarker . $trackingHtml;
 
         // Protect HTML comments (from the wrapper and every included component) before
         // steps 5-7, so a {{TITLE}}/{{POST_MD:...}}/etc. tag mentioned inside one as
@@ -235,6 +268,13 @@ class MikanBoxRenderer {
             return htmlspecialchars(base64_decode($m[1]));
         }, $html);
 
+        $trackingHtml = '';
+        if (($trackingOffset = strpos($html, $trackingMarker)) !== false) {
+            $trackingHtml = substr($html, $trackingOffset + strlen($trackingMarker));
+            $html = substr($html, 0, $trackingOffset);
+        }
+        $html = $this->completeHead($html, $pageTitle, $pageDesc, $this->resolveMediaUrl(resolveMediaPath($ogpImage)), $trackingHtml);
+
         // 8. Process CSS Buffer
         foreach ($this->globalCssBuffer as &$cssLine) {
             $cssLine = $this->replaceBasicTags($cssLine, $pageData, $pageTitle, $pageDesc, $pageKeywords, $ogpImage);
@@ -250,8 +290,7 @@ class MikanBoxRenderer {
 
         // 9. Embed CSS
         $cssLinkTag = "<style>\n" . implode("\n", array_unique($this->globalCssBuffer)) . "\n</style>";
-        $html = preg_replace('/\{\{\s*HEAD_CSS\s*\}\}/i', $cssLinkTag, $html);
-        $html = str_ireplace(['{{HEAD_CSS}}', '{{ HEAD_CSS }}'], $cssLinkTag, $html);
+        $html = $this->embedCss($html, $cssLinkTag, !empty($this->globalCssBuffer));
 
         // Keep JS out of Markdown, template expansion and path rewriting. Component
         // scripts run once per ID in first-inclusion order, followed by any remaining
@@ -259,6 +298,73 @@ class MikanBoxRenderer {
         $this->collectJavaScript($wrapperData ?? [], $wrapperJsId);
         $this->collectJavaScript($pageData);
         return $this->embedJavaScript($this->enforceStandardMode($html));
+    }
+
+    private function completeHead(string $html, string $title, string $description, string $image, string $tracking): string {
+        $pattern = '~<!--[\s\S]*?-->|<(script|style|textarea|title)\b[^>]*>[\s\S]*?</\1\s*>|</?[a-z][a-z0-9:-]*\b(?:[^>"\']|"[^"]*"|\'[^\']*\')*>~i';
+        preg_match_all($pattern, $html, $tokens, PREG_OFFSET_CAPTURE);
+        $start = null; $end = null; $htmlStart = null;
+        foreach ($tokens[0] as [$tag, $offset]) {
+            if (preg_match('~^<html\b~i', $tag)) $htmlStart = $offset + strlen($tag);
+            if ($start === null && preg_match('~^<head\b~i', $tag)) $start = $offset + strlen($tag);
+            if ($start !== null && preg_match('~^</head\s*>~i', $tag)) { $end = $offset; break; }
+        }
+        if ($start === null) {
+            if ($htmlStart !== null) $html = substr($html, 0, $htmlStart) . '<head></head>' . substr($html, $htmlStart);
+            else $html = '<!DOCTYPE html><html><head></head><body>' . $html . '</body></html>';
+            return $this->completeHead($html, $title, $description, $image, $tracking);
+        }
+        if ($end === null) {
+            // Repair a missing closing head before the body, or at the end.
+            $body = null;
+            foreach ($tokens[0] as [$tag, $offset]) if ($offset >= $start && preg_match('~^<body\b~i', $tag)) { $body = $offset; break; }
+            $end = $body ?? strlen($html);
+            $html = substr($html, 0, $end) . '</head>' . substr($html, $end);
+        }
+        $head = substr($html, $start, $end - $start);
+        preg_match_all($pattern, $head, $headTokens, PREG_OFFSET_CAPTURE);
+        $present = []; $charsetEnd = 0;
+        foreach ($headTokens[0] as [$tag, $offset]) {
+            if (preg_match('~^<title\b~i', $tag)) $present['title'] = true;
+            if (!preg_match('~^<meta\b~i', $tag)) continue;
+            preg_match_all('~([a-z][a-z0-9:_-]*)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))~i', $tag, $attributes, PREG_SET_ORDER);
+            $attrs = [];
+            foreach ($attributes as $a) $attrs[strtolower($a[1])] = strtolower(html_entity_decode($a[2] !== '' ? $a[2] : (($a[3] ?? '') !== '' ? $a[3] : ($a[4] ?? '')), ENT_QUOTES, 'UTF-8'));
+            if (isset($attrs['charset']) || ($attrs['http-equiv'] ?? '') === 'content-type') { $present['charset'] = true; $charsetEnd = $offset + strlen($tag); }
+            if (isset($attrs['name'])) $present[$attrs['name']] = true;
+            if (isset($attrs['property'])) $present[$attrs['property']] = true;
+        }
+        $escape = fn($value) => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $prefix = isset($present['charset']) ? '' : '<meta charset="UTF-8">';
+        if (!isset($present['viewport'])) $prefix .= '<meta name="viewport" content="width=device-width, initial-scale=1.0">';
+        if (!isset($present['title'])) $prefix .= '<title>' . $escape($title) . '</title>';
+        if (!isset($present['description']) && $description !== '') $prefix .= '<meta name="description" content="' . $escape($description) . '">';
+        if (!isset($present['og:image']) && $image !== '') $prefix .= '<meta property="og:image" content="' . $escape($image) . '">';
+        // Keep an existing encoding declaration ahead of potentially long tracking code.
+        $head = substr($head, 0, $charsetEnd) . $prefix . $tracking . substr($head, $charsetEnd);
+        return substr($html, 0, $start) . $head . substr($html, $end);
+    }
+
+    private function embedCss(string $html, string $cssTag, bool $hasCss): string {
+        // Comments and raw-text elements contain examples/code, not insertion points.
+        $inert = '<!--[\s\S]*?-->|<(script|style|textarea|title)\b[^>]*>[\s\S]*?</\1\s*>';
+        $inserted = false;
+        $html = preg_replace_callback('~' . $inert . '|\{\{\s*HEAD_CSS\s*\}\}~i', function($match) use (&$inserted, $cssTag) {
+            if (substr($match[0], 0, 2) !== '{{') return $match[0];
+            if ($inserted) return '';
+            $inserted = true;
+            return $cssTag;
+        }, $html);
+        if ($inserted || !$hasCss) return $html;
+
+        preg_match_all('~' . $inert . '|(?<head></head\s*>)~i', $html, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        foreach ($matches as $match) {
+            if (isset($match['head']) && $match['head'][1] >= 0) {
+                $offset = $match['head'][1];
+                return substr($html, 0, $offset) . $cssTag . substr($html, $offset);
+            }
+        }
+        return $cssTag . $html;
     }
 
     private function collectJavaScript(array $data, ?string $componentId = null): void {
@@ -331,6 +437,7 @@ class MikanBoxRenderer {
 
         $result = preg_replace_callback('/\{\{COMPONENT:([a-zA-Z0-9_\-]+)\}\}/', function($matches) use ($visited) {
             $compId = $matches[1];
+            if ($this->excludeTracking && $compId === ($this->siteSettings['tracking_component'] ?? '')) return '';
 
             // Security: Prevent Infinite Loops (DoS)
             if (in_array($compId, $visited)) {
@@ -341,6 +448,7 @@ class MikanBoxRenderer {
             $compData = loadData(COMPONENTS_DIR, $compId);
 
             if (!$compData) return "<!-- Component '{$compId}' not found -->";
+            $this->includedComponentIds[$compId] = true;
 
             $this->collectJavaScript($compData, $compId);
 

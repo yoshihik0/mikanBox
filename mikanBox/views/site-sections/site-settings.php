@@ -71,6 +71,19 @@ $siteEnvironment = (string)($settings['site_environment'] ?? 'unspecified');
                                 <small class="sub-text"><?= t('hint_register_cat') ?></small>
                             </div>
                         </div>
+                        <div class="form-group mt-15">
+                            <h3><?= t('label_common_loading') ?></h3>
+                            <label><?= t('label_tracking_component') ?></label>
+                            <select name="tracking_component">
+                                <option value=""><?= t('label_none') ?></option>
+                                <?php foreach (getFileList(COMPONENTS_DIR) as $trackingId):
+                                    $trackingPart = loadData(COMPONENTS_DIR, $trackingId);
+                                    if (!$trackingPart || !empty($trackingPart['is_ai_doc']) || !empty($trackingPart['is_wrapper'])) continue; ?>
+                                <option value="<?= htmlspecialchars($trackingId) ?>" <?= ($settings['tracking_component'] ?? '') === $trackingId ? 'selected' : '' ?>><?= htmlspecialchars($trackingId) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <small class="sub-text sub-text-block"><?= t('tracking_component_hint') ?></small>
+                        </div>
                         <button type="submit" class="btn btn-blue mt-10"><?= getIcon('save') ?> <?= t('btn_save') ?></button>
                     </form>
                 </div>

@@ -69,16 +69,16 @@
                     <small class="sub-text sub-text-block"><?= t('component_js_hint') ?></small>
                     <textarea name="js" aria-label="<?= t('label_component_js') ?>" class="textarea-md textarea-mono" rows="10"><?= htmlspecialchars($editData['js']??'') ?></textarea>
                     <?php if ($editId && preg_match('/\A[A-Za-z0-9_-]+\z/', $editId)): ?>
-                    <small class="sub-text sub-text-block"><?= t('component_js_url') ?>:
-                        <?php
-                        $jsBasePath = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/mikanBox/admin.php')), '/');
-                        if ($jsBasePath === '.') $jsBasePath = '';
-                        $jsUrl = $jsBasePath . '/component-js/' . rawurlencode($editId) . '.js';
-                        ?>
-                        <a href="<?= htmlspecialchars($jsUrl) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($jsUrl) ?></a>
-                    </small>
+                    <?php
+                    $jsBasePath = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/mikanBox/admin.php')), '/');
+                    if ($jsBasePath === '.') $jsBasePath = '';
+                    $jsUrl = $jsBasePath . '/component-js/' . rawurlencode($editId) . '.js';
+                    ?>
                     <small class="sub-text sub-text-block"><?= t('component_js_embed_hint') ?></small>
                     <code><?= htmlspecialchars('<script src="' . $editId . '.js" defer></script>') ?></code>
+                    <small class="sub-text sub-text-block"><?= t('component_js_path_hint') ?><br>
+                        <a href="<?= htmlspecialchars($jsUrl) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($jsUrl) ?></a>
+                    </small>
                     <?php endif; ?>
                 </details>
                 

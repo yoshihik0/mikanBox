@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.7.3</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.7.4</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -188,7 +188,7 @@ There are three types of components: [Page]{.type-badge .badge-page}, which sets
 
 ### [image]{.material-symbols-outlined .mat-icon}Media
 
-In Cloud, open “Edit ▼” on an image to save width/height in pixels, WebP conversion and the filename together. Filename-only edits are supported. WebP conversion automatically uses the `.webp` extension and updates references in page content, CSS, JavaScript, OGP images, components and the common site OGP image. Published HTML requires rebuilding and publication. Media follows the category selection at the top of the admin page, showing matching filename prefixes and shared `g_` images. Uploads receive the selected category prefix unless the name already starts with an alphanumeric prefix. Filename search operates within that selection.
+In Cloud, use “Resize▼”, “Convert to WebP”, and “Rename▼” in that order. WebP conversion appears only for JPEG/PNG. WebP conversion automatically uses the `.webp` extension and updates references in page content, CSS, JavaScript, OGP images, components and the common site OGP image. Published HTML requires rebuilding and publication. Media follows the category selection at the top of the admin page, showing matching filename prefixes and shared `g_` images. Uploads receive the selected category prefix unless the name already starts with an alphanumeric prefix. Filename search operates within that selection.
 
 Manages image, video, and audio files. You can quickly upload, browse the list, resize, and copy a filename ready to paste elsewhere.
 
@@ -680,7 +680,7 @@ Changes and saves the password.
 
 ---
 
-## Data Migration &amp; Import Tool [SQLite Edition only]{.type-badge .badge-sqlite} {#data-migration}
+## Data Migration &amp; Import Tool {#data-migration}
 
 A separate, standalone tool (`convert.php`) from the admin panel (`admin.php`). Access `mikanBox/convert.php` directly in your browser to use it. You can check the current state of the database and media, and bulk-import external data.
 
@@ -732,6 +732,15 @@ After running an import, the result (success, errors, etc.) is shown here as a l
 
 Returns to the regular admin panel (`admin.php`).
 
+
+### Cloud data import and export
+
+Open `/admin?view=import` from Site settings. It follows the SQLite tool’s status cards, ZIP import, WordPress XML import and execution log. Cloud shows page/component/user counts and media count/total size, without PHP directory paths or a local SQLite file size.
+
+ZIP import adds only JSON records under `posts/` and `components/`, skipping existing IDs. Settings, accounts and images are not imported. WordPress WXR maps published posts to dynamic pages, pending posts to pending pages, and other statuses to drafts; HTML is converted to basic Markdown. Upload images separately. ZIP/XML files are limited to 20 MB, ZIP expansion to 15 MB total, and imported content to 1 MB in UTF-8 with 300 total records. ZIP supports store and Deflate; encrypted or corrupt files are rejected. ZIP/XML parsing runs in the browser.
+
+CSV conversion and Cloud’s complete JSON backup/restore controls follow the common import sections. Full JSON restore replaces current site data, unlike additive ZIP/XML import, and retains administrator-password and user-restoration requirements. Rebuild static pages after import. Site settings use shared CSS for two-column fields, account accordions and category add-button alignment.
+
 ---
 
 ## Design {#design-mgmt}
@@ -754,7 +763,18 @@ Use the selector to the right of “Ask AI” in the component list: All (defaul
 
 The component's identifier. Clicking it also opens the edit screen. IDs starting with "_" are system components provided out of the box — you're free to edit and reuse them.
 
-`{{COMPONENT:_global_head}}` contains shared settings for inside the `<head>` tag, and already includes `{{HEAD_CSS}}`, which aggregates and outputs all CSS. Since `{{HEAD_CSS}}` is required to manage CSS, make sure it appears exactly once per page. For content pasted straight from AI output, base it on `_ai`; for everything else, `_layout` is a good starting point. Of course, you're free to create as many of your own as you like — and those don't need to start with "_".
+`{{COMPONENT:_global_head}}` contains shared settings for inside the `<head>` tag, and already includes `{{HEAD_CSS}}`, which aggregates and outputs all CSS. `{{HEAD_CSS}}` is optional and specifies where CSS is inserted. If repeated, only the first occurrence outputs CSS and the remaining tags are removed. If omitted, CSS is inserted before `</head>`, or at the beginning of the HTML when there is no closing head tag. For content pasted straight from AI output, base it on `_ai`; for everything else, `_layout` is a good starting point. Of course, you're free to create as many of your own as you like — and those don't need to start with "_".
+
+#### No wrapper and shared loading
+
+Select “None (use the content HTML directly)” to display content without a layout wrapper. Enable Raw HTML for complete HTML documents. In MCP, use `wrapper_comp: "__none"`; omission still defaults to `_layout`.
+
+Across editions, existing title and meta tags in the document are preserved. Only missing information is supplied inside head: UTF-8 charset, viewport `width=device-width, initial-scale=1.0`, and a title matching `{{FULL_TITLE}}`. Description and OGP image are supplied only when absent and page or site settings provide a value. Japanese and English titles are used as entered, without automatic translation. Robots and canonical tags are not added automatically. A missing head is created; HTML fragments receive a minimal html/head/body document. Existing duplicate metadata is not removed automatically.
+
+In Site settings, under Shared loading, choose a Tracking component containing Google tags or other tracking markup in its HTML field. It is inserted into head automatically; choosing None disables it. A normal inclusion of the same component prevents additional automatic insertion. Disable CSS scoping for this part. JavaScript-field code follows the normal JS output placement; head script tags belong in the HTML field.
+
+When a tracking component is configured, “Do not load tracking tags on this page” appears below the page’s Design Component selector. It suppresses both automatic insertion and normal inclusion of that configured component. MCP supports `exclude_tracking: true`. Handwritten tracking code and tracking code in other components are not suppressed. Previews follow the same page setting. Rebuild static pages after changing settings.
+
 
 #### Type
 
@@ -789,7 +809,7 @@ Choose one of three types via radio button.
 - [Part]{.type-badge .badge-part} — A building block meant to be embedded inside a page or another component.
 - [Page]{.type-badge .badge-page} — A component that lays out an entire page. Selecting this shows it as a [Page]{.type-badge .badge-page} in the Design list, and makes it selectable under "Design Component" on the Page Edit screen. The following extra tags become available:
   - `{{CONTENT}}` — Inserts the page's body content at this position.
-  - `{{HEAD_CSS}}` — Aggregates and inserts page and component CSS. Without this tag, styles won't be applied.
+  - `{{HEAD_CSS}}` — Aggregates and inserts page and component CSS. If omitted, CSS is inserted before `</head>` (at the beginning of the HTML if there is no closing head tag). If repeated, only the first occurrence is used and the remaining tags are removed.
 - [AI Instructions]{.type-badge .badge-ai} — Hides fields not needed for AI instructions, like the CSS editor and the "Scope CSS" checkbox, and switches the body field into plain text input (usable as Markdown or HTML). Write anything you want an AI agent to read here — design rules and the like. You can even have AI generate this content itself.
 
 #### HTML (when Type is "Part" or "Page")
@@ -822,6 +842,8 @@ The JavaScript field uses the same “JavaScript ▼” heading as other collaps
 
 Since 2.7.0, you can load only the JS by filename, and the editor shows an HTML snippet for this purpose.
 
+The component JavaScript field shows the JavaScript-only embed example first, followed by the automatic path completion explanation and full JavaScript-only URL. Page and component JavaScript field explanations and display order are aligned across editions.
+
 Saved design components show a JavaScript-only URL and a snippet to paste into HTML. `component-js/ID.js` returns only the JS field, regardless of whether the component contains HTML or CSS. Use the exact case of the saved ID. To load only the JS of `Test`, write this in page or component HTML, rather than in the JavaScript field:
 
 ```html
@@ -830,7 +852,7 @@ Saved design components show a JavaScript-only URL and a snippet to paste into H
 
 Like image filenames, `ID.js` (or `./ID.js`) for a saved normal component is completed to its dedicated URL using the installation path and page depth. `component-js/Test.js` also works. Filenames without a matching component and external URLs are left unchanged. Static-site upload packages include JS files under `component-js/`; relative-URL mode adjusts references for the output page depth. Servers without clean-URL rewriting can also use `index.php?component_js=Test` (this query form requires PHP). Missing or invalid IDs and AI Instructions return 404; a normal component with an empty JS field returns empty JavaScript.
 
-A normal `{{COMPONENT:Test}}` inclusion outputs its JS automatically, so it does not need the script tag above. JS-field code is used without custom-tag expansion. Combining a normal inclusion and an external script URL does not automatically adjust execution counts. For example, when a component has three buttons, the JS runs once: use `document.querySelectorAll()` to find all three and attach a click handler to each. `document.querySelector()` finds only the first one. Design any required loading order in your code. The MCP tools `create_page`, `update_page`, `create_component`, and `update_component` also accept the `js` field.
+A normal `{{COMPONENT:Test}}` inclusion outputs its JS automatically, so it does not need the script tag above. Even when the same component appears multiple times on a page, its JavaScript is initially executed only once. Event handlers run each time the event occurs. Also, CSS scoping does not apply to JavaScript. JS-field code is used without custom-tag expansion. Combining a normal inclusion and an external script URL does not automatically adjust execution counts. For example, when a component has three buttons, the code is initially executed only once: use `document.querySelectorAll()` to find all three and attach a click handler to each. `document.querySelector()` finds only the first one. Design any required loading order in your code. The MCP tools `create_page`, `update_page`, `create_component`, and `update_component` also accept the `js` field.
 
 #### [save]{.material-symbols-outlined} Save{.m-btn .m-btn-blue}
 
@@ -935,6 +957,15 @@ Click "Rename..." to expand it. Edit the filename and press [[save]{.material-sy
 - **Keep Original** — Cancels the rename.
 
 ---
+
+
+### Media operations
+
+Filename search and pagination use the same layout across editions. Search applies within the current category filter.
+
+Expand “Upload options▼” to configure uploads. File actions appear in this order: “Resize▼”, “Convert to WebP”, “Rename▼”. Resize dimensions and filename inputs use the same height and save button size. Enter a width or height to preserve the aspect ratio.
+
+“Convert to WebP” appears only for existing JPEG (jpg/jpeg) and PNG images, not WebP, GIF, SVG, audio or video. PHP requires server WebP encoding support. Conversion changes the extension to `.webp` and updates page content/CSS/JavaScript/OGP, component HTML/CSS/JavaScript, and the site OGP image. Memos and past revisions are unchanged. An existing WebP target is never overwritten; the source and references remain intact. Rebuild static pages afterward. Cloud converts the image in the browser and updates storage and delivery; keep the screen open until complete.
 
 ## Markdown {#markdown}
 
@@ -1116,7 +1147,7 @@ A Markdown document hosted on another site, like GitHub, can be embedded via `{{
 
 ### Page Components
 
-A component that lays out an entire page should include `{{CONTENT}}` (to output the body content) and `{{HEAD_CSS}}` (to output CSS). Without `{{HEAD_CSS}}`, styles won't be applied. See the `_layout` bundled component for the basic structure.
+A component that lays out an entire page should include `{{CONTENT}}` to output the body content. Optionally place `{{HEAD_CSS}}` to specify the CSS insertion point. If omitted, CSS is inserted before `</head>` (at the beginning of the HTML if there is no closing head tag). If repeated, only the first occurrence outputs CSS and the remaining tags are removed. See the `_layout` bundled component for the basic structure.
 
 ---
 
@@ -1162,7 +1193,7 @@ A component that lays out an entire page should include `{{CONTENT}}` (to output
 |`{{ POST_MD:pageID#rowID:key }}`|Displays table-format data from the given page ID|
 |`{{ EXT_MD:url#rowID:key }}`|Displays table-format data from an external page|
 |`{{ CONTENT }}`|**Page wrapper only**: inserts the body content|
-|`{{ HEAD_CSS }}`|**Page wrapper only**: aggregates and inserts CSS. By default, this is already placed inside the `_global_head` component.|
+|`{{ HEAD_CSS }}`|Optional CSS insertion point: aggregates CSS and outputs it at the first occurrence, removing the remaining tags. If omitted, inserts before `</head>` (at the beginning of the HTML if there is no closing head tag). By default, this is already placed inside the `_global_head` component.|
 
 ※ If you want to show the current year (e.g. for a copyright notice), we recommend doing it with JavaScript instead (e.g. `<script>document.write(new Date().getFullYear())</script>`). This way the year is always current without going through any server-side processing.
 
@@ -1176,7 +1207,7 @@ The components bundled with a fresh install. You can view and edit these in the 
 |---|---|---|
 |`_layout`| [Page]{.type-badge .badge-page}|The standard shared layout. Combines `{{COMPONENT:_global_head}}`, `{{COMPONENT:_header}}`, `{{CONTENT}}`, `{{COMPONENT:_footer}}`, and `{{HEAD_CSS}}` into a basic structure. Regular Markdown pages should select this.|
 |`_ai`|[Page]{.type-badge .badge-page}|A simple page component for AI-generated HTML. Made up of only `{{CONTENT}}`, designed so you can paste in a complete HTML document generated by AI and use it as-is for the page body.|
-|`_global_head`|[Part]{.type-badge .badge-part}|A collection of shared tags to insert inside the HTML `<head>` section — things like Google Analytics or web font loading that are common across every page. By default, `{{HEAD_CSS}}` is already placed here, so it's best practice to always include this in a page component. CSS scoping is disabled (global).|
+|`_global_head`|[Part]{.type-badge .badge-part}|A collection of shared tags to insert inside the HTML `<head>` section — things like Google Analytics or web font loading that are common across every page. By default, `{{HEAD_CSS}}` is already placed here to specify the CSS insertion point. CSS scoping is disabled (global).|
 |`_header`|[Part]{.type-badge .badge-part}|The site's shared header. A standard header component including the site name and navigation links.|
 |`_footer`|[Part]{.type-badge .badge-part}|The site's shared footer. A standard footer component including copyright and footer navigation.|
 |`_nav_card`|[Part]{.type-badge .badge-part}|The standard card design used for card-style navigation when a component ID is omitted. Outputs a card showing the thumbnail image, title, description, and date.|
@@ -1398,7 +1429,7 @@ You can split out and manage shared parts (header, footer, contents inside `&lt;
 - Register them separately as `_header`, `_footer`, `_global_head`, and so on.
 - Selecting `_layout` as the "Design Component" makes these work automatically.
 - To reflect each page's SEO information (title, description, OGP image, etc.), include `{{COMPONENT:_global_head}}` inside your component.
-- To reflect CSS managed at the site level or per page, include `{{HEAD_CSS}}`.
+- CSS managed at the site level or per page is inserted automatically. Use `{{HEAD_CSS}}` to specify its insertion point.
 
 ---
 

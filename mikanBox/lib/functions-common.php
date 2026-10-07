@@ -761,7 +761,7 @@ function mediaImageFitsInMemory($srcW, $srcH, $dstW, $dstH) {
  *
  * Returns ['filename' => final name, 'skipped' => bool, 'changed' => bool].
  */
-function mediaProcessUploadedImage($filename, $maxDim, $toWebp) {
+function mediaProcessUploadedImage($filename, $maxDim, $toWebp, $forceWebp = false) {
     $result = ['filename' => $filename, 'skipped' => false, 'changed' => false];
 
     $path = MEDIA_DIR . '/' . $filename;
@@ -833,7 +833,7 @@ function mediaProcessUploadedImage($filename, $maxDim, $toWebp) {
         // re-encoding smears text and thin lines, so keep those lossless.
         $quality = ($type === IMAGETYPE_PNG && defined('IMG_WEBP_LOSSLESS')) ? IMG_WEBP_LOSSLESS : 82;
         $ok = @imagewebp($dst, $outPath, $quality);
-        if ($ok && !$needsResize && filesize($outPath) >= filesize($path)) {
+        if ($ok && !$forceWebp && !$needsResize && filesize($outPath) >= filesize($path)) {
             // A straight conversion that made the file bigger is not worth the
             // renamed file; keep the original.
             @unlink($outPath);
@@ -855,6 +855,91 @@ function mediaProcessUploadedImage($filename, $maxDim, $toWebp) {
         $result['changed'] = true;
     }
     return $result;
+}
+
+/** Convert an existing JPEG/PNG and update current page/component references. */
+function mediaConvertExistingToWebp(string $filename): array {
+    if ($filename !== basename($filename) || !preg_match('/\A[A-Za-z0-9_][A-Za-z0-9_.-]*\.(?:jpe?g|png)\z/i', $filename)) throw new RuntimeException(t('err_webp_source'));
+    if (!function_exists('imagewebp')) throw new RuntimeException(t('err_webp_unavailable'));
+    $source = MEDIA_DIR . '/' . $filename;
+    if (!is_file($source)) throw new RuntimeException(t('err_original_file_not_found'));
+    $targetName = pathinfo($filename, PATHINFO_FILENAME) . '.webp';
+    $target = MEDIA_DIR . '/' . $targetName;
+    if (file_exists($target)) throw new RuntimeException(sprintf(t('err_rename_target_exists'), $targetName));
+    $sourceHash = hash_file('sha256', $source);
+    $stagedName = '_webp_stage_' . bin2hex(random_bytes(8)) . '.' . pathinfo($filename, PATHINFO_EXTENSION);
+    $stage = MEDIA_DIR . '/' . $stagedName;
+    $stagedOutput = $stage;
+    $createdTarget = false; $transaction = false; $written = []; $changes = []; $db = null; $settingsWritten = false; $siteBefore = null; $siteAfter = null;
+    try {
+        if (!copy($source, $stage)) throw new RuntimeException(t('err_save_failed'));
+        $converted = mediaProcessUploadedImage($stagedName, 0, true, true);
+        $stagedOutput = MEDIA_DIR . '/' . $converted['filename'];
+        if (!$converted['changed'] || strtolower(pathinfo($stagedOutput, PATHINFO_EXTENSION)) !== 'webp') throw new RuntimeException(t('err_webp_failed'));
+        foreach ([POSTS_DIR => ['content_md','css','js','ogp_image'], COMPONENTS_DIR => ['html','css','js']] as $directory => $fields) {
+            foreach (getFileList($directory) as $id) {
+                $original = loadData($directory, $id);
+                if (!$original) continue;
+                $updated = $original;
+                foreach ($fields as $field) if (isset($original[$field]) && is_string($original[$field])) $updated[$field] = preg_replace('/(^|[^A-Za-z0-9_.-])' . preg_quote($filename, '/') . '(?=$|[^A-Za-z0-9_.-])/', '${1}' . $targetName, $original[$field]);
+                if ($updated !== $original) $changes[] = ['dir'=>$directory,'id'=>$id,'before'=>$original,'after'=>$updated];
+            }
+        }
+        $siteBefore = loadSettings();
+        $siteAfter = $siteBefore;
+        if (is_string($siteBefore['ogp_image'] ?? null)) $siteAfter['ogp_image'] = preg_replace('/(^|[^A-Za-z0-9_.-])' . preg_quote($filename, '/') . '(?=$|[^A-Za-z0-9_.-])/', '${1}' . $targetName, $siteBefore['ogp_image']);
+        if (function_exists('getDb')) {
+            $db = getDb();
+            if (!$db->exec('BEGIN IMMEDIATE')) throw new RuntimeException(t('err_save_failed'));
+            $transaction = true;
+            foreach ($changes as $change) {
+                $stmt = $db->prepare('SELECT 1 FROM locks WHERE item_type=:type AND item_id=:id AND expires_at>:now LIMIT 1');
+                $stmt->bindValue(':type', $change['dir'] === POSTS_DIR ? 'page' : 'design', SQLITE3_TEXT);
+                $stmt->bindValue(':id', $change['id'], SQLITE3_TEXT);
+                $stmt->bindValue(':now', time(), SQLITE3_INTEGER);
+                if ($stmt->execute()->fetchArray(SQLITE3_ASSOC)) throw new RuntimeException(t('err_media_edit_conflict'));
+            }
+        }
+        if ($siteAfter !== $siteBefore && loadSettings() !== $siteBefore) throw new RuntimeException(t('err_media_edit_conflict'));
+        if (!hash_equals($sourceHash, hash_file('sha256', $source))) throw new RuntimeException(t('err_media_edit_conflict'));
+        foreach ($changes as $change) if (loadData($change['dir'], $change['id']) !== $change['before']) throw new RuntimeException(t('err_media_edit_conflict'));
+        $handle = @fopen($target, 'xb');
+        if (!$handle) throw new RuntimeException(sprintf(t('err_rename_target_exists'), $targetName));
+        $createdTarget = true;
+        $bytes = file_get_contents($stagedOutput);
+        $ok = $bytes !== false && fwrite($handle, $bytes) === strlen($bytes);
+        fclose($handle);
+        if (!$ok) throw new RuntimeException(t('err_save_failed'));
+        foreach ($changes as $change) {
+            if (function_exists('createRevision') && $change['dir'] === POSTS_DIR) createRevision($change['id'], $_SESSION['admin_username'] ?? 'admin');
+            if (!saveData($change['dir'], $change['id'], $change['after'])) throw new RuntimeException(t('err_save_failed'));
+            $written[] = $change;
+        }
+        if ($siteAfter !== $siteBefore) {
+            if ($db) {
+                $stmt = $db->prepare('INSERT OR REPLACE INTO settings(key,value) VALUES(:key,:value)');
+                $stmt->bindValue(':key', 'ogp_image', SQLITE3_TEXT);
+                $stmt->bindValue(':value', json_encode($siteAfter['ogp_image'], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+                if (!$stmt->execute()) throw new RuntimeException(t('err_save_failed'));
+            } elseif (!saveSettings($siteAfter)) throw new RuntimeException(t('err_save_failed'));
+            $settingsWritten = true;
+        }
+        if ($transaction && !$db->exec('COMMIT')) throw new RuntimeException(t('err_save_failed'));
+        $transaction = false;
+        if ($settingsWritten) $GLOBALS['mikanbox_settings'] = $siteAfter;
+        // References and the replacement are committed before withdrawing the old image.
+        @unlink($source);
+        return ['filename'=>$targetName,'updated'=>count($changes)];
+    } catch (Throwable $error) {
+        if ($transaction) $db->exec('ROLLBACK');
+        elseif (!$db) foreach (array_reverse($written) as $change) saveData($change['dir'], $change['id'], $change['before']);
+        if (!$db && $settingsWritten) saveSettings($siteBefore);
+        if ($createdTarget) @unlink($target);
+        throw $error;
+    } finally {
+        @unlink($stage);
+        if ($stagedOutput !== $stage) @unlink($stagedOutput);
+    }
 }
 
 /**

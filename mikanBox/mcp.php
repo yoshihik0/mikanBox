@@ -356,7 +356,9 @@ function toolDefinitions() {
                     'description'  => ['type' => 'string',  'description' => 'メタ description'],
                     'keywords'     => ['type' => 'string',  'description' => 'メタ keywords'],
                     'category'     => ['type' => 'string',  'description' => 'カテゴリ'],
-                    'wrapper_comp' => ['type' => 'string',  'description' => 'レイアウトコンポーネントID（省略時: _layout）。{{CONTENT}} タグを含むコンポーネントを指定する'],
+                    'is_html' => ['type' => 'boolean', 'description' => '本文をRaw HTMLとして扱う'],
+                    'exclude_tracking' => ['type' => 'boolean', 'description' => 'サイト設定の計測コンポーネントをこのページでは読み込まない'],
+                    'wrapper_comp' => ['type' => 'string',  'description' => 'レイアウトコンポーネントID（省略時: _layout、なし: __none）。{{CONTENT}} タグを含むコンポーネントを指定する'],
                     'sort_order'   => ['type' => 'integer', 'description' => '表示順（数値が小さいほど上位）'],
                 ],
                 'required' => ['id', 'title']
@@ -375,7 +377,9 @@ function toolDefinitions() {
                     'description'  => ['type' => 'string'],
                     'keywords'     => ['type' => 'string'],
                     'category'     => ['type' => 'string'],
-                    'wrapper_comp' => ['type' => 'string',  'description' => 'レイアウトコンポーネントID。{{CONTENT}} タグを含むコンポーネントを指定する'],
+                    'is_html' => ['type' => 'boolean', 'description' => '本文をRaw HTMLとして扱う'],
+                    'exclude_tracking' => ['type' => 'boolean', 'description' => 'サイト設定の計測コンポーネントをこのページでは読み込まない'],
+                    'wrapper_comp' => ['type' => 'string',  'description' => 'レイアウトコンポーネントID（なし: __none）。{{CONTENT}} タグを含むコンポーネントを指定する'],
                     'sort_order'   => ['type' => 'integer'],
                     'css'          => ['type' => 'string'],
                     'js'           => ['type' => 'string', 'description' => 'ページ専用JavaScript（scriptタグ不要。本文末尾へ自動挿入）'],
@@ -625,7 +629,7 @@ function toolUpdatePage($args) {
         return ['error' => t('mcp_err_page_not_found_for_update', $id)];
     }
 
-    foreach (['title', 'content_md', 'status', 'description', 'keywords', 'category', 'wrapper_comp', 'sort_order', 'css', 'js', 'ogp_image'] as $f) {
+    foreach (['title', 'content_md', 'status', 'description', 'keywords', 'category', 'wrapper_comp', 'is_html', 'exclude_tracking', 'sort_order', 'css', 'js', 'ogp_image'] as $f) {
         if (array_key_exists($f, $args)) $existing[$f] = $args[$f];
     }
     $existing['updated_at'] = date('Y-m-d H:i:s');
@@ -926,6 +930,8 @@ function buildPageData($args) {
         'css'          => $args['css']          ?? '',
         'js'           => $args['js']           ?? '',
         'wrapper_comp' => $args['wrapper_comp'] ?? '_layout',
+        'exclude_tracking' => (bool)($args['exclude_tracking'] ?? false),
+        'is_html' => (bool)($args['is_html'] ?? false),
         'sort_order'   => (int)($args['sort_order'] ?? 0),
         'updated_at'   => date('Y-m-d H:i:s'),
     ];

@@ -132,7 +132,8 @@
                             <select name="wrapper_comp">
                                 <?php
                                 $comps = getFileList(COMPONENTS_DIR);
-                                $currentWrapper = $editData['wrapper_comp'] ?? 'layout';
+                                $currentWrapper = $editData['wrapper_comp'] ?? '_layout';
+                                echo '<option value="__none" ' . ($currentWrapper === '__none' ? 'selected' : '') . '>' . htmlspecialchars(t('wrapper_none')) . '</option>';
                                 foreach($comps as $id) {
                                     $d = loadData(COMPONENTS_DIR, $id);
                                     if (empty($d['is_wrapper'])) continue;
@@ -141,6 +142,11 @@
                                 }
                                 ?>
                             </select>
+                            <small class="sub-text sub-text-block"><?= t('head_completion_hint') ?></small>
+                            <?php if (!empty($settings['tracking_component'])): ?>
+                            <input type="hidden" name="tracking_option_present" value="1">
+                            <label class="checkbox-label tracking-exclusion"><input type="checkbox" name="exclude_tracking" value="1" <?= !empty($editData['exclude_tracking']) ? 'checked' : '' ?>> <?= t('exclude_tracking_label') ?></label>
+                            <?php endif; ?>
                         </div>
                         <div class="form-group grid-span-1">
                             <label class="sub-label"><?= t('label_category') ?> <?= t('hint_comma_separated') ?></label>
