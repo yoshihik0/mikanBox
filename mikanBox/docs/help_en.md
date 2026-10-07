@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.7.5</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.8.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -261,6 +261,8 @@ Search titles, body content, and more using a keyword. SQLite updates the list w
 ### Page List
 
 #### Edit / Preview
+
+Preview buttons are blue in all three editions.
 
 - [[edit]{.material-symbols-outlined}Edit]{.m-btn .m-btn-blue} — Opens the edit screen for that page.
 - [[open_in_new]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — Opens the page in a new tab, at the URL matching its current status.

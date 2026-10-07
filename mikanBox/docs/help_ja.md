@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.7.5</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.8.0</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -261,6 +261,8 @@ GPTの起動文には人が読む公式マニュアルURLを含めます。Claud
 ### ページ一覧
 
 #### 編集・プレビュー
+
+プレビューボタンは3版とも青で表示します。
 
 - [[edit]{.material-symbols-outlined}編集]{.m-btn .m-btn-blue} — クリックすると、そのページの編集画面へ移動します。
 - [[open_in_new]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — クリックすると、公開設定に応じたURLでページを新しいタブで開きます。

@@ -140,7 +140,7 @@
                               $previewUrl = '../' . $pid;
                           }
                           ?>
-                          <a href="<?= htmlspecialchars($previewUrl) ?>" target="_blank" class="btn btn-sm btn-orange" title="<?= t('btn_preview') ?>"><?php echo getIcon('open_in_new'); ?></a>
+                          <a href="<?= htmlspecialchars($previewUrl) ?>" target="_blank" class="btn btn-sm btn-blue" title="<?= t('btn_preview') ?>"><?php echo getIcon('open_in_new'); ?></a>
                      </div>
                  </td>
                  <td class="td-narrow">
