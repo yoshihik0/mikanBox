@@ -81,6 +81,7 @@
             <input type="hidden" name="view" value="media"><input type="hidden" name="cat" value="<?= htmlspecialchars($selectedCat) ?>"><input type="hidden" name="media_all" value="<?= $ignoreMediaCat ? '1' : '0' ?>">
             <input type="text" name="q_media" value="<?= htmlspecialchars($mediaQuery) ?>" placeholder="<?= t('media_search_placeholder') ?>" aria-label="<?= t('media_search_placeholder') ?>">
             <button class="btn btn-gray btn-small"><?= t('btn_search') ?></button>
+            <?php if ($mediaQuery !== ''): ?><a class="btn btn-gray btn-small" href="admin.php?view=media&amp;cat=<?= urlencode($selectedCat) ?>&amp;media_all=<?= $ignoreMediaCat ? '1' : '0' ?>#media"><?= t('btn_clear_search') ?></a><?php endif; ?>
         </form>
         <div class="media-grid">
             <?php
@@ -178,14 +179,6 @@
                         </details>
                         <?php endif; ?>
 
-                        <?php if (in_array($ext, ['jpg', 'jpeg', 'png']) && function_exists('imagewebp')): ?>
-                        <form method="post" class="media-convert-form">
-                            <input type="hidden" name="save_action" value="convert_media_webp">
-                            <input type="hidden" name="filename" value="<?= htmlspecialchars($fname) ?>">
-                            <?= csrfField() ?>
-                            <button type="submit" class="media-convert-button"><?= t('btn_convert_webp') ?></button>
-                        </form>
-                        <?php endif; ?>
                         <details class="resize-details" style="margin-top: 5px;">
                             <summary class="resize-summary">
                                 <?= t('btn_rename') ?><span class="resize-arrow">▼</span>
@@ -198,6 +191,14 @@
                                 <button type="submit" class="btn btn-sm btn-blue media-action-save" title="<?= t('btn_save') ?>"><?= getIcon('save') ?></button>
                             </form>
                         </details>
+                        <?php if (in_array($ext, ['jpg', 'jpeg', 'png']) && function_exists('imagewebp')): ?>
+                        <form method="post" class="media-convert-form">
+                            <input type="hidden" name="save_action" value="convert_media_webp">
+                            <input type="hidden" name="filename" value="<?= htmlspecialchars($fname) ?>">
+                            <?= csrfField() ?>
+                            <button type="submit" class="media-convert-button"><?= t('btn_convert_webp') ?></button>
+                        </form>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

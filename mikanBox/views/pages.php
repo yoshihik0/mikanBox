@@ -14,17 +14,16 @@
 
             <?php if (function_exists('searchPosts')): ?>
             <!-- Admin Page Search Bar (Same height, client-side AJAX driven) -->
-            <div class="search-bar-wrap" style="display: flex; align-items: center;">
+            <form method="get" action="admin.php#pages" class="search-bar-wrap" style="display: flex; align-items: center;">
+                <input type="hidden" name="view" value="pages"><input type="hidden" name="cat" value="<?= htmlspecialchars($selectedCat ?? '') ?>">
                 <div style="position: relative; display: flex; align-items: center;">
-                    <input type="text" id="admin-page-search" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>" placeholder="<?= t('search_placeholder') ?>" style="padding: 6px 32px 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; width: 220px; box-sizing: border-box; outline: none; transition: border-color 0.2s;">
+                    <input type="text" name="q" id="admin-page-search" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>" placeholder="<?= t('search_placeholder') ?>" style="padding: 6px 32px 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; width: 220px; box-sizing: border-box; outline: none; transition: border-color 0.2s;">
                     <span id="admin-page-search-icon" style="position: absolute; right: 10px; color: var(--text-sub); display: <?= empty($_GET['q']) ? 'flex' : 'none' ?>; align-items: center; pointer-events: none;">
                         <?= getIcon('search') ?>
                     </span>
-                    <button type="button" id="admin-page-search-clear" style="position: absolute; right: 10px; background: none; border: none; padding: 0; cursor: pointer; color: var(--text-sub); display: <?= !empty($_GET['q']) ? 'flex' : 'none' ?>; align-items: center;" title="<?= t('btn_clear_search') ?>">
-                        <?= getIcon('close') ?>
-                    </button>
+                    <a id="admin-page-search-clear" class="search-clear" href="admin.php?view=pages&amp;cat=<?= urlencode($selectedCat ?? '') ?>#pages" title="<?= t('btn_clear_search') ?>" aria-label="<?= t('btn_clear_search') ?>" style="position:absolute;right:10px;color:var(--text-sub);display:<?= (string)($_GET['q'] ?? '') !== '' ? 'flex' : 'none' ?>;align-items:center"><?= getIcon('close') ?></a>
                 </div>
-            </div>
+            </form>
             <?php endif; ?>
         </div>
 
@@ -210,3 +209,7 @@
         <?php include __DIR__ . '/page-editor.php'; ?>
     <?php endif; ?>
     </div>
+
+<script>
+(function(){const input=document.getElementById('admin-page-search'),clear=document.getElementById('admin-page-search-clear'),icon=document.getElementById('admin-page-search-icon');if(!input||!clear)return;input.addEventListener('input',function(){clear.style.display=input.value?'flex':'none';if(icon)icon.style.display=input.value?'none':'flex';});})();
+</script>

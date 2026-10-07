@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.7.4</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.7.5</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -188,7 +188,7 @@ There are three types of components: [Page]{.type-badge .badge-page}, which sets
 
 ### [image]{.material-symbols-outlined .mat-icon}Media
 
-In Cloud, use “Resize▼”, “Convert to WebP”, and “Rename▼” in that order. WebP conversion appears only for JPEG/PNG. WebP conversion automatically uses the `.webp` extension and updates references in page content, CSS, JavaScript, OGP images, components and the common site OGP image. Published HTML requires rebuilding and publication. Media follows the category selection at the top of the admin page, showing matching filename prefixes and shared `g_` images. Uploads receive the selected category prefix unless the name already starts with an alphanumeric prefix. Filename search operates within that selection.
+In Cloud, use “Resize▼”, “Rename▼”, and “Convert to WebP” in that order. WebP conversion appears only for JPEG/PNG. WebP conversion automatically uses the `.webp` extension and updates references in page content, CSS, JavaScript, OGP images, components and the common site OGP image. Published HTML requires rebuilding and publication. Media follows the category selection at the top of the admin page, showing matching filename prefixes and shared `g_` images. Uploads receive the selected category prefix unless the name already starts with an alphanumeric prefix. Filename search operates within that selection.
 
 Manages image, video, and audio files. You can quickly upload, browse the list, resize, and copy a filename ready to paste elsewhere.
 
@@ -743,6 +743,8 @@ CSV conversion and Cloud’s complete JSON backup/restore controls follow the co
 
 ---
 
+Clear page and media keyword searches using the clear control; category filters remain selected. Cloud image renaming offers Cancel, Rename only and Update references when used by content. Published image changes require a Cloud publication connection, configured below user management in Site. Full backup for recovery (JSON) includes images, users and revision history beyond the separate data/media downloads. Current D1 image storage is capped at 400 MB; existing and restored images plus other temporary restore images must fit within 450 MB.
+
 ## Design {#design-mgmt}
 
 Manages three types of components: [Page]{.type-badge .badge-page}, which builds the design for a whole page; [Part]{.type-badge .badge-part}, which builds shared building blocks; and [AI Instructions]{.type-badge .badge-ai}, for writing instructions aimed at AI.
@@ -948,9 +950,9 @@ gif is not supported. The image library used here can only read the first frame 
 
 If an image has too many pixels to fit in the server's memory limit, it is left unchanged and a message says so.
 
-#### Rename...
+#### Rename▼
 
-Click "Rename..." to expand it. Edit the filename and press [[save]{.material-symbols-outlined}]{.m-btn .m-btn-blue} to rename the media file. If that filename is already referenced somewhere in an existing page or component, a confirmation dialog appears with these choices:
+Click "Rename▼" to expand it. Edit the filename and press [[save]{.material-symbols-outlined}]{.m-btn .m-btn-blue} to rename the media file. If that filename is already referenced somewhere in an existing page or component, a confirmation dialog appears with these choices:
 
 - **Update Links** — Renames the file and also rewrites every reference to it inside pages/components to the new filename.
 - **Rename File Only** — Renames only the file itself, leaving existing references untouched (note that those references will then point to a missing file).
@@ -963,7 +965,7 @@ Click "Rename..." to expand it. Edit the filename and press [[save]{.material-sy
 
 Filename search and pagination use the same layout across editions. Search applies within the current category filter.
 
-Expand “Upload options▼” to configure uploads. File actions appear in this order: “Resize▼”, “Convert to WebP”, “Rename▼”. Resize dimensions and filename inputs use the same height and save button size. Enter a width or height to preserve the aspect ratio.
+Expand “Upload options▼” to configure uploads. File actions appear in this order: “Resize▼”, “Rename▼”, “Convert to WebP”. Resize dimensions and filename inputs use the same height and save button size. Enter a width or height to preserve the aspect ratio.
 
 “Convert to WebP” appears only for existing JPEG (jpg/jpeg) and PNG images, not WebP, GIF, SVG, audio or video. PHP requires server WebP encoding support. Conversion changes the extension to `.webp` and updates page content/CSS/JavaScript/OGP, component HTML/CSS/JavaScript, and the site OGP image. Memos and past revisions are unchanged. An existing WebP target is never overwritten; the source and references remain intact. Rebuild static pages afterward. Cloud converts the image in the browser and updates storage and delivery; keep the screen open until complete.
 
