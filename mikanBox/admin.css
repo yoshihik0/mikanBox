@@ -1895,8 +1895,9 @@ input[type="datetime-local"], input:not([type]) {
     .data-tool-footer { padding: 15px 20px; }
 }
 
-.media-search-form { margin: 16px 0; }
-.media-search-form input[type="text"] { min-width: 0; }
+.media-search-form { margin: 16px 0; flex-wrap: wrap; }
+.media-search-form select { width: auto; max-width: 100%; flex: 0 1 160px; }
+.media-search-form input[type="text"] { min-width: 0; flex: 1 1 200px; }
 .media-search-form button { flex-shrink: 0; white-space: nowrap; }
 .media-pagination { margin-top: 16px; }
 /* Match the SQLite standalone data tool, without changing other admin panels. */

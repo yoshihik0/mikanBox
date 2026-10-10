@@ -656,6 +656,24 @@ function resolveMediaPath($url) {
     return 'media/' . $url;
 }
 
+/** Uploaded executable assets are UTF-8 text, at most 10 MB; never sanitize code. */
+function mediaIsCodeAsset($filename): bool {
+    return in_array(strtolower(pathinfo($filename, PATHINFO_EXTENSION)), ['js', 'css'], true);
+}
+
+function mediaValidFilename($filename): bool {
+    return is_string($filename) && strlen($filename) <= 180
+        && preg_match('/\A[A-Za-z0-9_-][A-Za-z0-9_.-]*\z/', $filename)
+        && !str_contains($filename, '..')
+        && !preg_match('/\.(?:php[0-9]*|phtml|phar|cgi|pl|py|sh|shtml|asp|aspx|jsp)(?:\.|$)/i', $filename)
+        && in_array(strtolower(pathinfo($filename, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp3', 'm4a', 'mp4', 'js', 'css'], true);
+}
+
+function mediaValidCodeContent($filename, $content): bool {
+    return !mediaIsCodeAsset($filename) || (strlen($content) > 0 && strlen($content) <= 10000000
+        && !str_contains($content, "\0") && preg_match('//u', $content) === 1);
+}
+
 /**
  * Resolves the destination filename for media uploads.
  * If a category is specified and the filename does not match ^[a-zA-Z0-9]+_ (e.g. g_, news_, blog_),
@@ -673,15 +691,15 @@ function resolveMediaSaveName($filename, $category) {
     $filename = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $filename);
     
     // Extract name and extension
-    $ext = pathinfo($filename, PATHINFO_EXTENSION);
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
     $name = pathinfo($filename, PATHINFO_FILENAME);
     if (empty($name)) {
         $name = 'upload';
     }
     
     // 2. Auto-prefix category if appropriate (No-Double-Prefix Rule: ^[a-zA-Z0-9]+_)
-    if (!empty($category) && !preg_match('/^[a-zA-Z0-9]+_/', $filename)) {
-        $name = $category . '_' . $name;
+    if (!mediaIsCodeAsset($filename) && !empty($category) && !preg_match('/^[a-zA-Z0-9]+_/', $filename)) {
+        $name = preg_replace('/[^a-zA-Z0-9_-]/', '_', $category) . '_' . $name;
     }
     
     // 3. Resolve duplicates

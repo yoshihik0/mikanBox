@@ -454,13 +454,13 @@ function toolDefinitions() {
         ],
         [
             'name' => 'upload_media',
-            'description' => '画像をメディアフォルダにアップロードする。',
+            'description' => '画像・音声・動画・UTF-8のJS/CSSをメディアフォルダにアップロードする。JS/CSSは10 MB以下で、信頼できるコードのみ使用する。',
             'inputSchema' => [
                 'type' => 'object',
                 'properties' => [
                     'filename' => ['type' => 'string', 'description' => 'ファイル名（例: "sample.jpg"）。media/ フォルダ内に保存されます。'],
                     'content_base64' => ['type' => 'string', 'description' => 'Base64エンコードされたファイル内容'],
-                    'category' => ['type' => 'string', 'description' => '現在のカテゴリ（例: "blog"）。ファイル名に自動でプレフィックスが付与されます。'],
+                    'category' => ['type' => 'string', 'description' => '現在のカテゴリ（例: "blog"）。ファイル名に自動でプレフィックスが付与されます（JS/CSSには付与しません）。'],
                 ],
                 'required' => ['filename', 'content_base64']
             ],
@@ -855,15 +855,15 @@ function toolUploadMedia($args) {
     if (empty($args['content_base64'])) return ['error' => t('mcp_err_content_base64_required')];
 
     $filename = basename($args['filename']);
-    $content  = base64_decode($args['content_base64']);
+    $content  = base64_decode($args['content_base64'], true);
     $category = $args['category'] ?? '';
 
     if ($content === false) return ['error' => t('mcp_err_base64_decode_failed')];
 
     // Security: Validate Extension (matches admin.php's upload whitelist)
     $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-    $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp3', 'm4a', 'mp4'];
-    if (!in_array($ext, $allowedExts)) {
+    $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp3', 'm4a', 'mp4', 'js', 'css'];
+    if ((mediaIsCodeAsset($filename) && $args['filename'] !== $filename) || !in_array($ext, $allowedExts) || !mediaValidFilename(preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $filename)) || !mediaValidCodeContent($filename, $content)) {
         return ['error' => t('mcp_err_invalid_extension', $ext)];
     }
 

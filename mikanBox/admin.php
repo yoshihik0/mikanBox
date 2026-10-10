@@ -721,8 +721,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                 
                 // Security: Validate Extension
                 $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-                $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp3', 'm4a', 'mp4'];
-                if (!in_array($ext, $allowedExts)) {
+                $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp3', 'm4a', 'mp4', 'js', 'css'];
+                if ((mediaIsCodeAsset($originalName) && $_FILES['image']['name'] !== $originalName) || !in_array($ext, $allowedExts) || !mediaValidFilename(preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $originalName))
+                    || (mediaIsCodeAsset($originalName) && ($_FILES['image']['size'] > 10000000 || !mediaValidCodeContent($originalName, file_get_contents($tmpPath))))) {
                     $message = t('err_upload_failed') . " (Invalid file extension)";
                     $success = false;
                 } else {
@@ -741,7 +742,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                         // which is only safe because nothing references it yet.
                         $optMaxDim = !empty($_POST['opt_resize']) ? max(0, (int)($_POST['opt_max_dim'] ?? 0)) : 0;
                         $optWebp = !empty($_POST['opt_webp']);
-                        if ($optMaxDim > 0 || $optWebp) {
+                        if (!mediaIsCodeAsset($resolvedName) && ($optMaxDim > 0 || $optWebp)) {
                             $processed = mediaProcessUploadedImage($resolvedName, $optMaxDim, $optWebp);
                             $resolvedName = $processed['filename'];
                             $targetPath = MEDIA_DIR . '/' . $resolvedName;
@@ -864,6 +865,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $oldName = basename($_POST['old_filename']);
         $newName = basename($_POST['new_filename']);
         $newName = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $newName);
+        $newName = preg_replace_callback('/\.[^.]+$/', fn($m) => strtolower($m[0]), $newName);
         
         $oldPath = MEDIA_DIR . '/' . $oldName;
         $newPath = MEDIA_DIR . '/' . $newName;
@@ -872,6 +874,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         
         if (empty($newName)) {
             $message = t('err_filename_empty');
+            $success = false;
+        } elseif (!mediaValidFilename($newName) || strtolower(pathinfo($oldName, PATHINFO_EXTENSION)) !== strtolower(pathinfo($newName, PATHINFO_EXTENSION))) {
+            $message = t('err_media_extension_change');
             $success = false;
         } elseif (!file_exists($oldPath)) {
             $message = t('err_original_file_not_found');

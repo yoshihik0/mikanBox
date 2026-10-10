@@ -12,7 +12,7 @@
                 <?= csrfField() ?>
                 <div class="form-group mb-0">
                     <div class="flex-row items-center">
-                        <input type="file" name="image" id="file-input" accept="image/*,video/*,audio/*" required>
+                        <input type="file" name="image" id="file-input" accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.mp3,.m4a,.mp4,.js,.css" required>
                         <button type="submit" class="btn btn-blue" id="upload-btn"><?= getIcon('upload') ?> <?= t('btn_upload') ?></button>
                     </div>
                     <?php if (function_exists('imagecreatefromjpeg')): ?>
@@ -37,7 +37,8 @@
                     </details>
                     <?php endif; ?>
                     <div class="upload-info">
-                        <?= t('media_support_types') ?>: jpg, png, gif, webp, svg, mp3, m4a, mp4<br>
+                        <?= t('media_support_types') ?>: jpg, png, gif, webp, svg, mp3, m4a, mp4, js, css<br>
+                        <?= t('media_code_hint') ?><br>
                         <?= t('media_max_size') ?>: <?= ini_get('upload_max_filesize') ?> / <?= t('media_post_limit') ?>: <?= ini_get('post_max_size') ?> (<?= t('media_server_limit') ?>)<br>
                         <br>
                         <?= t('hint_media_display') ?><br>
@@ -51,6 +52,8 @@
         <?php
         $selectedCat = $_GET['cat'] ?? '';
         $mediaQuery = trim((string)($_GET['q_media'] ?? ''));
+        $mediaType = $_GET['media_type'] ?? '';
+        if (!in_array($mediaType, ['', 'image', 'audio', 'video', 'js', 'css'], true)) $mediaType = '';
         $ignoreMediaCat = isset($_GET['media_all']) && $_GET['media_all'] === '1';
         ?>
 
@@ -79,13 +82,22 @@
 
         <form method="get" action="admin.php#media" class="flex-row media-search-form">
             <input type="hidden" name="view" value="media"><input type="hidden" name="cat" value="<?= htmlspecialchars($selectedCat) ?>"><input type="hidden" name="media_all" value="<?= $ignoreMediaCat ? '1' : '0' ?>">
+            <select name="media_type" aria-label="<?= t('media_type_filter') ?>">
+                <?php foreach (['' => t('media_type_all'), 'image' => t('media_type_image'), 'audio' => t('media_type_audio'), 'video' => t('media_type_video'), 'js' => 'JS', 'css' => 'CSS'] as $type => $label): ?>
+                <option value="<?= $type ?>" <?= $mediaType === $type ? 'selected' : '' ?>><?= $label ?></option>
+                <?php endforeach; ?>
+            </select>
             <input type="text" name="q_media" value="<?= htmlspecialchars($mediaQuery) ?>" placeholder="<?= t('media_search_placeholder') ?>" aria-label="<?= t('media_search_placeholder') ?>">
             <button class="btn btn-gray btn-small"><?= t('btn_search') ?></button>
-            <?php if ($mediaQuery !== ''): ?><a class="btn btn-gray btn-small" href="admin.php?view=media&amp;cat=<?= urlencode($selectedCat) ?>&amp;media_all=<?= $ignoreMediaCat ? '1' : '0' ?>#media"><?= t('btn_clear_search') ?></a><?php endif; ?>
+            <?php if ($mediaQuery !== ''): ?><a class="btn btn-gray btn-small" href="admin.php?view=media&amp;cat=<?= urlencode($selectedCat) ?>&amp;media_all=<?= $ignoreMediaCat ? '1' : '0' ?>&amp;media_type=<?= urlencode($mediaType) ?>#media"><?= t('btn_clear_search') ?></a><?php endif; ?>
         </form>
         <div class="media-grid">
             <?php
-            $files = glob(MEDIA_DIR . '/*.{jpg,jpeg,png,gif,webp,svg,mp3,m4a,mp4}', GLOB_BRACE) ?: [];
+            $files = glob(MEDIA_DIR . '/*.{jpg,jpeg,png,gif,webp,svg,mp3,m4a,mp4,js,css}', GLOB_BRACE) ?: [];
+            if ($mediaType !== '') {
+                $extensions = ['image' => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'], 'audio' => ['mp3', 'm4a'], 'video' => ['mp4'], 'js' => ['js'], 'css' => ['css']][$mediaType];
+                $files = array_values(array_filter($files, fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $extensions, true)));
+            }
             if ($mediaQuery !== '') $files = array_values(array_filter($files, fn($file) => stripos(basename($file), $mediaQuery) !== false));
             if (empty($files)):
                 echo "<p class='td-empty'>No media found.</p>";
@@ -96,7 +108,7 @@
                 if ($selectedCat !== '' && !$ignoreMediaCat) {
                     $files = array_filter($files, function($file) use ($selectedCat) {
                         $fname = basename($file);
-                        if (strpos($fname, 'g_') === 0) return true; // Always show global
+                        if (mediaIsCodeAsset($fname) || strpos($fname, 'g_') === 0) return true; // Always show global
                         $parts = explode('_', $fname);
                         array_pop($parts); // Remove file extension and name end
                         return in_array($selectedCat, $parts);
@@ -121,6 +133,8 @@
                     $canResize = in_array($ext, ['jpg', 'jpeg', 'png', 'webp']);
                     $isAudio = in_array($ext, ['mp3', 'm4a']);
                     $isVideo = ($ext === 'mp4');
+                    $isCode = mediaIsCodeAsset($fname);
+                    $embedTag = $ext === 'js' ? '<script src="media/' . $fname . '" defer></script>' : '<link rel="stylesheet" href="media/' . $fname . '">';
                     
                     $dims = "";
                     if ($isImage && $ext !== 'svg') {
@@ -136,6 +150,8 @@
                         <div class="media-card-icon"><?= getIcon('video') ?></div>
                     <?php elseif ($isAudio): ?>
                         <div class="media-card-icon"><?= getIcon('audio') ?></div>
+                    <?php elseif ($isCode): ?>
+                        <div class="media-card-icon"><span class="material-symbols-outlined">code</span></div>
                     <?php endif; ?>
                 </div>
                 <div class="media-card-body">
@@ -160,6 +176,12 @@
 
                     <!-- Action Area: Resize Only -->
                     <div class="media-card-action-container media-action-border">
+                        <?php if ($isCode): ?>
+                        <div class="flex-row flex-row-wrap mb-10">
+                            <button type="button" class="btn btn-gray btn-small" onclick="copyToClipboard(new URL('../media/<?= rawurlencode($fname) ?>', location.href).href)"><?= t('media_copy_url') ?></button>
+                            <button type="button" class="btn btn-gray btn-small" onclick="copyToClipboard(<?= htmlspecialchars(json_encode($embedTag), ENT_QUOTES) ?>)"><?= t('media_copy_tag') ?></button>
+                        </div>
+                        <?php endif; ?>
                         <?php if ($canResize): ?>
                         <details class="resize-details">
                             <summary class="resize-summary">

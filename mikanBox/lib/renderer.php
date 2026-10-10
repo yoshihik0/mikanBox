@@ -924,6 +924,12 @@ class MikanBoxRenderer {
             return $m[1] . $m[2] . $root . $path . $m[2];
         }, $html);
         
+        // Uploaded code assets use explicit media/ URLs, avoiding component ID ambiguity.
+        $html = preg_replace_callback('~(<(?:script|link)\b[^>]*\b(?:src|href)\s*=\s*)(["\'])(?:\./)?media/([A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:js|css)(?:[?#][^"\']*)?)\2~i', function($m) {
+            $root = $this->isRelativeStaticMode() ? $this->getStaticRootPrefix() : rtrim($this->getSiteUrl(), '/') . '/';
+            return $m[1] . $m[2] . $root . 'media/' . $m[3] . $m[2];
+        }, $html);
+
         // 1. Rewrite internal links to be root-relative (e.g. /pages/p3/)
         $html = preg_replace_callback('/href=["\'](\.?\/?)([^"\']+)["\']/i', function($matches) use ($allPosts) {
             $prefix = $matches[1];

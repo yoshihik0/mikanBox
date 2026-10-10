@@ -2,7 +2,7 @@
 // ==========================================
 // mikanBox Basic Settings
 // ==========================================
-define('MIKANBOX_VERSION', '2.8.0');
+define('MIKANBOX_VERSION', '2.8.1');
 if (!defined('CORE_DIR')) define('CORE_DIR', __DIR__);
 
 // Site-specific options survive self-updates because local-config.php is not
@@ -51,6 +51,25 @@ function secureMediaDirectory($dirPath) {
                  . "    </IfModule>\n"
                  . "</FilesMatch>\n";
         @file_put_contents($htaccessPath, $content);
+    }
+    $existing = @file_get_contents($htaccessPath);
+    if ($existing !== false && !str_contains($existing, '# mikanBox code assets')) {
+        $rules = <<<'HTACCESS'
+
+# mikanBox code assets
+<IfModule mod_mime.c>
+    AddType text/javascript .js
+    AddType text/css .css
+    RemoveHandler .js .css
+</IfModule>
+<FilesMatch "(?i)\.(js|css)$">
+    SetHandler none
+    <IfModule mod_headers.c>
+        Header set X-Content-Type-Options "nosniff"
+    </IfModule>
+</FilesMatch>
+HTACCESS;
+        @file_put_contents($htaccessPath, $existing . $rules . "\n");
     }
 }
 secureMediaDirectory(MEDIA_DIR);
