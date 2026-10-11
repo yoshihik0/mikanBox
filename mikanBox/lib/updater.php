@@ -41,6 +41,12 @@ function mikanBoxUpdateCopyFile(string $source, string $target): bool {
         @unlink($temporary);
         return false;
     }
+    clearstatcache(true, $target);
+    // The next request must run the new program, even with delayed/disabled
+    // OPcache timestamp checks. This also applies to restore and rollback.
+    if (strtolower(pathinfo($target, PATHINFO_EXTENSION)) === 'php' && function_exists('opcache_invalidate')) {
+        @opcache_invalidate($target, true);
+    }
     return hash_file('sha256', $source) === hash_file('sha256', $target);
 }
 

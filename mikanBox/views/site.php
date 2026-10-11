@@ -16,6 +16,7 @@
     <!-- Version Info -->
     <?php
     require_once __DIR__ . '/../lib/updater.php';
+    $installedVersion = mikanBoxUpdateReadVersion(CORE_DIR . '/config.php') ?: MIKANBOX_VERSION;
     $latestVersion = null;
     $latestRef = null;
     $githubRepo = 'yoshihik0/mikanBox';
@@ -24,7 +25,7 @@
     $cachedVersion = $_SESSION[$vCacheKey] ?? null;
     $cachedLatest = is_array($cachedVersion) ? ($cachedVersion['version'] ?? null) : null;
     $cacheIsCurrent = $cachedLatest
-        && version_compare(ltrim($cachedLatest, 'vV'), ltrim(MIKANBOX_VERSION, 'vV'), '>=');
+        && version_compare(ltrim($cachedLatest, 'vV'), ltrim($installedVersion, 'vV'), '>=');
     if (!$forceVersionRefresh && is_array($cachedVersion) && $cacheIsCurrent && (time() - ($cachedVersion['checked_at'] ?? 0)) < 1800) {
         $latestVersion = $cachedVersion['version'] ?? null;
         $latestRef = $cachedVersion['ref'] ?? 'main';
@@ -39,13 +40,13 @@
         }
     }
     $isOutdated = $latestVersion
-        && version_compare(ltrim($latestVersion, 'vV'), ltrim(MIKANBOX_VERSION, 'vV'), '>');
+        && version_compare(ltrim($latestVersion, 'vV'), ltrim($installedVersion, 'vV'), '>');
     $updateBackup = mikanBoxGetUpdateBackup(DATA_DIR);
-    if (!mikanBoxUpdateBackupMatchesVersion($updateBackup, MIKANBOX_VERSION)) $updateBackup = null;
+    if (!mikanBoxUpdateBackupMatchesVersion($updateBackup, $installedVersion)) $updateBackup = null;
     ?>
     <div class="section-container section-tight">
         <div style="font-size:0.82em; color:var(--text-sub,#888); padding:6px 2px; display:flex; gap:1.5em; align-items:center; flex-wrap:wrap;">
-            <span><?= t('version_current') ?>: <?= htmlspecialchars(MIKANBOX_VERSION) ?></span>
+            <span><?= t('version_current') ?>: <?= htmlspecialchars($installedVersion) ?></span>
             <div style="display:inline-flex; gap:8px; align-items:center;">
                 <?= t('version_latest') ?>: <?= $latestVersion ? htmlspecialchars($latestVersion) : t('version_check_failed') ?>
                 <?php if ($isOutdated): ?>

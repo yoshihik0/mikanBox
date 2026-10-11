@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.8.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.8.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -430,7 +430,7 @@ When you are already on the latest version, [Reinstall] is offered instead. It i
 
 Only program files are replaced. Pages, settings, media, the database, and generated static files are left untouched. One generation of the previous program files is stored in a protected area on the server. A failed update is restored automatically, and after a successful update you can use the [Restore] button to return to the immediately preceding version.
 
-After you confirm an update, the button changes to [Updating…] and remains disabled until the operation finishes. When the update completes, the admin screen reloads automatically and shows the new version number and a completion message. The restore operation similarly displays [Restoring…] while it is running.
+After you confirm an update, the button changes to [Updating…] and remains disabled until the operation finishes. When the update completes, the admin screen reloads automatically and shows the newly installed version number and a completion message without a manual reload. The restore operation similarly displays [Restoring…] while it is running.
 
 ### Static Site Generation (SSG) {#site-ssg}
 
@@ -944,6 +944,8 @@ gif and svg are never converted - gif because the animation would be lost, and s
 
 If an image has too many pixels to fit in the server's memory limit, it is stored unchanged and a message says so; the upload itself still succeeds.
 
+Media guidance shows supported formats, JS/CSS requirements, and how to use files on a page. The image conversion note and server maximum-size display are omitted. Markdown can omit the path; HTML uses `media/filename`.
+
 #### Supported Formats &amp; Limits
 
 Supports jpg, png, gif, webp, svg, mp3, m4a, and mp4. The maximum file size depends on your server's configuration.
@@ -951,7 +953,7 @@ Supports jpg, png, gif, webp, svg, mp3, m4a, and mp4. The maximum file size depe
 Uploaded files are stored in the `media` directory. How to reference them in Markdown or HTML:
 
 - Markdown: `![description](filename)`, or `{{IMAGE:filename}}` (also `{{AUDIO:filename}}`, `{{VIDEO:filename}}`)
-- HTML: any of `<img src="filename">`, `<img src="images/filename">`, or `<img src="media/filename">` will display it.
+- HTML: Use `media/filename` as the standard URL (for example, `<img src="media/filename">`). For images, the existing `images/filename` and bare filename forms remain supported.
 
 If you navigate to the Media screen from the Pages screen while a category filter is active and upload a file there, that category name is automatically prepended to the filename (e.g. uploading `photo.jpg` while filtered to category "blog" produces `blog_photo.jpg`). However, if the filename already starts with some prefix (alphanumeric characters followed by `_`), it won't be prefixed twice.
 
@@ -1458,7 +1460,7 @@ Example: [https://yoshihiko.com/mikanbox/demo/api/sample-DB](https://yoshihiko.c
 
 ### Prompt for Having AI Build an Entire Page
 
-`Output it as a single HTML file including CSS and JS. Use images/filename for images.`
+`Output it as a single HTML file including CSS and JS. Use media/filename for images.`
 
 Add the above to your design prompt.
 

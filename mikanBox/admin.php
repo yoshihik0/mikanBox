@@ -8,6 +8,8 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/lib/functions.php';
 require_once __DIR__ . '/lib/renderer.php';
 define('MIKANBOX', true);
+require_once __DIR__ . '/lib/updater.php';
+$installedVersion = mikanBoxUpdateReadVersion(CORE_DIR . '/config.php') ?: MIKANBOX_VERSION;
 
 // CSRF token generation (initial or on session timeout)
 if (empty($_SESSION['csrf_token'])) {
@@ -234,7 +236,7 @@ if (!$isLoggedIn && (!$isDemoMode || isset($_GET['login']))) {
     <meta charset="UTF-8">
     <title>🍊mikanBox - <?= t('admin_login') ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet">
-    <link rel="stylesheet" href="admin.css?v=<?= MIKANBOX_VERSION ?>">
+    <link rel="stylesheet" href="admin.css?v=<?= $installedVersion ?>">
 </head>
 <body class="login-body">
     <div class="login-box">
@@ -467,7 +469,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             if ($_POST['save_action'] === 'system_update') {
                 $result = mikanBoxInstallUpdate(
                     'yoshihik0/mikanBox',
-                    MIKANBOX_VERSION,
+                    $installedVersion,
                     CORE_DIR,
                     DATA_DIR,
                     $_POST['target_version'] ?? null,
@@ -1731,7 +1733,7 @@ if (ob_get_length()) ob_clean();
     <meta charset="UTF-8">
     <title>🍊mikanBox - <?= t('admin_site_title') ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet">
-    <link rel="stylesheet" href="admin.css?v=<?= MIKANBOX_VERSION ?>">
+    <link rel="stylesheet" href="admin.css?v=<?= $installedVersion ?>">
 </head>
 <body>
 <script>(function(){
@@ -3535,7 +3537,7 @@ function getIcon($name) {
 </div>
 
 <footer>
-    &copy; 2026 🍊mikanBox v<?= MIKANBOX_VERSION ?> by <a href="http://yoshihiko.com" target="_blank">yoshihiko.com</a>
+    &copy; 2026 🍊mikanBox v<?= $installedVersion ?> by <a href="http://yoshihiko.com" target="_blank">yoshihiko.com</a>
 </footer>
 
 <style>

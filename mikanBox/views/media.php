@@ -32,14 +32,12 @@
                                 <?= t('upload_opt_webp') ?>
                             </label>
                             <?php endif; ?>
-                            <div class="upload-option-note"><?= t('upload_opt_note') ?></div>
                         </div>
                     </details>
                     <?php endif; ?>
                     <div class="upload-info">
                         <?= t('media_support_types') ?>: jpg, png, gif, webp, svg, mp3, m4a, mp4, js, css<br>
                         <?= t('media_code_hint') ?><br>
-                        <?= t('media_max_size') ?>: <?= ini_get('upload_max_filesize') ?> / <?= t('media_post_limit') ?>: <?= ini_get('post_max_size') ?> (<?= t('media_server_limit') ?>)<br>
                         <br>
                         <?= t('hint_media_display') ?><br>
                         <?= t('hint_media_resize') ?>
