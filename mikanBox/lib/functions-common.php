@@ -523,6 +523,16 @@ class MikanBoxMarkdown {
     }
 }
 
+/**
+ * The 404 page is a normal page in the editor, but it is an error response
+ * rather than content. Listing it in a sitemap or a feed asks crawlers and
+ * readers to visit a page whose whole purpose is to say nothing is there.
+ * renderer.php resolves a missing page to this same id.
+ */
+function mikanBoxIsErrorPage($pageId) {
+    return $pageId === '404';
+}
+
 function generateSitemapXml($settings) {
     $renderer = new MikanBoxRenderer($settings);
     $siteUrl  = rtrim($renderer->getSiteUrl(), '/');
@@ -530,6 +540,7 @@ function generateSitemapXml($settings) {
     $xml  = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
     $xml .= "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n";
     foreach ($allPosts as $pageId) {
+        if (mikanBoxIsErrorPage($pageId)) continue;
         $data = loadData(POSTS_DIR, $pageId);
         if (!in_array($data['status'] ?? '', ['public_dynamic', 'public_static'])) continue;
         $loc     = htmlspecialchars($siteUrl . '/' . ($pageId === 'index' ? '' : $pageId));
@@ -548,6 +559,7 @@ function generateRssXml($settings) {
     $allPosts  = getSortedPostIds();
     $items = [];
     foreach ($allPosts as $pageId) {
+        if (mikanBoxIsErrorPage($pageId)) continue;
         $data = loadData(POSTS_DIR, $pageId);
         if (!in_array($data['status'] ?? '', ['public_dynamic', 'public_static'])) continue;
         $items[] = ['id' => $pageId, 'data' => $data];

@@ -1179,8 +1179,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         if (!empty($errors)) $message .= ' / ' . implode(', ', $errors);
         if (empty($results)) $message .= t('msg_html_pages_none');
         
-        if (!saveSettings($settings)) {
+        $saved = saveSettings($settings);
+        if (!$saved) {
             $message .= ' / ' . t('err_save_failed');
+        }
+        // The SSG panel builds in place, so the result goes back as JSON and the
+        // user keeps the screen they were on.
+        if (isset($_POST['ajax_request'])) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => $saved && empty($errors),
+                'message' => $message,
+                'count'   => count($built),
+            ]);
+            exit;
         }
         $_SESSION['admin_message'] = $message;
         header("Location: admin.php?view=settings#ssg");
@@ -3376,6 +3388,17 @@ function getIcon($name) {
         });
     };
     
+<?php if (($message ?? '') !== ''): ?>
+    // Notices from a non-ajax POST (page saved, component deleted, build finished)
+    // travel through the session. Without this they were read and dropped unseen.
+    (() => {
+        const carried = <?= json_encode($message, JSON_UNESCAPED_UNICODE) ?>;
+        const show = () => showToast(carried);
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', show);
+        else show();
+    })();
+<?php endif; ?>
+
     function showToast(msg, isErr=false) {
         let t = document.getElementById('ajax-toast');
         if (!t) {

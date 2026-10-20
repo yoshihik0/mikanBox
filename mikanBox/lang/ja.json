@@ -283,6 +283,8 @@
     "label_ssg_link_relative": "相対リンク（持ち運び可能・推奨）",
     "label_ssg_link_absolute": "公開URL固定",
     "hint_ssg_root_url_fixed": "公開URL固定の場合に使用するURLです。",
+    "hint_ssg_root_url_feed": "リンクには使いません。sitemap.xml と rss.xml の生成に使います。空欄なら生成しません。",
+    "msg_ssg_building": "ビルド中...",
     "label_ssg_structure": "出力構成 / URL形式",
     "label_ssg_dir_based": "ディレクトリ型 (folder/index.html)",
     "label_ssg_file_based": "ファイル名型 (filename.html)",

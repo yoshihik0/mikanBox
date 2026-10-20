@@ -53,7 +53,7 @@
                             </div>
                         </div>
                         <div id="ssg-export-options" style="<?= $ssgMode === 'export' ? '' : 'display:none;' ?> margin-top:15px;">
-                            <div class="flex-row items-end gap-20 flex-wrap">
+                            <div class="flex-row items-start gap-20 flex-wrap">
                                 <div class="form-group mb-0">
                                     <label class="sub-label"><?= t('label_ssg_link_mode') ?></label>
                                     <select name="ssg_link_mode" class="select-auto">
@@ -61,10 +61,11 @@
                                         <option value="absolute" <?= $ssgLinkMode === 'absolute' ? 'selected' : '' ?>><?= t('label_ssg_link_absolute') ?></option>
                                     </select>
                                 </div>
-                                <div class="form-group mb-0" id="ssg-root-url-group" style="<?= $ssgLinkMode === 'absolute' ? '' : 'display:none;' ?>">
+                                <div class="form-group mb-0" id="ssg-root-url-group">
                                     <label class="sub-label"><?= t('label_ssg_root_url') ?></label>
                                     <input type="url" name="ssg_root_url" value="<?= htmlspecialchars($settings['ssg_root_url'] ?? '', ENT_QUOTES) ?>" class="input-compact" placeholder="https://example.com/site">
-                                    <small class="sub-text"><?= t('hint_ssg_root_url_fixed') ?></small>
+                                    <small class="sub-text" id="ssg-root-url-hint-fixed" style="<?= $ssgLinkMode === 'absolute' ? '' : 'display:none;' ?>"><?= t('hint_ssg_root_url_fixed') ?></small>
+                                    <small class="sub-text" id="ssg-root-url-hint-feed" style="<?= $ssgLinkMode === 'absolute' ? 'display:none;' : '' ?>"><?= t('hint_ssg_root_url_feed') ?></small>
                                 </div>
                             </div>
                         </div>
@@ -80,6 +81,8 @@
                         const exportOptions = document.getElementById('ssg-export-options');
                         const rootUrlGroup = document.getElementById('ssg-root-url-group');
                         const rootUrlInput = form.querySelector('input[name="ssg_root_url"]');
+                        const rootUrlHintFixed = document.getElementById('ssg-root-url-hint-fixed');
+                        const rootUrlHintFeed = document.getElementById('ssg-root-url-hint-feed');
                         const outputDirInput = form.querySelector('input[name="ssg_dir"]');
                         const structureSelect = form.querySelector('select[name="ssg_structure"]');
                         const serverStructureInput = form.querySelector('input[name="ssg_server_structure"]');
@@ -89,7 +92,9 @@
                         const refresh = () => {
                             const mode = form.querySelector('input[name="ssg_mode"]:checked')?.value || 'server';
                             const linkMode = form.querySelector('select[name="ssg_link_mode"]')?.value || 'relative';
-                            const needsRootUrl = mode === 'export' && linkMode === 'absolute';
+                            // The root URL is required only for fixed-URL links, but it is still
+                            // offered for relative links: sitemap.xml and rss.xml need absolute URLs.
+                            const requiresRootUrl = mode === 'export' && linkMode === 'absolute';
                             if (mode === 'export' && outputDirInput.value.trim() === '') {
                                 outputDirInput.value = 'export';
                                 outputDirWasAutoDefaulted = true;
@@ -100,9 +105,11 @@
                                 ? <?= json_encode(t('placeholder_ssg_site_root'), JSON_UNESCAPED_UNICODE) ?>
                                 : 'export';
                             exportOptions.style.display = mode === 'export' ? '' : 'none';
-                            rootUrlGroup.style.display = needsRootUrl ? '' : 'none';
-                            rootUrlInput.disabled = !needsRootUrl;
-                            rootUrlInput.required = needsRootUrl;
+                            rootUrlGroup.style.display = mode === 'export' ? '' : 'none';
+                            rootUrlInput.disabled = mode !== 'export';
+                            rootUrlInput.required = requiresRootUrl;
+                            rootUrlHintFixed.style.display = requiresRootUrl ? '' : 'none';
+                            rootUrlHintFeed.style.display = requiresRootUrl ? 'none' : '';
                         };
                         form.querySelectorAll('input[name="ssg_mode"]').forEach(el => {
                             el.addEventListener('change', () => {
@@ -121,6 +128,30 @@
                         });
                         outputDirInput.addEventListener('input', () => {
                             outputDirWasAutoDefaulted = false;
+                        });
+                        // Build in place. A full reload would throw away the panel the user is
+                        // looking at, and until now it also swallowed the result message.
+                        form.addEventListener('submit', async (e) => {
+                            if (typeof window.showToast !== 'function') return;
+                            e.preventDefault();
+                            const btn = form.querySelector('button[value="ssg_build"]');
+                            const origHtml = btn ? btn.innerHTML : '';
+                            if (btn) {
+                                btn.disabled = true;
+                                btn.textContent = <?= json_encode(t('msg_ssg_building'), JSON_UNESCAPED_UNICODE) ?>;
+                            }
+                            const formData = new FormData(form);
+                            formData.append('save_action', 'ssg_build');
+                            formData.append('ajax_request', '1');
+                            try {
+                                const res = await fetch(window.location.href, { method: 'POST', body: formData });
+                                const json = await res.json().catch(() => ({}));
+                                window.showToast(json.message || '', !json.success);
+                            } catch (err) {
+                                window.showToast(String(err), true);
+                            } finally {
+                                if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+                            }
                         });
                         refresh();
                     })();

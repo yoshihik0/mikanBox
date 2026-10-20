@@ -281,6 +281,8 @@
     "label_ssg_link_relative": "Relative links (portable, recommended)",
     "label_ssg_link_absolute": "Fixed published URL",
     "hint_ssg_root_url_fixed": "URL used when fixed published URLs are selected.",
+    "hint_ssg_root_url_feed": "Not used for links. Used to generate sitemap.xml and rss.xml. Left blank, neither is generated.",
+    "msg_ssg_building": "Building...",
     "label_ssg_structure": "Output Structure / URL Format",
     "label_ssg_dir_based": "Directory-based (folder/index.html)",
     "label_ssg_file_based": "File-name based (filename.html)",

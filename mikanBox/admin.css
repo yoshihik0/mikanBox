@@ -733,6 +733,7 @@ textarea {
     margin-bottom: 20px;
 }
 .items-end { align-items: flex-end; }
+.items-start { align-items: flex-start; }
 .items-center { align-items: center; }
 
 .grid-2col>.form-group,

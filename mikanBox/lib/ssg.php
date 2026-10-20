@@ -277,6 +277,7 @@ class MikanBoxSSG {
         $xml  = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
         $xml .= "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n";
         foreach ($pageIds as $pageId) {
+            if (mikanBoxIsErrorPage($pageId)) continue;
             $data    = loadData(POSTS_DIR, $pageId);
             $loc     = htmlspecialchars($this->pageUrl($pageId, $siteUrl));
             $lastmod = substr($data['updated_at'] ?? date('Y-m-d H:i:s'), 0, 10);
@@ -297,6 +298,7 @@ class MikanBoxSSG {
         $allPosts = getSortedPostIds();
         $items = [];
         foreach ($allPosts as $pageId) {
+            if (mikanBoxIsErrorPage($pageId)) continue;
             $data = loadData(POSTS_DIR, $pageId);
             if (($data['status'] ?? '') !== 'public_static') continue;
             $items[] = ['id' => $pageId, 'data' => $data];

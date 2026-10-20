@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.8.3</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.8.4</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -464,7 +464,12 @@ mikanBox doesn't just render pages dynamically with PHP — it also has a featur
 - **Generate static pages on this server** — Normally writes HTML into the site root. Specify an output directory only when a different location is needed.
 - **Create an upload-ready folder (for local operation)** — Writes HTML and a copy of `media/` into a dedicated output folder. For safety, the site root, the mikanBox core, and the existing media folder cannot be selected as that destination.
 
-For an upload-ready folder, links can be written as portable relative paths (recommended), or fixed to a published URL. Relative links keep working when the folder is moved. Fixed URLs require a published root such as `https://example.com/site`.
+For an upload-ready folder, links can be written as portable relative paths (recommended), or fixed to a published URL. Relative links keep working when the folder is moved.
+
+The published root URL can be entered with either link style. Give the whole root of the published site, such as `https://example.com/site`. When the published URL is already decided, as with Cloudflare Pages or Netlify, enter that URL as it is (for example `https://yoursite.pages.dev`).
+
+- **Fixed published URL** — Required. Used both for the links inside pages and for `sitemap.xml` and `rss.xml`.
+- **Relative links** — Optional. Not used for the links inside pages. It is used only to generate `sitemap.xml` and `rss.xml`; left blank, neither file is generated.
 
 #### Output Directory
 
@@ -489,9 +494,13 @@ Saves the settings, then writes out every page whose status is "Public (Static)"
 
 If a page ID contains a `/` (e.g. `news/2024`), it's treated as a directory structure as-is. During a static build, an actual folder is created inside the output directory (e.g. `news/2024/index.html` for directory-based output), and the file is generated inside it.
 
+The build runs in place without leaving the screen, and the number of generated files is reported in a notification. Your settings and the panel you had open stay as they are.
+
 #### How the sitemap, RSS, and podcast RSS are handled
 
 `sitemap.xml`, `rss.xml`, and `podcast.xml` are normally generated fresh by PHP on every request (see [Sitemap, RSS &amp; API](#site-mapfeed) below). Because exported sitemap and RSS files require absolute URLs, SSG writes them when a published root URL is available. Server-side generation falls back to the current site URL when none is configured. Adding or changing pages after a build is not reflected until the static site is rebuilt.
+
+The 404 page (page ID `404`) is left out of both the sitemap and the RSS feed. It is an error response rather than content, so there is no reason to point search engines or readers at it. This applies to static and dynamic generation alike.
 
 ### Language {#site-lang}
 
