@@ -1,6 +1,6 @@
 <?php
 /**
- * MikanBox Renderer Class
+ * mikanBox Renderer Class
  * Centralizes rendering logic for both dynamic and static display.
  */
 class MikanBoxRenderer {
@@ -188,7 +188,7 @@ class MikanBoxRenderer {
         // Page-specific CSS is scoped to a wrapper div around the content (like component/wrapper
         // CSS already is), so it can't leak into the header/footer/nav outside {{CONTENT}}.
         // Only added when page CSS is actually present, so a full pasted HTML document
-        // (e.g. via the _ai component) isn't nested inside an extra <div> unnecessarily.
+        // (e.g. with no wrapper component selected) isn't nested inside an extra <div> unnecessarily.
         $hasPageCss = !empty($pageData['css']);
         $contentToEmbed = $hasPageCss ? '<div class="mikan-content-scope">' . $contentHtml . '</div>' : $contentHtml;
         if ($hasPageCss) {

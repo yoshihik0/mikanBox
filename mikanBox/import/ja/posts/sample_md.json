@@ -8,7 +8,7 @@
     "content_md": "### 他のページから読み込んだMarkDown\r\n\r\n他のページから読み込んだMarkDownを表示できます。\r\nお知らせ更新用のページを作っておき、トップページから読み取るというようなことも可能です。",
     "css": "",
     "is_html": false,
-    "wrapper_comp": "_ai",
+    "wrapper_comp": "__none",
     "sort_order": 101,
     "updated_at": "2026-07-03 14:39:44",
     "memo": "機能をご紹介するためのページです。"

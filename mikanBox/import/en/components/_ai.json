@@ -1,8 +1,0 @@
-{
-    "html": "{{CONTENT}}",
-    "css": "",
-    "is_global": true,
-    "is_wrapper": true,
-    "is_ai_doc": false,
-    "memo": "Wrapper for complete AI-generated HTML pasted into the content with Raw HTML enabled. Existing title/meta tags are preserved; the CMS fills missing head information. Shared tracking follows site settings. The None wrapper option also supports this completion."
-}

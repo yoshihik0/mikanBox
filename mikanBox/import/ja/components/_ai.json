@@ -1,8 +1,0 @@
-{
-    "html": "{{CONTENT}}",
-    "css": "",
-    "is_global": true,
-    "is_wrapper": true,
-    "is_ai_doc": false,
-    "memo": "AI生成の完全なHTMLを本文へ貼り付け、Raw HTMLを有効にして使うラッパーです。既存のtitle・metaを優先し、不足分はCMSがhead内へ補います。共通の計測コンポーネントはサイト設定に従います。「なし」でも同じ補完が利用できます。"
-}

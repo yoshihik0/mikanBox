@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.8.2</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.8.3</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -148,6 +148,24 @@ Site-specific data is created on first access in a `mikanData` folder beside `in
 To change the data directory name, create `local-config.php` inside the admin/core directory; this file is excluded from self-updates. Add `define('MIKANBOX_DATA_DIR_NAME', 'your-folder-name');`. The value must be one directory name containing only letters, numbers, hyphens, and underscores. If data already exists, move the physical directory to the same name before changing this setting.
 
 Right after installation (before any page or component data exists), the first visit will automatically load sample content matching the visitor's browser language (Japanese or English).
+
+#### Running it locally
+
+You can run mikanBox on your own computer instead of uploading it to a server. This is the basis of the operating style where no admin panel is published at all — you upload only the generated static files — and it also makes the site folder a working directory for an AI coding tool.
+
+PHP is the only requirement. No database, no build tooling, no Node.js.
+
+1. Check whether PHP is installed. Run `php -v` in a terminal; version 8.0 or later is all you need.
+2. If it is missing, install it. macOS no longer ships PHP, so install [Homebrew](https://brew.sh/) and run `brew install php`. On Windows, download it from [windows.php.net](https://windows.php.net/download/). On Linux, run `sudo apt install php` (Debian family) or `sudo dnf install php` (Fedora family).
+3. Extract `index.php` and the `mikanBox` folder into any folder.
+4. Change into that folder and run `php -S localhost:8000`. This is the server bundled with PHP; nothing else is needed.
+5. Open `http://localhost:8000/mikanBox/admin.php` in a browser and set your admin password.
+
+The `mikanData` and `media` folders are created on first access, exactly as they are on a server. To stop the server, press Control+C in the terminal that started it.
+
+Open this folder in an AI coding tool and the agent can read and write your pages' Markdown and JSON directly. The admin MCP server works against the same site. Because the content is plain files, you can open them afterwards and check what the agent wrote.
+
+To publish, upload the folder that static generation produces. In this style there is no PHP, no data and no admin panel on the public side, so there is nothing to tamper with.
 
 ### Initial Password Setup
 
@@ -792,7 +810,7 @@ Use the selector to the right of “Ask AI” in the component list: All (defaul
 
 The component's identifier. Clicking it also opens the edit screen. IDs starting with "_" are system components provided out of the box — you're free to edit and reuse them.
 
-`{{COMPONENT:_global_head}}` contains shared settings for inside the `<head>` tag, and already includes `{{HEAD_CSS}}`, which aggregates and outputs all CSS. `{{HEAD_CSS}}` is optional and specifies where CSS is inserted. If repeated, only the first occurrence outputs CSS and the remaining tags are removed. If omitted, CSS is inserted before `</head>`, or at the beginning of the HTML when there is no closing head tag. For content pasted straight from AI output, base it on `_ai`; for everything else, `_layout` is a good starting point. Of course, you're free to create as many of your own as you like — and those don't need to start with "_".
+`{{COMPONENT:_global_head}}` contains shared settings for inside the `<head>` tag, and already includes `{{HEAD_CSS}}`, which aggregates and outputs all CSS. `{{HEAD_CSS}}` is optional and specifies where CSS is inserted. If repeated, only the first occurrence outputs CSS and the remaining tags are removed. If omitted, CSS is inserted before `</head>`, or at the beginning of the HTML when there is no closing head tag. For content pasted straight from AI output, select "None (use the content HTML directly)" as the Design Component; for everything else, `_layout` is a good starting point. Of course, you're free to create as many of your own as you like — and those don't need to start with "_".
 
 #### No wrapper and shared loading
 
@@ -1250,12 +1268,11 @@ A component that lays out an entire page should include `{{CONTENT}}` to output 
 
 ## Bundled Components {#init-comps}
 
-The components bundled with a fresh install. You can view and edit these in the Design management screen.
+The components bundled with a fresh install. You can view and edit these in the Design management screen. The flat Edition, which has no keyword search, does not bundle `_search_box`, `_search_result_item`, or the search results page.
 
 |ID|Type|Role / Description|
 |---|---|---|
 |`_layout`| [Page]{.type-badge .badge-page}|The standard shared layout. Combines `{{COMPONENT:_global_head}}`, `{{COMPONENT:_header}}`, `{{CONTENT}}`, `{{COMPONENT:_footer}}`, and `{{HEAD_CSS}}` into a basic structure. Regular Markdown pages should select this.|
-|`_ai`|[Page]{.type-badge .badge-page}|A simple page component for AI-generated HTML. Made up of only `{{CONTENT}}`, designed so you can paste in a complete HTML document generated by AI and use it as-is for the page body.|
 |`_global_head`|[Part]{.type-badge .badge-part}|A collection of shared tags to insert inside the HTML `<head>` section — things like Google Analytics or web font loading that are common across every page. By default, `{{HEAD_CSS}}` is already placed here to specify the CSS insertion point. CSS scoping is disabled (global).|
 |`_header`|[Part]{.type-badge .badge-part}|The site's shared header. A standard header component including the site name and navigation links.|
 |`_footer`|[Part]{.type-badge .badge-part}|The site's shared footer. A standard footer component including copyright and footer navigation.|
@@ -1264,6 +1281,7 @@ The components bundled with a fresh install. You can view and edit these in the 
 |`_search_box`|[Part]{.type-badge .badge-part}|The design for a search box. Its form includes `<input type="hidden" name="page" value="search">`, so submitting it takes you to the "search" page (which displays results using `_search_result_item`).|
 |`_search_result_item`|[Part]{.type-badge .badge-part}|The design for a single search result entry. Placed on the search results page as `{{SEARCH_RESULTS:_search_result_item}}`.|
 |`DESIGN_sample.md`|[AI Instructions]{.type-badge .badge-ai}|A sample instruction document for having AI generate or edit your design. Rename its ID to `DESIGN.md` to activate it. You can even have AI write the content itself. Similarly useful files include `BRAND.md` (brand information) and `CONTENTS.md` (content policy).|
+|`AGENTS_sample.md`|[AI Instructions]{.type-badge .badge-ai}|A sample instruction document that hands your mikanBox page production rules to an AI. Rename its ID to `AGENTS.md` to activate it. It covers the separate content, CSS and JavaScript fields, writing the content in Markdown, turning shared parts into components, handling media, and publication status and builds.|
 
 ---
 
@@ -1468,7 +1486,7 @@ Add the above to your design prompt.
 
 Once you've generated the page, place it using these steps:
 
-1. On the "Page Edit" screen, select `_ai` as the Design Component.
+1. On the "Page Edit" screen, select "None (use the content HTML directly)" as the Design Component.
 2. Paste the full content of the generated HTML into "Content" and save.
 
 ### If You Want to Build Shared Parts Across Multiple Pages

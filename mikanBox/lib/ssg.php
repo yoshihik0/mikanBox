@@ -1,6 +1,6 @@
 <?php
 /**
- * MikanBox SSG Build Processor
+ * mikanBox SSG Build Processor
  */
 class MikanBoxSSG {
     private $renderer;

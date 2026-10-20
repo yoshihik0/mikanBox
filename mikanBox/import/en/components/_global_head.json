@@ -1,8 +1,8 @@
 {
-    "html": "<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<meta name=\"description\" content=\"{{DESCRIPTION}}\">\n<meta name=\"keywords\" content=\"{{KEYWORDS}}\">\n<meta property=\"og:image\" content=\"{{OGP_IMAGE}}\">\n<title>{{FULL_TITLE}}</title>\n{{HEAD_CSS}}",
+    "html": "<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<meta name=\"description\" content=\"{{DESCRIPTION}}\">\n<meta name=\"keywords\" content=\"{{KEYWORDS}}\">\n<meta property=\"og:image\" content=\"{{OGP_IMAGE}}\">\n<title>{{FULL_TITLE}}<\/title>\n{{HEAD_CSS}}",
     "css": "",
     "is_global": true,
     "is_wrapper": false,
     "is_ai_doc": false,
-    "memo": "Shared head tags. HEAD_CSS is an optional CSS insertion point. Shared tracking tags can be selected as a tracking component in Site settings."
+    "memo": "Shared head tags. {{HEAD_CSS}} is the tag that collects the CSS of pages and components and outputs it in order. For shared tracking tags, create a component containing the tracking code and select it under \"Tracking component\" in Site settings; it is then inserted into the head of every page."
 }

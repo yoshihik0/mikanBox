@@ -1,6 +1,6 @@
 <?php
 /**
- * MikanBox CLI Build Script
+ * mikanBox CLI Build Script
  * Usage: php mikanBox/build.php [output_dir]
  */
 
@@ -19,7 +19,7 @@ $outputDirName = $argv[1] ?? '';
 // Path calculation relative to root
 $outputDir = ($outputDirName === '') ? dirname(CORE_DIR) : dirname(CORE_DIR) . '/' . $outputDirName;
 
-echo "=== MikanBox Static Site Builder ===\n";
+echo "=== mikanBox Static Site Builder ===\n";
 echo "Output Directory: $outputDir\n";
 
 $renderer = new MikanBoxRenderer($GLOBALS['mikanbox_settings']);
