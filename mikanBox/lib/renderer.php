@@ -567,8 +567,13 @@ class MikanBoxRenderer {
     }
 
     public function getSiteUrl() {
+        // The published root describes where the BUILT site will live, so it only
+        // applies while building. Serving dynamically — the local admin preview of
+        // a site operated on your own machine — must answer with the host actually
+        // being used, or images and canonical URLs point at a site that does not
+        // carry them yet.
         $ssgRootUrl = rtrim($this->siteSettings['ssg_root_url'] ?? '', '/');
-        if (!empty($ssgRootUrl)) return $ssgRootUrl;
+        if ($this->staticMode && $ssgRootUrl !== '') return $ssgRootUrl;
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
         return $scheme . '://' . $host . rtrim($this->getSiteBasePath(), '/');

@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.8.4</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.8.5</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -467,6 +467,8 @@ mikanBox doesn't just render pages dynamically with PHP — it also has a featur
 For an upload-ready folder, links can be written as portable relative paths (recommended), or fixed to a published URL. Relative links keep working when the folder is moved.
 
 The published root URL can be entered with either link style. Give the whole root of the published site, such as `https://example.com/site`. When the published URL is already decided, as with Cloudflare Pages or Netlify, enter that URL as it is (for example `https://yoursite.pages.dev`).
+
+The published root URL applies only while a static site is being written out. The admin panel and previews you run locally answer with the address you actually opened, so filling in a published root URL never points their images or links somewhere the site is not yet.
 
 - **Fixed published URL** — Required. Used both for the links inside pages and for `sitemap.xml` and `rss.xml`.
 - **Relative links** — Optional. Not used for the links inside pages. It is used only to generate `sitemap.xml` and `rss.xml`; left blank, neither file is generated.
