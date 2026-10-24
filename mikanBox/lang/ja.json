@@ -549,5 +549,7 @@
     "msg_media_webp_converted": "画像を「%s」に変換しました。",
     "media_search_placeholder": "ファイル名を検索",
     "btn_previous": "前へ",
-    "media_file_count": "件"
+    "media_file_count": "件",
+    "password_account_label": "保存用サイトID",
+    "password_account_hint": "このサイトのパスワードを保存するための識別名です。入力は不要です。保存・更新時にこのIDを確認してください。"
 }

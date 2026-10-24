@@ -37,9 +37,8 @@ $loginError = ''; // Initialize loginError
 
 // Logout process
 if (isset($_GET['action']) && $_GET['action'] === 'logout') {
-    unset($_SESSION['admin_logged_in']);
-    unset($_SESSION['admin_username']);
-    unset($_SESSION['admin_display_name']);
+    mikanBoxClearAuthentication();
+    mikanBoxRenewAuthentication();
     // In demo mode, redirect to login form after logout
     $redirect = $isDemoMode ? basename($_SERVER['PHP_SELF']) . '?login=1' : basename($_SERVER['PHP_SELF']);
     header('Location: ' . $redirect);
@@ -186,6 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
 ";
                     @file_put_contents($htaccessPath, $htaccessContent);
                 }
+                mikanBoxRenewAuthentication();
                 $_SESSION['admin_logged_in'] = true;
                 $_SESSION['admin_username'] = $user;
                 $_SESSION['admin_display_name'] = $disp;
@@ -212,6 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
 
             if ($row && password_verify($pass, $row['password_hash'])) {
                 clearLoginAttempts($rateLimitId);
+                mikanBoxRenewAuthentication();
                 $_SESSION['admin_logged_in'] = true;
                 $_SESSION['admin_username'] = $user;
                 $_SESSION['admin_display_name'] = $row['display_name'];
@@ -227,7 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
 
 // Show login screen if not logged in
 // In demo mode, allow access without login (unless ?login=1 is requested for full access)
-if (!$isLoggedIn && (!$isDemoMode || isset($_GET['login']))) {
+if ($isInitialSetup || (!$isLoggedIn && (!$isDemoMode || isset($_GET['login'])))) {
     if (ob_get_length()) ob_clean();
 ?>
 <!DOCTYPE html>
@@ -265,7 +266,7 @@ if (!$isLoggedIn && (!$isDemoMode || isset($_GET['login']))) {
                 <p style="font-size: 0.82rem; color: var(--text-sub); margin-bottom: 15px; line-height: 1.4;"><?= t('reset_step1_intro') ?></p>
                 <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
                     <input type="hidden" name="reset_action" value="step1">
-                    <input type="text" name="username" placeholder="<?= t('label_username') ?>" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
+                    <input type="text" name="username" autocomplete="username" placeholder="<?= t('label_username') ?>" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
                     <button type="submit" class="btn btn-blue" style="width: 100%; padding: 10px; font-size: 0.95rem; margin-top: 10px;"><?= t('btn_next') ?></button>
                 </form>
             <?php elseif ($resetStep == 2): ?>
@@ -295,7 +296,8 @@ if (!$isLoggedIn && (!$isDemoMode || isset($_GET['login']))) {
                 <p style="font-size: 0.82rem; color: var(--text-sub); margin-bottom: 15px; line-height: 1.4;"><?= t('reset_step3_intro') ?></p>
                 <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
                     <input type="hidden" name="reset_action" value="step3">
-                    <input type="password" name="new_password" placeholder="<?= t('admin_new_password') ?>" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
+                    <input type="hidden" name="username" autocomplete="username" value="<?= htmlspecialchars($_SESSION['reset_username'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="password" name="new_password" autocomplete="new-password" placeholder="<?= t('admin_new_password') ?>" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
                     <button type="submit" class="btn btn-blue" style="width: 100%; padding: 10px; font-size: 0.95rem; margin-top: 10px;"><?= t('btn_reset_password') ?></button>
                 </form>
             <?php endif; ?>
@@ -307,9 +309,9 @@ if (!$isLoggedIn && (!$isDemoMode || isset($_GET['login']))) {
             <?php if(!empty($loginError)) echo "<div class='error'>{$loginError}</div>"; ?>
             <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
                 <input type="hidden" name="login_action" value="set_initial_password">
-                <input type="text" name="username" placeholder="ユーザーID (半角英数字)" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
+                <input type="text" name="username" autocomplete="username" placeholder="ユーザーID (半角英数字)" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
                 <input type="text" name="display_name" placeholder="表示名 (例: 山田太郎)" required style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
-                <input type="password" name="new_password" placeholder="<?= t('admin_new_password') ?>" required style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
+                <input type="password" name="new_password" autocomplete="new-password" placeholder="<?= t('admin_new_password') ?>" required style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
                 <input type="text" name="security_question" placeholder="<?= t('security_question_label') ?> (<?= t('security_question_placeholder') ?>)" required style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
                 <input type="text" name="security_answer" placeholder="<?= t('security_answer_label') ?>" required style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
                 <button type="submit" class="btn btn-blue" style="width: 100%; padding: 10px; font-size: 0.95rem; margin-top: 10px;"><?= t('btn_set_password') ?></button>
@@ -321,8 +323,8 @@ if (!$isLoggedIn && (!$isDemoMode || isset($_GET['login']))) {
             <?php if(!empty($loginError)) echo "<div class='error'>{$loginError}</div>"; ?>
             <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
                 <input type="hidden" name="login_action" value="login">
-                <input type="text" name="username" placeholder="<?= t('label_username') ?>" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
-                <input type="password" name="password" placeholder="<?= t('admin_password') ?>" required style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
+                <input type="text" name="username" autocomplete="username" placeholder="<?= t('label_username') ?>" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
+                <input type="password" name="password" autocomplete="current-password" placeholder="<?= t('admin_password') ?>" required style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
                 <button type="submit" class="btn btn-blue" style="width: 100%; padding: 10px; font-size: 0.95rem; margin-top: 10px;"><?= t('btn_login') ?></button>
             </form>
             <p style="text-align: right; font-size: 0.8rem; margin-top: 8px; margin-bottom: 0;">

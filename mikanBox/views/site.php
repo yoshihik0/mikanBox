@@ -194,7 +194,7 @@
                                 <input type="hidden" name="save_action" value="add_user">
                                 <div class="form-group">
                                     <label><?= t('hint_username_rules') ?></label>
-                                    <input type="text" name="username" style="max-width:300px;" required placeholder="<?= t('placeholder_username_eg') ?>">
+                                    <input type="text" name="username" autocomplete="username" style="max-width:300px;" required placeholder="<?= t('placeholder_username_eg') ?>">
                                 </div>
                                 <div class="form-group">
                                     <label><?= t('hint_display_name_rules') ?></label>
@@ -202,7 +202,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label><?= t('hint_password_rules') ?></label>
-                                    <input type="password" name="password" style="max-width:300px;" required>
+                                    <input type="password" name="password" autocomplete="new-password" style="max-width:300px;" required>
                                 </div>
                                 <button type="submit" class="btn btn-blue btn-small"><?= getIcon('add') ?> <?= t('btn_add_user') ?></button>
                             </form>
@@ -242,7 +242,7 @@
                                 <input type="hidden" name="save_action" value="change_my_password">
                                 <div class="form-group">
                                     <label><?= t('hint_username_rules') ?></label>
-                                    <input type="text" name="username" style="max-width:300px;" required value="<?= htmlspecialchars($_SESSION['admin_username'] ?? '') ?>" placeholder="<?= t('placeholder_username_eg') ?>">
+                                    <input type="text" name="username" autocomplete="username" style="max-width:300px;" required value="<?= htmlspecialchars($_SESSION['admin_username'] ?? '') ?>" placeholder="<?= t('placeholder_username_eg') ?>">
                                 </div>
                                 <div class="form-group">
                                     <label><?= t('label_display_name') ?></label>
@@ -250,11 +250,11 @@
                                 </div>
                                 <div class="form-group">
                                     <label><?= t('hint_current_password_edit') ?></label>
-                                    <input type="password" name="current_password" style="max-width:300px;">
+                                    <input type="password" name="current_password" autocomplete="current-password" style="max-width:300px;">
                                 </div>
                                 <div class="form-group">
                                     <label><?= t('hint_new_password_edit') ?></label>
-                                    <input type="password" name="new_password" style="max-width:300px;" placeholder="<?= t('placeholder_keep_password') ?>">
+                                    <input type="password" name="new_password" autocomplete="new-password" style="max-width:300px;" placeholder="<?= t('placeholder_keep_password') ?>">
                                 </div>
                                 <div class="form-group">
                                     <label><?= t('security_question_label') ?></label>

@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.8.5</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.8.6</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -174,6 +174,20 @@ Whoever accesses `mikanBox/admin.php` first after setup sets the admin password.
 [SQLite Edition]{.type-badge .badge-sqlite} also asks for a username, display name, and a "security question and answer" used to verify your identity if you forget your password. These are stored in the `users` table inside `mikanData/mikanBox.sqlite`.
 
 [flat Edition]{.type-badge .badge-flat} only asks for a password. Its hash (the encrypted value) is stored in `mikanData/settings.json`.
+
+### Multiple installations and saved passwords
+
+Starting with v2.8.6, login state, logout and CSRF tokens are separate for each installation, even on the same domain or when flat and SQLite editions are mixed. Logging into one site does not log you into another. An installation without a password requires initial setup. Legacy shared sessions are not carried over: sign in to each site again after updating. Existing passwords remain unchanged and can still be used; signing in again does not require a password change. Moving the installation directory on the server also requires a new login. Different URLs pointing to the same real directory are treated as the same installation.
+
+Browser-saved passwords and server login state are separate. Editing a saved password in your browser does not change the server password. Submitting a password change in the admin panel changes that site's password. The flat edition also verifies the current password and requires at least four characters for the new password.
+
+[flat Edition]{.type-badge .badge-flat} shows a read-only “Site ID for password saving” on setup, login and password-change forms, using the admin URL path (for example, `/shiro/mikanBox/admin.php`). This is a hint to help password managers distinguish saved entries, not an additional credential. Check that this ID matches the intended site when saving or updating a password. Review saved entries if you move the site URL.
+
+[SQLite Edition]{.type-badge .badge-sqlite} uses the account username as the saving hint. Reusing the same username on the same domain may cause entries to be combined; use different usernames per site when you want to distinguish them.
+
+Forms identify username, current-password and new-password fields, but the browser or password manager decides how entries are stored or overwritten. The app cannot guarantee separate saved entries or automatically migrate existing ones. If older entries were combined, save a separate entry for each site in your password manager and check that you are not overwriting another site's entry.
+
+This separation prevents accidental shared authentication. It does not provide complete isolation from other apps or scripts on the same origin.
 
 #### Distributing to Others
 

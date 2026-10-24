@@ -2,7 +2,7 @@
 // ==========================================
 // mikanBox Basic Settings
 // ==========================================
-define('MIKANBOX_VERSION', '2.8.5');
+define('MIKANBOX_VERSION', '2.8.6');
 if (!defined('CORE_DIR')) define('CORE_DIR', __DIR__);
 
 // Site-specific options survive self-updates because local-config.php is not
@@ -77,15 +77,16 @@ secureMediaDirectory(MEDIA_DIR);
 // Timezone settings
 date_default_timezone_set('Asia/Tokyo');
 
-// Start session (if not already started)
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/lib/session.php';
+mikanBoxStartSession();
 
 // Centralized loading of site settings (shared across all files)
 require_once __DIR__ . '/lib/functions.php';
 $GLOBALS['mikanbox_settings'] = loadSettings();
 define('SITE_NAME', $GLOBALS['mikanbox_settings']['site_name'] ?? 'mikanBox');
+
+// Reset/new installations must never inherit authenticated access.
+if ((int)getDb()->querySingle('SELECT COUNT(*) FROM users') === 0) mikanBoxClearAuthentication();
 
 // CSRF token generation and verification
 function generateCsrfToken() {

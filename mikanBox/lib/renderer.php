@@ -127,13 +127,13 @@ class MikanBoxRenderer {
                     $isPrivate = true;
                 }
             }
-            if (!$this->staticMode && $isPrivate && !isset($_SESSION['admin_logged_in'])) {
+            if (!$this->staticMode && $isPrivate && (($_SESSION['admin_logged_in'] ?? false) !== true)) {
                 http_response_code(403);
                 return "<h1>403 Forbidden</h1><p>" . t('err_403_pending_body') . "</p>";
             }
         } else {
             // Flat backend: simple draft/db check, no approval workflow.
-            if (!$this->staticMode && in_array($status, ['draft', 'db'], true) && !isset($_SESSION['admin_logged_in'])) {
+            if (!$this->staticMode && in_array($status, ['draft', 'db'], true) && (($_SESSION['admin_logged_in'] ?? false) !== true)) {
                 return "<!-- Private content -->";
             }
         }

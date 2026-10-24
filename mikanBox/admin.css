@@ -1551,7 +1551,8 @@ label .ssg-mode-hint { font-weight: 400; }
     margin-bottom: 25px;
 }
 
-.login-box form input[type="password"] {
+.login-box form input[type="password"],
+.login-box form input[autocomplete="username"] {
     width: 100%;
     padding: 12px 15px;
     margin-bottom: 20px;
@@ -1562,7 +1563,8 @@ label .ssg-mode-hint { font-weight: 400; }
     transition: all 0.2s;
 }
 
-.login-box form input[type="password"]:focus {
+.login-box form input[type="password"]:focus,
+.login-box form input[autocomplete="username"]:focus {
     border-color: var(--accent);
     outline: none;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);

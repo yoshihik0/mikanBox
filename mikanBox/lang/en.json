@@ -549,5 +549,7 @@
     "msg_media_webp_converted": "Converted the image to “%s”.",
     "media_search_placeholder": "Search filenames",
     "btn_previous": "Previous",
-    "media_file_count": "files"
+    "media_file_count": "files",
+    "password_account_label": "Site ID for password saving",
+    "password_account_hint": "Identifies this site in your password manager. No entry is needed. Check this ID when saving or updating a password."
 }
