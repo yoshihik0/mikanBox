@@ -143,7 +143,7 @@
                                 ?>
                             </select>
                             <small class="sub-text sub-text-block"><?= t('head_completion_hint') ?></small>
-                            <?php if (!empty($settings['tracking_component'])): ?>
+                            <?php if (mikanBoxTrackingConfigured($settings)): ?>
                             <input type="hidden" name="tracking_option_present" value="1">
                             <label class="checkbox-label tracking-exclusion"><input type="checkbox" name="exclude_tracking" value="1" <?= !empty($editData['exclude_tracking']) ? 'checked' : '' ?>> <?= t('exclude_tracking_label') ?></label>
                             <?php endif; ?>

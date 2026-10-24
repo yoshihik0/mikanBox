@@ -10,6 +10,52 @@ function mikanBoxComponentJavaScript($id): ?string {
     return (string)($component['js'] ?? '');
 }
 
+/**
+ * Tracking tags from site settings: direct code wins over an ID, and an ID builds the
+ * standard Google snippets. Null means neither is set (the legacy tracking component, if any, applies).
+ */
+function mikanBoxTrackingSnippets(array $settings): ?array {
+    $head = trim((string)($settings['tracking_head_code'] ?? ''));
+    $body = trim((string)($settings['tracking_body_code'] ?? ''));
+    if ($head !== '' || $body !== '') return ['head' => $head, 'body' => $body];
+    $id = strtoupper(trim((string)($settings['tracking_id'] ?? '')));
+    if (preg_match('/\AGTM-[A-Z0-9]{4,}\z/', $id)) {
+        return [
+            'head' => "<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','$id');</script>",
+            'body' => '<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=' . $id . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>',
+        ];
+    }
+    if (preg_match('/\AG-[A-Z0-9]{4,}\z/', $id)) {
+        return [
+            'head' => '<script async src="https://www.googletagmanager.com/gtag/js?id=' . $id . '"></script>'
+                . "<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','$id');</script>",
+            'body' => '',
+        ];
+    }
+    return null;
+}
+
+function mikanBoxTrackingIdValid(string $id): bool {
+    return $id === '' || preg_match('/\A(?:GTM|G)-[A-Z0-9]{4,}\z/', strtoupper($id)) === 1;
+}
+
+/**
+ * HTML of the legacy tracking component when it can move into the head code field unchanged
+ * (no component tags, JS or CSS of its own); null when there is none or it cannot.
+ */
+function mikanBoxTrackingLegacyHtml(array $settings): ?string {
+    $id = (string)($settings['tracking_component'] ?? '');
+    $component = $id !== '' ? loadData(COMPONENTS_DIR, $id) : null;
+    if (!$component || !empty($component['is_ai_doc']) || !empty($component['is_wrapper'])) return null;
+    $html = (string)($component['html'] ?? '');
+    if (strpos($html, '{{') !== false || trim((string)($component['js'] ?? '')) !== '' || trim((string)($component['css'] ?? '')) !== '') return null;
+    return $html;
+}
+
+function mikanBoxTrackingConfigured(array $settings): bool {
+    return mikanBoxTrackingSnippets($settings) !== null || !empty($settings['tracking_component']);
+}
+
 // ==========================================
 // mikanBox 共通ユーティリティ関数
 // flat版・sqlite版で完全に同一の関数のみを集約したファイル。

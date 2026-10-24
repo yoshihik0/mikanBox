@@ -231,7 +231,9 @@ class MikanBoxRenderer {
         $html = $this->parseComponents($html);
 
         $trackingHtml = '';
-        $trackingId = (string)($this->siteSettings['tracking_component'] ?? '');
+        // Code or ID settings win over the legacy tracking component and are inserted verbatim.
+        $trackingCode = $this->excludeTracking ? null : mikanBoxTrackingSnippets($this->siteSettings);
+        $trackingId = $trackingCode === null ? (string)($this->siteSettings['tracking_component'] ?? '') : '';
         $tracking = $trackingId !== '' ? loadData(COMPONENTS_DIR, $trackingId) : null;
         if (!$this->excludeTracking && $tracking && empty($tracking['is_ai_doc']) && empty($tracking['is_wrapper']) && !isset($this->includedComponentIds[$trackingId])) {
             $trackingHtml = $this->parseComponents('{{COMPONENT:' . $trackingId . '}}');
@@ -273,7 +275,9 @@ class MikanBoxRenderer {
             $trackingHtml = substr($html, $trackingOffset + strlen($trackingMarker));
             $html = substr($html, 0, $trackingOffset);
         }
+        if ($trackingCode !== null) $trackingHtml = $trackingCode['head'];
         $html = $this->completeHead($html, $pageTitle, $pageDesc, $this->resolveMediaUrl(resolveMediaPath($ogpImage)), $trackingHtml);
+        if ($trackingCode !== null) $html = $this->insertBodyStart($html, $trackingCode['body']);
 
         // 8. Process CSS Buffer
         foreach ($this->globalCssBuffer as &$cssLine) {
@@ -298,6 +302,18 @@ class MikanBoxRenderer {
         $this->collectJavaScript($wrapperData ?? [], $wrapperJsId);
         $this->collectJavaScript($pageData);
         return $this->embedJavaScript($this->enforceStandardMode($html));
+    }
+
+    private function insertBodyStart(string $html, string $code): string {
+        if ($code === '') return $html;
+        $pattern = '~<!--[\s\S]*?-->|<(script|style|textarea|title)\b[^>]*>[\s\S]*?</\1\s*>|</?[a-z][a-z0-9:-]*\b(?:[^>"\']|"[^"]*"|\'[^\']*\')*>~i';
+        preg_match_all($pattern, $html, $tokens, PREG_OFFSET_CAPTURE);
+        foreach ($tokens[0] as [$tag, $offset]) {
+            if (!preg_match('~^<body\b~i', $tag)) continue;
+            $at = $offset + strlen($tag);
+            return substr($html, 0, $at) . $code . substr($html, $at);
+        }
+        return $html;
     }
 
     private function completeHead(string $html, string $title, string $description, string $image, string $tracking): string {

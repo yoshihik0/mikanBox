@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.8.6</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.8.7</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -843,9 +843,13 @@ Select “None (use the content HTML directly)” to display content without a l
 
 Across editions, existing title and meta tags in the document are preserved. Only missing information is supplied inside head: UTF-8 charset, viewport `width=device-width, initial-scale=1.0`, and a title matching `{{FULL_TITLE}}`. Description and OGP image are supplied only when absent and page or site settings provide a value. Japanese and English titles are used as entered, without automatic translation. Robots and canonical tags are not added automatically. A missing head is created; HTML fragments receive a minimal html/head/body document. Existing duplicate metadata is not removed automatically.
 
-In Site settings, under Shared loading, choose a Tracking component containing Google tags or other tracking markup in its HTML field. It is inserted into head automatically; choosing None disables it. A normal inclusion of the same component prevents additional automatic insertion. Disable CSS scoping for this part. JavaScript-field code follows the normal JS output placement; head script tags belong in the HTML field.
+In Site settings, under Shared loading, enter a Google tag ID (`G-…`) or a Tag Manager container ID (`GTM-…`) as the Tracking ID to insert the tracking tag into public pages automatically. The kind is detected from the prefix. `G-…` inserts gtag.js in head; `GTM-…` inserts the head script and also a noscript right after the opening body tag. Leave it empty to disable.
 
-When a tracking component is configured, “Do not load tracking tags on this page” appears below the page’s Design Component selector. It suppresses both automatic insertion and normal inclusion of that configured component. MCP supports `exclude_tracking: true`. Handwritten tracking code and tracking code in other components are not suppressed. Previews follow the same page setting. Rebuild static pages after changing settings.
+For server-side GTM, Consent Mode initialization or anything the standard tag does not cover, open “Enter code directly (advanced)” below it and paste the code into “Head code” and, if needed, “Code right after the opening body tag”. The code is inserted exactly as entered and `{{...}}` tags are not expanded. While code is entered it takes priority over the Tracking ID, and the ID field becomes read-only.
+
+If you used the earlier “Tracking component” setting, opening the settings screen shows that part’s HTML in “Head code”. Saving moves it to the new setting and leaves the original part untouched. A part that contains component tags, JavaScript or CSS is not moved automatically and keeps working as before until you save.
+
+“Do not load tracking tags on this page” appears below the page’s Design Component selector only when a Tracking ID, head code or body code is set. It suppresses the automatic head and body insertion, and, if the earlier tracking component is still in use, normal inclusion of that component. MCP supports `exclude_tracking: true`. Handwritten tracking code and tracking code in other components are not suppressed. Previews follow the same page setting. Rebuild static pages after changing settings.
 
 
 #### Type

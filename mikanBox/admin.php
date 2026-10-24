@@ -1070,10 +1070,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                     ? $postedSiteId
                     : 'site-' . bin2hex(random_bytes(8));
             }
-            if (isset($_POST['tracking_component'])) {
-                $trackingId = trim((string)$_POST['tracking_component']);
-                $trackingData = $trackingId !== '' ? loadData(COMPONENTS_DIR, $trackingId) : null;
-                $settings['tracking_component'] = $trackingData && empty($trackingData['is_ai_doc']) && empty($trackingData['is_wrapper']) ? $trackingId : '';
+            if (isset($_POST['tracking_head_code']) || isset($_POST['tracking_body_code']) || isset($_POST['tracking_id'])) {
+                $trackingIdInput = strtoupper(trim((string)($_POST['tracking_id'] ?? '')));
+                $settings['tracking_id'] = mikanBoxTrackingIdValid($trackingIdInput) ? $trackingIdInput : '';
+                $settings['tracking_head_code'] = trim((string)($_POST['tracking_head_code'] ?? ''));
+                $settings['tracking_body_code'] = trim((string)($_POST['tracking_body_code'] ?? ''));
+                // A legacy tracking component moves into the code field on save; one that cannot move stays until code or an ID replaces it.
+                $trackingLegacyMoved = mikanBoxTrackingLegacyHtml($settings) !== null;
+                if ($trackingLegacyMoved || mikanBoxTrackingSnippets($settings) !== null) $settings['tracking_component'] = '';
             }
             if (isset($_POST['site_name'])) $settings['site_name'] = $_POST['site_name'];
             if (isset($_POST['site_url'])) {

@@ -73,16 +73,44 @@ $siteEnvironment = (string)($settings['site_environment'] ?? 'unspecified');
                         </div>
                         <div class="form-group mt-15">
                             <h3><?= t('label_common_loading') ?></h3>
-                            <label><?= t('label_tracking_component') ?></label>
-                            <select name="tracking_component">
-                                <option value=""><?= t('label_none') ?></option>
-                                <?php foreach (getFileList(COMPONENTS_DIR) as $trackingId):
-                                    $trackingPart = loadData(COMPONENTS_DIR, $trackingId);
-                                    if (!$trackingPart || !empty($trackingPart['is_ai_doc']) || !empty($trackingPart['is_wrapper'])) continue; ?>
-                                <option value="<?= htmlspecialchars($trackingId) ?>" <?= ($settings['tracking_component'] ?? '') === $trackingId ? 'selected' : '' ?>><?= htmlspecialchars($trackingId) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <small class="sub-text sub-text-block"><?= t('tracking_component_hint') ?></small>
+                            <?php
+                            $trackingHeadCode = (string)($settings['tracking_head_code'] ?? '');
+                            $trackingBodyCode = (string)($settings['tracking_body_code'] ?? '');
+                            $trackingLegacyNotice = '';
+                            if ($trackingHeadCode === '' && $trackingBodyCode === '' && empty($settings['tracking_id']) && !empty($settings['tracking_component'])) {
+                                $trackingLegacyHtml = mikanBoxTrackingLegacyHtml($settings);
+                                if ($trackingLegacyHtml !== null) $trackingHeadCode = $trackingLegacyHtml;
+                                elseif (loadData(COMPONENTS_DIR, (string)$settings['tracking_component'])) $trackingLegacyNotice = (string)$settings['tracking_component'];
+                            }
+                            $trackingCodeInUse = trim($trackingHeadCode) !== '' || trim($trackingBodyCode) !== '';
+                            ?>
+                            <label><?= t('label_tracking_id') ?></label>
+                            <input type="text" name="tracking_id" id="tracking-id" value="<?= htmlspecialchars($settings['tracking_id'] ?? '') ?>" placeholder="G-XXXXXXXXXX / GTM-XXXXXXX" pattern="([Gg][Tt][Mm]|[Gg])-[A-Za-z0-9]{4,}" <?= $trackingCodeInUse ? 'readonly' : '' ?>>
+                            <small class="sub-text sub-text-block" id="tracking-id-hint"><?= t($trackingCodeInUse ? 'tracking_id_overridden' : 'tracking_id_hint') ?></small>
+                            <?php if ($trackingLegacyNotice !== ''): ?>
+                            <small class="sub-text sub-text-block"><?= t('tracking_legacy_notice', htmlspecialchars($trackingLegacyNotice)) ?></small>
+                            <?php endif; ?>
+                            <details class="mt-10" <?= $trackingCodeInUse ? 'open' : '' ?>>
+                                <summary><?= t('label_tracking_code') ?></summary>
+                                <label class="sub-label"><?= t('label_tracking_head_code') ?></label>
+                                <textarea name="tracking_head_code" class="tracking-code" rows="5" spellcheck="false"><?= htmlspecialchars($trackingHeadCode) ?></textarea>
+                                <label class="sub-label"><?= t('label_tracking_body_code') ?></label>
+                                <textarea name="tracking_body_code" class="tracking-code" rows="3" spellcheck="false"><?= htmlspecialchars($trackingBodyCode) ?></textarea>
+                                <small class="sub-text sub-text-block"><?= t('tracking_code_hint') ?></small>
+                            </details>
+                            <script>
+                            (function () {
+                                var id = document.getElementById('tracking-id'), hint = document.getElementById('tracking-id-hint');
+                                var codes = document.querySelectorAll('textarea.tracking-code');
+                                var messages = <?= json_encode(['idle' => t('tracking_id_hint'), 'busy' => t('tracking_id_overridden')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+                                function sync() {
+                                    var used = Array.prototype.some.call(codes, function (c) { return c.value.trim() !== ''; });
+                                    id.readOnly = used;
+                                    hint.textContent = used ? messages.busy : messages.idle;
+                                }
+                                codes.forEach(function (c) { c.addEventListener('input', sync); });
+                            })();
+                            </script>
                         </div>
                         <button type="submit" class="btn btn-blue mt-10"><?= getIcon('save') ?> <?= t('btn_save') ?></button>
                     </form>
