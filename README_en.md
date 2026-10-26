@@ -57,7 +57,7 @@ For campaign or event sites, shop sites — sites with few pages but that need r
 | Requirements | PHP 8.0+ + SQLite3 extension (standard on most hosting providers) | PHP 8.0+ only |
 | Approval workflow & preview share URL | ○ | − |
 | Revision history & restore to a previous version | ○ | − |
-| Self-service password reset | ○ (security question) | − (requires manually editing the settings file) |
+| Sign-in | Registered devices (no password) | Password |
 | Keyword search box in the admin panel | ○ | − |
 
 > [!TIP]
@@ -75,11 +75,14 @@ For campaign or event sites, shop sites — sites with few pages but that need r
 
 ## Installation
 
-1. Upload the `mikanBox` folder and `index.php` to your server
-2. For security, we recommend renaming the `mikanBox` folder to a name of your choice (if renamed, also update the `$core_dir` variable at the top of `index.php` to match)
-3. Access `{your-admin-folder}/admin.php` to set your admin password
+1. Make a random string that cannot be guessed (at least 20 characters) and write it on one line in `mikanData/setup-token.txt` (create the `mikanData` folder next to `index.php`, and keep a copy of the string)
+2. Upload the `mikanBox` folder, `index.php` and the `mikanData` folder to your server
+3. For security, we recommend renaming the `mikanBox` folder to a name of your choice (if renamed, also update the `$core_dir` variable at the top of `index.php` to match)
+4. Access `{your-admin-folder}/admin.php`, enter the token you kept, a username, a display name and a device name to register your first device
 
-Site-specific data is created on first access in `mikanData` beside `index.php`. Existing `mikanBox/data` sites are migrated automatically only when the directory can be moved safely.
+There are no passwords. Only registered devices (browsers) can open the admin screen. See the user manual for adding devices and for recovery when every device is lost.
+
+Apart from `setup-token.txt`, site-specific data is created on first access in `mikanData` beside `index.php`. Existing `mikanBox/data` sites are migrated automatically only when the directory can be moved safely.
 
 That's all.
 

@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/functions-common.php';
+require_once __DIR__ . '/device-auth.php';
 
 /**
  * Get the SQLite database connection.
@@ -113,15 +114,6 @@ function getDb() {
                 }
             }
 
-            // Password Recovery / Reset trigger
-            $resetFile = DATA_DIR . '/reset_password.txt';
-            if (file_exists($resetFile)) {
-                try {
-                    $db->exec("DELETE FROM users");
-                } catch (Exception $e) {}
-                @unlink($resetFile);
-            }
-
             // Migrate legacy password_hash to users table if users is empty
             $userCount = 0;
             try {
@@ -146,6 +138,8 @@ function getDb() {
                     }
                 } catch (Exception $e) {}
             }
+            // Devices replace passwords (device_sessions, device_codes, auth_meta).
+            mikanBoxDeviceEnsureSchema($db);
         } catch (Exception $e) {
             die("Database connection failed: " . $e->getMessage());
         }
@@ -545,18 +539,10 @@ function deleteData($dir, $id) {
 
 /**
  * Generate a secure 16-character preview token for verification (pending approval).
- * Uses the password hash of the first user in the database as salt.
+ * Salted with the per-site secret, so tokens cannot be derived from anything public.
  */
 function getPreviewToken($pageId) {
-    $db = getDb();
-    $salt = 'mikanbox_salt';
-    try {
-        $firstHash = $db->querySingle("SELECT password_hash FROM users LIMIT 1");
-        if ($firstHash) {
-            $salt = $firstHash;
-        }
-    } catch (Exception $e) {}
-    return substr(hash_hmac('sha256', $pageId, $salt), 0, 16);
+    return substr(hash_hmac('sha256', $pageId, mikanBoxSiteSecret()), 0, 16);
 }
 
 /**

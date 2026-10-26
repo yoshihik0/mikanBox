@@ -2,7 +2,7 @@
 // ==========================================
 // mikanBox Basic Settings
 // ==========================================
-define('MIKANBOX_VERSION', '2.8.7');
+define('MIKANBOX_VERSION', '2.9.0');
 if (!defined('CORE_DIR')) define('CORE_DIR', __DIR__);
 
 // Site-specific options survive self-updates because local-config.php is not
@@ -84,6 +84,9 @@ mikanBoxStartSession();
 require_once __DIR__ . '/lib/functions.php';
 $GLOBALS['mikanbox_settings'] = loadSettings();
 define('SITE_NAME', $GLOBALS['mikanbox_settings']['site_name'] ?? 'mikanBox');
+
+// Signing in means holding a registered device's cookie; the session only caches the result.
+mikanBoxDeviceLogin();
 
 // Reset/new installations must never inherit authenticated access.
 if ((int)getDb()->querySingle('SELECT COUNT(*) FROM users') === 0) mikanBoxClearAuthentication();

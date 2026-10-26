@@ -4,6 +4,8 @@ ob_start();
 // mikanBox Admin Panel (admin.php)
 // ==========================================
 
+// Only the admin screen may turn an upgraded sign-in into the first device (see lib/device-auth.php).
+define('MIKANBOX_ADMIN_REQUEST', true);
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/lib/functions.php';
 require_once __DIR__ . '/lib/renderer.php';
@@ -35,145 +37,64 @@ $isInitialSetup = ($stmtUsersCount === 0);
 $isDemoMode = !empty($settings['demo_mode']);
 $loginError = ''; // Initialize loginError
 
-// Logout process
-if (isset($_GET['action']) && $_GET['action'] === 'logout') {
-    mikanBoxClearAuthentication();
-    mikanBoxRenewAuthentication();
-    // In demo mode, redirect to login form after logout
-    $redirect = $isDemoMode ? basename($_SERVER['PHP_SELF']) . '?login=1' : basename($_SERVER['PHP_SELF']);
-    header('Location: ' . $redirect);
-    exit;
-}
-
-// Forgot Password action reset
-// Only reset on a fresh GET (clicking the "forgot password?" link). The
-// step2/step3 forms below have no explicit action attribute, so browsers
-// re-submit their POST back to this same "?action=forgot_password" URL —
-// resetting on POST here would wipe reset_step/reset_username before the
-// step handler below ever runs, making the flow impossible to complete.
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' && isset($_GET['action']) && $_GET['action'] === 'forgot_password') {
-    $_SESSION['reset_step'] = 1;
-    unset($_SESSION['reset_username']);
-    unset($_SESSION['reset_verified']);
-}
-
-$resetError = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_action'])) {
-    if ($_POST['reset_action'] === 'step1') {
-        $user = trim($_POST['username'] ?? '');
-        $stmt = $db->prepare("SELECT security_question FROM users WHERE username = :username");
-        $stmt->bindValue(':username', $user, SQLITE3_TEXT);
-        $res = $stmt->execute();
-        $row = $res ? $res->fetchArray(SQLITE3_ASSOC) : null;
-        
-        if (!$row) {
-            $resetError = t('reset_err_user_not_found');
-        } elseif (empty($row['security_question'])) {
-            $resetError = t('reset_err_no_question');
-        } else {
-            $_SESSION['reset_username'] = $user;
-            $_SESSION['reset_step'] = 2;
-        }
-    } elseif ($_POST['reset_action'] === 'step2') {
-        $user = $_SESSION['reset_username'] ?? '';
-        $answer = trim($_POST['security_answer'] ?? '');
-
-        $rateLimitId = getClientIp() . '|reset';
-        $lockedRemain = checkLoginRateLimit($rateLimitId);
-        if ($lockedRemain > 0) {
-            $resetError = t('err_rate_limited', (int)ceil($lockedRemain / 60));
-        } else {
-            $stmt = $db->prepare("SELECT security_answer_hash FROM users WHERE username = :username");
-            $stmt->bindValue(':username', $user, SQLITE3_TEXT);
-            $res = $stmt->execute();
-            $row = $res ? $res->fetchArray(SQLITE3_ASSOC) : null;
-
-            if (!$row || empty($row['security_answer_hash']) || !password_verify(normalizeSecurityAnswer($answer), $row['security_answer_hash'])) {
-                recordLoginFailure($rateLimitId);
-                $resetError = t('reset_err_wrong_answer');
-            } else {
-                clearLoginAttempts($rateLimitId);
-                $_SESSION['reset_verified'] = true;
-                $_SESSION['reset_step'] = 3;
-            }
-        }
-    } elseif ($_POST['reset_action'] === 'step3') {
-        $user = $_SESSION['reset_username'] ?? '';
-        $newPass = $_POST['new_password'] ?? '';
-        $isVerified = $_SESSION['reset_verified'] ?? false;
-        
-        if (!$isVerified || empty($user)) {
-            $resetError = t('err_session_error');
-            $_SESSION['reset_step'] = 1;
-        } elseif (strlen($newPass) < 4) {
-            $resetError = t('err_password_chars');
-        } else {
-            $newHash = password_hash($newPass, PASSWORD_DEFAULT);
-            $stmtUpdate = $db->prepare("UPDATE users SET password_hash = :hash WHERE username = :username");
-            $stmtUpdate->bindValue(':hash', $newHash, SQLITE3_TEXT);
-            $stmtUpdate->bindValue(':username', $user, SQLITE3_TEXT);
-            if ($stmtUpdate->execute()) {
-                unset($_SESSION['reset_username']);
-                unset($_SESSION['reset_verified']);
-                unset($_SESSION['reset_step']);
-                $_SESSION['admin_message'] = t('reset_success_msg');
-                
-                $redirect = isset($_GET['login']) ? basename($_SERVER['PHP_SELF']) . '?login=1' : basename($_SERVER['PHP_SELF']);
-                header('Location: ' . $redirect);
-                exit;
-            } else {
-                $resetError = t('err_save_failed');
-            }
-        }
-    }
-}
-
-// --- Login / Initial Setup Process ---
+// --- Registering a device: first device (setup token) or an added device (one-time code) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
-    if ($_POST['login_action'] === 'set_initial_password' && $isInitialSetup) {
-        // Initial user & password setup
+    $loginAction = $_POST['login_action'];
+    $rateLimitId = getClientIp() . '|device';
+    $lockedRemain = checkLoginRateLimit($rateLimitId);
+    $deviceName = trim($_POST['device_name'] ?? '');
+    if (!in_array($loginAction, ['setup', 'claim'], true)) {
+        // Unknown action: show the sign-in screen again.
+    } elseif (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $loginError = t('err_csrf');
+    } elseif ($lockedRemain > 0) {
+        $loginError = t('err_rate_limited', (int)ceil($lockedRemain / 60));
+    } elseif ($deviceName === '') {
+        $loginError = t('err_device_name_required');
+    } elseif ($loginAction === 'setup') {
         $user = trim($_POST['username'] ?? '');
         $disp = trim($_POST['display_name'] ?? '');
-        $pass = $_POST['new_password'] ?? '';
-        $sq = trim($_POST['security_question'] ?? '');
-        $sa = trim($_POST['security_answer'] ?? '');
-        if (empty($user) || !preg_match('/^[a-zA-Z0-9_\-]+$/', $user)) {
+        if (!mikanBoxSetupTokenMatches($_POST['setup_token'] ?? '')) {
+            recordLoginFailure($rateLimitId);
+            $loginError = t('err_setup_token_invalid');
+        } elseif (empty($user) || !preg_match('/^[a-zA-Z0-9_\-]+$/', $user)) {
             $loginError = t('err_username_chars');
-        } elseif (empty($disp)) {
+        } elseif ($isInitialSetup && empty($disp)) {
             $loginError = t('err_display_name_required');
-        } elseif (strlen($pass) < 4) {
-            $loginError = t('err_password_chars');
-        } elseif (empty($sq) || empty($sa)) {
-            $loginError = t('err_security_qa_required');
         } else {
-            // Populate defaults on first-time setup
-            if (empty($settings)) {
-                $settings = [
-                    'site_name'   => '🍊mikanBox',
-                    'description' => '',
-                    'keywords'    => '',
-                    'memo'        => 'Welcome to 🍊mikanBox!',
-                    'system_lang' => '',
-                    'ssg_structure' => 'directory',
-                    'ssg_server_structure' => 'directory',
-                    'ssg_export_structure' => 'file'
-                ];
-                saveSettings($settings);
-            }
-            $hash = password_hash($pass, PASSWORD_DEFAULT);
-            $saHash = password_hash(normalizeSecurityAnswer($sa), PASSWORD_DEFAULT);
-            $stmt = $db->prepare("INSERT OR REPLACE INTO users (username, password_hash, display_name, security_question, security_answer_hash) VALUES (:username, :password_hash, :display_name, :security_question, :security_answer_hash)");
+            // Recovery registers an existing user; only the very first setup creates one.
+            $stmt = $db->prepare("SELECT display_name FROM users WHERE username = :username");
             $stmt->bindValue(':username', $user, SQLITE3_TEXT);
-            $stmt->bindValue(':password_hash', $hash, SQLITE3_TEXT);
-            $stmt->bindValue(':display_name', $disp, SQLITE3_TEXT);
-            $stmt->bindValue(':security_question', $sq, SQLITE3_TEXT);
-            $stmt->bindValue(':security_answer_hash', $saHash, SQLITE3_TEXT);
-            if ($stmt->execute()) {
-                // 初回セットアップ時に .htaccess が未生成であれば自動作成
-                $siteRoot = dirname(CORE_DIR);
-                $htaccessPath = $siteRoot . '/.htaccess';
-                if (!file_exists($htaccessPath)) {
-                    $htaccessContent = "DirectoryIndex index.php
+            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            if (!$isInitialSetup && !$row) {
+                $loginError = t('reset_err_user_not_found');
+            } elseif (!mikanBoxSetupTokenConsume()) {
+                $loginError = t('err_setup_token_invalid');
+            } else {
+                if ($isInitialSetup) {
+                    // Populate defaults on first-time setup
+                    if (empty($settings)) {
+                        $settings = [
+                            'site_name'   => '🍊mikanBox',
+                            'description' => '',
+                            'keywords'    => '',
+                            'memo'        => 'Welcome to 🍊mikanBox!',
+                            'system_lang' => '',
+                            'ssg_structure' => 'directory',
+                            'ssg_server_structure' => 'directory',
+                            'ssg_export_structure' => 'file'
+                        ];
+                        saveSettings($settings);
+                    }
+                    $stmt = $db->prepare("INSERT OR REPLACE INTO users (username, display_name) VALUES (:username, :display_name)");
+                    $stmt->bindValue(':username', $user, SQLITE3_TEXT);
+                    $stmt->bindValue(':display_name', $disp, SQLITE3_TEXT);
+                    $stmt->execute();
+                    // 初回セットアップ時に .htaccess が未生成であれば自動作成
+                    $siteRoot = dirname(CORE_DIR);
+                    $htaccessPath = $siteRoot . '/.htaccess';
+                    if (!file_exists($htaccessPath)) {
+                        $htaccessContent = "DirectoryIndex index.php
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
@@ -183,165 +104,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
     RewriteRule ^ index.php [L,QSA]
 </IfModule>
 ";
-                    @file_put_contents($htaccessPath, $htaccessContent);
+                        @file_put_contents($htaccessPath, $htaccessContent);
+                    }
+                } else {
+                    $disp = (string)$row['display_name'];
                 }
-                mikanBoxRenewAuthentication();
-                $_SESSION['admin_logged_in'] = true;
-                $_SESSION['admin_username'] = $user;
-                $_SESSION['admin_display_name'] = $disp;
+                clearLoginAttempts($rateLimitId);
+                mikanBoxDeviceCreate($user, $deviceName, 'setup');
+                mikanBoxDeviceSignIn($user, $disp);
                 header('Location: ' . basename(__FILE__));
                 exit;
-            } else {
-                $loginError = t('err_save_failed');
             }
         }
-    } elseif ($_POST['login_action'] === 'login' && !$isInitialSetup) {
-        // Normal login
-        $user = trim($_POST['username'] ?? '');
-        $pass = $_POST['password'] ?? '';
-
-        $rateLimitId = getClientIp() . '|login';
-        $lockedRemain = checkLoginRateLimit($rateLimitId);
-        if ($lockedRemain > 0) {
-            $loginError = t('err_rate_limited', (int)ceil($lockedRemain / 60));
+    } else {
+        $result = mikanBoxDeviceClaimCode($_POST['code'] ?? '', $deviceName);
+        if ($result === null) {
+            recordLoginFailure($rateLimitId);
+            $loginError = t('err_device_code_invalid');
         } else {
-            $stmt = $db->prepare("SELECT password_hash, display_name FROM users WHERE username = :username");
-            $stmt->bindValue(':username', $user, SQLITE3_TEXT);
-            $res = $stmt->execute();
-            $row = $res ? $res->fetchArray(SQLITE3_ASSOC) : null;
-
-            if ($row && password_verify($pass, $row['password_hash'])) {
-                clearLoginAttempts($rateLimitId);
-                mikanBoxRenewAuthentication();
-                $_SESSION['admin_logged_in'] = true;
-                $_SESSION['admin_username'] = $user;
-                $_SESSION['admin_display_name'] = $row['display_name'];
-                header('Location: ' . basename(__FILE__));
-                exit;
-            } else {
-                recordLoginFailure($rateLimitId);
-                $loginError = t('err_username_or_password_invalid');
-            }
+            clearLoginAttempts($rateLimitId);
+            mikanBoxDeviceSignIn($result['username'], $result['display_name']);
+            header('Location: ' . basename(__FILE__));
+            exit;
         }
     }
 }
 
-// Show login screen if not logged in
+// Show the sign-in screen when this browser is not a registered device.
 // In demo mode, allow access without login (unless ?login=1 is requested for full access)
 if ($isInitialSetup || (!$isLoggedIn && (!$isDemoMode || isset($_GET['login'])))) {
     if (ob_get_length()) ob_clean();
-?>
-<!DOCTYPE html>
-<html lang="<?= getSystemLanguage() ?>">
-<head>
-    <meta charset="UTF-8">
-    <title>🍊mikanBox - <?= t('admin_login') ?></title>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet">
-    <link rel="stylesheet" href="admin.css?v=<?= $installedVersion ?>">
-</head>
-<body class="login-body">
-    <div class="login-box">
-        <div class="login-title"><span>🍊</span><span>mikanBox</span></div>
-        <?php
-        if (isset($_SESSION['admin_message'])) {
-            echo "<div class='error' style='background-color:#e2f0d9; border-color:#a9d08e; color:#375623; margin-bottom:15px; font-size:0.85rem; padding:10px; border-radius:4px; border:1px solid;'>{$_SESSION['admin_message']}</div>";
-            unset($_SESSION['admin_message']);
-        }
-        ?>
-
-        <?php if (isset($_GET['action']) && $_GET['action'] === 'forgot_password'): ?>
-            <?php
-            $resetStep = $_SESSION['reset_step'] ?? 1;
-            if ($resetStep == 2 && empty($_SESSION['reset_username'])) {
-                $resetStep = 1;
-            }
-            if ($resetStep == 3 && (empty($_SESSION['reset_username']) || empty($_SESSION['reset_verified']))) {
-                $resetStep = 1;
-            }
-            ?>
-            <h3 style="margin-top: 0; font-size: 1.1rem; color: var(--text);"><?= t('reset_title') ?> (Step <?= $resetStep ?>/3)</h3>
-            <?php if (!empty($resetError)) echo "<div class='error'>{$resetError}</div>"; ?>
-            
-            <?php if ($resetStep == 1): ?>
-                <p style="font-size: 0.82rem; color: var(--text-sub); margin-bottom: 15px; line-height: 1.4;"><?= t('reset_step1_intro') ?></p>
-                <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
-                    <input type="hidden" name="reset_action" value="step1">
-                    <input type="text" name="username" autocomplete="username" placeholder="<?= t('label_username') ?>" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
-                    <button type="submit" class="btn btn-blue" style="width: 100%; padding: 10px; font-size: 0.95rem; margin-top: 10px;"><?= t('btn_next') ?></button>
-                </form>
-            <?php elseif ($resetStep == 2): ?>
-                <?php
-                $user = $_SESSION['reset_username'] ?? '';
-                $question = '';
-                try {
-                    $stmtQ = $db->prepare("SELECT security_question FROM users WHERE username = :username");
-                    $stmtQ->bindValue(':username', $user, SQLITE3_TEXT);
-                    $resQ = $stmtQ->execute();
-                    $rowQ = $resQ ? $resQ->fetchArray(SQLITE3_ASSOC) : null;
-                    if ($rowQ) {
-                        $question = $rowQ['security_question'];
-                    }
-                } catch (Exception $e) {}
-                ?>
-                <p style="font-size: 0.82rem; color: var(--text-sub); margin-bottom: 15px; line-height: 1.4;"><?= t('reset_step2_intro') ?></p>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; font-weight: 600; margin-bottom: 15px; text-align: center; font-size: 0.9rem; color: var(--text);">
-                    <?= htmlspecialchars($question) ?>
-                </div>
-                <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
-                    <input type="hidden" name="reset_action" value="step2">
-                    <input type="text" name="security_answer" placeholder="<?= t('security_answer_placeholder') ?>" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
-                    <button type="submit" class="btn btn-blue" style="width: 100%; padding: 10px; font-size: 0.95rem; margin-top: 10px;"><?= t('btn_next') ?></button>
-                </form>
-            <?php elseif ($resetStep == 3): ?>
-                <p style="font-size: 0.82rem; color: var(--text-sub); margin-bottom: 15px; line-height: 1.4;"><?= t('reset_step3_intro') ?></p>
-                <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
-                    <input type="hidden" name="reset_action" value="step3">
-                    <input type="hidden" name="username" autocomplete="username" value="<?= htmlspecialchars($_SESSION['reset_username'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                    <input type="password" name="new_password" autocomplete="new-password" placeholder="<?= t('admin_new_password') ?>" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
-                    <button type="submit" class="btn btn-blue" style="width: 100%; padding: 10px; font-size: 0.95rem; margin-top: 10px;"><?= t('btn_reset_password') ?></button>
-                </form>
-            <?php endif; ?>
-            <p style="text-align: center; margin-top: 15px; font-size: 0.85rem;">
-                <a href="<?= basename($_SERVER['PHP_SELF']) ?><?= isset($_GET['login']) ? '?login=1' : '' ?>" style="color: var(--text-sub); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; justify-content: center; width: 100%;"><?= getIcon('arrow_back') ?> <?= t('btn_back_to_login') ?></a>
-            </p>
-        <?php elseif ($isInitialSetup): ?>
-            <p><strong><?= t('hint_initial_setup') ?></strong><br>管理者のアカウントを作成してください。</p>
-            <?php if(!empty($loginError)) echo "<div class='error'>{$loginError}</div>"; ?>
-            <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
-                <input type="hidden" name="login_action" value="set_initial_password">
-                <input type="text" name="username" autocomplete="username" placeholder="ユーザーID (半角英数字)" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
-                <input type="text" name="display_name" placeholder="表示名 (例: 山田太郎)" required style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
-                <input type="password" name="new_password" autocomplete="new-password" placeholder="<?= t('admin_new_password') ?>" required style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
-                <input type="text" name="security_question" placeholder="<?= t('security_question_label') ?> (<?= t('security_question_placeholder') ?>)" required style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
-                <input type="text" name="security_answer" placeholder="<?= t('security_answer_label') ?>" required style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
-                <button type="submit" class="btn btn-blue" style="width: 100%; padding: 10px; font-size: 0.95rem; margin-top: 10px;"><?= t('btn_set_password') ?></button>
-            </form>
-        <?php else: ?>
-            <?php if ($isDemoMode): ?>
-            <p><?= t('hint_demo_login') ?></p>
-            <?php endif; ?>
-            <?php if(!empty($loginError)) echo "<div class='error'>{$loginError}</div>"; ?>
-            <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
-                <input type="hidden" name="login_action" value="login">
-                <input type="text" name="username" autocomplete="username" placeholder="<?= t('label_username') ?>" required autofocus style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
-                <input type="password" name="password" autocomplete="current-password" placeholder="<?= t('admin_password') ?>" required style="padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;">
-                <button type="submit" class="btn btn-blue" style="width: 100%; padding: 10px; font-size: 0.95rem; margin-top: 10px;"><?= t('btn_login') ?></button>
-            </form>
-            <p style="text-align: right; font-size: 0.8rem; margin-top: 8px; margin-bottom: 0;">
-                <a href="?action=forgot_password<?= isset($_GET['login']) ? '&login=1' : '' ?>" style="color: var(--accent); text-decoration: none;"><?= t('admin_forgot_password_link') ?></a>
-            </p>
-            <?php if ($isDemoMode): ?>
-            <p><a href="<?= basename($_SERVER['PHP_SELF']) ?>"><?= t('btn_demo_back') ?></a></p>
-            <?php endif; ?>
-        <?php endif; ?>
-            <p class="login-hint">
-                <?= t('admin_forgot_password') ?><br>
-                <?= t('admin_forgot_password_hint') ?>
-            </p>
-    </div>
-</body>
-</html>
-<?php
+    require __DIR__ . '/views/login.php';
     exit;
 }
 
@@ -450,6 +243,16 @@ $lastSsgRelPath = '../' . (($ssgDir !== '') ? rtrim($ssgDir, '/') . '/' : '');
 $editId = $_GET['edit'] ?? null;
 $message = $_SESSION['admin_message'] ?? '';
 unset($_SESSION['admin_message']);
+// A device added by someone else since this one last looked is worth a second look.
+$currentDevice = mikanBoxCurrentDevice();
+if ($currentDevice && $_SERVER['REQUEST_METHOD'] === 'GET' && !isset($_GET['ajax_users'])) {
+    $unseenDevices = mikanBoxDeviceUnseen($currentDevice);
+    if ($unseenDevices) {
+        $unseenNames = implode(', ', array_map(static fn($d) => $d['name'], $unseenDevices));
+        // A banner, not a toast: it is marked seen once shown, so it must not fade away unread.
+        $deviceNotice = t('device_new_notice', $unseenNames);
+    }
+}
 
 // --- Save / Action Processing (with CSRF verification) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
@@ -1408,58 +1211,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         echo json_encode(['success' => true]);
         exit;
     }
-    elseif ($_POST['save_action'] === 'add_user') {
-        $user = trim($_POST['username'] ?? '');
-        $disp = trim($_POST['display_name'] ?? '');
-        if (empty($disp)) {
-            $disp = $user;
-        }
-        $pass = $_POST['password'] ?? '';
-        
-        if (empty($user) || !preg_match('/^[a-zA-Z0-9_\-]+$/', $user)) {
-            $message = t('err_username_chars');
-            $success = false;
-        } elseif (strlen($pass) < 4) {
-            $message = t('err_password_chars');
-            $success = false;
-        } else {
-            // Check if username already exists
-            $stmtCheck = $db->prepare("SELECT COUNT(*) FROM users WHERE username = :username");
-            $stmtCheck->bindValue(':username', $user, SQLITE3_TEXT);
-            $exists = $stmtCheck->execute()->fetchArray(SQLITE3_NUM)[0] ?? 0;
-            if ($exists > 0) {
-                $message = t('err_username_exists');
-                $success = false;
-            } else {
-                $hash = password_hash($pass, PASSWORD_DEFAULT);
-                $stmtInsert = $db->prepare("INSERT INTO users (username, password_hash, display_name, security_question, security_answer_hash) VALUES (:username, :password_hash, :display_name, NULL, NULL)");
-                $stmtInsert->bindValue(':username', $user, SQLITE3_TEXT);
-                $stmtInsert->bindValue(':password_hash', $hash, SQLITE3_TEXT);
-                $stmtInsert->bindValue(':display_name', $disp, SQLITE3_TEXT);
-                if ($stmtInsert->execute()) {
-                    $message = sprintf(t('msg_user_added'), $disp);
-                } else {
-                    $message = t('err_save_failed');
-                    $success = false;
-                }
-            }
-        }
-        if (isset($_POST['ajax_request'])) {
-            // Bypass redirect
-        } else {
-            $_SESSION['admin_message'] = $message;
-            header("Location: admin.php?view=site#users-mgmt");
-            exit;
-        }
-    }
     elseif ($_POST['save_action'] === 'delete_user') {
         $user = trim($_POST['username'] ?? '');
         $currentEditor = $_SESSION['admin_username'] ?? '';
-        
+
         // Count users to prevent deleting the last user
         $totalUsers = $db->querySingle("SELECT COUNT(*) FROM users") ?: 0;
-        
-        if ($user === $currentEditor) {
+
+        // Deleting a user stops that user's devices, so it follows the same probation rule as stopping a device.
+        $actorDevice = mikanBoxCurrentDevice();
+        if (!$actorDevice || mikanBoxDeviceOnProbation($actorDevice)) {
+            $message = t('err_device_probation', MIKANBOX_DEVICE_PROBATION_DAYS);
+            $success = false;
+        } elseif ($user === $currentEditor) {
             $message = t('err_delete_current_user');
             $success = false;
         } elseif ($totalUsers <= 1) {
@@ -1469,6 +1233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             $stmtDelete = $db->prepare("DELETE FROM users WHERE username = :username");
             $stmtDelete->bindValue(':username', $user, SQLITE3_TEXT);
             if ($stmtDelete->execute()) {
+                mikanBoxDeviceForgetUser($user);
                 $message = t('msg_user_deleted');
             } else {
                 $message = t('err_user_delete_failed');
@@ -1483,90 +1248,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             exit;
         }
     }
-    elseif ($_POST['save_action'] === 'change_my_password') {
+    elseif ($_POST['save_action'] === 'update_my_account') {
         $currentEditor = $_SESSION['admin_username'] ?? '';
         $newUsername = trim($_POST['username'] ?? '');
         $disp = trim($_POST['display_name'] ?? '');
-        $currPass = $_POST['current_password'] ?? '';
-        $newPass = $_POST['new_password'] ?? '';
-        $sq = trim($_POST['security_question'] ?? '');
-        $sa = trim($_POST['security_answer'] ?? '');
-        
-        $stmt = $db->prepare("SELECT password_hash, security_answer_hash FROM users WHERE username = :username");
-        $stmt->bindValue(':username', $currentEditor, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
-        
-        $hasAnswerSet = $row ? !empty($row['security_answer_hash']) : false;
-        
-        $verifyPassword = ($newPass !== '') || !$hasAnswerSet || ($currPass !== '');
-        
+
         if (empty($newUsername) || !preg_match('/^[a-zA-Z0-9_\-]+$/', $newUsername)) {
             $message = t('err_userid_chars');
             $success = false;
-        } elseif ($newUsername !== $currentEditor) {
-            $stmtCheck = $db->prepare("SELECT COUNT(*) FROM users WHERE username = :username");
-            $stmtCheck->bindValue(':username', $newUsername, SQLITE3_TEXT);
-            $exists = $stmtCheck->execute()->fetchArray(SQLITE3_NUM)[0] ?? 0;
-            if ($exists > 0) {
+        } elseif (empty($disp)) {
+            $message = t('err_display_name_required');
+            $success = false;
+        } else {
+            $taken = false;
+            if ($newUsername !== $currentEditor) {
+                $stmtCheck = $db->prepare("SELECT COUNT(*) FROM users WHERE username = :username");
+                $stmtCheck->bindValue(':username', $newUsername, SQLITE3_TEXT);
+                $taken = ($stmtCheck->execute()->fetchArray(SQLITE3_NUM)[0] ?? 0) > 0;
+            }
+            if ($taken) {
                 $message = t('err_userid_exists');
                 $success = false;
-            }
-        }
-        
-        if ($success !== false) {
-            if ($verifyPassword && empty($currPass)) {
-                $message = t('err_current_password_required');
-                $success = false;
-            } elseif ($verifyPassword && (!$row || !password_verify($currPass, $row['password_hash']))) {
-                $message = t('err_current_password');
-                $success = false;
-            } elseif (empty($disp)) {
-                $message = t('err_display_name_required');
-                $success = false;
-            } elseif (empty($sq)) {
-                $message = t('err_security_question_required');
-                $success = false;
-            } elseif (!$hasAnswerSet && empty($sa)) {
-                $message = t('err_security_answer_required');
-                $success = false;
             } else {
-                $updateParts = [
-                    "username = :new_username",
-                    "display_name = :display_name",
-                    "security_question = :security_question"
-                ];
-                $params = [
-                    [':new_username', $newUsername, SQLITE3_TEXT],
-                    [':display_name', $disp, SQLITE3_TEXT],
-                    [':security_question', $sq, SQLITE3_TEXT]
-                ];
-            
-            if ($newPass !== '') {
-                if (strlen($newPass) < 4) {
-                    $message = t('err_password_chars');
-                    $success = false;
-                } else {
-                    $newHash = password_hash($newPass, PASSWORD_DEFAULT);
-                    $updateParts[] = "password_hash = :password_hash";
-                    $params[] = [':password_hash', $newHash, SQLITE3_TEXT];
-                }
-            }
-            
-            if ($success !== false && $sa !== '') {
-                $saHash = password_hash(normalizeSecurityAnswer($sa), PASSWORD_DEFAULT);
-                $updateParts[] = "security_answer_hash = :security_answer_hash";
-                $params[] = [':security_answer_hash', $saHash, SQLITE3_TEXT];
-            }
-            
-            if ($success !== false) {
-                $sql = "UPDATE users SET " . implode(', ', $updateParts) . " WHERE username = :username";
-                $stmtUpdate = $db->prepare($sql);
+                $stmtUpdate = $db->prepare("UPDATE users SET username = :new_username, display_name = :display_name WHERE username = :username");
+                $stmtUpdate->bindValue(':new_username', $newUsername, SQLITE3_TEXT);
+                $stmtUpdate->bindValue(':display_name', $disp, SQLITE3_TEXT);
                 $stmtUpdate->bindValue(':username', $currentEditor, SQLITE3_TEXT);
-                foreach ($params as $param) {
-                    $stmtUpdate->bindValue($param[0], $param[1], $param[2]);
-                }
-                
                 if ($stmtUpdate->execute()) {
+                    if ($newUsername !== $currentEditor) mikanBoxDeviceRenameUser($currentEditor, $newUsername);
                     $_SESSION['admin_username'] = $newUsername;
                     $_SESSION['admin_display_name'] = $disp;
                     $message = t('msg_account_updated');
@@ -1576,14 +1285,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                 }
             }
         }
-        }
-        if (isset($_POST['ajax_request'])) {
-            // Bypass redirect
-        } else {
-            $_SESSION['admin_message'] = $message;
-            header("Location: admin.php?view=site#users-mgmt");
+        $_SESSION['admin_message'] = $message;
+        header("Location: admin.php?view=site#users-mgmt");
+        exit;
+    }
+    elseif ($_POST['save_action'] === 'device_notice_dismiss') {
+        unset($_SESSION['device_adopted_notice']);
+        header('Location: admin.php?view=site#users-mgmt');
+        exit;
+    }
+    elseif (in_array($_POST['save_action'], ['device_code_create', 'device_code_cancel', 'device_revoke', 'device_expiry', 'device_logout'], true)) {
+        $action = $_POST['save_action'];
+        $currentDevice = mikanBoxCurrentDevice();
+        if (!$currentDevice) {
+            $message = t('err_session_error');
+        } elseif ($action === 'device_logout' || ($action === 'device_revoke' && ($_POST['device_id'] ?? '') === $currentDevice['id'])) {
+            // Stopping this device signs this browser out; it needs a new code to come back.
+            mikanBoxDeviceRevoke($currentDevice, $currentDevice['id']);
+            mikanBoxDeviceClearCookie();
+            mikanBoxClearAuthentication();
+            mikanBoxRenewAuthentication();
+            header('Location: ' . basename(__FILE__));
             exit;
+        } else {
+            try {
+                if ($action === 'device_code_create') {
+                    $invite = isset($_POST['invite']) ? ['username' => $_POST['username'] ?? '', 'display_name' => $_POST['display_name'] ?? ''] : null;
+                    // Shown once, in the section itself: a toast would vanish before it could be copied.
+                    $_SESSION['device_code_flash'] = mikanBoxDeviceIssueCode($currentDevice, $invite);
+                    $message = t('msg_device_code_issued');
+                } elseif ($action === 'device_code_cancel') {
+                    mikanBoxDeviceCancelCode((string)($_POST['code_hash'] ?? ''));
+                    $message = t('msg_device_code_cancelled');
+                } elseif ($action === 'device_revoke') {
+                    mikanBoxDeviceRevoke($currentDevice, (string)($_POST['device_id'] ?? ''));
+                    $message = t('msg_device_stopped');
+                } else {
+                    $message = mikanBoxDeviceSetExpiryDays((int)($_POST['days'] ?? 0)) ? t('msg_device_expiry_saved') : t('err_save_failed');
+                }
+            } catch (RuntimeException $e) {
+                $message = $e->getMessage();
+            }
         }
+        $_SESSION['admin_message'] = $message;
+        header("Location: admin.php?view=site#users-mgmt");
+        exit;
     }
 }
 skip_post_actions:
@@ -1843,12 +1589,29 @@ function getIcon($name) {
     <!-- ==============================================
          Main Unified View (All sections via includes)
          ============================================== -->
+    <?php if (!empty($deviceNotice)): ?>
+    <div class="error" role="alert" style="margin: 0 0 16px;"><?= htmlspecialchars($deviceNotice, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+    <?php if (!empty($_SESSION['device_adopted_notice'])): ?>
+    <div class="error" role="alert" style="margin: 0 0 16px;">
+        <?= htmlspecialchars(t('msg_device_adopted'), ENT_QUOTES, 'UTF-8') ?>
+        <form method="post" style="display:inline; margin-left: 8px;">
+            <?= csrfField() ?>
+            <input type="hidden" name="save_action" value="device_notice_dismiss">
+            <button type="submit" class="btn btn-gray btn-small"><?= htmlspecialchars(t('device_notice_dismiss'), ENT_QUOTES, 'UTF-8') ?></button>
+        </form>
+    </div>
+    <?php endif; ?>
     <div class="page-top-links">
         <a href="<?= $lastSsgRelPath ?>" target="_blank"><?= t('admin_view_site') ?></a>
         <?php if ($isDemoMode && !$isLoggedIn): ?>
         <a href="?login=1"><?= t('btn_login') ?></a>
         <?php else: ?>
-        <a href="?action=logout"><?= t('admin_logout') ?></a>
+        <form method="post" style="display:inline" onsubmit="return confirm(<?= htmlspecialchars(json_encode(t('device_logout_confirm')), ENT_QUOTES, 'UTF-8') ?>)">
+            <?= csrfField() ?>
+            <input type="hidden" name="save_action" value="device_logout">
+            <button type="submit" class="link-button"><?= t('admin_logout') ?></button>
+        </form>
         <?php endif; ?>
     </div>
 
@@ -3208,15 +2971,13 @@ function getIcon($name) {
             const actionInput = (submitter && submitter.name === 'save_action') ? submitter : form.querySelector('input[name="save_action"]');
             const action = actionInput ? actionInput.value : '';
             
-            const ajaxActions = ['save_page', 'save_comp', 'save_settings', 'save_memo', 'ssg_save_settings', 'generate_mcp_key', 'add_user', 'delete_user', 'change_my_password'];
+            const ajaxActions = ['save_page', 'save_comp', 'save_settings', 'save_memo', 'ssg_save_settings', 'generate_mcp_key', 'delete_user'];
             
             if (ajaxActions.includes(action)) {
                 e.preventDefault();
                 const originalText = submitter.innerHTML;
                 let loadingText = '<?= t('msg_saving') ?>';
                 if (action === 'delete_user') loadingText = '<?= t('msg_deleting') ?>';
-                else if (action === 'change_my_password') loadingText = '<?= t('msg_changing') ?>';
-                else if (action === 'add_user') loadingText = '<?= t('msg_adding') ?>';
                 submitter.innerHTML = '<span class="material-symbols-outlined icon" style="animation: spin 1s linear infinite;">sync</span> ' + loadingText;
                 submitter.disabled = true;
                 
@@ -3232,11 +2993,6 @@ function getIcon($name) {
                         window.isDirty = false;
                         showToast(json.message || '<?= t('msg_update_success') ?? '保存しました' ?>', !json.success);
                         if (json.success) {
-                            if (action === 'add_user') {
-                                form.reset();
-                            } else if (action === 'change_my_password') {
-                                setTimeout(() => { window.location.reload(); }, 600);
-                            }
                         }
                         if (action === 'generate_mcp_key' && json.mcp_api_key) {
                             // Show the key in place. A reload would close the accordion this
@@ -3376,7 +3132,7 @@ function getIcon($name) {
                             if (newId && designLockedId !== newId) {
                                 acquireLockFrontend('design', newId);
                             }
-                        } else if (action === 'add_user' || action === 'delete_user') {
+                        } else if (action === 'delete_user') {
                             if (json.success) {
                                 refreshUserList();
                             }
