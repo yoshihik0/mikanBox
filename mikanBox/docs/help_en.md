@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.9.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.9.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -1097,7 +1097,7 @@ Click "Rename▼" to expand it. Edit the filename and press [[save]{.material-sy
 
 Filename search and pagination use the same layout across editions. Search applies within the current category filter.
 
-Expand “Upload options▼” to configure uploads. File actions appear in this order: “Resize▼”, “Rename▼”, “Convert to WebP”. Resize dimensions and filename inputs use the same height and save button size. Enter a width or height to preserve the aspect ratio.
+Expand “Upload options▼” to configure uploads. After uploading, renaming, resizing, converting to WebP, or deleting a file, the media list retains its scroll position where possible. File actions appear in this order: “Resize▼”, “Rename▼”, “Convert to WebP”. Resize dimensions and filename inputs use the same height and save button size. Enter a width or height to preserve the aspect ratio.
 
 “Convert to WebP” appears only for existing JPEG (jpg/jpeg) and PNG images, not WebP, GIF, SVG, audio or video. PHP requires server WebP encoding support. Conversion changes the extension to `.webp` and updates page content/CSS/JavaScript/OGP, component HTML/CSS/JavaScript, and the site OGP image. Memos and past revisions are unchanged. An existing WebP target is never overwritten; the source and references remain intact. Rebuild static pages afterward. Cloud converts the image in the browser and updates storage and delivery; keep the screen open until complete.
 
