@@ -61,11 +61,22 @@ $guide = static function () use ($e, $setupState) {
         if (!empty($loginError)) echo '<div class="error" role="alert">' . $e($loginError) . '</div>';
         ?>
 
-        <?php if (!$isInitialSetup): ?>
+        <?php if (!$isInitialSetup && $inviteStep === null): ?>
             <p style="font-size: 0.85rem; line-height: 1.5;"><?= $e(t('device_password_ended')) ?></p>
         <?php endif; ?>
 
-        <?php if ($isInitialSetup): ?>
+        <?php if (!$isInitialSetup && $inviteStep !== null): ?>
+            <p><strong><?= $e(t('device_invite_intro')) ?></strong></p>
+            <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
+                <?= csrfField() ?>
+                <input type="hidden" name="login_action" value="claim">
+                <input type="hidden" name="code" value="<?= $e($inviteStep['code']) ?>">
+                <input type="hidden" name="device_name" value="<?= $e($inviteStep['device_name']) ?>">
+                <input type="text" name="username" autocomplete="off" required autofocus maxlength="80" pattern="[A-Za-z0-9_\-]{1,80}" value="<?= $e($inviteStep['username'] ?? '') ?>" placeholder="<?= $e(t('label_username')) ?>" style="<?= $inputStyle ?>">
+                <input type="text" name="display_name" required maxlength="120" value="<?= $e($inviteStep['display_name'] ?? '') ?>" placeholder="<?= $e(t('label_display_name')) ?>" style="<?= $inputStyle ?>">
+                <button type="submit" class="btn btn-blue" style="<?= $buttonStyle ?>"><?= $e(t('device_btn_register')) ?></button>
+            </form>
+        <?php elseif ($isInitialSetup): ?>
             <?php if ($setupState === 'ready'): ?>
                 <p><strong><?= t('hint_initial_setup') ?></strong><br><?= $e(t('device_setup_intro')) ?></p>
                 <?php $setupForm(true, t('device_btn_register')); ?>

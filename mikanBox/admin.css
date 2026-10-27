@@ -1866,6 +1866,27 @@ input[type="datetime-local"], input:not([type]) {
 .account-table th { border-bottom: 2px solid #e2e8f0; padding: 8px 4px; font-size: .8rem; color: #475569; text-align: left; }
 .account-table td { border-bottom: 1px solid #f1f5f9; padding: 8px 4px; font-size: .85rem; }
 .account-table .account-actions, .account-table th:last-child { text-align: right; }
+/* Users with their devices: one block per user. */
+.account-user { margin: 0 0 14px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; overflow: hidden; }
+.account-user-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; background: #fafafa; border-bottom: 1px solid #e2e8f0; }
+.account-user-name { font-weight: 600; }
+.account-user-name code { margin-left: 6px; font-weight: 400; }
+.account-user .account-table th, .account-user .account-table td { padding-left: 14px; padding-right: 14px; }
+.account-user .account-table tr:last-child td { border-bottom: 0; }
+.account-user-empty { margin: 0; padding: 10px 14px; font-size: .85rem; color: #94a3b8; }
+.account-name-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid #f1f5f9; }
+.account-name-form label { font-size: .8rem; color: #475569; }
+.account-name-form input[type="text"] { width: auto; max-width: 260px; padding: 6px 8px; }
+/* Compact buttons in tables: the 2px bottom border of .btn would push the label up. */
+.account-table .btn, .account-name-form .btn, .account-user-head .btn { padding: 3px 9px; font-size: .75rem; line-height: 1.4; border-bottom-width: 0; }
+.device-expiry-form { display: flex; align-items: flex-end; gap: 10px; margin: 10px 0 20px; }
+.device-expiry-form label { display: flex; flex-direction: column; gap: 4px; margin: 0; font-size: .85rem; }
+.device-expiry-form select, .device-expiry-form .btn { height: 36px; box-sizing: border-box; }
+.device-expiry-form .btn { padding-top: 0; padding-bottom: 0; border-bottom-width: 0; }
+/* A read-only value with its copy button. */
+.copy-row { display: flex; align-items: center; gap: 8px; }
+.copy-row input { flex: 1 1 auto; min-width: 0; font-family: monospace; box-sizing: border-box; }
+.copy-row .btn { flex: 0 0 auto; }
 .account-details { margin: 15px 0; border: 1px solid #e2e8f0; border-radius: 8px; background: #fafafa; }
 .account-details > summary { display: flex; align-items: center; gap: 8px; padding: 10px 15px; cursor: pointer; font-size: .95rem; font-weight: 600; list-style: none; }
 .account-details > summary::-webkit-details-marker { display: none; }

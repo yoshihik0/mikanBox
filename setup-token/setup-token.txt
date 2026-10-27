@@ -1,0 +1,4 @@
+# ここに、ランダムな文字列（20文字以上）を1行で書いてください。「#」で始まる行は読み込まれません。
+# 1度しか使わないので、長く覚えておく必要はありません。
+# Write a random string (at least 20 characters) on one line below. Lines starting with "#" are ignored.
+# It is used only once.

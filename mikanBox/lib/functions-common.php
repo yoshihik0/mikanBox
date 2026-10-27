@@ -155,34 +155,25 @@ function resolveSafeDataPath($baseDir, $id, $suffix = '.json', $createParent = f
 }
 
 /**
- * 簡易CSSスコーピング処理器
+ * CSSスコーピング処理器
  * CSSの各セレクタの先頭に、特定のプレフィックス（例: クラス名）を付与する。
- * （※シンプルな正規表現ベースのため、一部の複雑なCSSには対応しきれない場合があります）
- * 
+ *
+ * - 通常のルールはセレクタごとにプレフィックスを付ける。:is()、:where()、:not()、属性セレクタの中や、
+ *   文字列の中のカンマは区切りとして扱わない。
+ * - @media / @supports / @container / @layer / @scope / @document の中は、同じ規則で再帰的にスコープ化する。
+ * - @keyframes、@font-face、@page など、中身がセレクタではないルールは、そのまま通す。
+ * - @import / @charset のような、ブロックのない文は、そのまま通す。
+ * - :root / html / body で始まるセレクタは、そのページのスコープの要素そのものを指す（:root{--x:1} は .scope{--x:1}、
+ *   body .a は .scope .a、body.dark .a は .scope.dark .a）。
+ * - :global(...) でセレクタ全体を囲むと、スコープ外へ出す。部分指定は意図的にサポートしない。
+ * - {{TAG}} は解析の前後で退避・復元する。コメントは取り除く（文字列の中の /* は残す）。
+ *
  * @param string $css 元のCSS文字列
- * @param string $prefix セレクタの先頭につけるプレフィックス (例: '.cmp-header ')
+ * @param string $prefix セレクタの先頭につけるプレフィックス (例: '.cmp-header')
  * @return string スコープ化されたCSS文字列
  */
 function scopeCss($css, $prefix) {
     if (empty(trim($css))) return '';
-
-    // セレクタ全体を :global(...) で囲んだ場合はスコープ外へ出す。
-    // 例: :global(.hero_box) -> .hero_box
-    // 部分指定（:global(.foo) .bar）は意図的にサポートしない。
-    $scopeSelector = function($selector) use ($prefix) {
-        $sel = trim($selector);
-        if (empty($sel)) return '';
-
-        if (preg_match('/^:global\((.+)\)$/s', $sel, $matches)) {
-            return trim($matches[1]);
-        }
-
-        if (strpos($sel, '@') === 0) return $sel;
-        if ($sel === ':root' || $sel === 'body' || $sel === 'html') {
-            return $prefix . ' ' . ltrim($sel, ':');
-        }
-        return $prefix . ' ' . $sel;
-    };
 
     // テンプレートタグ {{...}} を一時退避（中括弧がCSS解析を壊すため）
     $tagMap = [];
@@ -192,61 +183,10 @@ function scopeCss($css, $prefix) {
         return $placeholder;
     }, $css);
 
-    // コメントを削除
-    $css = preg_replace('!/\*.*?\*/!s', '', $css);
-    
-    // 改行を調整
     $css = str_replace(["\r\n", "\r"], "\n", $css);
+    $css = mikanBoxCssStripComments($css);
 
-    $scopedCss = '';
-    $buffer = '';
-    $depth = 0;
-
-    $length = strlen($css);
-    for ($i = 0; $i < $length; $i++) {
-        $char = $css[$i];
-        
-        if ($char === '{') {
-            if ($depth === 0) {
-                // 最外位のセレクタ（または @media 等）
-                $selectors = explode(',', $buffer);
-                $scopedSelectors = [];
-                foreach ($selectors as $selector) {
-                    $scopedSelector = $scopeSelector($selector);
-                    if ($scopedSelector !== '') $scopedSelectors[] = $scopedSelector;
-                }
-                $scopedCss .= implode(', ', $scopedSelectors) . ' {';
-            } else {
-                // ネストされたブロック（例: @media 内のセレクタ）
-                $parts = explode('}', $buffer); // 直前のルールセットとの区切り
-                $currentRule = array_pop($parts);
-                
-                if (trim($currentRule) !== '' && strpos(trim($currentRule), '@') === false) {
-                     // セレクタらしきものがあればプレフィックスを試みる
-                     $innerSelectors = explode(',', $currentRule);
-                     $scopedInner = [];
-                     foreach($innerSelectors as $is) {
-                         $scopedSelector = $scopeSelector($is);
-                         if ($scopedSelector !== '') $scopedInner[] = $scopedSelector;
-                     }
-                     $currentRule = implode(', ', $scopedInner);
-                }
-                
-                $scopedCss .= (count($parts) > 0 ? implode('}', $parts) . '}' : '') . $currentRule . ' {';
-            }
-            $buffer = '';
-            $depth++;
-        } elseif ($char === '}') {
-            $depth--;
-            $scopedCss .= $buffer . "}";
-            if ($depth === 0) $scopedCss .= "\n";
-            $buffer = '';
-        } else {
-            $buffer .= $char;
-        }
-    }
-
-    $scopedCss = trim($scopedCss);
+    $scopedCss = trim(mikanBoxScopeCssBlock($css, $prefix, true));
 
     // 退避したテンプレートタグを復元
     foreach ($tagMap as $placeholder => $original) {
@@ -254,6 +194,133 @@ function scopeCss($css, $prefix) {
     }
 
     return $scopedCss;
+}
+
+/** /* ... *​/ のコメントを取り除く。文字列（"..." '...'）の中は触らない。 */
+function mikanBoxCssStripComments($css) {
+    $out = '';
+    $quote = '';
+    $length = strlen($css);
+    for ($i = 0; $i < $length; $i++) {
+        $ch = $css[$i];
+        if ($quote !== '') {
+            $out .= $ch;
+            if ($ch === '\\' && $i + 1 < $length) { $out .= $css[++$i]; }
+            elseif ($ch === $quote) $quote = '';
+            continue;
+        }
+        if ($ch === '"' || $ch === "'") { $quote = $ch; $out .= $ch; continue; }
+        if ($ch === '/' && ($css[$i + 1] ?? '') === '*') {
+            $end = strpos($css, '*/', $i + 2);
+            if ($end === false) break;
+            $i = $end + 1;
+            continue;
+        }
+        $out .= $ch;
+    }
+    return $out;
+}
+
+/** セレクタ並びをカンマで分ける。括弧・角括弧・文字列の中のカンマは区切りにしない。 */
+function mikanBoxCssSplitSelectors($source) {
+    $parts = [];
+    $start = 0;
+    $depth = 0;
+    $quote = '';
+    $length = strlen($source);
+    for ($i = 0; $i < $length; $i++) {
+        $ch = $source[$i];
+        if ($quote !== '') {
+            if ($ch === '\\') $i++;
+            elseif ($ch === $quote) $quote = '';
+            continue;
+        }
+        if ($ch === '"' || $ch === "'") { $quote = $ch; continue; }
+        if ($ch === '(' || $ch === '[') $depth++;
+        if ($ch === ')' || $ch === ']') $depth--;
+        if ($ch === ',' && $depth === 0) {
+            $parts[] = substr($source, $start, $i - $start);
+            $start = $i + 1;
+        }
+    }
+    $parts[] = substr($source, $start);
+    return array_values(array_filter(array_map('trim', $parts), fn($part) => $part !== ''));
+}
+
+/**
+ * $start 以降で、ルールの区切りを探す。
+ * $closing=false: 次の「{」または「;」の位置。 $closing=true: $start が「{」の内側にあるとして、対応する「}」の位置。
+ * 文字列と括弧（url(data:...;...) など）の中は読み飛ばす。見つからなければ文字列の長さ。
+ */
+function mikanBoxCssDelimiter($css, $start, $closing = false) {
+    $quote = '';
+    $depth = $closing ? 1 : 0;
+    $parens = 0;
+    $length = strlen($css);
+    for ($i = $start; $i < $length; $i++) {
+        $ch = $css[$i];
+        if ($quote !== '') {
+            if ($ch === '\\') $i++;
+            elseif ($ch === $quote) $quote = '';
+            continue;
+        }
+        if ($ch === '"' || $ch === "'") { $quote = $ch; continue; }
+        if ($ch === '(' || $ch === '[') $parens++;
+        if ($ch === ')' || $ch === ']') $parens--;
+        if ($parens > 0) continue;
+        if ($closing) {
+            if ($ch === '{') $depth++;
+            if ($ch === '}' && --$depth === 0) return $i;
+        } elseif ($ch === '{' || $ch === ';') {
+            return $i;
+        }
+    }
+    return $length;
+}
+
+function mikanBoxScopeCssBlock($css, $prefix, $topLevel) {
+    $result = '';
+    $position = 0;
+    $length = strlen($css);
+    while ($position < $length) {
+        $open = mikanBoxCssDelimiter($css, $position);
+        if ($open >= $length) {                      // 閉じていない残り: そのまま残す
+            $result .= substr($css, $position);
+            break;
+        }
+        $prelude = trim(substr($css, $position, $open - $position));
+        if ($css[$open] === ';') {                   // @import / @charset など、ブロックのない文
+            $result .= substr($css, $position, $open - $position + 1) . ($topLevel ? "\n" : '');
+            $position = $open + 1;
+            continue;
+        }
+        $end = mikanBoxCssDelimiter($css, $open + 1, true);
+        $body = substr($css, $open + 1, $end - $open - 1);
+        if (preg_match('/^@(?:media|supports|container|layer|scope|document)\b/i', $prelude)) {
+            $result .= $prelude . ' {' . mikanBoxScopeCssBlock($body, $prefix, false) . '}';
+        } elseif ($prelude !== '' && $prelude[0] === '@') {
+            $result .= $prelude . ' {' . $body . '}';  // @keyframes、@font-face など
+        } else {
+            $scoped = [];
+            foreach (mikanBoxCssSplitSelectors($prelude) as $selector) {
+                if (preg_match('/^:global\((.+)\)$/s', $selector, $matches)) {
+                    $scoped[] = trim($matches[1]);
+                } elseif ($selector === $prefix || str_starts_with($selector, $prefix . ' ')) {
+                    $scoped[] = $selector;       // すでにスコープ済み
+                } elseif (preg_match('/^(:root|html|body)(?=[\s.#\[>:]|$)/', $selector, $page)) {
+                    // :root / html / body はページ全体を指す。スコープの中にはないので、スコープの要素そのものに読み替える。
+                    // (ページ全体に効かせたいときは :global(:root) と書く)
+                    $scoped[] = $prefix . substr($selector, strlen($page[1]));
+                } else {
+                    $scoped[] = $prefix . ' ' . $selector;
+                }
+            }
+            $result .= implode(', ', $scoped) . ' {' . $body . '}';
+        }
+        if ($topLevel) $result .= "\n";
+        $position = $end + 1;
+    }
+    return $result;
 }
 
 /**
@@ -266,31 +333,42 @@ class MikanBoxMarkdown {
 
         $text = str_replace(["\r\n", "\r"], "\n", $text);
 
-        // Protect fenced code blocks (```...```) from the table pre-processor below.
-        // Table conversion runs on the whole text before the per-line loop can tell
-        // whether a line is inside a code fence, so without this a table written as a
-        // literal syntax example inside ``` would get converted to <table> first, and
-        // the code-block handler would then show those already-converted tags as
-        // escaped text instead of the original "| cell |" syntax the user typed.
-        $codeBlockMap = [];
-        $text = preg_replace_callback('/^```[^\n]*\n(.*?)\n```[ \t]*$/ms', function($m) use (&$codeBlockMap) {
-            $ph = "\x02CODEBLOCK" . count($codeBlockMap) . "\x03";
-            $codeBlockMap[$ph] = $m[0];
-            return $ph;
-        }, $text);
-        // 閉じられていないフェンス（``` の閉じ忘れ）が残っていれば、その開始行から末尾までを保護する。
-        // 閉じたフェンスは上で置換済みなので、この時点で残る ``` 行は未閉鎖の開始行だけ。
-        $text = preg_replace_callback('/^```[^\n]*\n[\s\S]*$/m', function($m) use (&$codeBlockMap) {
-            $ph = "\x02CODEBLOCK" . count($codeBlockMap) . "\x03";
-            $codeBlockMap[$ph] = $m[0];
-            return $ph;
-        }, $text);
+        // Protect fenced code from everything below: the table pre-processor, the tag and inline
+        // processing, and the per-line loop. A fence opens with three or more backticks or tildes;
+        // it closes on a line of the same character that is at least as long, so a longer fence can
+        // contain a shorter one (````md showing a ``` block). An unclosed fence runs to the end.
+        // A single word after the opening fence ("```php") becomes class="language-php".
+        $fences = [];
+        $sourceLines = explode("\n", $text);
+        $protectedLines = [];
+        for ($i = 0; $i < count($sourceLines); $i++) {
+            if (!preg_match('/^ {0,3}(`{3,}|~{3,})([^`~]*)$/', $sourceLines[$i], $opening)) {
+                $protectedLines[] = $sourceLines[$i];
+                continue;
+            }
+            $closing = '/^ {0,3}' . preg_quote($opening[1][0], '/') . '{' . strlen($opening[1]) . ',}\s*$/';
+            $content = [];
+            while (++$i < count($sourceLines) && !preg_match($closing, $sourceLines[$i])) $content[] = $sourceLines[$i];
+            $language = trim($opening[2]);
+            $classAttr = preg_match('/^[A-Za-z0-9_-]+$/', $language) ? ' class="language-' . $language . '"' : '';
+            $placeholder = "\x05FENCE" . count($fences) . "\x05";
+            $fences[$placeholder] = '<pre><code' . $classAttr . '>' . htmlspecialchars(implode("\n", $content)) . '</code></pre>';
+            $protectedLines[] = $placeholder;
+        }
+        $text = implode("\n", $protectedLines);
 
         // Pre-process: Markdown table → HTML（GFM形式）
         $text = preg_replace_callback(
             '/^(\|.+)\n(\|[\s\-:|]+)\n((?:\|.+\n?)+)/m',
             function($m) {
-                $sepCells = array_map('trim', explode('|', trim($m[2], "| \t")));
+                // One leading and one trailing pipe are only the frame; empty cells inside or at the edge stay (GFM).
+                $splitRow = static function($line) {
+                    $line = trim($line);
+                    if ($line !== '' && $line[0] === '|') $line = substr($line, 1);
+                    if ($line !== '' && substr($line, -1) === '|') $line = substr($line, 0, -1);
+                    return array_map('trim', explode('|', $line));
+                };
+                $sepCells = $splitRow($m[2]);
                 $aligns = array_map(function($s) {
                     $l = str_starts_with($s, ':'); $r = str_ends_with($s, ':');
                     if ($l && $r) return ' style="text-align:center"';
@@ -298,7 +376,7 @@ class MikanBoxMarkdown {
                     if ($l)       return ' style="text-align:left"';
                     return '';
                 }, $sepCells);
-                $headers = array_map('trim', explode('|', trim($m[1], "| \t")));
+                $headers = $splitRow($m[1]);
                 $thead = '<tr>';
                 foreach ($headers as $i => $h) {
                     $thead .= '<th' . ($aligns[$i] ?? '') . '>' . $this->parseInline($h) . '</th>';
@@ -308,7 +386,7 @@ class MikanBoxMarkdown {
                 foreach (explode("\n", rtrim($m[3])) as $row) {
                     $row = trim($row);
                     if ($row === '' || $row[0] !== '|') continue;
-                    $cells = array_map('trim', explode('|', trim($row, "| \t")));
+                    $cells = $splitRow($row);
                     $tbody .= '<tr>';
                     foreach ($cells as $i => $cell) {
                         $tbody .= '<td' . ($aligns[$i] ?? '') . '>' . $this->parseInline($cell) . '</td>';
@@ -324,15 +402,9 @@ class MikanBoxMarkdown {
             $text
         );
 
-        // Restore the protected code blocks, unmodified, before the per-line loop runs.
-        foreach ($codeBlockMap as $ph => $original) {
-            $text = str_replace($ph, $original, $text);
-        }
-
         $lines = explode("\n", $text);
         $result = [];
         $currentParagraph = [];
-        $inCodeBlock = false;
         $inHtmlBlock = false;
         $prevWasBlank = true;               // コンテンツ先頭は「空白行の後」扱い
         $paragraphStartedAfterBlank = true; // <p> を付けるか判定する前側フラグ
@@ -395,21 +467,11 @@ class MikanBoxMarkdown {
         $htmlBlockTags = 'a|address|article|aside|blockquote|body|button|canvas|caption|col|colgroup|dd|details|dialog|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|meta|nav|noscript|ol|optgroup|option|p|pre|script|section|select|source|span|style|summary|table|tbody|td|tfoot|th|thead|title|tr|ul|video|audio';
 
         foreach ($lines as $line) {
-            // コードブロック
-            if (preg_match('/^```/', $line)) {
-                $closeParagraph();
-                if ($inCodeBlock) {
-                    $result[] = '</code></pre>';
-                    $inCodeBlock = false;
-                } else {
-                    $result[] = '<pre><code>';
-                    $inCodeBlock = true;
-                }
-                $prevWasBlank = true; // コードブロック境界 = Markdownブロック扱い
-                continue;
-            }
-            if ($inCodeBlock) {
-                $result[] = htmlspecialchars($line);
+            // 保護したコードフェンスは、それ自体が1つのブロック
+            if (preg_match('/^\x05FENCE\d+\x05$/', $line)) {
+                $closeParagraph(true);
+                $result[] = $line;
+                $prevWasBlank = true;
                 continue;
             }
 
@@ -489,16 +551,12 @@ class MikanBoxMarkdown {
 
         $closeParagraph(true); // コンテンツ末尾 = 境界扱い
 
-        // 閉じ忘れのコードフェンスを末尾で閉じる（<pre><code>が開いたまま後続HTMLを壊さないように）
-        if ($inCodeBlock) {
-            $result[] = '</code></pre>';
-        }
-
         $output = implode("\n", $result);
         $output = preg_replace('/<\/ul>\n<ul>/', "\n", $output);
         $output = preg_replace('/<\/ol>\n<ol>/', "\n", $output);
         // 連続する引用行は1つのblockquoteに結合する（段落内の改行と同様に<br>でつなぐ）
         $output = preg_replace('/<\/blockquote>\n<blockquote>/', "<br>\n", $output);
+        $output = strtr($output, $fences);
 
         return $output;
     }
@@ -514,16 +572,17 @@ class MikanBoxMarkdown {
         }, $text);
 
         // 2. Protect image/link syntax so _ inside URLs won't be parsed as italic
+        // URLs and alt text go into attributes: decode, check, then encode (see mikanBoxMarkdownUrl).
         $text = preg_replace_callback('/\!\[(.*?)\]\((.*?)\)/', function($m) use (&$map) {
-            $url = $m[2];
+            $url = mikanBoxDecodeAttribute($m[2]);
             if (!preg_match('/^(?:https?:\/\/|\/|media\/)/', $url)) { $url = 'media/' . $url; }
             $ph = "\x02LINK" . count($map) . "\x03";
-            $map[$ph] = '<img src="' . $url . '" alt="' . $m[1] . '"' . mediaImgAttrs($url) . '>';
+            $map[$ph] = '<img src="' . mikanBoxEncodeAttribute($url) . '" alt="' . mikanBoxEncodeAttribute(mikanBoxDecodeAttribute($m[1])) . '"' . mediaImgAttrs($url) . '>';
             return $ph;
         }, $text);
         $text = preg_replace_callback('/\[(.*?)\]\((.*?)\)/', function($m) use (&$map) {
             $ph = "\x02LINK" . count($map) . "\x03";
-            $map[$ph] = '<a href="' . $m[2] . '">' . $m[1] . '</a>';
+            $map[$ph] = '<a href="' . mikanBoxEncodeAttribute(mikanBoxMarkdownLinkUrl($m[2])) . '">' . $m[1] . '</a>';
             return $ph;
         }, $text);
 
@@ -1052,6 +1111,37 @@ function mediaLocalPathForUrl($url) {
  * dividers) get no hint at all: deferring a few KB saves nothing and only adds
  * a render delay.
  */
+// ==========================================
+// Markdown links and images: URLs end up in attributes
+// ==========================================
+// A URL is decoded first (so "&#106;avascript:" is seen for what it is), checked, and only then
+// encoded for the attribute. Encoding it as written would leave entities for the browser to
+// decode after the check, and a quote in it would end the attribute.
+
+function mikanBoxDecodeAttribute($value) {
+    return html_entity_decode((string)$value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+}
+
+function mikanBoxEncodeAttribute($value) {
+    return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+/**
+ * The URL of a Markdown link, decoded. A scheme other than http, https, mailto or tel
+ * (javascript:, data:, vbscript:, ...) becomes "#". Relative URLs, page IDs, anchors and
+ * protocol-relative URLs pass. Browsers ignore tabs, line breaks and leading control
+ * characters inside a scheme, so "java\tscript:" is checked as "javascript:".
+ */
+function mikanBoxMarkdownLinkUrl($raw) {
+    $url = mikanBoxDecodeAttribute($raw);
+    $probe = ltrim(str_replace(["\t", "\n", "\r", "\0"], '', $url), "\x00..\x20");
+    if (preg_match('/^([a-zA-Z][a-zA-Z0-9+.\-]*):/', $probe, $scheme)
+        && !in_array(strtolower($scheme[1]), ['http', 'https', 'mailto', 'tel'], true)) {
+        return '#';
+    }
+    return $url;
+}
+
 function mediaImgAttrs($url) {
     $path = mediaLocalPathForUrl($url);
     if ($path === null) return '';

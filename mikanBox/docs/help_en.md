@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.9.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.9.1</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -177,13 +177,13 @@ To publish, upload the folder that static generation produces. In this style the
 
 [SQLite Edition only]{.type-badge .badge-sqlite}
 
-1. Make a random string that cannot be guessed (at least 20 characters), for example by running `openssl rand -base64 24` in a terminal. Keep a copy.
-2. Create a file named `mikanData/setup-token.txt` and write that string on a single line. If there is no `mikanData` folder, create it next to `index.php`.
-3. Upload the `mikanBox` folder, `index.php` and the `mikanData` folder. Do not put the token file in a public repository or a shared folder.
+1. Make a random string (at least 20 characters). Keep a copy. It is used only once, so you do not need to remember it for long.
+2. Open `setup-token.txt` in the `setup-token` folder and write that string on a single line below the instructions.
+3. Upload the `mikanBox` folder, `index.php` and the `setup-token` folder.
 4. Open `mikanBox/admin.php`, enter the token you kept, a username, a display name and a name for this device (for example, "Work laptop"), then press "Register this device".
 5. When registration succeeds, this browser stores the device's key and you are taken straight into the admin screen. A token works only once.
 
-If `setup-token.txt` is missing or shorter than 20 characters, the registration screen is not shown. Only a notice reading "The installation method has changed. Please see this page." appears. Nobody becomes the admin just by visiting first. The same steps apply when you run mikanBox locally.
+If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the registration screen is not shown. Only a notice reading "The installation method has changed. Please see this page." appears. Nobody becomes the admin just by visiting first. The same steps apply when you run mikanBox locally.
 
 After you clear cookies, or when you sign in from another browser or computer, that device is unregistered. Add it as follows.
 
@@ -193,13 +193,13 @@ After you clear cookies, or when you sign in from another browser or computer, t
 
 On a registered device, open Site → "Devices and users" → "Add a device" → "Issue a code". The code is shown at the top of the screen. Open the admin screen on the new device and enter the code and a device name. A code has 10 characters, is valid for 3 hours and works once. Keep it private. After 10 wrong entries from the same address (IP), entry from that address is blocked for 15 minutes.
 
-To invite another editor, use "Invite someone" in the same place: choose a username and display name, then issue an invite code.
+To invite another editor, use "Invite someone" in the same place: issue an invite code and hand it over. The invited person chooses their own user ID and display name when they first sign in. A device added with an add code is registered as the same user as whoever issued the code.
 
 #### When Every Device Is Lost (Recovery) {#device-recovery}
 
 [SQLite Edition only]{.type-badge .badge-sqlite}
 
-1. Make a new token, replace the contents of `mikanData/setup-token.txt` and upload it. A value that was used before does not work.
+1. Make a new token, write it to `setup-token.txt` in the `setup-token` folder and upload it. A value that was used before does not work.
 2. On the sign-in screen, open "Recovery (all devices lost)" and enter the token, an existing username and a device name.
 
 Recovery stops every registered device and clears unused codes, edit locks and the MCP API key. Create a new key under "MCP API Key".
@@ -211,7 +211,7 @@ Recovery stops every registered device and clears unused codes, edit locks and t
 Updating to v2.9.0 deletes passwords and security answers, so you can no longer sign in with a password. Usernames and display names are kept. The MCP API key does not change.
 
 - If you update with "System Update" in the admin screen, the browser you were signed in with before the update becomes the first device automatically, provided it opens the admin screen within 2 hours of the update and no device exists yet. Opening a public page first does not matter.
-- If you overwrite the files over FTP, use a different browser, or come back after 2 hours, prepare the token file as described above before updating and register a device with your existing username.
+- If you overwrite the files over FTP, use a different browser, or come back after 2 hours, write a token as described above and register a device with your existing username.
 - The automatically registered browser shows a notice at the top of the screen, "Passwords are gone. …", until you press "Dismiss".
 - A browser or user that was not registered sees the reason on the sign-in screen: "This site no longer uses passwords (device authentication). You cannot sign in with a password; …".
 - Other users ask a registered device to issue an add code.
@@ -598,16 +598,19 @@ Treat the API key like a password. Never store it in a public repository or shar
 
 Starting with mikanBox 2.5.1, the MCP connection instructions tell AI to call `get_ai_context` on first connection. This tool returns every [AI Instructions]{.type-badge .badge-ai} component—such as `DESIGN.md`, `BRAND.md`, and `CONTENTS.md`—in a single response. AI treats the returned content as site-specific project instructions for content, design, and code changes. Updating an instruction component updates what AI receives the next time it loads the context.
 
-#### If no API key has been issued yet
+#### Connection URL
 
-- [[auto_awesome]{.material-symbols-outlined}Generate API Key]{.m-btn .m-btn-blue} — Issues a new API key.
+The URL of this site's administration MCP. "Copy" puts it on the clipboard so you can paste it straight into the client's settings.
 
-#### API Key (once issued)
+- [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the connection URL to the clipboard.
 
-The issued API key is shown in a read-only field.
+#### API Key
 
-- [[auto_awesome]{.material-symbols-outlined}Regenerate API Key]{.m-btn .m-btn-gray} — Invalidates the current key and issues a new one. Any existing AI integrations will need to be reconfigured.
+An issued API key is shown in a read-only field. Until one is issued there is no field, only "Generate API Key".
+
 - [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the API key to the clipboard. Paste the generated key into the settings of whatever tool you're connecting (e.g. `.mcp.json` for Claude Desktop).
+- [[auto_awesome]{.material-symbols-outlined}Generate API Key]{.m-btn .m-btn-blue} — (When none is issued) Issues a new API key.
+- [[auto_awesome]{.material-symbols-outlined}Regenerate API Key]{.m-btn .m-btn-gray} — (When one is issued) Invalidates the current key and issues a new one. Any existing AI integrations will need to be reconfigured.
 
 ### CSV Import {#csv-import}
 
@@ -712,13 +715,15 @@ Saves the "Site Settings" content.
 
 Manages the devices that can open the admin screen and the editor accounts. Each editor can register devices, and edit history records the editor's name. There are no passwords (see [Initial Setup and Sign-in](#first-setup)). Keeping devices safe (screen lock, handling a lost device) is your responsibility. Stop a lost device here from another device.
 
-#### Registered Devices
+#### Users and Devices
 
-A list of each device's name, user, registration time, last use and expiry. Your own device is marked "(this device)".
+Each user is shown with their own devices. You see the username and display name, and each device's name, registration time, last use and expiry. Your own device is marked "(this device)".
 
-- [Stop]{.m-btn .m-btn-red} — Stops that device. It is signed out immediately and needs an add code to be used again. Stopping your own device is the same as logging out.
-- A device added with a code cannot stop other devices for 3 days after it is registered. This prevents someone with a stolen code from locking the owner out. The first device has no such limit.
+- [Stop]{.m-btn .m-btn-red} — Stops that device. It is signed out immediately and needs an add code to be used again. Stopping your own device is the same as logging out. There is no log-out button at the top right of the admin screen.
+- A device added with a code cannot stop other devices or delete users for 3 days after it is registered. This prevents someone with a stolen code from locking the owner out. The first device has no such limit.
 - When someone registers a new device, a notice appears the next time you open the admin screen. If you do not recognize it, stop it in this list.
+- Your own user has a "Display name" field. Change the name shown in edit history and similar places, then press "Save". The username cannot be changed.
+- [[delete]{.material-symbols-outlined}Delete]{.m-btn .m-btn-red} — Deletes another user, together with their devices and unused codes. This cannot be undone. You cannot delete the user you are signed in as, or the only user.
 
 #### Add a Device
 
@@ -726,7 +731,7 @@ Issues an add code. Open the admin screen on the new device and enter the code. 
 
 ##### Invite Someone
 
-Choose a username (alphanumeric characters, underscores and hyphens only) and a display name, then issue an invite code. Using the code creates that user and registers the device.
+Issue an invite code and hand it to the person you want to invite. You do not choose a user ID or display name. When the invited person enters the code and a device name on the sign-in screen, a screen appears where they choose a user ID and display name (alphanumeric characters, underscores and hyphens only). Registering creates that user and registers the device. A user ID that someone else uses cannot be chosen; if it is refused, the code is not spent.
 
 #### Unused Codes
 
@@ -735,27 +740,6 @@ Codes that have been issued but not used. "Cancel" invalidates one.
 #### Unused Devices Expire After
 
 Choose 30, 90 or 180 days. Each use of a device extends its period. A device that has expired must be added again with a code.
-
-#### Users
-
-A list of usernames and display names. You cannot delete the account you are signed in with, or the only user.
-
-- [[delete]{.material-symbols-outlined}Delete]{.m-btn .m-btn-red} — Deletes that user account, together with the user's devices and unused codes. This cannot be undone.
-
-#### Account Settings (User ID, Display Name)
-
-Click to expand and edit your own account.
-
-- **Username** — Alphanumeric characters, underscores and hyphens only. Your registered devices keep working after a change.
-- **Display Name** — The name shown in edit history and similar places.
-
-#### [save]{.material-symbols-outlined} Update Settings{.m-btn .m-btn-blue}
-
-Saves the account settings.
-
-#### Log Out
-
-"Log out" at the top right of the page unregisters this device. You need an add code to sign in again.
 
 **If every device is lost:** register again from a new token, as described in [When Every Device Is Lost (Recovery)](#device-recovery).
 
@@ -1170,6 +1154,14 @@ A space after the symbol is optional here.
 Markdown: `---`
 HTML: `<hr>`
 
+### Code Blocks
+
+Wrap code in lines that hold only three or more backticks or three or more tildes (`~`). The closing line uses the same character and at least as many of them as the opening line. Inside, nothing is converted: not Markdown, not HTML, not `{{tags}}`. It is shown exactly as written. In HTML it becomes `<pre><code>…</code></pre>`.
+
+- A single word after the opening line (for example `php`, `json`, `html`) adds a class that starts with `language-`, as in `<code class="language-php">`. Use it in CSS or a highlighting library to style each language.
+- To show a three-backtick code block inside code (for example on a page that explains Markdown), make the outer fence four or more backticks, or use tildes. A fence that is longer than the inner one is not closed by it.
+- If you forget the closing line, everything from the opening line to the end is treated as code.
+
 ### Inline Elements Usable Mid-Sentence
 
 Markdown: `**bold**`
@@ -1295,6 +1287,8 @@ The content of another page can be embedded via `{{POST_MD:ID}}`. This is handy 
 
 A Markdown document hosted on another site, like GitHub, can be embedded via `{{EXT_MD:url}}`. Not only can you edit it directly on GitHub, but you can also adopt an "AI-friendly" workflow where having an AI agent rewrite the file on GitHub is all it takes to update the site.
 
+**Not available in the Cloud edition.** `EXT_MD` fetches a document from an external server. The Cloud edition does not fetch it, so nothing is shown where the tag is.
+
 ### Page Components
 
 A component that lays out an entire page should include `{{CONTENT}}` to output the body content. Optionally place `{{HEAD_CSS}}` to specify the CSS insertion point. If omitted, CSS is inserted before `</head>` (at the beginning of the HTML if there is no closing head tag). If repeated, only the first occurrence outputs CSS and the remaining tags are removed. See the `_layout` bundled component for the basic structure.
@@ -1332,16 +1326,16 @@ A component that lays out an entire page should include `{{CONTENT}}` to output 
 |`{{ NAV_CARDS:all:componentID (optional) }}`|Shows every page as cards|
 |`{{ NAV_CARDS:(empty):componentID (optional) }}`|Shows pages with no category as cards|
 |`{{ POST_MD:ID }}`|Embeds the given page as Markdown|
-|`{{ EXT_MD:url }}`|Embeds Markdown from the given URL|
+|`{{ EXT_MD:url }}`|Embeds Markdown from the given URL (not available in Cloud)|
 |`{{DATA:key}}value{{/DATA}}`|Defines data (visible). Key (case-insensitive) may only use alphanumeric characters and underscores. Value can be in any language.|
 |`{{DATA:key:GHOST}}value{{/DATA}}`|Defines data (hidden). Key may only use alphanumeric characters and "_".|
 |`{{DATAROW:rowID}} {{DATA:key}}value{{/DATA}} {{/DATAROW}}`|Defines table-format data. key and rowID may only use alphanumeric characters and "_".|
 |`{{ POST_MD::key }}`|Displays data from within the current page|
 |`{{ POST_MD::pageID:key }}`|Displays data from the given page ID|
-|`{{ EXT_MD:url:key }}`|Displays data from an external page|
+|`{{ EXT_MD:url:key }}`|Displays data from an external page (not available in Cloud)|
 |`{{ POST_MD::#rowID:key }}`|Displays table-format data from within the current page|
 |`{{ POST_MD:pageID#rowID:key }}`|Displays table-format data from the given page ID|
-|`{{ EXT_MD:url#rowID:key }}`|Displays table-format data from an external page|
+|`{{ EXT_MD:url#rowID:key }}`|Displays table-format data from an external page (not available in Cloud)|
 |`{{ CONTENT }}`|**Page wrapper only**: inserts the body content|
 |`{{ HEAD_CSS }}`|Optional CSS insertion point: aggregates CSS and outputs it at the first occurrence, removing the remaining tags. If omitted, inserts before `</head>` (at the beginning of the HTML if there is no closing head tag). By default, this is already placed inside the `_global_head` component.|
 

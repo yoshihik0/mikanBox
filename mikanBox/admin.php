@@ -36,6 +36,7 @@ try {
 $isInitialSetup = ($stmtUsersCount === 0);
 $isDemoMode = !empty($settings['demo_mode']);
 $loginError = ''; // Initialize loginError
+$inviteStep = null; // set when an invite code was accepted and its owner must choose an ID and name
 
 // --- Registering a device: first device (setup token) or an added device (one-time code) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
@@ -117,15 +118,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
             }
         }
     } else {
-        $result = mikanBoxDeviceClaimCode($_POST['code'] ?? '', $deviceName);
-        if ($result === null) {
+        $code = (string)($_POST['code'] ?? '');
+        $kind = mikanBoxDeviceCodeKind($code);
+        $newUser = ['username' => $_POST['username'] ?? '', 'display_name' => $_POST['display_name'] ?? ''];
+        if ($kind === null) {
             recordLoginFailure($rateLimitId);
             $loginError = t('err_device_code_invalid');
+        } elseif ($kind === 'invite' && !isset($_POST['username'])) {
+            // A valid invite: the invited person now chooses their own user ID and display name.
+            $inviteStep = ['code' => $code, 'device_name' => $deviceName];
         } else {
-            clearLoginAttempts($rateLimitId);
-            mikanBoxDeviceSignIn($result['username'], $result['display_name']);
-            header('Location: ' . basename(__FILE__));
-            exit;
+            try {
+                $result = mikanBoxDeviceClaimCode($code, $deviceName, $kind === 'invite' ? $newUser : null);
+                if ($result === null) {
+                    recordLoginFailure($rateLimitId);
+                    $loginError = t('err_device_code_invalid');
+                } else {
+                    clearLoginAttempts($rateLimitId);
+                    mikanBoxDeviceSignIn($result['username'], $result['display_name']);
+                    header('Location: ' . basename(__FILE__));
+                    exit;
+                }
+            } catch (RuntimeException $e) {
+                $loginError = $e->getMessage();
+                $inviteStep = ['code' => $code, 'device_name' => $deviceName, 'username' => $newUser['username'], 'display_name' => $newUser['display_name']];
+            }
         }
     }
 }
@@ -1250,39 +1267,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     }
     elseif ($_POST['save_action'] === 'update_my_account') {
         $currentEditor = $_SESSION['admin_username'] ?? '';
-        $newUsername = trim($_POST['username'] ?? '');
         $disp = trim($_POST['display_name'] ?? '');
 
-        if (empty($newUsername) || !preg_match('/^[a-zA-Z0-9_\-]+$/', $newUsername)) {
-            $message = t('err_userid_chars');
-            $success = false;
-        } elseif (empty($disp)) {
+        if (empty($disp) || mb_strlen($disp) > 120) {
             $message = t('err_display_name_required');
-            $success = false;
         } else {
-            $taken = false;
-            if ($newUsername !== $currentEditor) {
-                $stmtCheck = $db->prepare("SELECT COUNT(*) FROM users WHERE username = :username");
-                $stmtCheck->bindValue(':username', $newUsername, SQLITE3_TEXT);
-                $taken = ($stmtCheck->execute()->fetchArray(SQLITE3_NUM)[0] ?? 0) > 0;
-            }
-            if ($taken) {
-                $message = t('err_userid_exists');
-                $success = false;
+            $stmtUpdate = $db->prepare("UPDATE users SET display_name = :display_name WHERE username = :username");
+            $stmtUpdate->bindValue(':display_name', $disp, SQLITE3_TEXT);
+            $stmtUpdate->bindValue(':username', $currentEditor, SQLITE3_TEXT);
+            if ($stmtUpdate->execute()) {
+                $_SESSION['admin_display_name'] = $disp;
+                $message = t('msg_account_updated');
             } else {
-                $stmtUpdate = $db->prepare("UPDATE users SET username = :new_username, display_name = :display_name WHERE username = :username");
-                $stmtUpdate->bindValue(':new_username', $newUsername, SQLITE3_TEXT);
-                $stmtUpdate->bindValue(':display_name', $disp, SQLITE3_TEXT);
-                $stmtUpdate->bindValue(':username', $currentEditor, SQLITE3_TEXT);
-                if ($stmtUpdate->execute()) {
-                    if ($newUsername !== $currentEditor) mikanBoxDeviceRenameUser($currentEditor, $newUsername);
-                    $_SESSION['admin_username'] = $newUsername;
-                    $_SESSION['admin_display_name'] = $disp;
-                    $message = t('msg_account_updated');
-                } else {
-                    $message = t('err_account_update_failed');
-                    $success = false;
-                }
+                $message = t('err_account_update_failed');
             }
         }
         $_SESSION['admin_message'] = $message;
@@ -1294,12 +1291,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         header('Location: admin.php?view=site#users-mgmt');
         exit;
     }
-    elseif (in_array($_POST['save_action'], ['device_code_create', 'device_code_cancel', 'device_revoke', 'device_expiry', 'device_logout'], true)) {
+    elseif (in_array($_POST['save_action'], ['device_code_create', 'device_code_cancel', 'device_revoke', 'device_expiry'], true)) {
         $action = $_POST['save_action'];
         $currentDevice = mikanBoxCurrentDevice();
         if (!$currentDevice) {
             $message = t('err_session_error');
-        } elseif ($action === 'device_logout' || ($action === 'device_revoke' && ($_POST['device_id'] ?? '') === $currentDevice['id'])) {
+        } elseif ($action === 'device_revoke' && ($_POST['device_id'] ?? '') === $currentDevice['id']) {
             // Stopping this device signs this browser out; it needs a new code to come back.
             mikanBoxDeviceRevoke($currentDevice, $currentDevice['id']);
             mikanBoxDeviceClearCookie();
@@ -1310,9 +1307,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         } else {
             try {
                 if ($action === 'device_code_create') {
-                    $invite = isset($_POST['invite']) ? ['username' => $_POST['username'] ?? '', 'display_name' => $_POST['display_name'] ?? ''] : null;
                     // Shown once, in the section itself: a toast would vanish before it could be copied.
-                    $_SESSION['device_code_flash'] = mikanBoxDeviceIssueCode($currentDevice, $invite);
+                    $_SESSION['device_code_flash'] = mikanBoxDeviceIssueCode($currentDevice, isset($_POST['invite']));
                     $message = t('msg_device_code_issued');
                 } elseif ($action === 'device_code_cancel') {
                     mikanBoxDeviceCancelCode((string)($_POST['code_hash'] ?? ''));
@@ -1606,12 +1602,6 @@ function getIcon($name) {
         <a href="<?= $lastSsgRelPath ?>" target="_blank"><?= t('admin_view_site') ?></a>
         <?php if ($isDemoMode && !$isLoggedIn): ?>
         <a href="?login=1"><?= t('btn_login') ?></a>
-        <?php else: ?>
-        <form method="post" style="display:inline" onsubmit="return confirm(<?= htmlspecialchars(json_encode(t('device_logout_confirm')), ENT_QUOTES, 'UTF-8') ?>)">
-            <?= csrfField() ?>
-            <input type="hidden" name="save_action" value="device_logout">
-            <button type="submit" class="link-button"><?= t('admin_logout') ?></button>
-        </form>
         <?php endif; ?>
     </div>
 

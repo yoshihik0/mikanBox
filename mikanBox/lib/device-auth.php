@@ -5,7 +5,7 @@
 // There are no passwords. A browser holds a random token in an HttpOnly cookie
 // and the database keeps only its SHA-256, so a leaked database cannot sign
 // anyone in. A device is added in one of two ways:
-//   * setup token: a random value the owner writes to DATA_DIR/setup-token.txt
+//   * setup token: a random value the owner writes to setup-token/setup-token.txt beside index.php
 //     before uploading. It works once; it registers the first device, and a
 //     new value is the recovery path when every device is lost.
 //   * one-time code: issued on an already registered device, valid for
@@ -22,6 +22,7 @@ const MIKANBOX_DEVICE_EXPIRY_CHOICES = [30, 90, 180];
 const MIKANBOX_DEVICE_RENEW_SECONDS = 3600;
 const MIKANBOX_DEVICE_COOKIE_DAYS = 400;
 const MIKANBOX_SETUP_TOKEN_MIN_LENGTH = 20;
+const MIKANBOX_SETUP_TOKEN_MIN_DISTINCT = 8;
 const MIKANBOX_ADOPT_WINDOW_SECONDS = 7200;
 const MIKANBOX_DEVICE_CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
@@ -49,20 +50,6 @@ function mikanBoxAuthMetaInit(SQLite3 $db, string $key, string $value): void {
     $stmt->bindValue(':k', $key, SQLITE3_TEXT);
     $stmt->bindValue(':v', $value, SQLITE3_TEXT);
     $stmt->execute();
-}
-
-/** Replace the stored value with $value. True for exactly one caller per distinct value. */
-function mikanBoxAuthMetaClaim(SQLite3 $db, string $key, string $value): bool {
-    $insert = $db->prepare('INSERT OR IGNORE INTO auth_meta (key, value) VALUES (:k, :v)');
-    $insert->bindValue(':k', $key, SQLITE3_TEXT);
-    $insert->bindValue(':v', $value, SQLITE3_TEXT);
-    $insert->execute();
-    if ($db->changes() === 1) return true;
-    $update = $db->prepare('UPDATE auth_meta SET value = :v WHERE key = :k AND value <> :v');
-    $update->bindValue(':k', $key, SQLITE3_TEXT);
-    $update->bindValue(':v', $value, SQLITE3_TEXT);
-    $update->execute();
-    return $db->changes() === 1;
 }
 
 function mikanBoxDeviceEnsureSchema(SQLite3 $db): void {
@@ -118,7 +105,7 @@ function mikanBoxDeviceEnsureSchema(SQLite3 $db): void {
 function mikanBoxAccountsResetIfRequested(SQLite3 $db): void {
     $file = DATA_DIR . '/reset-accounts.txt';
     if (!is_file($file)) return;
-    foreach (['DELETE FROM users', 'DELETE FROM device_sessions', 'DELETE FROM device_codes', "DELETE FROM auth_meta WHERE key = 'setup_token_used'"] as $sql) {
+    foreach (['DELETE FROM users', 'DELETE FROM device_sessions', 'DELETE FROM device_codes'] as $sql) {
         $db->exec($sql);
     }
     @unlink($file);
@@ -230,6 +217,7 @@ function mikanBoxCurrentDevice(bool $refresh = false): ?array {
  * valid registered device the session is signed out, whatever it held before.
  */
 function mikanBoxDeviceLogin(): ?array {
+    mikanBoxSetupTokenEnsureFolder();
     $device = mikanBoxCurrentDevice();
     if ($device === null) {
         mikanBoxDeviceRememberAdoptable();
@@ -320,10 +308,14 @@ function mikanBoxDeviceRevoke(array $actor, string $id): void {
     $stmt->execute();
 }
 
-/** Devices registered by someone else since this device last looked; marks them seen. */
+/**
+ * Devices registered by someone else since this device last looked; marks them seen.
+ * Times have one-second resolution, so a device added in the very second of the last look
+ * is shown once more rather than missed.
+ */
 function mikanBoxDeviceUnseen(array $device): array {
     $db = getDb();
-    $stmt = $db->prepare('SELECT * FROM device_sessions WHERE created_at > :seen AND id <> :id AND revoked_at IS NULL ORDER BY created_at');
+    $stmt = $db->prepare('SELECT * FROM device_sessions WHERE created_at >= :seen AND id <> :id AND revoked_at IS NULL ORDER BY created_at');
     $stmt->bindValue(':seen', (int)$device['seen_until'], SQLITE3_INTEGER);
     $stmt->bindValue(':id', $device['id'], SQLITE3_TEXT);
     $res = $stmt->execute();
@@ -331,29 +323,20 @@ function mikanBoxDeviceUnseen(array $device): array {
     while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) $rows[] = $row;
     if ($rows) {
         $mark = $db->prepare('UPDATE device_sessions SET seen_until = :n WHERE id = :id');
-        $mark->bindValue(':n', time(), SQLITE3_INTEGER);
+        // Past the newest device shown, so the same-second case above is not shown twice.
+        $mark->bindValue(':n', max(time(), 1 + max(array_map(static fn($row) => (int)$row['created_at'], $rows))), SQLITE3_INTEGER);
         $mark->bindValue(':id', $device['id'], SQLITE3_TEXT);
         $mark->execute();
     }
     return $rows;
 }
 
-/** A user was deleted or renamed: their devices and unused codes follow. */
+/** A user was deleted: their devices and unused codes follow. */
 function mikanBoxDeviceForgetUser(string $username): void {
     $db = getDb();
     foreach (['DELETE FROM device_sessions WHERE username = :u', 'DELETE FROM device_codes WHERE username = :u'] as $sql) {
         $stmt = $db->prepare($sql);
         $stmt->bindValue(':u', $username, SQLITE3_TEXT);
-        $stmt->execute();
-    }
-}
-
-function mikanBoxDeviceRenameUser(string $old, string $new): void {
-    $db = getDb();
-    foreach (['UPDATE device_sessions SET username = :new WHERE username = :old', 'UPDATE device_codes SET username = :new WHERE username = :old'] as $sql) {
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(':new', $new, SQLITE3_TEXT);
-        $stmt->bindValue(':old', $old, SQLITE3_TEXT);
         $stmt->execute();
     }
 }
@@ -364,26 +347,20 @@ function mikanBoxDeviceNormalizeCode(string $code): string {
     return strtr(preg_replace('/[^0-9A-Z]/', '', strtoupper($code)) ?? '', ['O' => '0', 'I' => '1', 'L' => '1']);
 }
 
-/** Issue a code. With $invite the code creates that user; otherwise it adds a device for the issuer. */
-function mikanBoxDeviceIssueCode(array $creator, ?array $invite = null): string {
+/**
+ * Issue a code. A plain code adds a device for the issuer's own user. An invite code
+ * names nobody: the invited person chooses a user ID and display name when they use it.
+ */
+function mikanBoxDeviceIssueCode(array $creator, bool $invite = false): string {
     $db = getDb();
-    if ($invite !== null) {
-        $invite['username'] = trim($invite['username'] ?? '');
-        $invite['display_name'] = trim($invite['display_name'] ?? '');
-        if (!preg_match('/\A[A-Za-z0-9_-]{1,80}\z/', $invite['username'])) throw new RuntimeException(t('err_username_chars'));
-        if ($invite['display_name'] === '' || mb_strlen($invite['display_name']) > 120) throw new RuntimeException(t('err_display_name_required'));
-        $exists = $db->prepare('SELECT 1 FROM users WHERE username = :u');
-        $exists->bindValue(':u', $invite['username'], SQLITE3_TEXT);
-        if ($exists->execute()->fetchArray()) throw new RuntimeException(t('err_username_exists'));
-    }
     $code = '';
     for ($i = 0; $i < 10; $i++) $code .= MIKANBOX_DEVICE_CODE_ALPHABET[random_int(0, 31)];
     $now = time();
     $stmt = $db->prepare('INSERT INTO device_codes (code_hash, username, display_name, created_by, created_at, expires_at)
         VALUES (:h, :u, :d, :by, :c, :e)');
     $stmt->bindValue(':h', hash('sha256', $code), SQLITE3_TEXT);
-    $stmt->bindValue(':u', $invite['username'] ?? $creator['username'], SQLITE3_TEXT);
-    $stmt->bindValue(':d', $invite['display_name'] ?? '', SQLITE3_TEXT);
+    $stmt->bindValue(':u', $invite ? '' : $creator['username'], SQLITE3_TEXT);
+    $stmt->bindValue(':d', '', SQLITE3_TEXT);
     $stmt->bindValue(':by', $creator['id'], SQLITE3_TEXT);
     $stmt->bindValue(':c', $now, SQLITE3_INTEGER);
     $stmt->bindValue(':e', $now + MIKANBOX_DEVICE_CODE_HOURS * 3600, SQLITE3_INTEGER);
@@ -391,38 +368,65 @@ function mikanBoxDeviceIssueCode(array $creator, ?array $invite = null): string 
     return substr($code, 0, 5) . '-' . substr($code, 5);
 }
 
-/** Use a code once and register this browser. Returns the signed-in user, or null for a bad, used or expired code. */
-function mikanBoxDeviceClaimCode(string $code, string $deviceName): ?array {
+function mikanBoxDeviceFindCode(string $code): ?array {
     $db = getDb();
-    $hash = hash('sha256', mikanBoxDeviceNormalizeCode($code));
-    $now = time();
     $find = $db->prepare('SELECT * FROM device_codes WHERE code_hash = :h AND used_at IS NULL AND expires_at > :n');
-    $find->bindValue(':h', $hash, SQLITE3_TEXT);
-    $find->bindValue(':n', $now, SQLITE3_INTEGER);
+    $find->bindValue(':h', hash('sha256', mikanBoxDeviceNormalizeCode($code)), SQLITE3_TEXT);
+    $find->bindValue(':n', time(), SQLITE3_INTEGER);
     $row = $find->execute()->fetchArray(SQLITE3_ASSOC);
+    return $row ?: null;
+}
+
+/** 'add' (a device for an existing user), 'invite' (a new user chooses an ID and name), or null for a bad code. */
+function mikanBoxDeviceCodeKind(string $code): ?string {
+    $row = mikanBoxDeviceFindCode($code);
     if (!$row) return null;
+    return $row['username'] === '' ? 'invite' : 'add';
+}
+
+/**
+ * Use a code once and register this browser. Returns the signed-in user, or null for a bad,
+ * used or expired code. An invite code needs $newUser (username, display_name); mistakes in
+ * those throw a translated RuntimeException before the code is spent.
+ */
+function mikanBoxDeviceClaimCode(string $code, string $deviceName, ?array $newUser = null): ?array {
+    $db = getDb();
+    $row = mikanBoxDeviceFindCode($code);
+    if (!$row) return null;
+    $hash = hash('sha256', mikanBoxDeviceNormalizeCode($code));
+    $username = (string)$row['username'];
+    $displayName = (string)$row['display_name'];
+    $invited = $username === '';
+    if ($invited) {
+        $username = trim((string)($newUser['username'] ?? ''));
+        $displayName = trim((string)($newUser['display_name'] ?? ''));
+        if (!preg_match('/\A[A-Za-z0-9_-]{1,80}\z/', $username)) throw new RuntimeException(t('err_username_chars'));
+        if ($displayName === '' || mb_strlen($displayName) > 120) throw new RuntimeException(t('err_display_name_required'));
+        $taken = $db->prepare('SELECT 1 FROM users WHERE username = :u');
+        $taken->bindValue(':u', $username, SQLITE3_TEXT);
+        if ($taken->execute()->fetchArray()) throw new RuntimeException(t('err_username_exists'));
+    }
     $use = $db->prepare('UPDATE device_codes SET used_at = :n WHERE code_hash = :h AND used_at IS NULL');
-    $use->bindValue(':n', $now, SQLITE3_INTEGER);
+    $use->bindValue(':n', time(), SQLITE3_INTEGER);
     $use->bindValue(':h', $hash, SQLITE3_TEXT);
     $use->execute();
     if ($db->changes() !== 1) return null;
-    $displayName = (string)$row['display_name'];
-    if ($displayName !== '') {
+    if ($invited || $displayName !== '') {
         // An invite must create its own user; never attach a device to an account that appeared meanwhile.
         $add = $db->prepare('INSERT OR IGNORE INTO users (username, display_name) VALUES (:u, :d)');
-        $add->bindValue(':u', $row['username'], SQLITE3_TEXT);
+        $add->bindValue(':u', $username, SQLITE3_TEXT);
         $add->bindValue(':d', $displayName, SQLITE3_TEXT);
         $add->execute();
         if ($db->changes() !== 1) return null;
     } else {
         $who = $db->prepare('SELECT display_name FROM users WHERE username = :u');
-        $who->bindValue(':u', $row['username'], SQLITE3_TEXT);
+        $who->bindValue(':u', $username, SQLITE3_TEXT);
         $user = $who->execute()->fetchArray(SQLITE3_ASSOC);
         if (!$user) return null;
         $displayName = (string)$user['display_name'];
     }
-    mikanBoxDeviceCreate($row['username'], $deviceName, 'code');
-    return ['username' => $row['username'], 'display_name' => $displayName];
+    mikanBoxDeviceCreate($username, $deviceName, 'code');
+    return ['username' => $username, 'display_name' => $displayName];
 }
 
 function mikanBoxDeviceCodes(): array {
@@ -442,27 +446,67 @@ function mikanBoxDeviceCancelCode(string $codeHash): void {
 
 // ---- Setup token: first device and recovery ----
 
-function mikanBoxSetupTokenFile(): string {
-    return DATA_DIR . '/setup-token.txt';
+// The token file lives in a folder of its own, shipped with mikanBox and named so it cannot be
+// mistaken for the admin or data folders. Its .htaccess keeps the web server from serving it.
+const MIKANBOX_SETUP_TOKEN_TEMPLATE = "# ここに、ランダムな文字列（20文字以上）を1行で書いてください。「#」で始まる行は読み込まれません。\n"
+    . "# 1度しか使わないので、長く覚えておく必要はありません。\n"
+    . "# Write a random string (at least 20 characters) on one line below. Lines starting with \"#\" are ignored.\n"
+    . "# It is used only once.\n";
+
+function mikanBoxSetupTokenDir(): string {
+    return dirname(CORE_DIR) . '/setup-token';
 }
 
-/** First non-empty line of the setup token file, or ''. */
+function mikanBoxSetupTokenFile(): string {
+    return mikanBoxSetupTokenDir() . '/setup-token.txt';
+}
+
+/**
+ * The folder ships with mikanBox, but the system update replaces only the program folder.
+ * Recreate whatever is missing, best effort, so the owner always has a protected file to write.
+ */
+function mikanBoxSetupTokenEnsureFolder(): void {
+    $dir = mikanBoxSetupTokenDir();
+    if (!is_dir($dir) && !@mkdir($dir, 0755)) return;
+    $htaccess = $dir . '/.htaccess';
+    if (!is_file($htaccess)) {
+        @file_put_contents($htaccess, "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
+            . "<IfModule !mod_authz_core.c>\n    Order deny,allow\n    Deny from all\n</IfModule>\n");
+    }
+    if (!is_file($dir . '/setup-token.txt')) @file_put_contents($dir . '/setup-token.txt', MIKANBOX_SETUP_TOKEN_TEMPLATE);
+}
+
+/** The first line of the token file that is not blank and not a "#" comment, or ''. */
 function mikanBoxSetupToken(): string {
     $file = mikanBoxSetupTokenFile();
     if (!is_file($file) || !is_readable($file)) return '';
-    foreach (preg_split('/\R/', (string)file_get_contents($file)) ?: [] as $line) {
-        if (trim($line) !== '') return trim($line);
+    // Not \R: without the /u flag it also splits on the byte 0x85, which sits inside many Japanese characters.
+    foreach (preg_split('/\r\n|\n|\r/', (string)file_get_contents($file)) ?: [] as $line) {
+        $line = trim($line);
+        if ($line !== '' && $line[0] !== '#') return $line;
     }
     return '';
+}
+
+/** The token is spent: put the instructions back so no used value lingers on the server. */
+function mikanBoxSetupTokenReset(): void {
+    if (is_dir(mikanBoxSetupTokenDir())) @file_put_contents(mikanBoxSetupTokenFile(), MIKANBOX_SETUP_TOKEN_TEMPLATE);
+}
+
+/** Every token that ever worked stays dead, not only the latest one. */
+function mikanBoxSetupTokenWasUsed(string $token): bool {
+    $db = getDb();
+    $hash = hash('sha256', $token);
+    return mikanBoxAuthMetaGet($db, 'setup_token_used:' . $hash) !== null
+        || hash_equals(mikanBoxAuthMetaGet($db, 'setup_token_used') ?? '', $hash); // 2.9.0 remembered only the latest
 }
 
 /** 'missing' | 'weak' | 'used' | 'ready' */
 function mikanBoxSetupTokenState(): string {
     $token = mikanBoxSetupToken();
     if ($token === '') return 'missing';
-    if (strlen($token) < MIKANBOX_SETUP_TOKEN_MIN_LENGTH) return 'weak';
-    $used = mikanBoxAuthMetaGet(getDb(), 'setup_token_used') ?? '';
-    return hash_equals($used, hash('sha256', $token)) ? 'used' : 'ready';
+    if (strlen($token) < MIKANBOX_SETUP_TOKEN_MIN_LENGTH || count(array_unique(str_split($token))) < MIKANBOX_SETUP_TOKEN_MIN_DISTINCT) return 'weak';
+    return mikanBoxSetupTokenWasUsed($token) ? 'used' : 'ready';
 }
 
 function mikanBoxSetupTokenMatches(string $input): bool {
@@ -477,7 +521,12 @@ function mikanBoxSetupTokenMatches(string $input): bool {
 function mikanBoxSetupTokenConsume(): bool {
     $db = getDb();
     $recovery = mikanBoxDeviceActiveCount() > 0;
-    if (!mikanBoxAuthMetaClaim($db, 'setup_token_used', hash('sha256', mikanBoxSetupToken()))) return false;
+    $insert = $db->prepare('INSERT OR IGNORE INTO auth_meta (key, value) VALUES (:k, :v)');
+    $insert->bindValue(':k', 'setup_token_used:' . hash('sha256', mikanBoxSetupToken()), SQLITE3_TEXT);
+    $insert->bindValue(':v', (string)time(), SQLITE3_TEXT);
+    $insert->execute();
+    if ($db->changes() !== 1) return false; // another request spent it first
+    mikanBoxSetupTokenReset();
     if ($recovery) {
         $stmt = $db->prepare('UPDATE device_sessions SET revoked_at = :n WHERE revoked_at IS NULL');
         $stmt->bindValue(':n', time(), SQLITE3_INTEGER);
