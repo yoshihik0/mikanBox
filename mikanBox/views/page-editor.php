@@ -209,27 +209,7 @@
                     <div class="flex-row flex-between mt-10">
                         <div class="flex-row">
                             <button type="submit" form="page-form" name="save_action" value="save_page" class="btn btn-blue"><?= getIcon('save') ?> <?= t('btn_save') ?></button>
-                            <?php if($editId): ?>
-                                <?php
-                                $previewStatus = $editData['status'] ?? 'draft';
-                                $ssgStruct = $settings['ssg_structure'] ?? 'directory';
-                                $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                                $siteDir = dirname(dirname($_SERVER['SCRIPT_NAME']));
-                                if ($siteDir === '/' || $siteDir === '.') $siteDir = '';
-                                $siteBaseUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . $siteDir;
-                                if ($editId === 'index') {
-                                    $previewUrl = $siteBaseUrl . '/';
-                                } elseif ($previewStatus === 'public_static') {
-                                    $staticRoot = !empty($settings['ssg_root_url'])
-                                        ? rtrim($settings['ssg_root_url'], '/')
-                                        : $siteBaseUrl . (($ssgDir !== '') ? '/' . trim($ssgDir, '/') : '');
-                                    $previewUrl = $staticRoot . '/' . $editId . ($ssgStruct === 'directory' ? '/' : '.html');
-                                } else {
-                                    $previewUrl = $siteBaseUrl . '/' . $editId;
-                                }
-                                ?>
-                                <a href="<?= htmlspecialchars($previewUrl) ?>" target="_blank" class="btn btn-blue preview-btn"><?= getIcon('view') ?> <?= t('admin_view_site') ?></a>
-                            <?php endif; ?>
+                            <button type="button" class="btn btn-blue" data-editor-preview="admin.php?editor_preview=1"><?= getIcon('view') ?> <?= t('btn_preview') ?></button>
                             <a href="admin.php#pages" class="btn btn-gray"><?= getIcon('arrow_back') ?> <?= t('btn_back_to_list') ?></a>
                         </div>
                         <?php if ($editId): ?>
@@ -312,36 +292,7 @@ function updatePreviewBannerVisibility() {
     const isPendingChecked = document.querySelector('input[name="status"][value="pending"]')?.checked;
     block.style.display = isPendingChecked ? 'block' : 'none';
     
-    // Update the View Site preview button dynamically
-    const editor = document.getElementById('page-editor');
-    if (editor) {
-        let previewBtn = editor.querySelector('.preview-btn');
-        if (previewBtn) {
-            if (isPendingChecked) {
-                const pendingUrlInput = document.getElementById('pending-preview-url');
-                if (pendingUrlInput && pendingUrlInput.value) {
-                    previewBtn.href = pendingUrlInput.value;
-                }
-            } else {
-                const publicStaticChecked = document.querySelector('input[name="status"][value="public_static"]')?.checked;
-                const idInput = editor.querySelector('input[name="id"]');
-                const editId = idInput ? idInput.value.trim() : '';
-                const siteUrl = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
-                
-                if (editId) {
-                    if (publicStaticChecked) {
-                        const ssgStruct = editor.querySelector('input[name="ssg_structure"]')?.value || 'directory';
-                        const ssgDir = editor.querySelector('input[name="ssg_dir"]')?.value || '';
-                        const ssgRoot = editor.querySelector('input[name="ssg_root_url"]')?.value || '';
-                        const staticRoot = ssgRoot ? ssgRoot.replace(/\/$/, '') : siteUrl + (ssgDir ? '/' + ssgDir.replace(/^\/|\/$/g, '') : '');
-                        previewBtn.href = staticRoot + '/' + editId + (ssgStruct === 'directory' ? '/' : '.html');
-                    } else {
-                        previewBtn.href = siteUrl + '/' + editId;
-                    }
-                }
-            }
-        }
-    }
+
 }
 function copyPendingPreviewUrl() {
     const input = document.getElementById('pending-preview-url');

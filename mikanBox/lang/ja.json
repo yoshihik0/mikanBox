@@ -617,5 +617,8 @@
     "device_display_name_label": "表示名",
     "device_invite_admin_intro": "招待のコードを渡してください。ユーザーIDと表示名は、招待された人が、最初に入るときに自分で決めます。コードは3時間有効で、1回だけ使えます。",
     "device_invite_intro": "招待されました。このサイトで使うユーザーIDと表示名を決めてください。",
-    "cloud_unavailable_note": "（Cloud版では使用できません）"
+    "cloud_unavailable_note": "（Cloud版では使用できません）",
+    "package_layout_title": "ZIP内のファイルの置き方",
+    "package_layout_intro": "posts/ にページ、components/ にコンポーネントのJSONを置きます。posts/ 以下のフォルダ名もページIDに含まれます。",
+    "package_layout_notes": "ZIP内で theme/posts/menu.json のように外側のフォルダがあっても取り込めます。その場合、外側の theme はIDに含まれず、ページIDは menu です。既存の同じIDはスキップします。設定と画像は取り込みません。画像はメディアから別途アップロードしてください。"
 }

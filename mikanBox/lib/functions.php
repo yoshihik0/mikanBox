@@ -203,6 +203,7 @@ function importFolderToSqlite($db, $folderPath, $importSettings = false) {
         foreach ($it as $file) {
             if ($file->getExtension() === 'json') {
                 $relPath = substr($file->getPathname(), strlen($componentsDir) + 1);
+                if (preg_match('~(?:^|[\\/])(?:__MACOSX|\._[^\\/]*)~', $relPath)) continue;
                 $id = substr($relPath, 0, -5); // remove .json
                 // Use forward slashes for IDs on Windows
                 $id = str_replace('\\', '/', $id);
@@ -231,6 +232,7 @@ function importFolderToSqlite($db, $folderPath, $importSettings = false) {
         foreach ($it as $file) {
             if ($file->getExtension() === 'json') {
                 $relPath = substr($file->getPathname(), strlen($postsDir) + 1);
+                if (preg_match('~(?:^|[\\/])(?:__MACOSX|\._[^\\/]*)~', $relPath)) continue;
                 $id = substr($relPath, 0, -5); // remove .json
                 // Use forward slashes for IDs on Windows
                 $id = str_replace('\\', '/', $id);

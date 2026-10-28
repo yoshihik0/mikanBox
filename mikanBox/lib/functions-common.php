@@ -996,9 +996,33 @@ function mediaProcessUploadedImage($filename, $maxDim, $toWebp, $forceWebp = fal
 function mediaConvertExistingToWebp(string $filename): array {
     if ($filename !== basename($filename) || !preg_match('/\A[A-Za-z0-9_][A-Za-z0-9_.-]*\.(?:jpe?g|png)\z/i', $filename)) throw new RuntimeException(t('err_webp_source'));
     if (!function_exists('imagewebp')) throw new RuntimeException(t('err_webp_unavailable'));
+    return mediaChangeExisting($filename, pathinfo($filename, PATHINFO_FILENAME) . '.webp', true, true);
+}
+
+/** Count records whose current references match the complete filename. */
+function mediaReferenceCount(string $filename): int {
+    $pattern = '/(^|[^A-Za-z0-9_.-])' . preg_quote($filename, '/') . '(?=$|[^A-Za-z0-9_.-])/';
+    $count = 0;
+    foreach ([POSTS_DIR => ['content_md','css','js','ogp_image'], COMPONENTS_DIR => ['html','css','js']] as $directory => $fields) {
+        foreach (getFileList($directory) as $id) {
+            $data = loadData($directory, $id);
+            foreach ($fields as $field) if (is_string($data[$field] ?? null) && preg_match($pattern, $data[$field])) { $count++; break; }
+        }
+    }
+    $settings = loadSettings();
+    if (is_string($settings['ogp_image'] ?? null) && preg_match($pattern, $settings['ogp_image'])) $count++;
+    return $count;
+}
+
+function mediaRenameExisting(string $filename, string $targetName, bool $updateReferences): array {
+    if (!mediaValidFilename($filename) || !mediaValidFilename($targetName) || strtolower(pathinfo($filename, PATHINFO_EXTENSION)) !== strtolower(pathinfo($targetName, PATHINFO_EXTENSION))) throw new RuntimeException(t('err_media_extension_change'));
+    return mediaChangeExisting($filename, $targetName, false, $updateReferences);
+}
+
+/** Stage the replacement and commit reference updates before removing the source. */
+function mediaChangeExisting(string $filename, string $targetName, bool $convert, bool $updateReferences): array {
     $source = MEDIA_DIR . '/' . $filename;
     if (!is_file($source)) throw new RuntimeException(t('err_original_file_not_found'));
-    $targetName = pathinfo($filename, PATHINFO_FILENAME) . '.webp';
     $target = MEDIA_DIR . '/' . $targetName;
     if (file_exists($target)) throw new RuntimeException(sprintf(t('err_rename_target_exists'), $targetName));
     $sourceHash = hash_file('sha256', $source);
@@ -1008,10 +1032,12 @@ function mediaConvertExistingToWebp(string $filename): array {
     $createdTarget = false; $transaction = false; $written = []; $changes = []; $db = null; $settingsWritten = false; $siteBefore = null; $siteAfter = null;
     try {
         if (!copy($source, $stage)) throw new RuntimeException(t('err_save_failed'));
-        $converted = mediaProcessUploadedImage($stagedName, 0, true, true);
-        $stagedOutput = MEDIA_DIR . '/' . $converted['filename'];
-        if (!$converted['changed'] || strtolower(pathinfo($stagedOutput, PATHINFO_EXTENSION)) !== 'webp') throw new RuntimeException(t('err_webp_failed'));
-        foreach ([POSTS_DIR => ['content_md','css','js','ogp_image'], COMPONENTS_DIR => ['html','css','js']] as $directory => $fields) {
+        if ($convert) {
+            $converted = mediaProcessUploadedImage($stagedName, 0, true, true);
+            $stagedOutput = MEDIA_DIR . '/' . $converted['filename'];
+            if (!$converted['changed'] || strtolower(pathinfo($stagedOutput, PATHINFO_EXTENSION)) !== 'webp') throw new RuntimeException(t('err_webp_failed'));
+        }
+        foreach ($updateReferences ? [POSTS_DIR => ['content_md','css','js','ogp_image'], COMPONENTS_DIR => ['html','css','js']] : [] as $directory => $fields) {
             foreach (getFileList($directory) as $id) {
                 $original = loadData($directory, $id);
                 if (!$original) continue;
@@ -1022,7 +1048,7 @@ function mediaConvertExistingToWebp(string $filename): array {
         }
         $siteBefore = loadSettings();
         $siteAfter = $siteBefore;
-        if (is_string($siteBefore['ogp_image'] ?? null)) $siteAfter['ogp_image'] = preg_replace('/(^|[^A-Za-z0-9_.-])' . preg_quote($filename, '/') . '(?=$|[^A-Za-z0-9_.-])/', '${1}' . $targetName, $siteBefore['ogp_image']);
+        if ($updateReferences && is_string($siteBefore['ogp_image'] ?? null)) $siteAfter['ogp_image'] = preg_replace('/(^|[^A-Za-z0-9_.-])' . preg_quote($filename, '/') . '(?=$|[^A-Za-z0-9_.-])/', '${1}' . $targetName, $siteBefore['ogp_image']);
         if (function_exists('getDb')) {
             $db = getDb();
             if (!$db->exec('BEGIN IMMEDIATE')) throw new RuntimeException(t('err_save_failed'));

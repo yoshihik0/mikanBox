@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.9.3</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.9.4</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -470,9 +470,7 @@ Saves everything about the page.
 
 #### [open_in_new]{.material-symbols-outlined} Preview{.m-btn .m-btn-blue}
 
-(only shown while editing)
-
-Opens the page in a new tab, at the URL matching its current status, so you can check how it looks.
+Opens the current editor contents, including unsaved body text, CSS, and JavaScript, in a new tab. Previewing does not save or publish the page. Open a new preview after making further changes. This also works for new pages.
 
 #### [arrow_back]{.material-symbols-outlined} Back to List{.m-btn .m-btn-gray}
 
@@ -615,6 +613,8 @@ An issued API key is shown in a read-only field. Until one is issued there is no
 ### CSV Import {#csv-import}
 
 A tool that converts CSV data into a database-like form (DATAROW blocks) usable within the site.
+
+Find it on the Site screen in the PHP editions, or on Data migration and import in the Cloud edition.
 
 #### Choose File
 
@@ -781,9 +781,9 @@ Shows the storage directory, the number of registered media files, and total med
 
 Upload a ZIP package (a theme or a starter set of content) containing `posts/`, `components/`, and similar folders, and import it into the current SQLite database. Only the contents of `posts/` and `components/` are imported — the contents of `settings.json` (site setting values) are never read at all.
 
-When you unzip a package, `posts/` and `components/` sometimes don't appear directly — there may be one extra folder wrapping them (e.g. `themeName/posts/`, `themeName/components/`). In this case, the tool keeps descending as long as a folder contains exactly one subfolder, and treats the level where `posts/`/`components/` appear side by side (i.e. the level has two or more subfolders) as the root. If a `settings.json` file is present, its mere existence (not its contents) is used to immediately identify that level as the root.
+A package may have an outer folder containing `posts/` or `components/`. That outer folder is not part of the resulting IDs. Open “How to arrange files in the ZIP” on the import screen for an example. macOS metadata such as `__MACOSX` and `._` files is ignored.
 
-Each item's ID is taken directly from its JSON **filename** (minus the extension) — not from any title inside the file. Anything matching an existing ID is skipped; nothing is ever overwritten. If you want to bring in a page or component in a way that overwrites an existing one, either delete the existing item in the admin panel first, or rename the JSON file to your intended ID before including it in the ZIP.
+Each page ID comes from its path under `posts/` without the `.json` extension: for example, `posts/coffee/menu.json` becomes `coffee/menu`. Component IDs come from their paths under `components/`. Titles inside the files do not determine IDs. Anything matching an existing ID is skipped; nothing is ever overwritten. If you want to bring in a page or component in a way that overwrites an existing one, either delete the existing item in the admin panel first, or rename the JSON file to your intended ID before including it in the ZIP.
 
 Once import finishes, the extracted folder is renamed to `{folder name}_imported` inside the `import/` folder and left in place (it is not deleted).
 
@@ -1089,6 +1089,8 @@ Click "Rename▼" to expand it. Edit the filename and press [[save]{.material-sy
 - **Update Links** — Renames the file and also rewrites every reference to it inside pages/components to the new filename.
 - **Rename File Only** — Renames only the file itself, leaving existing references untouched (note that those references will then point to a missing file).
 - **Keep Original** — Cancels the rename.
+
+In the PHP editions, a reference in the common site OGP also prompts for confirmation. “Update Links” updates matching filenames in page content, CSS, JavaScript and page OGP, component HTML, CSS and JavaScript, and the common site OGP. Similar filenames, notes and past revisions are left unchanged. In the SQLite edition, the operation stops if an affected page or component is being edited. Rebuild static pages to reflect the changes.
 
 ---
 
@@ -1430,7 +1432,7 @@ External page, table-format: `{{EXT_MD:url#rowID:key}}`
 
 ### Converting CSV Data
 
-Using "CSV Import" on the Site screen, you can convert CSV data from something like Excel into `{{DATAROW}}` format. No extra effort required, even for fairly large data sets.
+Use “CSV Import” on the Site screen in the PHP editions or Data migration and import in the Cloud edition to convert CSV data into `{{DATAROW}}` format.
 
 Select the CSV file exported from Excel, then click
 #### [content_copy]{.material-symbols-outlined} Convert &amp; Copy{.m-btn .m-btn-gray}

@@ -90,8 +90,8 @@ $siteEnvironment = (string)($settings['site_environment'] ?? 'unspecified');
                             <?php if ($trackingLegacyNotice !== ''): ?>
                             <small class="sub-text sub-text-block"><?= t('tracking_legacy_notice', htmlspecialchars($trackingLegacyNotice)) ?></small>
                             <?php endif; ?>
-                            <details class="mt-10" <?= $trackingCodeInUse ? 'open' : '' ?>>
-                                <summary><?= t('label_tracking_code') ?></summary>
+                            <details class="mt-10 js-accordion tracking-code-details" <?= $trackingCodeInUse ? 'open' : '' ?>>
+                                <summary><?= t('label_tracking_code') ?> <span class="accordion-arrow">▼</span></summary>
                                 <label class="sub-label"><?= t('label_tracking_head_code') ?></label>
                                 <textarea name="tracking_head_code" class="tracking-code" rows="5" spellcheck="false"><?= htmlspecialchars($trackingHeadCode) ?></textarea>
                                 <label class="sub-label"><?= t('label_tracking_body_code') ?></label>

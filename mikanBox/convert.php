@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($action)) {
             // Helper function to find settings.json recursively
             if (!function_exists('findPackageRootInDir')) {
                 function findPackageRootInDir($dir) {
-                    if (file_exists($dir . '/settings.json')) {
+                    if (file_exists($dir . '/settings.json') || is_dir($dir . '/posts') || is_dir($dir . '/components')) {
                         return $dir;
                     }
                     $subdirs = [];
@@ -522,6 +522,17 @@ function wp_html_to_markdown($html) {
                         </button>
                     </div>
                 </form>
+                <details class="package-layout-guide">
+                    <summary><?= t('package_layout_title') ?> <span class="accordion-arrow" aria-hidden="true">▼</span></summary>
+                    <p><?= t('package_layout_intro') ?></p>
+                    <pre>posts/
+  coffee/
+    index.json  → coffee/index
+    menu.json   → coffee/menu
+components/
+  coffee_layout.json</pre>
+                    <p><?= t('package_layout_notes') ?></p>
+                </details>
             </div>
 
             <!-- WordPress XML Import Form -->

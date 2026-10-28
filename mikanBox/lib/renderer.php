@@ -80,7 +80,7 @@ class MikanBoxRenderer {
     /**
      * Renders a page by its ID.
      */
-    public function render($pageId) {
+    public function render($pageId, $previewData = null) {
         $this->currentPageId = $pageId;
         $this->globalCssBuffer = [];
         $this->javascriptBuffer = [];
@@ -100,7 +100,7 @@ class MikanBoxRenderer {
         }
 
         // Determine directories
-        $pageData = loadData(POSTS_DIR, $pageId);
+        $pageData = $previewData ?? loadData(POSTS_DIR, $pageId);
         if (!$pageData) {
             http_response_code(404);
             $pageData = loadData(POSTS_DIR, '404') ?: [
@@ -1042,19 +1042,33 @@ class MikanBoxRenderer {
         $mediaBase = $this->isRelativeStaticMode()
             ? $this->getStaticRootPrefix() . 'media/'
             : rtrim($siteUrl, '/') . '/media/';
-        $html = preg_replace_callback('/<(img|video|audio|source)\b([^>]*)\bsrc=["\']([^"\'\s>]+)["\']/i', function($m) use ($mediaBase) {
+        $mediaRoots = array_filter(array_unique([rtrim($this->getSiteUrl(), '/'), rtrim((string)($this->siteSettings['site_url'] ?? ''), '/'), $this->getConfiguredSiteUrl()]));
+        $portableMedia = function($url) use ($mediaBase, $mediaRoots) {
+            if (!$this->isRelativeStaticMode()) return $url;
+            foreach ($mediaRoots as $root) {
+                $prefix = $root . '/media/';
+                if (str_starts_with($url, $prefix)) {
+                    $name = substr($url, strlen($prefix));
+                    if (preg_match('/\A[A-Za-z0-9_.-]+(?:[?#][^\s]*)?\z/', $name)) return $mediaBase . $name;
+                }
+            }
+            return $url;
+        };
+        $html = preg_replace_callback('/<(img|video|audio|source)\b([^>]*)\bsrc=["\']([^"\'\s>]+)["\']/i', function($m) use ($mediaBase, $portableMedia) {
             $tag = $m[1];
             $attrs = $m[2];
             $src = $m[3];
 
             if (preg_match('/^(?:https?:\/\/|data:)/i', $src)) {
-                return $m[0];
+                $rewritten = $portableMedia($src);
+                return $rewritten === $src ? $m[0] : "<{$tag}{$attrs}src=\"{$rewritten}\"";
             }
 
             // Convert images/myfile.jpg or myfile.jpg to full URL
             $filename = basename($src);
             return "<{$tag}{$attrs}src=\"{$mediaBase}{$filename}\"";
         }, $html);
+        $html = preg_replace_callback('/url\(\s*(["\']?)(https?:\/\/[^)"\'\s]+)\1\s*\)/i', fn($m) => 'url(' . $m[1] . $portableMedia($m[2]) . $m[1] . ')', $html);
         return preg_replace_callback(
             '/url\(\s*(["\']?)(?:images|media)\/([^)"\']+)\1\s*\)/i',
             fn($m) => 'url(' . $m[1] . $mediaBase . $m[2] . $m[1] . ')',

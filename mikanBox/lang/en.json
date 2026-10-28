@@ -617,5 +617,8 @@
     "device_display_name_label": "Display name",
     "device_invite_admin_intro": "Hand over the invite code. The invited person chooses their own user ID and display name when they first sign in. The code is valid for 3 hours and works once.",
     "device_invite_intro": "You have been invited. Choose the user ID and display name you will use on this site.",
-    "cloud_unavailable_note": " (not available in the Cloud edition)"
+    "cloud_unavailable_note": " (not available in the Cloud edition)",
+    "package_layout_title": "How to arrange files in the ZIP",
+    "package_layout_intro": "Place page JSON files in posts/ and component JSON files in components/. Folders under posts/ become part of the page ID.",
+    "package_layout_notes": "A ZIP may contain an outer folder, for example theme/posts/menu.json. The outer theme folder is not part of the ID, so the page ID is menu. Existing IDs are skipped; settings and images are not imported. Upload images separately in Media."
 }

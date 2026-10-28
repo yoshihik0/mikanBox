@@ -11,7 +11,7 @@ class MikanBoxSSG {
         $this->renderer = $renderer;
         $this->outputDir = rtrim($outputDir, '/');
         $settings = $GLOBALS['mikanbox_settings'] ?? [];
-        $defaultOutputMode = $settings['ssg_mode'] ?? 'server';
+        $defaultOutputMode = $options['output_mode'] ?? ($settings['ssg_mode'] ?? 'server');
         $this->options = array_merge([
             'structure' => $settings['ssg_structure'] ?? 'directory',
             'selected_pages' => [],
