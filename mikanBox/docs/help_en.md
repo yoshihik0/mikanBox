@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.9.2</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.9.3</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -1309,7 +1309,7 @@ A component that lays out an entire page should include `{{CONTENT}}` to output 
 |`{{ KEYWORDS }}`|Page's keywords|
 |`{{ OGP_IMAGE }}`|Page thumbnail / OGP image URL|
 |`{{ PAGE_URL }}`|Page URL|
-|`{{ SITE_URL }}`|Site URL|
+|`{{ SITE_URL }}`|Site URL. Also usable in Markdown link destinations (e.g. `[Details]({{SITE_URL}}/about)`)|
 |`{{ SITE_NAME }}`|Site title|
 |`{{ SITE_DESCRIPTION }}`|Site's common description|
 |`{{ SITE_OGP_IMAGE }}`|Site's common OGP image URL|

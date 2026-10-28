@@ -168,7 +168,7 @@ class MikanBoxRenderer {
                 return "\xE2\x80\x8B<!--MKNTG" . base64_encode($m[0]) . "-->\xE2\x80\x8B";
             }, $contentMd);
 
-            $contentHtml = $this->markdown->text($protectedMd);
+            $contentHtml = $this->restoreMarkdownUrlTags($this->markdown->text($protectedMd));
             $contentHtml = preg_replace_callback('/\x{200B}?<!--MKNTG([a-zA-Z0-9+\/=]+)-->\x{200B}?/u', function($m) {
                 return base64_decode($m[1]);
             }, $contentHtml);
@@ -433,6 +433,18 @@ class MikanBoxRenderer {
         
         // 3. Prepend the standard DOCTYPE
         return "<!DOCTYPE html>\n" . $html;
+    }
+
+    // Markdown escapes placeholder comments in link attributes. Restore only URL tags
+    // there; escaped placeholders in code examples must remain inert until final output.
+    private function restoreMarkdownUrlTags($html) {
+        return preg_replace_callback('/<a\s+href="([^"]*)"/i', function($link) {
+            $href = preg_replace_callback('/\x{200B}?&lt;!--MKNTG([a-zA-Z0-9+\/=]+)--&gt;\x{200B}?/u', function($tag) {
+                $original = base64_decode($tag[1], true);
+                return $original !== false && preg_match('/^\{\{\s*(?:SITE_URL|BASE_URL|PAGE_URL)\s*\}\}$/', $original) ? $original : $tag[0];
+            }, $link[1]);
+            return '<a href="' . $href . '"';
+        }, $html);
     }
 
     private function parseComponents($content, array $visited = []) {
@@ -817,7 +829,7 @@ class MikanBoxRenderer {
             $protected = preg_replace_callback('/\{\{[^\}]+\}\}/', function($m) {
                 return "\xE2\x80\x8B<!--MKNTG" . base64_encode($m[0]) . "-->\xE2\x80\x8B";
             }, $content);
-            $embeddedHtml = $this->markdown->text($protected);
+            $embeddedHtml = $this->restoreMarkdownUrlTags($this->markdown->text($protected));
             $embeddedHtml = preg_replace_callback('/\x{200B}?<!--MKNTG([a-zA-Z0-9+\/=]+)-->\x{200B}?/u', function($m) {
                 return base64_decode($m[1]);
             }, $embeddedHtml);

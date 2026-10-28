@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.9.2</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.9.3</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -1308,7 +1308,7 @@ GitHubなど、他のサイトに設置したMarkdown文書を `{{EXT_MD:url}}` 
 |`{{ KEYWORDS }}`|ページのキーワード|
 |`{{ OGP_IMAGE }}`|ページサムネール・OGP画像URL|
 |`{{ PAGE_URL }}`|ページURL|
-|`{{ SITE_URL }}`|サイトURL|
+|`{{ SITE_URL }}`|サイトURL。Markdownのリンク先にも使えます（例：`[詳細]({{SITE_URL}}/about)`）|
 |`{{ SITE_NAME }}`|サイトのタイトル|
 |`{{ SITE_DESCRIPTION }}`|サイトの共通説明|
 |`{{ SITE_OGP_IMAGE }}`|サイトの共通OGP画像URL|
