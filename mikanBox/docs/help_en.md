@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.9.4</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.9.5</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -349,7 +349,7 @@ Preview buttons are blue in all three editions.
 A dropdown for switching each page's publication status. Changes are saved immediately.
 
 - **Draft** — Private. Not accessible to anyone but the admin.
-- **Pending approval** — [SQLite Edition only]{.type-badge .badge-sqlite} Private, but anyone who knows the unguessable preview URL (`?preview=token`) can view it. Useful for sending a page to a reviewer for approval. Pages pending approval are shown at the top of the list.
+- **Pending approval** — [SQLite Edition only]{.type-badge .badge-sqlite} Private, but anyone who knows the unguessable preview URL (`?preview=token`, valid for 7 days) can view it. Useful for sending a page to a reviewer for approval. Pages pending approval are shown at the top of the list.
 - **Public (Dynamic)** — Rendered dynamically by PHP.
 - **Public (Static)** — Published as a static HTML file, following the directory/file settings configured under Static Site Generation (SSG) on the Site screen.
 - **DB** — The page itself stays private, and its `{{DATAROW}}` data becomes readable as an API at `siteURL/api/pageID`.
@@ -405,7 +405,7 @@ The page's title. Required. Available inside components as `{{TITLE}}` or `{{FUL
 Choose the page's publication status via radio buttons.
 
 - **Draft** — Private. Not accessible to anyone but the admin.
-- **Pending approval** — [SQLite Edition only]{.type-badge .badge-sqlite} Private, but an unguessable preview share URL (`?preview=token`) is generated automatically and shown right on this screen. You can just send the URL to a reviewer so they can check the content without ever logging into the admin panel.
+- **Pending approval** — [SQLite Edition only]{.type-badge .badge-sqlite} Private, but an unguessable preview share URL (`?preview=token`, valid for 7 days) is generated automatically and shown right on this screen. You can just send the URL to a reviewer so they can check the content without ever logging into the admin panel.
 - **Public (Dynamic)** — Rendered dynamically by PHP.
 - **Public (Static)** — Published as a static HTML file, following the directory/file settings configured under Static Site Generation (SSG) on the Site screen.
 - **DB** — The page itself stays private, and its `{{DATAROW}}` data becomes readable as an API at `siteURL/api/pageID`.
@@ -415,6 +415,8 @@ If you switch a page that was set to Public (Static) to any other status, its st
 #### Preview Share URL [SQLite Edition only]{.type-badge .badge-sqlite}
 
 Shown when status is set to "Pending approval." A text box holds the URL, with a [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} button next to it to copy it to the clipboard.
+
+From mikanBox 2.9.5, this URL is valid for 7 days. An expired URL no longer opens, so reopen this screen to get a new URL and send it again. The same URL is shown throughout a given day. URLs issued before 2.9.5 stop working after the update. Pages opened through the preview URL are served without a referrer, are marked not to be indexed by search engines, and are not cached.
 
 #### Memo
 

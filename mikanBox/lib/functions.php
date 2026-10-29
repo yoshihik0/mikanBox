@@ -539,12 +539,34 @@ function deleteData($dir, $id) {
     return false;
 }
 
+/** Days a pending-approval preview URL stays valid. */
+const MIKANBOX_PREVIEW_TOKEN_DAYS = 7;
+
+function mikanBoxPreviewSignature($pageId, $expires) {
+    return substr(hash_hmac('sha256', $pageId . '|' . $expires, mikanBoxSiteSecret()), 0, 16);
+}
+
 /**
- * Generate a secure 16-character preview token for verification (pending approval).
- * Salted with the per-site secret, so tokens cannot be derived from anything public.
+ * Generate an expiring preview token for a pending-approval page: "<hex expiry>.<signature>".
+ * The expiry is rounded to a UTC day boundary so the URL stays the same within a day,
+ * and the signature is salted with the per-site secret, so tokens cannot be derived
+ * from anything public. Nothing is stored; the expiry is verified from the token itself.
  */
 function getPreviewToken($pageId) {
-    return substr(hash_hmac('sha256', $pageId, mikanBoxSiteSecret()), 0, 16);
+    $expires = (intdiv(time(), 86400) + MIKANBOX_PREVIEW_TOKEN_DAYS + 1) * 86400;
+    return dechex($expires) . '.' . mikanBoxPreviewSignature($pageId, $expires);
+}
+
+/** True only for an unexpired token that was signed for this page. */
+function verifyPreviewToken($pageId, $token) {
+    if (!is_string($token) || !preg_match('/^([0-9a-f]{1,12})\.([0-9a-f]{16})$/', $token, $m)) {
+        return false;
+    }
+    $expires = hexdec($m[1]);
+    if ($expires < time()) {
+        return false;
+    }
+    return hash_equals(mikanBoxPreviewSignature($pageId, $expires), $m[2]);
 }
 
 /**

@@ -522,7 +522,7 @@
     "err_slug_exists": "\"%s\" is already in use. Please use a different ID or edit the existing one.",
     "all_pages": "All",
     "err_404_body": "The page could not be found.",
-    "err_403_pending_body": "This page is currently pending approval (private). Use the preview share URL or log in to the admin panel to view it.",
+    "err_403_pending_body": "This page is currently pending approval (private). Use the preview share URL or log in to the admin panel to view it. If the share URL has expired, get a new one from the page's edit screen.",
     "admin_forgot_password_flat": "If you forgot your password,",
     "admin_forgot_password_hint_flat": "Clear the password_hash value in settings.json to reset.",
     "backup_head_flat": "Backup",

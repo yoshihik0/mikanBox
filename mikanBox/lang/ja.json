@@ -522,7 +522,7 @@
     "err_slug_exists": "「%s」はすでに使用されています。別のIDを使用するか、既存のものを編集してください。",
     "all_pages": "すべて",
     "err_404_body": "ページが見つかりませんでした。",
-    "err_403_pending_body": "このページは現在「承認待ち」（非公開）です。プレビュー用共有URLを使用するか、管理画面にログインして確認してください。",
+    "err_403_pending_body": "このページは現在「承認待ち」（非公開）です。プレビュー用共有URLを使用するか、管理画面にログインして確認してください。共有URLの有効期限が切れている場合は、ページの編集画面で新しいURLを確認してください。",
     "admin_forgot_password_flat": "パスワードを忘れた場合は、",
     "admin_forgot_password_hint_flat": "settings.json の中の password_hash を空にすると再設定できます。",
     "backup_head_flat": "バックアップ",

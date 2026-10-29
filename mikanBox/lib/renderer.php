@@ -121,10 +121,13 @@ class MikanBoxRenderer {
             if ($status === 'draft' || $status === 'db') {
                 $isPrivate = true;
             } elseif ($status === 'pending') {
-                $expectedToken = getPreviewToken($pageId);
-                $providedToken = $_GET['preview'] ?? '';
-                if (empty($providedToken) || !hash_equals($expectedToken, $providedToken)) {
+                if (!verifyPreviewToken($pageId, $_GET['preview'] ?? '')) {
                     $isPrivate = true;
+                } elseif (!$this->staticMode && !headers_sent()) {
+                    // The URL is a bearer credential: keep it out of Referer, caches and search indexes.
+                    header('Referrer-Policy: no-referrer');
+                    header('X-Robots-Tag: noindex, nofollow');
+                    header('Cache-Control: no-store');
                 }
             }
             if (!$this->staticMode && $isPrivate && (($_SESSION['admin_logged_in'] ?? false) !== true)) {
