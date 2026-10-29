@@ -109,6 +109,7 @@ function mikanBoxAccountsResetIfRequested(SQLite3 $db): void {
         $db->exec($sql);
     }
     @unlink($file);
+    mikanBoxAudit('accounts_reset');
 }
 
 /** Per-site secret (created with the schema). Replaces the first user's password hash as the preview-token salt. */
@@ -179,6 +180,7 @@ function mikanBoxDeviceCreate(string $username, string $name, string $via): stri
     $stmt->execute();
     mikanBoxDeviceSetCookie($token, $now + MIKANBOX_DEVICE_COOKIE_DAYS * 86400);
     $_COOKIE[mikanBoxDeviceCookieName()] = $token; // this request already holds the new device
+    mikanBoxAudit('device_registered',['target'=>$id]);
     return $id;
 }
 
@@ -306,6 +308,7 @@ function mikanBoxDeviceRevoke(array $actor, string $id): void {
     $stmt->bindValue(':n', time(), SQLITE3_INTEGER);
     $stmt->bindValue(':id', $id, SQLITE3_TEXT);
     $stmt->execute();
+    if (getDb()->changes() > 0) mikanBoxAudit('device_revoked',['target'=>$id]);
 }
 
 /**
@@ -339,6 +342,7 @@ function mikanBoxDeviceForgetUser(string $username): void {
         $stmt->bindValue(':u', $username, SQLITE3_TEXT);
         $stmt->execute();
     }
+    mikanBoxAudit('user_deleted',['target'=>$username]);
 }
 
 // ---- One-time codes: add a device, or invite a user ----
@@ -365,6 +369,7 @@ function mikanBoxDeviceIssueCode(array $creator, bool $invite = false): string {
     $stmt->bindValue(':c', $now, SQLITE3_INTEGER);
     $stmt->bindValue(':e', $now + MIKANBOX_DEVICE_CODE_HOURS * 3600, SQLITE3_INTEGER);
     $stmt->execute();
+    mikanBoxAudit($invite ? 'invite_issued' : 'code_issued');
     return substr($code, 0, 5) . '-' . substr($code, 5);
 }
 
@@ -520,6 +525,7 @@ function mikanBoxSetupTokenMatches(string $input): bool {
  */
 function mikanBoxSetupTokenConsume(): bool {
     $db = getDb();
+    $hadUsers = (int)$db->querySingle('SELECT COUNT(*) FROM users') > 0;
     $recovery = mikanBoxDeviceActiveCount() > 0;
     $insert = $db->prepare('INSERT OR IGNORE INTO auth_meta (key, value) VALUES (:k, :v)');
     $insert->bindValue(':k', 'setup_token_used:' . hash('sha256', mikanBoxSetupToken()), SQLITE3_TEXT);
@@ -539,6 +545,7 @@ function mikanBoxSetupTokenConsume(): bool {
             saveSettings($settings);
         }
     }
+    if ($hadUsers) mikanBoxAudit('recovery');
     return true;
 }
 

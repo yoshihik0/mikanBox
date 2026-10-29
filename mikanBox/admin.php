@@ -303,6 +303,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                     : t('update_error_' . ($result['code'] ?? 'internal'));
             } else {
                 $result = mikanBoxRestorePreviousVersion(CORE_DIR, DATA_DIR);
+                if (!empty($result['success'])) mikanBoxAudit('system_restored');
                 $message = !empty($result['success'])
                     ? t('msg_system_restore_success', $result['version'])
                     : t('update_error_' . ($result['code'] ?? 'internal'));
@@ -1074,6 +1075,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         } else {
             $message = t('error_save_failed');
         }
+    }
+    elseif ($_POST['save_action'] === 'set_mcp_enabled') {
+        $saved = mikanBoxMcpSetEnabled(($_POST['mcp_enabled'] ?? '') === '1');
+        $_SESSION['admin_message'] = $saved ? t('msg_update_success') : t('err_save_failed');
+        header('Location: ' . basename(__FILE__) . '#mcp-api-key'); exit;
     }
     elseif ($_POST['save_action'] === 'generate_mcp_key') {
         $newKey = bin2hex(random_bytes(24));
@@ -2978,6 +2984,8 @@ function getIcon($name) {
                             // section lives in, hiding the key just as it is issued.
                             const keyDisplay = document.getElementById('mcp-key-display');
                             if (keyDisplay) keyDisplay.value = json.mcp_api_key;
+                            const lastUsed = document.getElementById("mcp-last-used");
+                            if (lastUsed) lastUsed.textContent = <?= json_encode(t("mcp_never_used")) ?>;
                             const issued = document.getElementById('mcp-key-issued');
                             if (issued) issued.style.display = '';
                             const generate = document.getElementById('mcp-key-generate');

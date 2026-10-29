@@ -53,7 +53,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.9.5</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.9.6</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -611,6 +611,20 @@ An issued API key is shown in a read-only field. Until one is issued there is no
 - [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the API key to the clipboard. Paste the generated key into the settings of whatever tool you're connecting (e.g. `.mcp.json` for Claude Desktop).
 - [[auto_awesome]{.material-symbols-outlined}Generate API Key]{.m-btn .m-btn-blue} — (When none is issued) Issues a new API key.
 - [[auto_awesome]{.material-symbols-outlined}Regenerate API Key]{.m-btn .m-btn-gray} — (When one is issued) Invalidates the current key and issues a new one. Any existing AI integrations will need to be reconfigured.
+
+#### Enabling MCP and its last-use time (PHP editions)
+
+Clear “Enable MCP” and save to stop management MCP while retaining its key. HTTP requests receive 403, and local stdio connections reject their next request. An already running request is not cancelled. Public help MCP remains available. Existing connections remain enabled after updating; enabling again permits the same key. Regenerate a leaked key as well as disabling access. This switch does not restrict tools that can edit server files directly.
+
+The current key's last successful HTTP authentication is shown in UTC. Its timestamp is written at most once per hour. Invalid keys and public help requests do not update it. Regenerating the key resets the display to “Not recorded.” Local stdio requests do not use an API key and are excluded.
+
+### Security activity (PHP editions) {#site-audit}
+
+“Recent security activity” on the Site screen shows the latest 50 events. Both PHP editions record MCP key issuance/regeneration, enabling/disabling MCP, page publication-state changes, and failed sign-ins. SQLite also records device registration/stopping, enrollment/invitation code issuance, user deletion, recovery and account reset. Successful program rollbacks are recorded too.
+
+Records contain the time, action, actor, necessary target IDs, and a masked IP address. Keys, tokens, codes, passwords, content and full IP addresses are excluded. The final IPv4 octet is masked; IPv6 addresses retain only their first 48 bits. Oldest records are removed above approximately 1 MB. Recording failures are shown in the admin screen without treating a successful operation as failed.
+
+Logs and MCP state live in the data directory's `security/` folder. `events.jsonl.php` contains a PHP access-denial guard followed by JSON Lines records. Apache access rules and the front controller also protect the data directory. Servers serving static files without passing them through PHP must deny web access to the entire data directory. Backups including that directory also contain activity records and must be stored securely. These records do not detect tampering by someone able to modify server files.
 
 ### CSV Import {#csv-import}
 

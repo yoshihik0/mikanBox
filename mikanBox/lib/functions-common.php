@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . "/security.php";
 /**
  * Public JS assets use design component IDs only, never paths or AI documents.
  * Null means not found; an existing component with no JS returns an empty file.
@@ -1242,6 +1243,7 @@ function checkLoginRateLimit($identifier) {
 
 /** 失敗を記録する。閾値に達したらロックを開始する。 */
 function recordLoginFailure($identifier) {
+    mikanBoxAudit("login_failed");
     $data  = readLoginAttempts();
     $entry = $data[$identifier] ?? ['count' => 0, 'first_at' => time(), 'locked_at' => 0];
 

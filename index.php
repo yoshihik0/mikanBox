@@ -21,6 +21,23 @@ require_once CORE_DIR . '/config.php';
 require_once CORE_DIR . '/lib/functions.php';
 require_once CORE_DIR . '/lib/renderer.php';
 
+// Deny data before any routing or real-file bypass, including router requests
+// whose SCRIPT_NAME points at the requested static file instead of index.php.
+$securityDocRoot = realpath((string)($_SERVER['DOCUMENT_ROOT'] ?? ''));
+$securityDataRoot = realpath(DATA_DIR);
+if ($securityDocRoot && $securityDataRoot && str_starts_with($securityDataRoot, rtrim($securityDocRoot, '/\\') . '/')) {
+    $securityDataUrl = '/' . trim(substr($securityDataRoot, strlen($securityDocRoot)), '/');
+    $securitySegments = [];
+    foreach (explode('/', rawurldecode((string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'))) as $segment) {
+        if ($segment === '..') array_pop($securitySegments);
+        elseif ($segment !== '' && $segment !== '.') $securitySegments[] = $segment;
+    }
+    $securityRequestPath = '/' . implode('/', $securitySegments);
+    if (strcasecmp($securityRequestPath, $securityDataUrl) === 0 || stripos($securityRequestPath, $securityDataUrl . '/') === 0) {
+        http_response_code(404); if (ob_get_length()) ob_clean(); echo 'Not Found'; exit;
+    }
+}
+
 // Administration MCP clean URL. Match before base-path normalization so this
 // also works behind a subdirectory and with PHP's built-in test router.
 $rawRequestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
@@ -83,15 +100,7 @@ header("Pragma: no-cache");
 if ($pageId === '' || $pageId === 'index.php') {
     $reqUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-    // Router compatibility (including PHP's built-in server): existing files
-    // such as /mikanBox/public-mcp.php must bypass the front controller.
-    $documentRoot = rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? ''), '/\\');
-    $requestedFile = $documentRoot . '/' . ltrim((string)$reqUri, '/');
-    if ($documentRoot !== '' && is_file($requestedFile)) {
-        return false;
-    }
-
-    $requestPath = $reqUri;
+    $requestPath = rawurldecode((string)$reqUri);
     if ($basePath !== '' && str_starts_with($requestPath, rtrim($basePath, '/') . '/')) {
         $requestPath = substr($requestPath, strlen(rtrim($basePath, '/')));
     }
@@ -101,9 +110,8 @@ if ($pageId === '' || $pageId === 'index.php') {
     // never hand its URL to the web server, even if .htaccess is unavailable.
     // If migration was skipped to preserve a legacy page with the same ID,
     // DATA_DIR still lives under CORE_DIR and the page remains routable.
-    $dataIsInSiteRoot = defined('DATA_DIR')
-        && dirname(rtrim(DATA_DIR, '/\\')) === __DIR__;
-    $activeDataDirName = $dataIsInSiteRoot ? basename(DATA_DIR) : null;
+    $activeDataDirName = defined('DATA_DIR') && str_starts_with(rtrim(DATA_DIR, '/\\'), __DIR__ . '/')
+        ? substr(rtrim(DATA_DIR, '/\\'), strlen(__DIR__) + 1) : null;
     if ($activeDataDirName !== null
         && (strcasecmp($requestPath, $activeDataDirName) === 0
             || stripos($requestPath, $activeDataDirName . '/') === 0)) {
@@ -112,6 +120,15 @@ if ($pageId === '' || $pageId === 'index.php') {
         echo 'Not Found';
         exit;
     }
+
+    // Router compatibility (including PHP's built-in server): existing files
+    // such as /mikanBox/public-mcp.php must bypass the front controller.
+    $documentRoot = rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? ''), '/\\');
+    $requestedFile = $documentRoot . '/' . ltrim((string)$reqUri, '/');
+    if ($documentRoot !== '' && is_file($requestedFile)) {
+        return false;
+    }
+
 
     // Safety: If the requested path exists as a real file/folder at the root,
     // let the server handle it (required for admin accessing / mikanBox etc.)

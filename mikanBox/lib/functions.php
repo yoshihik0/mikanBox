@@ -329,7 +329,7 @@ function loadSettings() {
 /**
  * Save settings to the database.
  */
-function saveSettings($settings) {
+function mikanBoxStorageSaveSettings($settings) {
     $db = getDb();
     $db->exec("BEGIN TRANSACTION");
     $db->exec("DELETE FROM settings"); // Clear old settings
@@ -354,7 +354,7 @@ function saveSettings($settings) {
  * @param array $data Data to save
  * @return bool Success or failure
  */
-function saveData($dir, $id, $data) {
+function mikanBoxStorageSaveData($dir, $id, $data) {
     // Allow slashes for hierarchy but prevent directory traversal (no ..)
     $id = ltrim($id, '/\\');
     $id = preg_replace('/[^a-zA-Z0-9_\-\/\.]/', '', $id);

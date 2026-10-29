@@ -1030,6 +1030,12 @@ if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
                 continue;
             }
 
+            $settings = loadSettings();
+            if (!mikanBoxMcpEnabled()) {
+                echo json_encode(mcpErrorResponse($request['id'] ?? null, -32001, t('mcp_err_mcp_disabled'))) . "\n";
+                flush(); continue;
+            }
+            $GLOBALS['mikanbox_audit_actor'] = 'MCP-local';
             // stdio cancellation is advisory. mikanBox does not keep
             // long-running request state, so there is nothing to release.
             if (($request['method'] ?? null) === 'notifications/cancelled'
@@ -1137,7 +1143,7 @@ if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
         $settings = loadSettings();
         $apiKey   = $settings['mcp_api_key'] ?? '';
 
-        if (empty($apiKey)) {
+        if (empty($apiKey) || !mikanBoxMcpEnabled()) {
             http_response_code(403);
             echo json_encode(mcpErrorResponse($id, -32001, t('mcp_err_mcp_disabled')), JSON_UNESCAPED_UNICODE);
             exit;
@@ -1160,6 +1166,8 @@ if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
             exit;
         }
 
+        $GLOBALS['mikanbox_audit_actor'] = 'MCP';
+        mikanBoxMcpUsed($apiKey);
         if ($method === 'initialize') {
             $initializeError = mcpValidateInitialize($request);
             if ($initializeError !== null) {
