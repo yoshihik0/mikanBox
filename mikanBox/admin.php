@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
             $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
             if (!$isInitialSetup && !$row) {
                 $loginError = t('reset_err_user_not_found');
-            } elseif (!mikanBoxSetupTokenConsume()) {
+            } elseif (!mikanBoxSetupTokenConsume($_POST['setup_token'] ?? '')) {
                 $loginError = t('err_setup_token_invalid');
             } else {
                 if ($isInitialSetup) {
@@ -1199,12 +1199,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             $message = t('err_delete_last_user');
             $success = false;
         } else {
-            $stmtDelete = $db->prepare("DELETE FROM users WHERE username = :username");
-            $stmtDelete->bindValue(':username', $user, SQLITE3_TEXT);
-            if ($stmtDelete->execute()) {
+            try {
                 mikanBoxDeviceForgetUser($user);
                 $message = t('msg_user_deleted');
-            } else {
+            } catch (RuntimeException $error) {
                 $message = t('err_user_delete_failed');
                 $success = false;
             }
@@ -1250,7 +1248,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             $message = t('err_session_error');
         } elseif ($action === 'device_revoke' && ($_POST['device_id'] ?? '') === $currentDevice['id']) {
             // Stopping this device signs this browser out; it needs a new code to come back.
-            mikanBoxDeviceRevoke($currentDevice, $currentDevice['id']);
+            try {
+                mikanBoxDeviceRevoke($currentDevice, $currentDevice['id']);
+            } catch (RuntimeException $error) {
+                $_SESSION['admin_message'] = t('err_save_failed');
+                header('Location: admin.php?view=site#users-mgmt');
+                exit;
+            }
             mikanBoxDeviceClearCookie();
             mikanBoxClearAuthentication();
             mikanBoxRenewAuthentication();

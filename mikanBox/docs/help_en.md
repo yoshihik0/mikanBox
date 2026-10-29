@@ -735,11 +735,11 @@ Manages the devices that can open the admin screen and the editor accounts. Each
 
 Each user is shown with their own devices. You see the username and display name, and each device's name, registration time, last use and expiry. Your own device is marked "(this device)".
 
-- [Stop]{.m-btn .m-btn-red} — Stops that device. It is signed out immediately and needs an add code to be used again. Stopping your own device is the same as logging out. There is no log-out button at the top right of the admin screen.
+- [Stop]{.m-btn .m-btn-red} — Stops that device and cancels unused codes it issued. It is signed out immediately and needs an add code to be used again. Stopping your own device is the same as logging out. There is no log-out button at the top right of the admin screen.
 - A device added with a code cannot stop other devices or delete users for 3 days after it is registered. This prevents someone with a stolen code from locking the owner out. The first device has no such limit.
 - When someone registers a new device, a notice appears the next time you open the admin screen. If you do not recognize it, stop it in this list.
 - Your own user has a "Display name" field. Change the name shown in edit history and similar places, then press "Save". The username cannot be changed.
-- [[delete]{.material-symbols-outlined}Delete]{.m-btn .m-btn-red} — Deletes another user, together with their devices and unused codes. This cannot be undone. You cannot delete the user you are signed in as, or the only user.
+- [[delete]{.material-symbols-outlined}Delete]{.m-btn .m-btn-red} — Deletes another user, together with their devices and unused codes, including invitations issued by those devices. This cannot be undone. You cannot delete the user you are signed in as, or the only user. If a database operation fails while stopping a device or deleting a user, all related changes are rolled back and an error is shown.
 
 #### Add a Device
 

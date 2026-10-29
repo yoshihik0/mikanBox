@@ -304,11 +304,12 @@ function mikanBoxDeviceRevoke(array $actor, string $id): void {
     if ($id !== $actor['id'] && mikanBoxDeviceOnProbation($actor)) {
         throw new RuntimeException(t('err_device_probation', MIKANBOX_DEVICE_PROBATION_DAYS));
     }
-    $stmt = getDb()->prepare('UPDATE device_sessions SET revoked_at = :n WHERE id = :id AND revoked_at IS NULL');
-    $stmt->bindValue(':n', time(), SQLITE3_INTEGER);
-    $stmt->bindValue(':id', $id, SQLITE3_TEXT);
-    $stmt->execute();
-    if (getDb()->changes() > 0) mikanBoxAudit('device_revoked',['target'=>$id]);
+    $changed = mikanBoxDeviceTransaction(function($db) use ($id) {
+        mikanBoxDeviceWrite($db, 'DELETE FROM device_codes WHERE created_by = :id AND used_at IS NULL', [':id'=>$id]);
+        mikanBoxDeviceWrite($db, 'UPDATE device_sessions SET revoked_at = :n WHERE id = :id AND revoked_at IS NULL', [':n'=>time(), ':id'=>$id]);
+        return $db->changes() > 0;
+    });
+    if ($changed) mikanBoxAudit('device_revoked',['target'=>$id]);
 }
 
 /**
@@ -334,14 +335,38 @@ function mikanBoxDeviceUnseen(array $device): array {
     return $rows;
 }
 
-/** A user was deleted: their devices and unused codes follow. */
-function mikanBoxDeviceForgetUser(string $username): void {
+/** Execute security changes atomically; SQLite can report errors as false instead of exceptions. */
+function mikanBoxDeviceTransaction(callable $operation) {
     $db = getDb();
-    foreach (['DELETE FROM device_sessions WHERE username = :u', 'DELETE FROM device_codes WHERE username = :u'] as $sql) {
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(':u', $username, SQLITE3_TEXT);
-        $stmt->execute();
+    if (!@$db->exec('BEGIN IMMEDIATE')) throw new RuntimeException(t('err_save_failed'));
+    try {
+        $result = $operation($db);
+        if (!@$db->exec('COMMIT')) throw new RuntimeException(t('err_save_failed'));
+        return $result;
+    } catch (Throwable $error) {
+        @$db->exec('ROLLBACK');
+        throw new RuntimeException(t('err_save_failed'), 0, $error);
     }
+}
+function mikanBoxDeviceWrite(SQLite3 $db, string $sql, array $values): void {
+    $stmt = @$db->prepare($sql);
+    if (!$stmt) throw new RuntimeException(t('err_save_failed'));
+    foreach ($values as $key=>$value) {
+        if (!$stmt->bindValue($key, $value, is_int($value) ? SQLITE3_INTEGER : SQLITE3_TEXT)) throw new RuntimeException(t('err_save_failed'));
+    }
+    $result = @$stmt->execute();
+    if (!$result) throw new RuntimeException(t('err_save_failed'));
+    $result->finalize();
+}
+
+/** Delete the user, their devices and issued codes in the same transaction. */
+function mikanBoxDeviceForgetUser(string $username): void {
+    mikanBoxDeviceTransaction(function($db) use ($username) {
+        if ((int)$db->querySingle('SELECT COUNT(*) FROM users') <= 1) throw new RuntimeException(t('err_delete_last_user'));
+        foreach (['DELETE FROM device_codes WHERE username = :u OR created_by IN (SELECT id FROM device_sessions WHERE username = :u)', 'DELETE FROM device_sessions WHERE username = :u', 'DELETE FROM users WHERE username = :u'] as $sql) {
+            mikanBoxDeviceWrite($db, $sql, [':u'=>$username]);
+        }
+    });
     mikanBoxAudit('user_deleted',['target'=>$username]);
 }
 
@@ -523,12 +548,12 @@ function mikanBoxSetupTokenMatches(string $input): bool {
  * devices this is recovery: every device, unused code, edit lock and the MCP
  * key are cleared. Returns false when another request spent it first.
  */
-function mikanBoxSetupTokenConsume(): bool {
+function mikanBoxSetupTokenConsume(string $token): bool {
     $db = getDb();
     $hadUsers = (int)$db->querySingle('SELECT COUNT(*) FROM users') > 0;
     $recovery = mikanBoxDeviceActiveCount() > 0;
     $insert = $db->prepare('INSERT OR IGNORE INTO auth_meta (key, value) VALUES (:k, :v)');
-    $insert->bindValue(':k', 'setup_token_used:' . hash('sha256', mikanBoxSetupToken()), SQLITE3_TEXT);
+    $insert->bindValue(':k', 'setup_token_used:' . hash('sha256', trim($token)), SQLITE3_TEXT);
     $insert->bindValue(':v', (string)time(), SQLITE3_TEXT);
     $insert->execute();
     if ($db->changes() !== 1) return false; // another request spent it first
