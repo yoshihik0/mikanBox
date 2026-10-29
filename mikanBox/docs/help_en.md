@@ -210,8 +210,8 @@ Recovery stops every registered device and clears unused codes, edit locks and t
 
 Updating to v2.9.0 deletes passwords and security answers, so you can no longer sign in with a password. Usernames and display names are kept. The MCP API key does not change.
 
-- If you update with "System Update" in the admin screen, the browser you were signed in with before the update becomes the first device automatically, provided it opens the admin screen within 2 hours of the update and no device exists yet. Opening a public page first does not matter.
-- If you overwrite the files over FTP, use a different browser, or come back after 2 hours, write a token as described above and register a device with your existing username.
+- If the browser you were signed in with before the update is still signed in, it becomes the first device automatically, whichever way you updated ("System Update" or overwriting files over FTP), provided it opens the admin screen within 2 hours of the first visit to the new version and no device exists yet. Opening a public page first does not matter. If the sign-in has lapsed (for example, the browser was closed), nothing is registered.
+- If you use a different browser, the sign-in has lapsed, or more than 2 hours have passed, register with a token. Visiting the new site creates the `setup-token` folder automatically (if it does not, upload the `setup-token` folder from the package). Write a token as in steps 1 and 2 above, then enter the token, your existing username and a device name on `admin.php` (no display name is needed). If you update over FTP, preparing the `setup-token` folder and token beforehand is the safe way.
 - The automatically registered browser shows a notice at the top of the screen, "Passwords are gone. …", until you press "Dismiss".
 - A browser or user that was not registered sees the reason on the sign-in screen: "This site no longer uses passwords (device authentication). You cannot sign in with a password; …".
 - Other users ask a registered device to issue an add code.
