@@ -6,16 +6,19 @@
 
 🍊mikanBoxは、使いやすいUIと、Markdownによるコンテンツ管理、コンポーネントを組み合わせて柔軟に構築できる設計をもち、これらをAIによって自在にコントロールできる超軽量CMSです。
 
-🍊mikanBoxには、以下の２つのバージョンがあります。
+🍊mikanBoxには、以下の３つのバージョンがあります。
 
 - **🍊mikanBox flat** データベースを使わないJSONファイルベースで、小規模サイトを手軽に開設できます。
 - **🍊mikanBox**（このリポジトリ）　SQLiteデータベースを使って、よりページ数の多いサイトでも軽快に運用できます。
+- **🍊mikanBox Cloud** Cloudflare WorkersとD1の上で、管理も公開もCloudflareで行います（開発中）。
 
-キャンペーンやイベントのサイト、店舗のサイトなど、ページ数は少ないけど更新は必要というサイトには、🍊mikanBox flat、長期的に運用し、ページの増加が見込まれるサイトは、こちらの🍊mikanBoxをご利用ください。両者は、データの移行も可能です。
+キャンペーンやイベントのサイト、店舗のサイトなど、ページ数は少ないけど更新は必要というサイトには、🍊mikanBox flat、長期的に運用し、ページの増加が見込まれるサイトは、こちらの🍊mikanBoxをご利用ください。flatとこちらの🍊mikanBoxは、データの移行も可能です。
+
+ローカルで動かして静的サイトとしてアップするだけなら、flatまたはこちらの🍊mikanBoxで十分です。管理そのものをCloudflare上で行いたい場合に、🍊mikanBox Cloudをご利用ください。
 
 [SQLite版（本リポジトリ）とJSON版（flat版）の違い →](#flat)
 
-[🍊mikanBox flat →](https://github.com/yoshihik0/mikanBox-flat/)
+[🍊mikanBox flat →](https://github.com/yoshihik0/mikanBox-flat/)　[☁️ 🍊mikanBox Cloud →](https://github.com/yoshihik0/mikanBox-cloud)
 
 ---
 

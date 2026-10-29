@@ -8,16 +8,19 @@
 
 > 🍊 *Mikan* is the Japanese word for a small, easy-to-peel mandarin orange — the fruit that gave mikanBox its name.
 
-🍊mikanBox comes in two versions:
+🍊mikanBox comes in three versions:
 
 - **🍊mikanBox flat** — A JSON file-based version with no database, for quickly launching small sites.
 - **🍊mikanBox** (this repository) — Uses a SQLite database, so it stays snappy even on sites with more pages.
+- **🍊mikanBox Cloud** — Runs on Cloudflare Workers and D1, with both management and publishing on Cloudflare (under development).
 
-For campaign or event sites, shop sites — sites with few pages but that need regular updates — use **🍊mikanBox flat**. For sites you'll run long-term and expect to keep growing, use **this 🍊mikanBox**. Data can be migrated between the two.
+For campaign or event sites, shop sites — sites with few pages but that need regular updates — use **🍊mikanBox flat**. For sites you'll run long-term and expect to keep growing, use **this 🍊mikanBox**. Data can be migrated between flat and this edition.
+
+If you run it on your own computer and just upload a static site, flat or this edition is enough. Use **🍊mikanBox Cloud** when you want to manage the site itself on Cloudflare.
 
 [SQLite version (this repo) vs. JSON version (flat) →](#flat)
 
-[🍊mikanBox flat →](https://github.com/yoshihik0/mikanBox-flat/)
+[🍊mikanBox flat →](https://github.com/yoshihik0/mikanBox-flat/) · [☁️ 🍊mikanBox Cloud →](https://github.com/yoshihik0/mikanBox-cloud)
 
 ---
 
