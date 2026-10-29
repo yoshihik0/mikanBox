@@ -27,3 +27,10 @@ CLAUDE.md
 scratch/
 mikanBox-main.zip
 /tests/
+
+# Credentials and deploy settings (never commit)
+.env*
+!.env.example
+deploy.env
+ftp.txt
+.git.pre-reset-backup/
