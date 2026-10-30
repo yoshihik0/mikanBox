@@ -179,8 +179,8 @@ if ($isApi) {
                 if (!mbv_html_balanced(implode("\n", array_slice($lines, $a, $b - $a + 1)))) mbv_json(['error' => t('visual_err_html_unbalanced')], 409);
                 $len = $b - $a + 1; if (isset($lines[$b + 1]) && trim($lines[$b + 1]) === '') $len++;
                 array_splice($lines, $a, $len);
-            } elseif ($mode === 'insert-after') array_splice($lines, $b + 1, 0, array_merge([''], explode("\n", $new)));
-            elseif ($mode === 'insert-before') array_splice($lines, $a, 0, array_merge(explode("\n", $new), ['']));
+            } elseif ($mode === 'insert-after') array_splice($lines, $b + 1, 0, array_merge(empty($in['inner']) ? [''] : [], explode("\n", $new)));
+            elseif ($mode === 'insert-before') array_splice($lines, $a, 0, array_merge(explode("\n", $new), empty($in['inner']) ? [''] : []));
             else array_splice($lines, $a, $b - $a + 1, explode("\n", $new));
             mbv_snapshot($id, (string)($in['sid'] ?? ''));
             $joined = implode("\n", $lines);

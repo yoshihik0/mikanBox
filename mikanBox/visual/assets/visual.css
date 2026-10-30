@@ -113,3 +113,15 @@ html.fv-panel-open .fv-vp{bottom:38vh}
 .fv-create-btns .fv-save{background:var(--fv-sky-strong);border-color:var(--fv-sky-line)}
 .fv-create-btns button:disabled{opacity:.5}
 .fv-drawer-label{padding:8px 10px 2px;font-size:.72rem;letter-spacing:.04em;color:var(--fv-ink-soft)}
+
+.fv-kids{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.fv-kids:empty{display:none}
+.fv-kid{font:inherit;font-size:12px;padding:3px 8px;border:1px solid var(--fv-line,#c9d6e2);border-radius:6px;background:#fff;color:var(--fv-ink);cursor:pointer}
+.fv-kid:hover{background:#eef5fb}
+.fv-bar button:disabled{opacity:.35;pointer-events:none}
+.fv-where{display:flex;align-items:center;gap:4px;margin-bottom:6px;font-size:12px;color:var(--fv-ink)}
+.fv-where .fv-ic{font-size:16px;opacity:.7}
+.fv-where code{background:#eef5fb;border-radius:4px;padding:0 5px}
+.fv-sep{opacity:.5}
+.fv-bar button{position:relative}
+.fv-badge{position:absolute;top:-4px;right:-4px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:#0b5d8c;color:#fff;font-size:10px;line-height:14px;text-align:center}

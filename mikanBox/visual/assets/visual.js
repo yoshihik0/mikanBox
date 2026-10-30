@@ -536,6 +536,32 @@
     var node = e.target.closest('[data-ln]'); if (!node || node.classList.contains('fv-editing')) return;
     e.preventDefault(); startEdit(node);
   });
+  /** ブロックの Markdown/HTML から、いちばん外の要素の直下の子要素を、行の範囲（先頭からの相対）で返す。行が重なる・外側の開始/終了行と同じ行にあるものは、行では分けられないので数えない */
+  function childRanges(text) {
+    var starts = [0]; text.replace(/\n/g, function (m, i) { starts.push(i + 1); });
+    function lineOf(pos) { var lo = 0, hi = starts.length - 1; while (lo < hi) { var mid = (lo + hi + 1) >> 1; if (starts[mid] <= pos) lo = mid; else hi = mid - 1; } return lo; }
+    var VOID = /^(area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)$/i;
+    var re = /<!--[\s\S]*?-->|<(\/?)([a-zA-Z][\w-]*)\b[^>]*?(\/?)>/g, m, stack = [], top = [], kids = [], root = null, rest = false;
+    while ((m = re.exec(text))) {
+      if (m[0].indexOf('<!--') === 0) continue;
+      var name = m[2].toLowerCase(), ln = lineOf(m.index), endLn = lineOf(m.index + m[0].length - 1);
+      if (m[1]) {
+        var o = stack.pop(); if (!o || o.name !== name) return null;
+        o.close = endLn; o.closeOpenLn = ln;
+        if (!stack.length) { top.push(o); } else if (stack.length === 1) kids.push(o);
+      } else {
+        var self = m[3] === '/' || VOID.test(name), node = { name: name, open: ln, openEnd: endLn };
+        if (self) { node.close = endLn; node.closeOpenLn = ln; if (!stack.length) top.push(node); else if (stack.length === 1) kids.push(node); }
+        else stack.push(node);
+      }
+    }
+    if (stack.length || top.length !== 1) return null;
+    root = top[0];
+    var out = [], prev = root.openEnd;
+    kids.forEach(function (k) { if (k.open > prev && k.close < root.closeOpenLn && k.open > root.openEnd) { out.push({ s: k.open, e: k.close, name: k.name }); prev = k.close; } });
+    return { name: root.name, kids: out };
+  }
+
   function startEdit(node, fromLink) {
     var m = /^(\d+)-(\d+)$/.exec(node.getAttribute('data-ln')); if (!m) return;
     var a = +m[1], b = +m[2];
@@ -559,23 +585,57 @@
       var save = ibtn('save', T('visual_js_save_title'), 'fv-save'), cancel = ibtn('close', T('visual_js_cancel_esc'));
       var up = ibtn('add_row_above', T('visual_js_add_above')), down = ibtn('add_row_below', T('visual_js_add_below'));
       var dup = ibtn('content_copy', T('visual_js_dup_block')), del = ibtn('delete', T('visual_js_delete_block'), 'fv-del');
-      bar.append(save, cancel, up, down, dup, del);
-      box.append(mdToolbar(ta, function (t) { msg.textContent = t; }, false), ta, bar); if (hint) box.append(hint); box.append(msg);
+      var into = ibtn('subdirectory_arrow_right', T('visual_js_into_title')), outo = ibtn('arrow_back', T('visual_js_out_title'));
+      var kidsBox = el('div', 'fv-kids'), where = el('div', 'fv-where'), trail = [], crumbs = [];
+      bar.append(save, cancel, into, outo, up, down, dup, del);
+      box.append(where, mdToolbar(ta, function (t) { msg.textContent = t; }, false), ta, bar, kidsBox); if (hint) box.append(hint); box.append(msg);
       node.classList.add('fv-editing'); node.style.display = 'none'; node.parentNode.insertBefore(box, node);
       function fit() { ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 4) + 'px'; }
       ta.addEventListener('input', fit); fit(); ta.focus();
       function close() { box.remove(); node.classList.remove('fv-editing'); node.style.display = ''; }
       function send(mode, text) {
-        post(API('save'), { id: PAGE, start: a, end: b, old: old, mode: mode, new: text }).then(function (x) {
+        post(API('save'), { id: PAGE, start: a, end: b, old: old, mode: mode, new: text, inner: trail.length > 0 }).then(function (x) {
           if (!x.ok) { msg.textContent = x.j.error || T('visual_js_failed'); return; }
           close(); refreshContent();
         }).catch(function () { msg.textContent = T('visual_js_failed'); });
       }
       var delTimer = null;
+      /** 追加する内容: 内側の要素を対象にしているときは、同じタグで包む（<li> の隣には <li>） */
+      function newText() { var info = trail.length ? childRanges(old) : null; return info ? '<' + info.name + '>' + T('visual_js_new_paragraph') + '</' + info.name + '>' : T('visual_js_new_paragraph'); }
+      /** 編集の対象を、範囲 [na, nb]（ページ全体の行）に切り替える。書きかけがあるときは切り替えない */
+      function retarget(na, nb, lines) {
+        if (ta.value !== old) { msg.textContent = T('visual_js_unsaved_nav'); return false; }
+        a = na; b = nb; old = lines.slice(a, b + 1).join('\n'); ta.value = old; kidsBox.textContent = ''; msg.textContent = ''; fit(); ta.focus(); return true;
+      }
+      function refreshNav() {
+        var info = childRanges(ta.value), n = info ? info.kids.length : 0;
+        outo.disabled = !trail.length; into.disabled = !n;
+        into.innerHTML = ic('subdirectory_arrow_right') + (n ? '<span class="fv-badge">' + n + '</span>' : '');
+        where.innerHTML = ic('account_tree') + crumbs.concat(info ? [info.name] : []).map(function (t) { return '<code>' + H(t) + '</code>'; }).join('<span class="fv-sep">›</span>');
+        where.style.display = (crumbs.length || n) ? '' : 'none';
+      }
+      refreshNav();
+      into.addEventListener('click', function () {
+        var info = childRanges(ta.value); if (!info || !info.kids.length) { msg.textContent = T('visual_js_no_child'); return; }
+        var lines = src.text.split('\n'), base = a;
+        function go(k) { var prevA = a, prevB = b; var nm = info.name; if (retarget(base + k.s, base + k.e, lines)) { trail.push([prevA, prevB]); crumbs.push(nm); refreshNav(); } }
+        if (info.kids.length === 1) { go(info.kids[0]); return; }
+        kidsBox.textContent = '';
+        info.kids.forEach(function (k, i) {
+          var t = lines.slice(base + k.s, base + k.e + 1).join(' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
+          var kb = el('button', 'fv-kid', (i + 1) + ' <' + k.name + '> ' + t); kb.type = 'button';
+          kb.addEventListener('click', function () { go(k); });
+          kidsBox.append(kb);
+        });
+      });
+      outo.addEventListener('click', function () {
+        if (!trail.length) return; var p = trail[trail.length - 1];
+        if (retarget(p[0], p[1], src.text.split('\n'))) { trail.pop(); crumbs.pop(); refreshNav(); }
+      });
       save.addEventListener('click', function () { send('replace', ta.value); });
       cancel.addEventListener('click', close);
-      up.addEventListener('click', function () { send('insert-before', T('visual_js_new_paragraph')); });
-      down.addEventListener('click', function () { send('insert-after', T('visual_js_new_paragraph')); });
+      up.addEventListener('click', function () { send('insert-before', newText()); });
+      down.addEventListener('click', function () { send('insert-after', newText()); });
       dup.addEventListener('click', function () { send('insert-after', ta.value); });
       del.addEventListener('click', function () {
         if (del.dataset.armed === '1') { clearTimeout(delTimer); send('delete', ''); return; }

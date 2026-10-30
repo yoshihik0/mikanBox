@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.11.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.11.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -504,6 +504,8 @@ Open a page **exactly as it looks** and edit its body and page CSS right there. 
 - The bar above the box inserts headings, bold, italic, links, bulleted and numbered lists, quotes, code and images (⌘/Ctrl+B, I and K also work). Undo (⌘/Ctrl+Z) inside the box keeps working after using the bar.
 - You can also **paste** (or drag) an image into the box. It is saved to the `media` folder and `![](filename)` is inserted (png, jpg, gif, webp, up to 10 MB).
 - Buttons below the box add a paragraph above or below, duplicate the block, or delete it (press **twice** to confirm).
+- An HTML block opens as **one block** even when it contains blank lines before its tags are closed.
+- When the opened block is a container such as `<div>` or `<ul>`, the [[subdirectory_arrow_right]{.material-symbols-outlined}]{.m-btn} button makes **an inner element the editing target** (the badge number is how many inner elements there are). With one inner element it goes straight in; with several you pick by number, such as "1 `<li>` …". The hierarchy is shown above the box as `div › p`, and [[arrow_back]{.material-symbols-outlined}]{.m-btn} goes back out one level. While an inner element is the target, "add above / below", "duplicate" and "delete" act on that element, and an added paragraph is wrapped in the same tag. You cannot switch while there are unsaved edits (save or cancel first). Elements that share a line with their opening tag or with a sibling cannot be told apart by line, so they cannot be chosen.
 - Clicking a part built by a `{{…}}` tag, such as navigation cards, opens the single tag line. The text and images of the cards come from the linked pages' settings, so they cannot be edited here. Links under the box take you to that page (body or settings).
 - While editing, clicking a link inside the body opens the editor instead of following the link. ⌘/Ctrl+click follows it, or switch the button at the bottom right from "Editing" to "Edit off".
 
