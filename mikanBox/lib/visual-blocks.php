@@ -1,22 +1,43 @@
 <?php
 // Markdown のブロック分割・目印の挿入・HTMLの後処理（本体の描画処理は、そのまま使う）
 
-/** 1行ぶんの HTML タグの開閉の差（開いたまま残る数）。コメント・自己閉じ・void 要素は数えない */
+/** 1行ぶんの HTML タグの開閉の差（開いたまま残る数）。コメント・自己閉じ・void 要素は数えない。<p> は閉じ省略があるので数えない */
 function mbv_html_depth_delta(string $line): int {
     $line = preg_replace('~<!--.*?-->~s', '', $line);
-    if (!preg_match_all('~<(/?)(div|section|article|aside|header|footer|main|nav|ul|ol|table|details|figure|form|blockquote|pre|span|a|p|script|style)\b[^>]*?(/?)>~i', $line, $m, PREG_SET_ORDER)) return 0;
+    if (!preg_match_all('~<(/?)(div|section|article|aside|header|footer|main|nav|ul|ol|table|details|figure|form|blockquote|pre|span|a|script|style)\b[^>]*?(/?)>~i', $line, $m, PREG_SET_ORDER)) return 0;
     $d = 0;
     foreach ($m as $t) { if ($t[3] === '/') continue; $d += $t[1] === '/' ? -1 : 1; }
     return $d;
 }
 
 /**
- * Markdown を、空行区切りのブロックに分ける（コードフェンスと {{DATA…}} の範囲は1ブロック）。
- * HTML のタグが開いている間の空行ではブロックを切らない（途中で切ると、目印がタグの内側に入り、表示が途中で終わる）。
- * 最後まで閉じないタグがあれば、HTML の追跡なしでやり直す。
+ * タグが開いてから閉じるまでの行の範囲（この間の空行では、ブロックを切らない）。
+ * 閉じないタグがあれば、その開始行は範囲にせず、次の行からやり直す（ページの一部が壊れていても、ほかの部分に影響させない）。
+ * @return array<int,bool> 行番号 => 範囲の中か
  */
-function mbv_split_blocks(string $src, bool $trackHtml = true): array {
-    $lines = explode("\n", $src); $blocks = []; $cur = null; $fence = null; $dataDepth = 0; $htmlDepth = 0;
+function mbv_html_protected_lines(array $lines): array {
+    $n = count($lines); $deltas = []; $fence = null;
+    foreach ($lines as $i => $l) {
+        if ($fence !== null) { if (preg_match('/^\s*' . preg_quote($fence[0], '/') . '{' . $fence[1] . ',}\s*$/', $l)) $fence = null; $deltas[$i] = 0; continue; }
+        if (preg_match('/^\s*(`{3,}|~{3,})/', $l, $m)) { $fence = [$m[1][0], strlen($m[1])]; $deltas[$i] = 0; continue; }
+        $deltas[$i] = mbv_html_depth_delta($l);
+    }
+    $prot = []; $i = 0;
+    while ($i < $n) {
+        if ($deltas[$i] <= 0) { $i++; continue; }
+        $depth = 0; $end = null;
+        for ($j = $i; $j < $n; $j++) { $depth += $deltas[$j]; if ($depth <= 0) { $end = $j; break; } }
+        if ($end === null) { $i++; continue; }
+        for ($k = $i; $k <= $end; $k++) $prot[$k] = true;
+        $i = $end + 1;
+    }
+    return $prot;
+}
+
+/** Markdown を、空行区切りのブロックに分ける（コードフェンスと {{DATA…}} の範囲は1ブロック。閉じるまでの HTML の中の空行でも切らない） */
+function mbv_split_blocks(string $src): array {
+    $lines = explode("\n", $src); $blocks = []; $cur = null; $fence = null; $dataDepth = 0;
+    $prot = mbv_html_protected_lines($lines);
     $isListStart = static fn($l) => preg_match('/^\s*([-*+]|\d+[.)])\s/', $l);
     $flush = function () use (&$cur, &$blocks) { if ($cur) { $blocks[] = $cur; $cur = null; } };
     foreach ($lines as $i => $l) {
@@ -32,7 +53,7 @@ function mbv_split_blocks(string $src, bool $trackHtml = true): array {
             continue;
         }
         if (trim($l) === '') {
-            if ($cur && $htmlDepth > 0) $cur['end'] = $i; elseif ($cur) $cur['pendingBlank'] = true;
+            if ($cur && !empty($prot[$i])) $cur['end'] = $i; elseif ($cur) $cur['pendingBlank'] = true;
             continue;
         }
         if ($cur && !empty($cur['pendingBlank'])) {
@@ -41,7 +62,6 @@ function mbv_split_blocks(string $src, bool $trackHtml = true): array {
             $flush();
         }
         if (!$cur) $cur = ['start' => $i, 'end' => $i, 'list' => (bool)$isListStart($l)]; else $cur['end'] = $i;
-        if ($trackHtml) $htmlDepth = max(0, $htmlDepth + mbv_html_depth_delta($l));
         if (preg_match('/^\s*(`{3,}|~{3,})/', $l, $m)) { $fence = [$m[1][0], strlen($m[1])]; }
         elseif (preg_match_all('/\{\{DATA(?:ROW)?:[^}]*\}\}/', $l, $o1)) {
             $dataDepth = count($o1[0]) - preg_match_all('/\{\{\/DATA(?:ROW)?\}\}/', $l);
@@ -49,7 +69,6 @@ function mbv_split_blocks(string $src, bool $trackHtml = true): array {
         }
     }
     $flush();
-    if ($trackHtml && $htmlDepth > 0) return mbv_split_blocks($src, false);
     foreach ($blocks as &$b) $b['text'] = implode("\n", array_slice($lines, $b['start'], $b['end'] - $b['start'] + 1));
     return $blocks;
 }
