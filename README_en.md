@@ -28,6 +28,7 @@ If you run it on your own computer and just upload a static site, flat or this e
 
 - **SQLite (single-file DB)** — All data lives in one DB file. Just place it on a PHP-enabled server
 - **Modeless UI** — No page transitions; nearly all work completed on a single screen for a snappy experience
+- **Visual editing** — Open a page exactly as it looks and click to edit it; page CSS applies as you type
 - **Markdown Support** — Easy to edit content, and also well-suited as a content archive
 - **Filter by Category** — Narrow down pages and images by category; use categories as workspaces
 - **Images Shown by Filename Alone** — Place images without thinking about file paths

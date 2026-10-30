@@ -8,6 +8,7 @@ ob_start();
 define('MIKANBOX_ADMIN_REQUEST', true);
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/lib/functions.php';
+if (is_file(__DIR__ . '/lib/visual-history.php')) require_once __DIR__ . '/lib/visual-history.php';
 require_once __DIR__ . '/lib/renderer.php';
 define('MIKANBOX', true);
 require_once __DIR__ . '/lib/updater.php';
@@ -414,6 +415,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             $oldId = $_POST['old_id'] ?? null;
             if ($oldId && $oldId !== $id) {
                 deleteData(POSTS_DIR, $oldId);
+                if (function_exists('mbv_hist_forget')) mbv_hist_forget($oldId);   // ビジュアル編集の履歴
                 
                 // Update post revisions to map to the new slug
                 try {
@@ -490,6 +492,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         // back to the 404 page in MikanBoxRenderer::render(), so there's nothing unsafe
         // about deleting it like any other page.
         if (deleteData(POSTS_DIR, $id)) {
+            if (function_exists('mbv_hist_forget')) mbv_hist_forget($id);   // ビジュアル編集の履歴
             deleteRevisionsOfPost($id); // Clean up revisions
             $_SESSION['admin_message'] = t('msg_page_deleted', $id);
             header("Location: admin.php?view=pages");

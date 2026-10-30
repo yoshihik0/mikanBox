@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.10.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.11.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -342,7 +342,7 @@ Search titles, body content, and more using a keyword. SQLite updates the list w
 Preview buttons are blue in all three editions.
 
 - [[edit]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — The pencil button. Opens the edit screen for that page.
-- [[edit_square]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — Opens the page in [Visual Editing](#visual-edit). [flat Edition only]{.type-badge .badge-flat}
+- [[edit_square]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — Opens the page in [Visual Editing](#visual-edit).
 - [[open_in_new]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — Opens the page in a new tab, at the URL matching its current status.
 - For a page with "Pending approval" status, this instead opens a preview share URL (with a preview token). [SQLite Edition only]{.type-badge .badge-sqlite}
 
@@ -390,7 +390,7 @@ Found at the bottom of the page list. Writes out every page whose status is "Pub
 
 A screen for editing a page's content and settings in detail. Opens when you click "Create New," a page's title, or its Edit button.
 
-The [[edit_square]{.material-symbols-outlined} Visual edit]{.m-btn .m-btn-blue} button at the top right opens the page in [Visual Editing](#visual-edit). [flat Edition only]{.type-badge .badge-flat}
+The [[edit_square]{.material-symbols-outlined} Visual edit]{.m-btn .m-btn-blue} button at the top right opens the page in [Visual Editing](#visual-edit).
 
 #### History [SQLite Edition only]{.type-badge .badge-sqlite}
 
@@ -488,9 +488,9 @@ Permanently deletes the page. This cannot be undone.
 
 At the bottom of the edit screen, a quick reference for Markdown syntax and the list of available tags (tag guide) appears collapsed. Click to expand it.
 
-## Visual Editing [flat Edition only]{.type-badge .badge-flat} {#visual-edit}
+## Visual Editing {#visual-edit}
 
-Open a page **exactly as it looks** and edit its body and page CSS right there. Your layout, CSS and images are shown as they are, so you can rewrite the Markdown while watching the result. It uses the same login as the admin screen; if you are not logged in, you are sent to the admin login.
+Open a page **exactly as it looks** and edit its body and page CSS right there. Your layout, CSS and images are shown as they are, so you can rewrite the Markdown while watching the result. It uses the same login as the admin screen; if you are not logged in, you are sent to the admin login. It is not available on public demo (demo mode) sites.
 
 #### How to open it
 
@@ -514,7 +514,10 @@ Open a page **exactly as it looks** and edit its body and page CSS right there. 
 
 #### Undo and redo
 
-The ↶ ↷ buttons (⌘/Ctrl+Z, ⌘/Ctrl+Shift+Z) undo saves of blocks, body and CSS, up to 100 per page. History is stored in the data folder under `visual-history/`.
+- The ↶ ↷ buttons at the bottom right (⌘/Ctrl+Z, ⌘/Ctrl+Shift+Z) undo the last 3 saves of blocks, body and CSS. Opening the page again (moving to another page or reloading) empties this history.
+- The [[history]{.material-symbols-outlined}]{.m-btn .m-btn-blue} button opens the **edit history**. For each editing session, the state before your first save after opening the page is kept, up to 10 per page. Choose one to go back to it (you can undo that with ↶).
+- Saving never changes the status. Only creating and duplicating make a draft.
+- On the flat edition the history is stored in the data folder under `visual-history/` (it is not included in backups, and is removed when the page is deleted). On the SQLite edition it is kept in the page revisions of the admin page editor.
 
 #### Switching, creating and duplicating pages
 
@@ -534,9 +537,9 @@ The ↶ ↷ buttons (⌘/Ctrl+Z, ⌘/Ctrl+Shift+Z) undo saves of blocks, body an
 - "Raw HTML" pages and `{{DATA…}}` blocks cannot be edited by clicking; use the "Body" panel. Deleting a block that sits in the middle of HTML (for example only a `<div>` opening) is refused because it would break the HTML.
 - Texts on screen follow the language set in the admin screen.
 
-#### After updating [flat Edition only]{.type-badge .badge-flat}
+#### After updating
 
-When updating from 2.9.x to 2.10.0, the visual editing files are not installed by that update, because the updater itself is replaced by it. After updating, run **[Reinstall]** once in "System Update" on the Site screen (uploading the files by FTP also works). Once the files are in place, the visual editing button appears in the page list.
+When updating from 2.9.x or earlier, the visual editing files are not installed by that update, because the updater itself is replaced by it. After updating, run **[Reinstall]** once in "System Update" on the Site screen (uploading the files by FTP also works). Once the files are in place, the visual editing button appears in the page list.
 
 ---
 
