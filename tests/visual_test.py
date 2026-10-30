@@ -126,6 +126,9 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-visual-test-') as tmp:
 
         st, lst, _ = req(ed, ADM + '?view=pages')
         check('href="visual.php?id=' in lst and 'edit_square' in lst, 'page list shows the visual edit button with its icon')
+        if SQLITE:   # 「端末とユーザー」は、コードを発行した直後だけ開く（リロードのたびに開いたままにしない）
+            st, site_html, _ = req(ed, ADM + '?view=site')
+            check(st == 200 and re.search(r'<div id="users-mgmt".*?<details class="section-accordion">', site_html, re.S), 'devices and users section is closed by default')
         st, page, hd = req(ed, VIS + '?id=index')
         check(st == 200 and 'window.__VISUAL_CSRF' in page and '<!--fv:' in page, 'editing page has CSRF token and block markers')
         nonce = re.search(r"nonce-([A-Za-z0-9_-]+)", hd['Content-Security-Policy'])[1]

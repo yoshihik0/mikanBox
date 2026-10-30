@@ -27,7 +27,7 @@ $boxBodyStyle = 'padding: 15px; border-top: 1px solid #e2e8f0; background: #fff;
     <!-- Devices and Users Section -->
     <div id="users-mgmt" class="section-large-bottom">
         <div class="section-container section-tight">
-            <details class="section-accordion" open>
+            <details class="section-accordion"<?= !empty($_SESSION['device_code_flash']) ? ' open' : '' ?>>
                 <summary class="header section-header accordion-summary">
                     <h2 class="accordion-title">
                         <?= $e(t('device_section_title')) ?> <span class="accordion-arrow">▼</span>
