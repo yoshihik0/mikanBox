@@ -492,6 +492,17 @@
     }
     return { list: out, inScope: inScope };
   }
+  /** クリックした要素の、本文ブロックの中での位置（同じタグの何番目か、を外から順に） */
+  function editPath(target) {
+    var blk = target.closest('[data-ln]'); if (!blk || blk.classList.contains('fv-editing') || blk.closest('.fv-ui')) return null;
+    var path = [], cur = target;
+    while (cur !== blk && cur.parentElement) {
+      var tag = cur.tagName.toLowerCase(), n = 0;
+      for (var sib = cur.parentElement.firstElementChild; sib && sib !== cur; sib = sib.nextElementSibling) if (sib.tagName.toLowerCase() === tag) n++;
+      path.unshift({ tag: tag, nth: n }); cur = cur.parentElement;
+    }
+    return { blk: blk, path: path };
+  }
   function showPop(target, x, y) {
     closePop();
     var r = selectorsFor(target);
@@ -503,6 +514,12 @@
       cp.addEventListener('click', function () { if (navigator.clipboard) navigator.clipboard.writeText(it.sel).then(function () { toast(T('visual_js_copied')); }); });
       row.append(el('code', '', it.sel), el('small', '', T('visual_js_n_matches', it.n)), cp); pop.appendChild(row);
     });
+    var ep = editPath(target);
+    if (ep) {
+      var eb = ibtn('edit', T('visual_js_edit_here_title'), 'fv-pop-edit', T('visual_js_edit_here'));
+      eb.addEventListener('click', function () { setInspect(false); startEdit(ep.blk, null, ep.path); });
+      pop.appendChild(eb);
+    }
     if (!r.inScope) pop.appendChild(el('div', 'fv-pop-note', T('visual_js_outside_note')));
     document.body.appendChild(pop);
     var w = pop.offsetWidth, h = pop.offsetHeight;
@@ -557,12 +574,15 @@
     }
     if (stack.length || top.length !== 1) return null;
     root = top[0];
-    var out = [], prev = root.openEnd;
-    kids.forEach(function (k) { if (k.open > prev && k.close < root.closeOpenLn && k.open > root.openEnd) { out.push({ s: k.open, e: k.close, name: k.name }); prev = k.close; } });
-    return { name: root.name, kids: out };
+    var out = [], all = [], prev = root.openEnd;
+    kids.forEach(function (k) {
+      var ok = k.open > prev && k.close < root.closeOpenLn && k.open > root.openEnd, r = { s: k.open, e: k.close, name: k.name, usable: ok };
+      all.push(r); if (ok) { out.push(r); prev = k.close; }
+    });
+    return { name: root.name, kids: out, all: all };
   }
 
-  function startEdit(node, fromLink) {
+  function startEdit(node, fromLink, drill) {
     var m = /^(\d+)-(\d+)$/.exec(node.getAttribute('data-ln')); if (!m) return;
     var a = +m[1], b = +m[2];
     fetch(API('source') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (src) {
@@ -632,6 +652,17 @@
         if (!trail.length) return; var p = trail[trail.length - 1];
         if (retarget(p[0], p[1], src.text.split('\n'))) { trail.pop(); crumbs.pop(); refreshNav(); }
       });
+      if (drill && drill.length) {   // 虫眼鏡から: クリックした要素まで、中へ進んだ状態で開く
+        var dl = src.text.split('\n');
+        for (var di = 0; di < drill.length; di++) {
+          var di0 = childRanges(old); if (!di0) break;
+          var same = di0.all.filter(function (k) { return k.name === drill[di].tag; }), dk = same[drill[di].nth];
+          if (!dk || !dk.usable) break;
+          var pa = a, pb = b; if (!retarget(a + dk.s, a + dk.e, dl)) break;
+          trail.push([pa, pb]); crumbs.push(di0.name);
+        }
+        refreshNav();
+      }
       save.addEventListener('click', function () { send('replace', ta.value); });
       cancel.addEventListener('click', close);
       up.addEventListener('click', function () { send('insert-before', newText()); });
