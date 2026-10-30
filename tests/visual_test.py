@@ -124,6 +124,8 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-visual-test-') as tmp:
         check("script-src 'self' 'nonce-" in csp and "object-src 'none'" in csp and "frame-ancestors 'self'" in csp, 'CSP blocks page scripts and framing')
         check(hd.get('X-Frame-Options') == 'SAMEORIGIN' and hd.get('Cache-Control') == 'no-store', 'framing / caching headers')
 
+        st, lst, _ = req(ed, ADM + '?view=pages')
+        check('href="visual.php?id=' in lst and 'edit_square' in lst, 'page list shows the visual edit button with its icon')
         st, page, hd = req(ed, VIS + '?id=index')
         check(st == 200 and 'window.__VISUAL_CSRF' in page and '<!--fv:' in page, 'editing page has CSRF token and block markers')
         nonce = re.search(r"nonce-([A-Za-z0-9_-]+)", hd['Content-Security-Policy'])[1]

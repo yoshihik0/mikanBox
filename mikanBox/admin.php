@@ -1488,6 +1488,7 @@ function getIcon($name) {
         'open_in_new' => 'open_in_new',
         'reset' => 'restart_alt',
         'check' => 'check',
+        'visual' => 'edit_square',
         'history' => 'history',
         'warning' => 'warning',
         'close' => 'close'
