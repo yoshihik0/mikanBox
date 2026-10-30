@@ -580,6 +580,7 @@
 
   /** ページ側の scroll-behavior: smooth に関係なく、すぐ動かす */
   function jump(y) { window.scrollTo({ top: Math.max(0, y), behavior: 'instant' }); }
+  var LOADING_TAG = /\{\{\s*(NAV_LINKS|NAV_CARDS|POST_MD|EXT_MD|SEARCH_RESULTS)\b/;
   function startEdit(node, fromLink, drill) {
     var m = /^(\d+)-(\d+)$/.exec(node.getAttribute('data-ln')); if (!m) return;
     var a = +m[1], b = +m[2];
@@ -588,8 +589,10 @@
       var box = el('div', 'fv-box fv-ui');
       var ta = el('textarea'); ta.value = old; ta.spellcheck = false;
       var msg = el('div', 'fv-msg');
-      var hint = /\{\{[^}]+\}\}/.test(old) ? el('div', 'fv-hint', T('visual_js_tag_hint')) : null;
-      if (hint && fromLink) {   // クリックしたカードのリンク先ページへの案内
+      var hint = el('div', 'fv-hint', T('visual_js_tag_hint'));   // リンク先のページから内容を読み込むタグ（カード・ナビ・他ページの本文）のときだけ出す
+      function showHint() { hint.style.display = LOADING_TAG.test(old) ? '' : 'none'; }
+      showHint();
+      if (LOADING_TAG.test(old) && fromLink) {   // クリックしたカードのリンク先ページへの案内
         var lid = linkPageId(fromLink);
         if (lid) {
           var pg = PAGES.filter(function (p) { return p.id === lid; })[0], nm = pg && pg.title ? pg.title : lid;
@@ -606,7 +609,7 @@
       var into = ibtn('subdirectory_arrow_right', T('visual_js_into_title')), outo = ibtn('arrow_back', T('visual_js_out_title'));
       var kidsBox = el('div', 'fv-kids'), where = el('div', 'fv-where'), trail = [], crumbs = [];
       bar.append(save, cancel, into, outo, up, down, dup, del);
-      box.append(where, mdToolbar(ta, function (t) { msg.textContent = t; }, false), ta, bar, kidsBox); if (hint) box.append(hint); box.append(msg);
+      box.append(where, mdToolbar(ta, function (t) { msg.textContent = t; }, false), ta, bar, kidsBox, hint); box.append(msg);
       node.classList.add('fv-editing'); node.style.display = 'none'; node.parentNode.insertBefore(box, node);
       function fit() { var y = window.scrollY; ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 4) + 'px'; if (window.scrollY !== y) jump(y); }   // 一瞬ページが縮んで、スクロール位置が飛ぶのを防ぐ
       ta.addEventListener('input', fit); fit(); ta.focus({ preventScroll: true });
@@ -624,7 +627,7 @@
       /** 編集の対象を、範囲 [na, nb]（ページ全体の行）に切り替える。書きかけがあるときは切り替えない */
       function retarget(na, nb, lines) {
         if (ta.value !== old) { msg.textContent = T('visual_js_unsaved_nav'); return false; }
-        a = na; b = nb; old = lines.slice(a, b + 1).join('\n'); ta.value = old; kidsBox.textContent = ''; msg.textContent = ''; fit(); ta.focus({ preventScroll: true }); return true;
+        a = na; b = nb; old = lines.slice(a, b + 1).join('\n'); ta.value = old; showHint(); kidsBox.textContent = ''; msg.textContent = ''; fit(); ta.focus({ preventScroll: true }); return true;
       }
       function refreshNav() {
         var info = childRanges(ta.value), n = info ? info.kids.length : 0;
