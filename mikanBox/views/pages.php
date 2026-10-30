@@ -122,7 +122,10 @@
             <tr>
                 <td class="td-narrow">
                     <div class="flex-center" style="gap: 5px;">
-                         <a href="?view=pages&edit=<?= $pid ?><?= ($searchQuery !== '') ? '&q=' . urlencode($searchQuery) : '' ?>#page-editor" class="btn btn-sm btn-blue"><?= getIcon('edit') ?> <?= t('btn_edit') ?></a>
+                         <a href="?view=pages&edit=<?= $pid ?><?= ($searchQuery !== '') ? '&q=' . urlencode($searchQuery) : '' ?>#page-editor" class="btn btn-sm btn-blue" title="<?= t('btn_edit') ?>"><?= getIcon('edit') ?></a>
+                         <?php if (is_file(CORE_DIR . '/visual.php')): ?>
+                         <a href="visual.php?id=<?= rawurlencode($pid) ?>" class="btn btn-sm btn-blue" title="<?= t('btn_visual_edit') ?>"><?= getIcon('visual') ?></a>
+                         <?php endif; ?>
                           <?php
                           $ssgStruct = $settings['ssg_structure'] ?? 'directory';
                           if ($pid === 'index') {

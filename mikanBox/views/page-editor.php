@@ -15,6 +15,9 @@
                             <?php endif; ?>
                         </div>
                         
+                        <?php if ($editId && is_file(CORE_DIR . '/visual.php')): ?>
+                        <a href="visual.php?id=<?= rawurlencode($editId) ?>" class="btn btn-sm btn-blue editor-visual-btn" style="display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;" title="<?= t('btn_visual_edit') ?>"><?= getIcon('visual') ?> <?= t('btn_visual_edit') ?></a>
+                        <?php endif; ?>
                         <?php if (function_exists('getPreviewToken')): ?>
                         <div id="editor-revisions-container">
                             <?php if($editId): ?>

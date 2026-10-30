@@ -8,6 +8,7 @@
 - <a href="#overview">Overview</a>
 - <a href="#page-mgmt">Pages</a>
 - <a href="#page-edit">Page Edit</a>
+- <a href="#visual-edit">Visual Editing</a>
 - <a href="#site">Site</a>
 - <a href="#data-migration">Data Migration &amp; Import Tool</a>
 - <a href="#design-mgmt">Design</a>
@@ -53,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.9.6</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.10.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -340,7 +341,8 @@ Search titles, body content, and more using a keyword. SQLite updates the list w
 
 Preview buttons are blue in all three editions.
 
-- [[edit]{.material-symbols-outlined}Edit]{.m-btn .m-btn-blue} — Opens the edit screen for that page.
+- [[edit]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — The pencil button. Opens the edit screen for that page.
+- [[edit_square]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — Opens the page in [Visual Editing](#visual-edit). [flat Edition only]{.type-badge .badge-flat}
 - [[open_in_new]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — Opens the page in a new tab, at the URL matching its current status.
 - For a page with "Pending approval" status, this instead opens a preview share URL (with a preview token). [SQLite Edition only]{.type-badge .badge-sqlite}
 
@@ -387,6 +389,8 @@ Found at the bottom of the page list. Writes out every page whose status is "Pub
 ## Page Edit {#page-edit}
 
 A screen for editing a page's content and settings in detail. Opens when you click "Create New," a page's title, or its Edit button.
+
+The [[edit_square]{.material-symbols-outlined} Visual edit]{.m-btn .m-btn-blue} button at the top right opens the page in [Visual Editing](#visual-edit). [flat Edition only]{.type-badge .badge-flat}
 
 #### History [SQLite Edition only]{.type-badge .badge-sqlite}
 
@@ -483,6 +487,56 @@ Returns to the page list. Note that unsaved changes will be lost.
 Permanently deletes the page. This cannot be undone.
 
 At the bottom of the edit screen, a quick reference for Markdown syntax and the list of available tags (tag guide) appears collapsed. Click to expand it.
+
+## Visual Editing [flat Edition only]{.type-badge .badge-flat} {#visual-edit}
+
+Open a page **exactly as it looks** and edit its body and page CSS right there. Your layout, CSS and images are shown as they are, so you can rewrite the Markdown while watching the result. It uses the same login as the admin screen; if you are not logged in, you are sent to the admin login.
+
+#### How to open it
+
+- The [[edit_square]{.material-symbols-outlined}]{.m-btn .m-btn-blue} button in the page list (between the pencil and the preview button).
+- The [[edit_square]{.material-symbols-outlined} Visual edit]{.m-btn .m-btn-blue} button at the top right of the page edit screen.
+- Open `visual.php` in the admin folder (next to `admin.php`) directly. A page picker appears.
+
+#### Editing blocks of the body
+
+- **Click** a paragraph, heading, list, table, etc. and its Markdown becomes an input box. Save with ⌘/Ctrl+Enter, cancel with Esc. The page is not reloaded after saving.
+- The bar above the box inserts headings, bold, italic, links, bulleted and numbered lists, quotes, code and images (⌘/Ctrl+B, I and K also work). Undo (⌘/Ctrl+Z) inside the box keeps working after using the bar.
+- You can also **paste** (or drag) an image into the box. It is saved to the `media` folder and `![](filename)` is inserted (png, jpg, gif, webp, up to 10 MB).
+- Buttons below the box add a paragraph above or below, duplicate the block, or delete it (press **twice** to confirm).
+- Clicking a part built by a `{{…}}` tag, such as navigation cards, opens the single tag line. The text and images of the cards come from the linked pages' settings, so they cannot be edited here. Links under the box take you to that page (body or settings).
+- While editing, clicking a link inside the body opens the editor instead of following the link. ⌘/Ctrl+click follows it, or switch the button at the bottom right from "Editing" to "Edit off".
+
+#### Whole body and page CSS
+
+- "Body" at the bottom right edits the whole Markdown body in a panel at the bottom of the screen. Changes show on the page as you type.
+- "CSS" edits this page's own CSS. It applies as you type; save with ⌘/Ctrl+Enter. Closing with unsaved changes reverts them.
+
+#### Undo and redo
+
+The ↶ ↷ buttons (⌘/Ctrl+Z, ⌘/Ctrl+Shift+Z) undo saves of blocks, body and CSS, up to 100 per page. History is stored in the data folder under `visual-history/`.
+
+#### Switching, creating and duplicating pages
+
+- ⌘/Ctrl+K opens a page list from the side. The page that is open comes first, then recently opened pages. Filter by title or ID.
+- "New page" and "Duplicate this page" (and the duplicate button on each row) create pages. **They are always created as drafts**; change the status in the admin screen to publish. ID rules are the same as in the admin screen.
+- Outside input boxes: `g` then `l` opens the admin page list, `g` then `e` this page's settings, `g` then `p` the page picker (the admin screen opens in another window).
+
+#### Tools for checking
+
+- Magnifier: click an element on the page to see candidate selectors (class names, etc.). Copy one and use it in the page CSS.
+- Screen width: shows the same page at phone (375), tablet (768), PC (1200) and full width. CSS you type shows there at once.
+
+#### Safety rules and limits
+
+- Writes are accepted only with the admin login, a CSRF token and a same-site request check.
+- The page's own scripts (inline and external tags) do not run in this screen, so that they cannot act with the logged-in administrator's rights. This does not affect how the page looks or how you edit it. External styles, images and fonts are shown.
+- "Raw HTML" pages and `{{DATA…}}` blocks cannot be edited by clicking; use the "Body" panel. Deleting a block that sits in the middle of HTML (for example only a `<div>` opening) is refused because it would break the HTML.
+- Texts on screen follow the language set in the admin screen.
+
+#### After updating [flat Edition only]{.type-badge .badge-flat}
+
+When updating from 2.9.x to 2.10.0, the visual editing files are not installed by that update, because the updater itself is replaced by it. After updating, run **[Reinstall]** once in "System Update" on the Site screen (uploading the files by FTP also works). Once the files are in place, the visual editing button appears in the page list.
 
 ---
 
