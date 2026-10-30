@@ -753,7 +753,6 @@
     "visual_js_unsaved_nav": "You have unsaved edits. Save or cancel first",
     "visual_js_no_child": "No inner element that can be told apart by line",
     "visual_js_edit_here": "Edit this element",
-    "visual_js_edit_here_title": "Open the editor with the clicked element as the target",
     "visual_js_dup_block": "Duplicate this block (adds the same content below)",
     "visual_js_delete_block": "Delete this block",
     "visual_js_new_paragraph": "(new paragraph)",

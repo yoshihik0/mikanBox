@@ -753,7 +753,6 @@
     "visual_js_unsaved_nav": "書きかけの内容があります。先に保存するか、取り消してください",
     "visual_js_no_child": "中に、行で分けられる要素がありません",
     "visual_js_edit_here": "この要素を編集",
-    "visual_js_edit_here_title": "クリックした要素を編集対象にして、エディタを開く",
     "visual_js_dup_block": "このブロックを複製（下に同じ内容を追加）",
     "visual_js_delete_block": "このブロックを削除",
     "visual_js_new_paragraph": "（新しい段落）",

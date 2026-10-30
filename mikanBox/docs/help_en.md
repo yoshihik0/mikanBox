@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.11.4</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.11.5</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -529,7 +529,7 @@ Open a page **exactly as it looks** and edit its body and page CSS right there. 
 
 #### Tools for checking
 
-- Magnifier: click an element on the page to see candidate selectors (class names, etc.). Copy one and use it in the page CSS. "Edit this element" in that box opens the block editor with **the clicked element itself as the target** (only for elements inside a body block).
+- Magnifier: click an element on the page to see candidate selectors (class names, etc.). Copy one and use it in the page CSS. The [[edit]{.material-symbols-outlined}]{.m-btn} button on each selector row opens the block editor with **the element at that row's level as the target** (the upper rows are the clicked element, the lower rows its outer parents; only for elements inside a body block).
 - Screen width: shows the same page at phone (375), tablet (768), PC (1200) and full width. CSS you type shows there at once.
 
 #### Safety rules and limits
