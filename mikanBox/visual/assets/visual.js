@@ -59,7 +59,8 @@
     [].slice.call(rootEl.querySelectorAll('a[href]')).forEach(function (a) {
       if (a.closest('.fv-ui')) return;
       var u; try { u = new URL(a.getAttribute('href'), location.href); } catch (e) { return; }
-      if (u.origin !== location.origin || (ADMIN.pick && u.pathname.indexOf(ADMIN.pick) === 0)) return;
+      if (u.origin !== location.origin) { a.target = '_blank'; a.rel = 'noopener'; return; }   // 外部サイトは別タブ（編集画面から出ない）
+      if (ADMIN.pick && u.pathname.indexOf(ADMIN.pick) === 0) return;
       var base = ADMIN.site || '/', path = decodeURIComponent(u.pathname);
       if (path.indexOf(base) !== 0) return;
       path = path.slice(base.length).replace(/^\/+/, '').replace(/\.html$/, '').replace(/\/index$/, '').replace(/\/+$/, '');
@@ -87,10 +88,20 @@
   var tgMd = ibtn('edit_note', T('visual_js_md_title'), 'fv-toggle', T('visual_js_md_label'));
   var tgCss = ibtn('palette', T('visual_js_css_title'), 'fv-toggle', 'CSS');
   var tgEdit = ibtn('edit', T('visual_js_edit_toggle_title'), 'fv-toggle');
-  dock.append(tgPages, lnkList, lnkPage, sep1, tgUndo, tgRedo, tgPoints, sep2, tgView, tgInspect, tgMd, tgCss, tgEdit); document.body.appendChild(dock);
-  function paintEdit() { tgEdit.innerHTML = ic('edit') + '<span class="fv-lb">' + H(on ? T('visual_js_editing') : T('visual_js_edit_off')) + '</span>'; tgEdit.classList.toggle('active', on); }
-  paintEdit();
-  tgEdit.addEventListener('click', function () { on = !on; sessionStorage.setItem('fv-on', on ? '1' : '0'); root.classList.toggle('fv-on', on); paintEdit(); });
+  var tgBrowse = ibtn('touch_app', T('visual_js_browse_title'), 'fv-toggle');
+  dock.append(tgPages, lnkList, lnkPage, sep1, tgUndo, tgRedo, tgPoints, sep2, tgView, tgBrowse, tgInspect, tgMd, tgCss, tgEdit); document.body.appendChild(dock);
+  // 3つの使い方: 編集（クリックで直す）/ 閲覧（リンクをたどって見て回る。サイト内のリンクは、そのページのビジュアル編集で開く）/ 検査（虫眼鏡）
+  function paintMode() {
+    var edit = on && !inspecting, browse = !on && !inspecting;
+    tgEdit.innerHTML = ic('edit') + (edit ? '<span class="fv-lb">' + H(T('visual_js_editing')) + '</span>' : ''); tgEdit.classList.toggle('active', edit);
+    tgBrowse.innerHTML = ic('touch_app') + (browse ? '<span class="fv-lb">' + H(T('visual_js_browsing')) + '</span>' : ''); tgBrowse.classList.toggle('active', browse);
+  }
+  function setMode(m) {
+    setInspect(false); on = m === 'edit'; sessionStorage.setItem('fv-on', on ? '1' : '0'); root.classList.toggle('fv-on', on); paintMode();
+  }
+  paintMode();
+  tgEdit.addEventListener('click', function () { setMode('edit'); });
+  tgBrowse.addEventListener('click', function () { setMode('browse'); });
 
   var toastEl = null, toastTimer = null;
   function toast(t) {
@@ -368,8 +379,51 @@
     say(T('visual_js_uploading'));
     return fetch(API('upload'), { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body: file }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }).then(function (x) {
       if (!x.ok) { say(x.j.error || T('visual_js_upload_failed')); return; }
-      var tag = '![](' + x.j.name + ')', s0 = ta.selectionStart; replaceRange(ta, s0, ta.selectionEnd, tag, s0 + tag.length, s0 + tag.length); say('');
+      mediaCache = null; insertImage(ta, x.j.name); say('');
     }).catch(function () { say(T('visual_js_upload_failed')); });
+  }
+  /** 画像を入れる: HTMLの中なら {{IMAGE:名前}}、Markdownなら ![](名前)（{{IMAGE}} に使えない名前は、Markdownの形） */
+  function insertImage(ta, name) {
+    var v = ta.value, ls = v.lastIndexOf('\n', ta.selectionStart - 1) + 1, le = v.indexOf('\n', ta.selectionStart); if (le < 0) le = v.length;
+    var inHtml = /^\s*</.test(v.slice(ls, le)) || v.trim().charAt(0) === '<';
+    var tag = inHtml && /^[a-zA-Z0-9_\-.]+$/.test(name) ? '{{IMAGE:' + name + '}}' : '![](' + name + ')', s0 = ta.selectionStart;
+    replaceRange(ta, s0, ta.selectionEnd, tag, s0 + tag.length, s0 + tag.length);
+  }
+  // 画像ピッカー: media の画像を、新しい順にサムネイルで並べる。選ぶと、カーソルの位置に入る
+  var mediaCache = null, mediaPop = null, mediaAnchor = null;
+  function closeMedia() { if (mediaPop) { mediaPop.remove(); mediaPop = null; mediaAnchor = null; document.removeEventListener('mousedown', mediaOutside, true); document.removeEventListener('keydown', mediaKey, true); } }
+  function mediaOutside(e) { if (mediaPop && !mediaPop.contains(e.target) && !(mediaAnchor && mediaAnchor.contains(e.target))) closeMedia(); }
+  function mediaKey(e) { if (e.key === 'Escape' && mediaPop) { e.stopPropagation(); closeMedia(); } }
+  function openMedia(anchor, ta, say, pickFile) {
+    if (mediaPop && mediaAnchor === anchor) { closeMedia(); return; }
+    closeMedia(); mediaAnchor = anchor;
+    mediaPop = el('div', 'fv-pop fv-media fv-ui');
+    var search = el('input', 'fv-media-q'); search.type = 'search'; search.placeholder = T('visual_js_media_search');
+    var up = ibtn('upload', T('visual_js_media_upload'), 'fv-media-up', T('visual_js_media_upload'));
+    var head = el('div', 'fv-media-head'); head.append(search, up);
+    var grid = el('div', 'fv-media-grid'), note = el('div', 'fv-pop-note fv-media-note');
+    mediaPop.append(head, grid, note); document.body.appendChild(mediaPop);
+    var r = anchor.getBoundingClientRect(), w = mediaPop.offsetWidth, h = mediaPop.offsetHeight;
+    mediaPop.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+    mediaPop.style.top = Math.max(8, r.top - h - 8 > 8 ? r.top - h - 8 : Math.min(r.bottom + 8, innerHeight - h - 8)) + 'px';
+    document.addEventListener('mousedown', mediaOutside, true); document.addEventListener('keydown', mediaKey, true);
+    up.addEventListener('click', function () { closeMedia(); pickFile(); });
+    function paint(list, base) {
+      var q = search.value.trim().toLowerCase(); grid.textContent = ''; note.textContent = '';
+      var shown = list.filter(function (it) { return !q || it.name.toLowerCase().indexOf(q) >= 0; });
+      if (!shown.length) note.textContent = list.length ? T('visual_js_media_no_match') : T('visual_js_media_empty');
+      shown.slice(0, 120).forEach(function (it) {
+        var b = el('button', 'fv-media-item'); b.type = 'button'; b.title = it.name;
+        var im = el('img'); im.loading = 'lazy'; im.alt = ''; im.src = base + encodeURIComponent(it.name);
+        b.append(im, el('span', '', it.name));
+        b.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+        b.addEventListener('click', function () { closeMedia(); insertImage(ta, it.name); say(''); });
+        grid.append(b);
+      });
+    }
+    var cached = mediaCache ? Promise.resolve(mediaCache) : jfetch(API('media'), { cache: 'no-store' }).then(function (x) { if (!x.ok) throw 0; mediaCache = x.j; return x.j; });
+    cached.then(function (m) { if (!mediaPop) return; paint(m.items, m.base); search.addEventListener('input', function () { paint(m.items, m.base); }); search.focus(); })
+      .catch(function () { if (mediaPop) note.textContent = T('visual_js_media_failed'); });
   }
   function firstImage(list) { for (var i = 0; i < list.length; i++) { if (list[i].type && list[i].type.indexOf('image/') === 0) return list[i]; } return null; }
   /** Markdownのクイック操作バー（左から: 見出し・太字・斜体・リンク・箇条書き・番号・引用・コード・画像） */
@@ -386,7 +440,7 @@
     b('code', T('visual_js_tb_code'), function () { wrapSel(ta, '`', '`', T('visual_js_ph_code')); });
     var file = el('input'); file.type = 'file'; file.accept = 'image/png,image/jpeg,image/gif,image/webp'; file.style.display = 'none';
     file.addEventListener('change', function () { if (file.files[0]) uploadImage(file.files[0], ta, say); file.value = ''; });
-    b('image', T('visual_js_tb_image'), function () { file.click(); });
+    var imgBtn = b('image', T('visual_js_tb_image'), function () { openMedia(imgBtn, ta, say, function () { file.click(); }); });
     tb.appendChild(file);
     ta.addEventListener('keydown', function (ev) {
       if (!(ev.metaKey || ev.ctrlKey) || ev.shiftKey || ev.altKey) return;
@@ -473,7 +527,7 @@
   var inspecting = false, hl = el('div', 'fv-hl fv-ui'), pop = null;
   document.body.appendChild(hl);
   function closePop() { if (pop) { pop.remove(); pop = null; } }
-  function setInspect(v) { inspecting = v; tgInspect.classList.toggle('active', v); root.classList.toggle('fv-inspect', v); hl.style.display = 'none'; if (!v) closePop(); }
+  function setInspect(v) { inspecting = v; tgInspect.classList.toggle('active', v); root.classList.toggle('fv-inspect', v); hl.style.display = 'none'; if (!v) closePop(); paintMode(); }
   tgInspect.addEventListener('click', function () { setInspect(!inspecting); });
   function cls(e) { return [].slice.call(e.classList).filter(function (c) { return !/^fv-|^mikan-content-scope$/.test(c); }); }
   function simple(e) { return e.tagName.toLowerCase() + cls(e).map(function (c) { return '.' + CSS.escape(c); }).join(''); }

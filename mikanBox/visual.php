@@ -122,7 +122,7 @@ if ($isApi) {
     }
     $in = $post && $api !== 'upload' ? mbv_body() : [];
     $id = (string)($in['id'] ?? $_GET['id'] ?? '');
-    $needId = !in_array($api, ['scope-css', 'upload', 'create'], true);
+    $needId = !in_array($api, ['scope-css', 'upload', 'create', 'media'], true);
     if ($needId && (!mbv_valid_id($id) || !loadData(POSTS_DIR, $id))) mbv_json(['error' => t('visual_err_page_not_found')], 400);
 
     switch ($api) {
@@ -209,6 +209,15 @@ if ($isApi) {
             $data['status'] = 'draft'; $data['updated_at'] = date('Y-m-d H:i:s');
             if (!saveData(POSTS_DIR, $id, $data)) mbv_json(['error' => t('visual_err_save')], 500);
             mbv_json(['ok' => true, 'id' => $id]);
+        }
+        case 'media': {   // 画像の一覧（画像ピッカー用）。新しい順。サムネイルは、画面側が media フォルダから直接読む
+            $items = [];
+            foreach (is_dir(MEDIA_DIR) ? (scandir(MEDIA_DIR) ?: []) : [] as $f) {
+                if ($f === '' || $f[0] === '.' || !is_file(MEDIA_DIR . '/' . $f) || !preg_match('/\.(png|jpe?g|gif|webp|avif|svg)\z/i', $f) || !mediaValidFilename($f)) continue;
+                $items[] = ['name' => $f, 't' => (int)@filemtime(MEDIA_DIR . '/' . $f)];
+            }
+            usort($items, static fn($a, $b) => $b['t'] <=> $a['t'] ?: strcmp($a['name'], $b['name']));
+            mbv_json(['items' => array_slice($items, 0, 500), 'base' => mbv_site_base() . 'media/']);
         }
         case 'upload': {   // 画像の貼り付け・ドラッグ・選択（png / jpg / gif / webp）。本体の画像保存の決まり（ファイル名・保存名）を通す
             if (!$post) mbv_json(['error' => 'method'], 405);

@@ -105,6 +105,8 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-visual-test-') as tmp:
         check(st == 401, 'anonymous API write is refused')
         st, body, _ = api(anon, 'upload', None)
         check(st == 401, 'anonymous upload is refused')
+        st, body, _ = api(anon, 'media')
+        check(st == 401, 'anonymous image list is refused')
 
         # ---- 2. ログイン（管理画面と同じ）
         ed = mk()
@@ -129,6 +131,8 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-visual-test-') as tmp:
         if SQLITE:   # 「端末とユーザー」は、コードを発行した直後だけ開く（リロードのたびに開いたままにしない）
             st, site_html, _ = req(ed, ADM + '?view=site')
             check(st == 200 and re.search(r'<div id="users-mgmt".*?<details class="section-accordion">', site_html, re.S), 'devices and users section is closed by default')
+        st, ml, _ = api(ed, 'media')
+        check(st == 200 and isinstance(ml.get('items'), list) and ml.get('base', '').endswith('media/'), 'logged-in editor gets the image list for the picker')
         st, page, hd = req(ed, VIS + '?id=index')
         check(st == 200 and 'window.__VISUAL_CSRF' in page and '<!--fv:' in page, 'editing page has CSRF token and block markers')
         nonce = re.search(r"nonce-([A-Za-z0-9_-]+)", hd['Content-Security-Policy'])[1]
