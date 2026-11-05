@@ -88,7 +88,7 @@ function mbv_render(string $id, ?array $override = null): ?string {
     $data = $override ?? loadData(POSTS_DIR, $id);
     if (!$data) return null;
     $md = mbv_nl((string)($data['content_md'] ?? ''));
-    $data['content_md'] = !empty($data['is_html']) ? $md : mbv_inject_markers($md);
+    $data['content_md'] = mbv_inject_markers($md);     // Raw HTML のページにも入れる（目印はHTMLコメントなので、見た目は変わらない）
     $data['css'] = ".fv-css-start{}\n" . mbv_nl((string)($data['css'] ?? '')) . "\n.fv-css-end{}";   // 空でも、範囲用の枠を出す＋ライブ反映の目印
     $data['status'] = 'public_dynamic';                                                              // 下書きでも表示する（ログイン済みの管理者だけが、ここに来る）
     $settings = $GLOBALS['mikanbox_settings'] ?? [];

@@ -68,9 +68,6 @@
       if (ids[id]) a.setAttribute('href', ADMIN.view + id.split('/').map(encodeURIComponent).join('/') + u.hash); else out();
     });
   }
-  function linkPageId(a) {
-    try { var u = new URL(a.getAttribute('href'), location.href); var m = (ADMIN.view || '').split('?')[0]; if (u.pathname !== m) return null; return u.searchParams.get('id'); } catch (e) { return null; }
-  }
   applyLn(document.body); rewriteLinks(document.body);
 
   // ---------------------------------------------------------------- ドック（右下のボタン）
@@ -327,7 +324,7 @@
     stage.appendChild(vpFrame); vp.append(bar, stage); document.body.appendChild(vp);
     function setWidth(w) { vpWidth = w; vpFrame.style.width = w + 'px'; btns.forEach(function (b, i) { b.classList.toggle('on', sizes[i][2] === w); }); }
     setWidth(vpWidth || 375);
-    vpFrame.addEventListener('load', function () { bindFrame(); if (active && active.dirty()) active.live(); });
+    vpFrame.addEventListener('load', function () { bindFrame(); if (active && active.dirty()) active.live(); markTarget(); });
   }
   tgView.addEventListener('click', openViewport);
 
@@ -470,13 +467,14 @@
       btn: tgMd, icon: 'edit_note', title: T('visual_js_md_panel'), note: T('visual_js_panel_note'), ph: T('visual_js_md_placeholder'),
       load: function () { return jfetch(API('source') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (x) { return x.j.text; }); },
       save: function (o, n) { return post(API('save-md'), { id: PAGE, old: o, new: n }); },
-      live: function (text) { return post(API('render'), { id: PAGE, text: text }).then(function (x) { if (!x.ok || !scopeEl()) return; var neu = new DOMParser().parseFromString(x.j.html, 'text/html').querySelector('.mikan-content-scope'); if (neu) { scopeEl().innerHTML = neu.innerHTML; applyLn(scopeEl()); rewriteLinks(scopeEl()); } }); }
+      live: function (text) { return post(API('render'), { id: PAGE, text: text }).then(function (x) { if (!x.ok) return; var neu = new DOMParser().parseFromString(x.j.html, 'text/html').querySelector('.mikan-content-scope'); if (!neu) return; liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; sc.innerHTML = neu.innerHTML; applyLn(sc); if (d === document) rewriteLinks(sc); }); markTarget(); }); }
     }
   };
   function closePanel(force) {
     if (!active) return true;
     if (!force && active.dirty() && !confirm(T('visual_js_confirm_close'))) return false;
     var was = active.dirty();
+    if (active.kind === 'md') { tgt = null; tbar = null; clearMarks(); }
     active.node.remove(); active.btn.classList.remove('active'); active = null;
     sessionStorage.setItem('fv-panel', ''); root.classList.remove('fv-panel-open');
     if (was) { sessionStorage.setItem('fv-scroll', String(window.scrollY)); location.reload(); }
@@ -495,11 +493,11 @@
       var save = ibtn('save', T('visual_js_save_title'), 'fv-save'), close = ibtn('close', T('btn_close'));
       head.append(title, el('span', 'fv-panel-note', K.note), msg, save, close);
       var ta = el('textarea'); ta.value = old; ta.spellcheck = false; ta.placeholder = K.ph;
-      if (kind === 'md') node.append(head, mdToolbar(ta, function (t) { msg.style.color = '#fcd34d'; msg.textContent = t; }, true), ta); else node.append(head, ta);
+      if (kind === 'md') { tbar = buildTbar(ta); node.append(head, mdToolbar(ta, function (t) { msg.style.color = '#fcd34d'; msg.textContent = t; }, true), tbar.el, ta); } else node.append(head, ta);
       document.body.appendChild(node);
       active = { kind: kind, btn: K.btn, node: node, ta: ta, dirty: function () { return dirty; }, live: function () { K.live(ta.value); } };
       function setDirty(v) { dirty = v; msg.textContent = v ? T('visual_js_unsaved') : ''; msg.style.color = v ? '#fcd34d' : '#86efac'; }
-      ta.addEventListener('input', function () { setDirty(ta.value !== old); clearTimeout(timer); timer = setTimeout(function () { K.live(ta.value); }, 200); });
+      ta.addEventListener('input', function () { if (kind === 'md') onMdInput(); setDirty(ta.value !== old); clearTimeout(timer); timer = setTimeout(function () { K.live(ta.value); }, 200); });
       function doSave() {
         K.save(old, ta.value).then(function (x) {
           if (!x.ok) { msg.style.color = '#fca5a5'; msg.textContent = x.j.error || T('visual_js_save_failed'); return; }
@@ -513,7 +511,7 @@
         if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); doSave(); }
         if (ev.key === 'Tab') { ev.preventDefault(); var s = ta.selectionStart; replaceRange(ta, s, ta.selectionEnd, '  ', s + 2, s + 2); }
       });
-      ta.focus();
+      ta.setSelectionRange(0, 0); ta.focus({ preventScroll: true });   // 開いた直後に、最終行へ飛ばない
       if (after) after();
     });
   }
@@ -555,16 +553,6 @@
     }
     return { blk: blk, path: path };
   }
-  /** 本文のブロックの、その階層の要素を編集対象にして、エディタを開く。画面幅の確認の中で選んだときは、確認を閉じて、同じブロックを開く */
-  function openEditAt(at) {
-    var ep = editPath(at); if (!ep) return false;
-    var blk = ep.blk;
-    if (blk.ownerDocument !== document) {
-      blk = document.querySelector('[data-ln="' + blk.getAttribute('data-ln') + '"]'); if (!blk) return false;
-      closeViewport();
-    }
-    setInspect(false); startEdit(blk, null, ep.path); return true;
-  }
   /** 検索用: セレクタ（またはその末尾・クラス名）が、CSSのテキストのどこにあるか */
   function findCssPos(css, sel) {
     var last = sel.split(/\s+/).pop(), cm = /\.[\w-]+/.exec(last), cands = [sel, last, cm && cm[0]].filter(Boolean);
@@ -574,19 +562,12 @@
     }
     return null;
   }
-  /** 入力欄の pos の行が、見える位置に来るようにスクロールする（折り返しも含めて測る） */
-  function scrollTextareaTo(ta, pos) {
-    var cs = getComputedStyle(ta), m = document.createElement('div');
-    m.style.cssText = 'position:absolute;visibility:hidden;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;left:-9999px;top:0;box-sizing:border-box;width:' + ta.clientWidth + 'px;font:' + cs.font + ';padding:' + cs.padding + ';tab-size:' + cs.tabSize;
-    m.textContent = ta.value.slice(0, pos) + '\u200b'; document.body.appendChild(m);
-    var y = m.scrollHeight; m.remove(); ta.scrollTop = Math.max(0, y - ta.clientHeight / 3);
-  }
   function showCssFor(sel) {
     function go() {
       if (!active || active.kind !== 'css') return;
       var ta = active.ta, f = findCssPos(ta.value, sel);
       if (!f) { toast(T('visual_js_css_not_found')); return; }
-      ta.focus({ preventScroll: true }); ta.setSelectionRange(f.pos, f.pos + f.len); scrollTextareaTo(ta, f.pos);
+      ta.focus({ preventScroll: true }); ta.setSelectionRange(f.pos, f.pos + f.len); revealInTextarea(ta, f.pos);
     }
     closePop(); setInspect(false);
     if (active && active.kind === 'css') go(); else openPanel('css', go);
@@ -621,7 +602,7 @@
     var d; try { d = vpFrame.contentDocument; } catch (e) { return; }
     if (!d || !d.body || d.documentElement.hasAttribute('data-fv-bound')) return;
     d.documentElement.setAttribute('data-fv-bound', '1');
-    var st = d.createElement('style'); st.textContent = 'html.fv-inspect *{cursor:crosshair!important}'; d.head.appendChild(st);
+    var st = d.createElement('style'); st.textContent = 'html.fv-inspect *{cursor:crosshair!important}.fv-target{outline:2px solid #3b9bd8!important;outline-offset:2px}'; d.head.appendChild(st);
     var sc = d.querySelector('.mikan-content-scope'); if (sc) { applyLn(sc); }
     d.addEventListener('mouseover', function (e) {
       if (!inspecting) return;
@@ -676,111 +657,166 @@
     return { name: root.name, kids: out, all: all };
   }
 
-  /** ページ側の scroll-behavior: smooth に関係なく、すぐ動かす */
-  function jump(y) { window.scrollTo({ top: Math.max(0, y), behavior: 'instant' }); }
+  // ---------------------------------------------------------------- 編集対象の選択（下の「本文」パネルの中で、選んだ要素の行を選択する）
   var LOADING_TAG = /\{\{\s*(NAV_LINKS|NAV_CARDS|POST_MD|EXT_MD|SEARCH_RESULTS)\b/;
-  function startEdit(node, fromLink, drill) {
-    var m = /^(\d+)-(\d+)$/.exec(node.getAttribute('data-ln')); if (!m) return;
-    var a = +m[1], b = +m[2];
-    fetch(API('source') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (src) {
-      var t0 = node.getBoundingClientRect().top, old = src.text.split('\n').slice(a, b + 1).join('\n');
-      var box = el('div', 'fv-box fv-ui');
-      var ta = el('textarea'); ta.value = old; ta.spellcheck = false;
-      var msg = el('div', 'fv-msg');
-      var hint = el('div', 'fv-hint', T('visual_js_tag_hint'));   // リンク先のページから内容を読み込むタグ（カード・ナビ・他ページの本文）のときだけ出す
-      function showHint() { hint.style.display = LOADING_TAG.test(old) ? '' : 'none'; }
-      showHint();
-      if (LOADING_TAG.test(old) && fromLink) {   // クリックしたカードのリンク先ページへの案内
-        var lid = linkPageId(fromLink);
-        if (lid) {
-          var pg = PAGES.filter(function (p) { return p.id === lid; })[0], nm = pg && pg.title ? pg.title : lid;
-          var acts = el('div', 'fv-hint-acts');
-          var a1 = el('a', '', T('visual_js_open_visual', nm)); a1.href = ADMIN.view + lid.split('/').map(encodeURIComponent).join('/');
-          var a2 = el('a', '', T('visual_js_open_settings')); a2.href = ADMIN.editBase + encodeURIComponent(lid) + '#page-editor';
-          acts.append(a1, a2); hint.append(acts);
-        }
+  var tgt = null;     // { a, b, path:[{tag,nth}], crumbs:[タグ名], trail:[[a,b]], root, lc }  行は本文の行番号（0始まり）
+  var tbar = null;    // 本文パネルの、編集対象のバー
+  function mdTa() { return active && active.kind === 'md' ? active.ta : null; }
+  function nLines(text) { return text.split('\n').length; }
+  function lineStart(text, n) { var p = 0; for (var i = 0; i < n; i++) { var q = text.indexOf('\n', p); if (q < 0) return text.length; p = q + 1; } return p; }
+  function lineEnd(text, n) { var q = text.indexOf('\n', lineStart(text, n)); return q < 0 ? text.length : q; }
+  function targetText(ta) { return tgt ? ta.value.slice(lineStart(ta.value, tgt.a), lineEnd(ta.value, tgt.b)) : ''; }
+
+  /** pos の行が、入力欄の中ほどに見えるようにする。開いた直後は、ブラウザが後から動かすことがあるので、あとで、もう一度合わせる */
+  function revealInTextarea(ta, pos) {
+    function once() {
+      var cs = getComputedStyle(ta), m = document.createElement('div');
+      m.style.cssText = 'position:absolute;visibility:hidden;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;left:-9999px;top:0;box-sizing:border-box;width:' + ta.clientWidth + 'px;padding:' + cs.padding
+        + ';font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize + ';font-weight:' + cs.fontWeight + ';line-height:' + cs.lineHeight + ';letter-spacing:' + cs.letterSpacing + ';tab-size:' + cs.tabSize;
+      m.textContent = ta.value.slice(0, pos) + '​'; document.body.appendChild(m);
+      var y = m.scrollHeight; m.remove(); ta.scrollTop = Math.max(0, y - ta.clientHeight / 3);
+    }
+    once(); requestAnimationFrame(once); setTimeout(once, 160);
+  }
+  /** 編集対象の要素を、ページ（と画面幅の確認）の中から探す */
+  function findTargetEls() {
+    var out = []; if (!tgt) return out;
+    liveDocs().forEach(function (d) {
+      var sc = d.querySelector('.mikan-content-scope'); if (!sc) return;
+      var blocks = [].slice.call(sc.querySelectorAll('[data-ln]')).filter(function (x) { var m = /^(\d+)-(\d+)$/.exec(x.getAttribute('data-ln')); return m && +m[1] <= tgt.a && tgt.b <= +m[2]; });
+      var cur = blocks[Math.min(tgt.root, blocks.length - 1)];
+      for (var i = 0; cur && i < tgt.path.length; i++) {
+        var st = tgt.path[i], n = 0, nx = null;
+        for (var c = cur.firstElementChild; c; c = c.nextElementSibling) { if (c.tagName.toLowerCase() === st.tag) { if (n === st.nth) { nx = c; break; } n++; } }
+        cur = nx;
       }
-      var bar = el('div', 'fv-bar');
-      var save = ibtn('save', T('visual_js_save_title'), 'fv-save'), cancel = ibtn('close', T('visual_js_cancel_esc'));
-      var up = ibtn('add_row_above', T('visual_js_add_above')), down = ibtn('add_row_below', T('visual_js_add_below'));
-      var dup = ibtn('content_copy', T('visual_js_dup_block')), del = ibtn('delete', T('visual_js_delete_block'), 'fv-del');
-      var into = ibtn('subdirectory_arrow_right', T('visual_js_into_title')), outo = ibtn('arrow_back', T('visual_js_out_title'));
-      var kidsBox = el('div', 'fv-kids'), where = el('div', 'fv-where'), trail = [], crumbs = [];
-      var head = el('div', 'fv-box-head'), headActs = el('div', 'fv-box-acts'), saveTop = ibtn('save', T('visual_js_save_title'), 'fv-save'), closeTop = ibtn('close', T('visual_js_cancel_esc'));
-      headActs.append(saveTop, closeTop); head.append(where, headActs);
-      bar.append(save, cancel, into, outo, up, down, dup, del);
-      box.append(head, mdToolbar(ta, function (t) { msg.textContent = t; }, false), ta, bar, kidsBox, hint); box.append(msg);
-      node.classList.add('fv-editing'); node.style.display = 'none'; node.parentNode.insertBefore(box, node);
-      function fit() { var y = window.scrollY; ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 4) + 'px'; if (window.scrollY !== y) jump(y); }   // 一瞬ページが縮んで、スクロール位置が飛ぶのを防ぐ
-      ta.addEventListener('input', fit); fit(); ta.focus({ preventScroll: true });
-      jump(window.scrollY + box.getBoundingClientRect().top - (t0 >= 0 ? t0 : 80));   // 編集欄を、元のブロックの見えていた位置に出す（はみ出していたら、上から80px）
-      function close() { box.remove(); node.classList.remove('fv-editing'); node.style.display = ''; }
-      function send(mode, text) {
-        post(API('save'), { id: PAGE, start: a, end: b, old: old, mode: mode, new: text, inner: trail.length > 0 }).then(function (x) {
-          if (!x.ok) { msg.textContent = x.j.error || T('visual_js_failed'); return; }
-          close(); refreshContent();
-        }).catch(function () { msg.textContent = T('visual_js_failed'); });
-      }
-      var delTimer = null;
-      /** 追加する内容: 内側の要素を対象にしているときは、同じタグで包む（<li> の隣には <li>） */
-      function newText() { var info = trail.length ? childRanges(old) : null; return info ? '<' + info.name + '>' + T('visual_js_new_paragraph') + '</' + info.name + '>' : T('visual_js_new_paragraph'); }
-      /** 編集の対象を、範囲 [na, nb]（ページ全体の行）に切り替える。書きかけがあるときは切り替えない */
-      function retarget(na, nb, lines) {
-        if (ta.value !== old) { msg.textContent = T('visual_js_unsaved_nav'); return false; }
-        a = na; b = nb; old = lines.slice(a, b + 1).join('\n'); ta.value = old; showHint(); kidsBox.textContent = ''; msg.textContent = ''; fit(); ta.focus({ preventScroll: true }); return true;
-      }
-      function refreshNav() {
-        var info = childRanges(ta.value), n = info ? info.kids.length : 0;
-        outo.disabled = !trail.length; into.disabled = !n;
-        into.innerHTML = ic('subdirectory_arrow_right') + (n ? '<span class="fv-badge">' + n + '</span>' : '');
-        where.innerHTML = ic('account_tree') + crumbs.concat(info ? [info.name] : []).map(function (t) { return '<code>' + H(t) + '</code>'; }).join('<span class="fv-sep">›</span>');
-        where.style.visibility = (crumbs.length || n) ? '' : 'hidden';
-      }
-      refreshNav();
-      into.addEventListener('click', function () {
-        var info = childRanges(ta.value); if (!info || !info.kids.length) { msg.textContent = T('visual_js_no_child'); return; }
-        var lines = src.text.split('\n'), base = a;
-        function go(k) { var prevA = a, prevB = b; var nm = info.name; if (retarget(base + k.s, base + k.e, lines)) { trail.push([prevA, prevB]); crumbs.push(nm); refreshNav(); } }
-        if (info.kids.length === 1) { go(info.kids[0]); return; }
-        kidsBox.textContent = '';
-        info.kids.forEach(function (k, i) {
-          var t = lines.slice(base + k.s, base + k.e + 1).join(' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
-          var kb = el('button', 'fv-kid', (i + 1) + ' <' + k.name + '> ' + t); kb.type = 'button';
-          kb.addEventListener('click', function () { go(k); });
-          kidsBox.append(kb);
-        });
-      });
-      outo.addEventListener('click', function () {
-        if (!trail.length) return; var p = trail[trail.length - 1];
-        if (retarget(p[0], p[1], src.text.split('\n'))) { trail.pop(); crumbs.pop(); refreshNav(); }
-      });
-      if (drill && drill.length) {   // 虫眼鏡から: クリックした要素まで、中へ進んだ状態で開く
-        var dl = src.text.split('\n');
-        for (var di = 0; di < drill.length; di++) {
-          var di0 = childRanges(old); if (!di0) break;
-          var same = di0.all.filter(function (k) { return k.name === drill[di].tag; }), dk = same[drill[di].nth];
-          if (!dk || !dk.usable) break;
-          var pa = a, pb = b; if (!retarget(a + dk.s, a + dk.e, dl)) break;
-          trail.push([pa, pb]); crumbs.push(di0.name);
-        }
-        refreshNav();
-      }
-      save.addEventListener('click', function () { send('replace', ta.value); });
-      cancel.addEventListener('click', close);
-      saveTop.addEventListener('click', function () { send('replace', ta.value); });
-      closeTop.addEventListener('click', close);
-      up.addEventListener('click', function () { send('insert-before', newText()); });
-      down.addEventListener('click', function () { send('insert-after', newText()); });
-      dup.addEventListener('click', function () { send('insert-after', ta.value); });
-      del.addEventListener('click', function () {
-        if (del.dataset.armed === '1') { clearTimeout(delTimer); send('delete', ''); return; }
-        del.dataset.armed = '1'; del.innerHTML = ic('delete') + '<span class="fv-lb">' + H(T('visual_js_delete_really')) + '</span>'; del.classList.add('armed'); msg.textContent = T('visual_js_delete_armed');
-        delTimer = setTimeout(function () { del.dataset.armed = '0'; del.innerHTML = ic('delete'); del.classList.remove('armed'); msg.textContent = ''; }, 3500);
-      });
-      ta.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Escape') close();
-        if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); send('replace', ta.value); }
+      if (cur) out.push(cur);
+    });
+    return out;
+  }
+  function clearMarks() { liveDocs().forEach(function (d) { [].slice.call(d.querySelectorAll('.fv-target')).forEach(function (x) { x.classList.remove('fv-target'); }); }); }
+  function markTarget() { clearMarks(); findTargetEls().forEach(function (x) { x.classList.add('fv-target'); }); }
+  /** 編集対象が、下のパネルに隠れないよう、ページ（と画面幅の確認）をスクロールする */
+  function revealOnPage() {
+    var ph = active && active.node ? active.node.offsetHeight : 0;
+    findTargetEls().forEach(function (x) {
+      var d = x.ownerDocument, w = d.defaultView, r = x.getBoundingClientRect(), vh = d === document ? innerHeight - ph : w.innerHeight;
+      if (r.top < 48 || r.bottom > vh - 12) w.scrollBy({ top: r.top - Math.min(96, vh / 4), behavior: 'instant' });
+    });
+  }
+  /** 入力欄の選択を、編集対象の行に合わせる */
+  function applyTarget(reveal) {
+    var ta = mdTa();
+    if (!ta || !tgt) { clearMarks(); if (tbar) tbar.paint(); return; }
+    var s = lineStart(ta.value, tgt.a), e = lineEnd(ta.value, tgt.b); tgt.lc = nLines(ta.value);
+    ta.focus({ preventScroll: true }); ta.setSelectionRange(s, e);
+    if (reveal) revealInTextarea(ta, s);
+    tbar.paint(); markTarget(); if (reveal) revealOnPage();
+  }
+  /** 本文を直したとき、編集対象の行の位置を、増減に合わせてずらす */
+  function onMdInput() {
+    var ta = mdTa(); if (!tgt || !ta) return;
+    var lc = nLines(ta.value), d = lc - tgt.lc;
+    if (d !== 0) {
+      var caret = ta.value.slice(0, ta.selectionStart).split('\n').length - 1, grow = d > 0 ? 0 : -d;
+      function shift(r) { if (caret < r[0]) { r[0] += d; r[1] += d; } else if (caret <= r[1] + grow) r[1] = Math.max(r[0], r[1] + d); }
+      var cur = [tgt.a, tgt.b]; shift(cur); tgt.a = cur[0]; tgt.b = cur[1]; tgt.trail.forEach(shift);
+      tgt.lc = lc;
+    }
+    tbar.paint();
+  }
+  /** 選んだ要素（ページの中の位置）を、編集対象にする。中の要素なら、本文の行の範囲を、外から順に掘っていく */
+  function setTarget(a, b, path, root) {
+    var ta = mdTa(); if (!ta) return;
+    var lines = ta.value.split('\n');
+    tgt = { a: a, b: Math.min(b, lines.length - 1), path: [], crumbs: [], trail: [], root: root, lc: lines.length };
+    for (var i = 0; i < path.length; i++) {
+      var info = childRanges(lines.slice(tgt.a, tgt.b + 1).join('\n')); if (!info) break;
+      var same = info.all.filter(function (k) { return k.name === path[i].tag; }), k = same[path[i].nth];
+      if (!k || !k.usable) break;
+      tgt.trail.push([tgt.a, tgt.b]); tgt.crumbs.push(info.name); tgt.path.push(path[i]);
+      var a0 = tgt.a; tgt.a = a0 + k.s; tgt.b = a0 + k.e;
+    }
+    applyTarget(true);
+  }
+  /** 編集対象のバー（本文パネルの上に出る）: 階層・中へ/外へ・上下に追加・複製・削除 */
+  function buildTbar(ta) {
+    var bar = el('div', 'fv-tbar'), where = el('span', 'fv-where'), kids = el('div', 'fv-kids'), hint = el('div', 'fv-hint');
+    var into = ibtn('subdirectory_arrow_right', T('visual_js_into_title'), ''), outo = ibtn('arrow_back', T('visual_js_out_title'), '');
+    var above = ibtn('add_row_above', T('visual_js_add_above'), ''), below = ibtn('add_row_below', T('visual_js_add_below'), '');
+    var dup = ibtn('content_copy', T('visual_js_dup_block'), ''), del = ibtn('delete', T('visual_js_delete_block'), 'fv-del'), off = ibtn('close', T('visual_js_deselect'), '');
+    var row = el('div', 'fv-tbar-row'); row.append(where, into, outo, above, below, dup, del, off);
+    hint.textContent = T('visual_js_tag_hint'); bar.append(row, kids, hint);
+    var delTimer = null;
+    function inner() { return tgt && tgt.path.length > 0; }
+    function innerTag() { return tgt.path[tgt.path.length - 1].tag; }
+    function paint() {
+      bar.style.display = tgt ? '' : 'none'; if (!tgt) return;
+      var info = childRanges(targetText(ta)), n = info ? info.kids.length : 0;
+      outo.disabled = !tgt.trail.length; into.disabled = !n;
+      into.innerHTML = ic('subdirectory_arrow_right') + (n ? '<span class="fv-badge">' + n + '</span>' : '');
+      where.innerHTML = ic('account_tree') + tgt.crumbs.concat(info ? [info.name] : []).map(function (t) { return '<code>' + H(t) + '</code>'; }).join('<span class="fv-sep">›</span>')
+        + '<small>' + (tgt.a + 1) + (tgt.b > tgt.a ? '–' + (tgt.b + 1) : '') + '</small>';
+      hint.style.display = LOADING_TAG.test(targetText(ta)) ? '' : 'none';
+    }
+    function go(k, info) {
+      var a0 = tgt.a, nth = info.all.filter(function (x) { return x.name === k.name; }).indexOf(k);
+      tgt.trail.push([tgt.a, tgt.b]); tgt.crumbs.push(info.name); tgt.path.push({ tag: k.name, nth: nth }); tgt.a = a0 + k.s; tgt.b = a0 + k.e; kids.textContent = ''; applyTarget(true);
+    }
+    into.addEventListener('click', function () {
+      var info = childRanges(targetText(ta)); if (!info || !info.kids.length) return;
+      if (info.kids.length === 1) { go(info.kids[0], info); return; }
+      kids.textContent = '';
+      var lines = ta.value.split('\n');
+      info.kids.forEach(function (k, i) {
+        var t = lines.slice(tgt.a + k.s, tgt.a + k.e + 1).join(' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
+        var kb = el('button', 'fv-kid', (i + 1) + ' <' + k.name + '> ' + t); kb.type = 'button'; kb.addEventListener('click', function () { go(k, info); }); kids.append(kb);
       });
     });
+    outo.addEventListener('click', function () {
+      if (!tgt || !tgt.trail.length) return; var p = tgt.trail.pop(); tgt.crumbs.pop(); tgt.path.pop(); tgt.a = p[0]; tgt.b = p[1]; kids.textContent = ''; applyTarget(true);
+    });
+    off.addEventListener('click', function () { tgt = null; kids.textContent = ''; clearMarks(); paint(); });
+    /** 入力欄に、いまの対象の前後へ文字を足す（⌘/Ctrl+Z で戻せる。ページにも、すぐ反映される） */
+    function insertAt(pos, text) { replaceRange(ta, pos, pos, text, pos + text.length, pos + text.length); }
+    function newPara() { return inner() ? '<' + innerTag() + '>' + T('visual_js_new_paragraph') + '</' + innerTag() + '>' : T('visual_js_new_paragraph'); }
+    function reselect(a, b, nthDelta) {
+      tgt.a = a; tgt.b = b; if (nthDelta && tgt.path.length) tgt.path[tgt.path.length - 1].nth += nthDelta; if (!inner()) tgt.root = 0;
+      applyTarget(true);
+    }
+    above.addEventListener('click', function () {
+      if (!tgt) return; var a = tgt.a, t = newPara() + (inner() ? '\n' : '\n\n'); insertAt(lineStart(ta.value, a), t); reselect(a, a, 0);
+    });
+    below.addEventListener('click', function () {
+      if (!tgt) return; var b = tgt.b, t = (inner() ? '\n' : '\n\n') + newPara(), at = lineEnd(ta.value, b); insertAt(at, t); var n = inner() ? 1 : 2; reselect(b + n, b + n, 1);
+    });
+    dup.addEventListener('click', function () {
+      if (!tgt) return; var a = tgt.a, b = tgt.b, src = targetText(ta), n = inner() ? 1 : 2, len = nLines(src);
+      insertAt(lineEnd(ta.value, b), (inner() ? '\n' : '\n\n') + src); reselect(b + n, b + n + len - 1, 1);
+    });
+    del.addEventListener('click', function () {
+      if (!tgt) return;
+      if (del.dataset.armed === '1') {
+        clearTimeout(delTimer); del.dataset.armed = '0'; del.classList.remove('armed'); del.innerHTML = ic('delete');
+        var v = ta.value, s = lineStart(v, tgt.a), e = lineEnd(v, tgt.b), next = v.indexOf('\n', e) < 0 ? e : e + 1;
+        if (!inner() && v.slice(next, lineEnd(v, tgt.b + 1)).trim() === '' && tgt.b + 1 < nLines(v)) next = Math.min(v.length, lineEnd(v, tgt.b + 1) + 1);
+        replaceRange(ta, s, Math.min(v.length, next), '', s, s); tgt = null; kids.textContent = ''; clearMarks(); paint(); return;
+      }
+      del.dataset.armed = '1'; del.innerHTML = ic('delete') + '<span class="fv-lb">' + H(T('visual_js_delete_really')) + '</span>'; del.classList.add('armed');
+      delTimer = setTimeout(function () { del.dataset.armed = '0'; del.innerHTML = ic('delete'); del.classList.remove('armed'); }, 3500);
+    });
+    bar.style.display = 'none';
+    return { el: bar, paint: paint };
+  }
+
+  /** 虫眼鏡で選んだ要素を、本文パネルの編集対象にする（画面幅の確認の中で選んでも、確認は閉じない） */
+  function openEditAt(at) {
+    var ep = editPath(at); if (!ep) return false;
+    var ln = ep.blk.getAttribute('data-ln'), m = /^(\d+)-(\d+)$/.exec(ln); if (!m) return false;
+    var root = Math.max(0, [].slice.call(ep.blk.ownerDocument.querySelectorAll('[data-ln="' + ln + '"]')).indexOf(ep.blk));
+    setInspect(false);
+    function go() { setTarget(+m[1], +m[2], ep.path, root); }
+    if (active && active.kind === 'md') go(); else openPanel('md', go);
+    return true;
   }
 })();

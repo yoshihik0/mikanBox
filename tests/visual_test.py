@@ -133,6 +133,9 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-visual-test-') as tmp:
             check(st == 200 and re.search(r'<div id="users-mgmt".*?<details class="section-accordion">', site_html, re.S), 'devices and users section is closed by default')
         st, ml, _ = api(ed, 'media')
         check(st == 200 and isinstance(ml.get('items'), list) and ml.get('base', '').endswith('media/'), 'logged-in editor gets the image list for the picker')
+        php(site, 'saveData(POSTS_DIR, "rawtest", ["title" => "Raw", "content_md" => "<div>\\n<p>x</p>\\n\\n<p>y</p>\\n</div>", "css" => "", "js" => "", "is_html" => true, "status" => "draft", "category" => "", "description" => "", "memo" => "", "keywords" => "", "ogp_image" => "", "wrapper_comp" => "", "exclude_tracking" => false, "sort_order" => 0]);')
+        st, raw, _ = req(ed, VIS + '?id=rawtest')
+        check(st == 200 and re.search(r'<!--fv:\d+-\d+-->\s*<div>', raw), 'Raw HTML pages get block markers too (so the magnifier can pick them)')
         st, page, hd = req(ed, VIS + '?id=index')
         check(st == 200 and 'window.__VISUAL_CSRF' in page and '<!--fv:' in page, 'editing page has CSRF token and block markers')
         nonce = re.search(r"nonce-([A-Za-z0-9_-]+)", hd['Content-Security-Policy'])[1]
