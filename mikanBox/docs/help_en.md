@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.14.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.15.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -500,15 +500,15 @@ Open a page **exactly as it looks** and edit its body and page CSS right there. 
 
 #### Editing the body (pick with the magnifier, edit in the "Body" panel below)
 
-Body editing is **one panel that opens from the bottom: "Body"**. The page stays visible while you edit, changes show on it as you type, and the place you are changing is marked.
+Body editing is **one panel that opens from the bottom: "Body"**. Only the part you picked is **cut out** into the input box, so you can focus on it. The page stays visible while you edit, changes show on it as you type, and the place you are changing gets a frame.
 
 - The everyday screen is **browsing**. Clicking follows links as usual. Links within the site open in that page's **visual editor**, so you can look around. Links that lead outside the editor, such as other sites, open in a new tab and show a note when you touch them.
-- To change something, click it with the [[search]{.material-symbols-outlined} Pick to edit]{.m-btn} (magnifier) at the bottom right. On a selector row, **click the path (such as `.pillar`)** or press [[edit_note]{.material-symbols-outlined}]{.m-btn}: the "Body" panel opens with **the lines of that element selected**, and the element gets a frame on the page. The page and the panel scroll by themselves so the picked place is visible.
+- To change something, click it with the [[search]{.material-symbols-outlined} Pick to edit]{.m-btn} (magnifier) at the bottom right. On a selector row, **click the path (such as `.pillar`)** or press [[edit_note]{.material-symbols-outlined}]{.m-btn}: the "Body" panel opens with **only that element** in the input box. The element also gets a frame on the page, and the page scrolls by itself so the picked place is visible. The cut-out part corresponds to that place in the whole body, and saving saves the whole body.
 - Changes appear on the page right away (also inside the screen-width check, so you can edit **at phone width**). Save with ⌘/Ctrl+Enter or the Save button at the top right of the panel. The page is not reloaded after saving. "Unsaved" is shown until you save.
-- There is no mode to switch after picking. The **target bar** in the panel shows which element is selected, such as `nav › div › a`, with its line numbers.
+- There is no mode to switch after picking. The **target bar** in the panel shows which element is selected, such as `nav › div › a`, with its line numbers in the whole body. [[close]{.material-symbols-outlined}]{.m-btn} stops the cut-out and shows everything.
 - If you pick a place that is not a body block (for example the layout), the body button is disabled and the reason is shown. If the page has no body block to pick, a note appears at the bottom of the screen. "Raw HTML" pages can be picked in the same way.
-- When the target is a container such as `<div>` or `<ul>`, the [[subdirectory_arrow_right]{.material-symbols-outlined}]{.m-btn} button on the bar lets you **pick an inner element** (the badge number is how many inner elements there are). With one inner element it goes straight in; with several you pick by number, such as "1 `<li>` …". [[arrow_back]{.material-symbols-outlined}]{.m-btn} goes back out one level and [[close]{.material-symbols-outlined}]{.m-btn} clears the selection. Elements that share a line with their opening tag or with a sibling cannot be told apart by line, so they cannot be chosen.
-- [[add_row_above]{.material-symbols-outlined}]{.m-btn} [[add_row_below]{.material-symbols-outlined}]{.m-btn} on the bar add a paragraph above or below the selected element (for an inner element, wrapped in the same tag), [[content_copy]{.material-symbols-outlined}]{.m-btn} duplicates it and [[delete]{.material-symbols-outlined}]{.m-btn} deletes it (press **twice** to confirm). They all edit the input box, so ⌘/Ctrl+Z undoes them.
+- When the target is a container such as `<div>` or `<ul>`, the [[subdirectory_arrow_right]{.material-symbols-outlined}]{.m-btn} button on the bar lets you **pick an inner element** (the badge number is how many inner elements there are). With one inner element it goes straight in; with several you pick by number, such as "1 `<li>` …". [[arrow_back]{.material-symbols-outlined}]{.m-btn} goes back out one level (the part in the input box changes accordingly). Elements that share a line with their opening tag or with a sibling cannot be told apart by line, so they cannot be chosen.
+- [[add_row_above]{.material-symbols-outlined}]{.m-btn} [[add_row_below]{.material-symbols-outlined}]{.m-btn} on the bar add a paragraph above or below the selected element (for an inner element, wrapped in the same tag), [[content_copy]{.material-symbols-outlined}]{.m-btn} duplicates it and [[delete]{.material-symbols-outlined}]{.m-btn} deletes it (press **twice** to confirm). These change things outside the cut-out part, so they are undone one by one with [[undo]{.material-symbols-outlined}]{.m-btn} on the bar, not with ⌘/Ctrl+Z in the input box. ⌘/Ctrl+Z still works in the input box for typing.
 - The bar above the box inserts headings, bold, italic, links, bulleted and numbered lists, quotes, code and images (⌘/Ctrl+B, I and K also work).
 - The [[image]{.material-symbols-outlined}]{.m-btn} button on that bar opens a **list of the images** in the `media` folder (newest first, filterable by name). Picking one inserts Markdown `![](filename)` at the cursor. "Add" in the list uploads a new image. You can also **paste** (or drag) an image into the box (png, jpg, gif, webp, up to 10 MB).
 - An HTML block is picked as **one unit** even when it contains blank lines before its tags are closed.
@@ -517,7 +517,7 @@ Body editing is **one panel that opens from the bottom: "Body"**. The page stays
 #### Whole body and page CSS
 
 - "Body" at the bottom right opens the whole body without picking anything.
-- "CSS" edits this page's own CSS. It applies as you type; save with ⌘/Ctrl+Enter. Closing with unsaved changes reverts them. The [[palette]{.material-symbols-outlined}]{.m-btn} button on a magnifier selector row opens it with that selector selected and scrolled into view.
+- "CSS" edits this page's own CSS. It applies as you type; save with ⌘/Ctrl+Enter. Closing with unsaved changes reverts them. The [[palette]{.material-symbols-outlined}]{.m-btn} button on a magnifier selector row opens it with **only that selector's rule** cut out. If the selector has several rules (for example inside `@media`), [[arrow_upward]{.material-symbols-outlined}]{.m-btn} [[arrow_downward]{.material-symbols-outlined}]{.m-btn} on the bar move to the previous or next one, and [[close]{.material-symbols-outlined}]{.m-btn} shows everything.
 
 #### Undo and redo
 

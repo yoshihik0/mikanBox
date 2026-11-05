@@ -474,7 +474,7 @@
     if (!active) return true;
     if (!force && active.dirty() && !confirm(T('visual_js_confirm_close'))) return false;
     var was = active.dirty();
-    if (active.kind === 'md') { tgt = null; tbar = null; clearMarks(); }
+    if (active.kind === 'md') { tgt = null; tbar = null; clearMarks(); } else cssbar = null;
     active.node.remove(); active.btn.classList.remove('active'); active = null;
     sessionStorage.setItem('fv-panel', ''); root.classList.remove('fv-panel-open');
     if (was) { sessionStorage.setItem('fv-scroll', String(window.scrollY)); location.reload(); }
@@ -486,23 +486,38 @@
     var K = KINDS[kind];
     sessionStorage.setItem('fv-panel', kind); K.btn.classList.add('active'); root.classList.add('fv-panel-open');
     K.load().then(function (old) {
-      var dirty = false, timer = null;
+      // 全体のテキストは full に持ち、入力欄には、選んだ部分（view）だけを入れる。入力のたびに、全体へ戻す
+      var full = old, view = null, dirty = false, timer = null;
       var node = el('div', 'fv-panel fv-ui');
       var head = el('div', 'fv-panel-head'), msg = el('span', 'fv-msg');
       var title = el('strong'); title.innerHTML = ic(K.icon) + '<span>' + K.title + '</span>';
       var save = ibtn('save', T('visual_js_save_title'), 'fv-save'), close = ibtn('close', T('btn_close'));
       head.append(title, el('span', 'fv-panel-note', K.note), msg, save, close);
       var ta = el('textarea'); ta.value = old; ta.spellcheck = false; ta.placeholder = K.ph;
-      if (kind === 'md') { tbar = buildTbar(ta); node.append(head, mdToolbar(ta, function (t) { msg.style.color = '#fcd34d'; msg.textContent = t; }, true), tbar.el, ta); } else node.append(head, ta);
+      if (kind === 'md') { tbar = buildTbar(); node.append(head, mdToolbar(ta, function (t) { msg.style.color = '#fcd34d'; msg.textContent = t; }, true), tbar.el, ta); }
+      else { cssbar = buildCssBar(); node.append(head, cssbar.el, ta); }
       document.body.appendChild(node);
-      active = { kind: kind, btn: K.btn, node: node, ta: ta, dirty: function () { return dirty; }, live: function () { K.live(ta.value); } };
       function setDirty(v) { dirty = v; msg.textContent = v ? T('visual_js_unsaved') : ''; msg.style.color = v ? '#fcd34d' : '#86efac'; }
-      ta.addEventListener('input', function () { if (kind === 'md') onMdInput(); setDirty(ta.value !== old); clearTimeout(timer); timer = setTimeout(function () { K.live(ta.value); }, 200); });
+      function changed() { setDirty(full !== old); clearTimeout(timer); timer = setTimeout(function () { K.live(full); }, 200); }
+      active = {
+        kind: kind, btn: K.btn, node: node, ta: ta, dirty: function () { return dirty; }, live: function () { K.live(full); },
+        getFull: function () { return full; },
+        setFull: function (f) { full = f; changed(); },                                   // 追加・削除など、選んだ部分の外も含む変更
+        showRange: function (s, e) { view = { s: s, e: e }; ta.value = full.slice(s, e); ta.scrollTop = 0; ta.setSelectionRange(0, 0); },
+        showAll: function () { view = null; ta.value = full; ta.scrollTop = 0; ta.setSelectionRange(0, 0); },
+        view: function () { return view; }
+      };
+      ta.addEventListener('input', function () {
+        var oldEnd = view ? view.e : 0;
+        if (view) { full = full.slice(0, view.s) + ta.value + full.slice(view.e); view.e = view.s + ta.value.length; } else full = ta.value;
+        if (kind === 'md') onMdInput(); else onCssInput(view ? view.e - oldEnd : 0);
+        changed();
+      });
       function doSave() {
-        K.save(old, ta.value).then(function (x) {
+        K.save(old, full).then(function (x) {
           if (!x.ok) { msg.style.color = '#fca5a5'; msg.textContent = x.j.error || T('visual_js_save_failed'); return; }
-          old = ta.value; setDirty(false); msg.textContent = T('visual_js_saved'); syncMtime(); refreshHistory();
-          if (kind === 'md') refreshContent();
+          old = full; setDirty(false); msg.textContent = T('visual_js_saved'); syncMtime(); refreshHistory();
+          if (kind === 'md') refreshContent().then(markTarget);
         }).catch(function () { msg.style.color = '#fca5a5'; msg.textContent = T('visual_js_save_failed'); });
       }
       save.addEventListener('click', doSave); close.addEventListener('click', function () { closePanel(false); });
@@ -511,7 +526,7 @@
         if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); doSave(); }
         if (ev.key === 'Tab') { ev.preventDefault(); var s = ta.selectionStart; replaceRange(ta, s, ta.selectionEnd, '  ', s + 2, s + 2); }
       });
-      ta.setSelectionRange(0, 0); ta.focus({ preventScroll: true });   // 開いた直後に、最終行へ飛ばない
+      ta.setSelectionRange(0, 0); ta.focus({ preventScroll: true });
       if (after) after();
     });
   }
@@ -552,25 +567,6 @@
       path.unshift({ tag: tag, nth: n }); cur = cur.parentElement;
     }
     return { blk: blk, path: path };
-  }
-  /** 検索用: セレクタ（またはその末尾・クラス名）が、CSSのテキストのどこにあるか */
-  function findCssPos(css, sel) {
-    var last = sel.split(/\s+/).pop(), cm = /\.[\w-]+/.exec(last), cands = [sel, last, cm && cm[0]].filter(Boolean);
-    for (var i = 0; i < cands.length; i++) {
-      var re = new RegExp(cands[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w-])'), m = re.exec(css);
-      if (m) return { pos: m.index, len: cands[i].length };
-    }
-    return null;
-  }
-  function showCssFor(sel) {
-    function go() {
-      if (!active || active.kind !== 'css') return;
-      var ta = active.ta, f = findCssPos(ta.value, sel);
-      if (!f) { toast(T('visual_js_css_not_found')); return; }
-      ta.focus({ preventScroll: true }); ta.setSelectionRange(f.pos, f.pos + f.len); revealInTextarea(ta, f.pos);
-    }
-    closePop(); setInspect(false);
-    if (active && active.kind === 'css') go(); else openPanel('css', go);
   }
   function showPop(target, x, y) {
     closePop();
@@ -657,27 +653,17 @@
     return { name: root.name, kids: out, all: all };
   }
 
-  // ---------------------------------------------------------------- 編集対象の選択（下の「本文」パネルの中で、選んだ要素の行を選択する）
+  // ---------------------------------------------------------------- 編集対象の選択（下のパネルに、選んだ部分だけを切り出して出す）
   var LOADING_TAG = /\{\{\s*(NAV_LINKS|NAV_CARDS|POST_MD|EXT_MD|SEARCH_RESULTS)\b/;
-  var tgt = null;     // { a, b, path:[{tag,nth}], crumbs:[タグ名], trail:[[a,b]], root, lc }  行は本文の行番号（0始まり）
+  var tgt = null;     // { a, b, path:[{tag,nth}], crumbs:[タグ名], trail:[[a,b]], root }  行は、本文全体の行番号（0始まり）
   var tbar = null;    // 本文パネルの、編集対象のバー
-  function mdTa() { return active && active.kind === 'md' ? active.ta : null; }
+  var cssbar = null;  // CSSパネルの、該当ルールのバー
+  function mdPanel() { return active && active.kind === 'md' ? active : null; }
   function nLines(text) { return text.split('\n').length; }
   function lineStart(text, n) { var p = 0; for (var i = 0; i < n; i++) { var q = text.indexOf('\n', p); if (q < 0) return text.length; p = q + 1; } return p; }
   function lineEnd(text, n) { var q = text.indexOf('\n', lineStart(text, n)); return q < 0 ? text.length : q; }
-  function targetText(ta) { return tgt ? ta.value.slice(lineStart(ta.value, tgt.a), lineEnd(ta.value, tgt.b)) : ''; }
+  function targetText() { var P = mdPanel(); if (!P || !tgt) return ''; var f = P.getFull(); return f.slice(lineStart(f, tgt.a), lineEnd(f, tgt.b)); }
 
-  /** pos の行が、入力欄の中ほどに見えるようにする。開いた直後は、ブラウザが後から動かすことがあるので、あとで、もう一度合わせる */
-  function revealInTextarea(ta, pos) {
-    function once() {
-      var cs = getComputedStyle(ta), m = document.createElement('div');
-      m.style.cssText = 'position:absolute;visibility:hidden;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;left:-9999px;top:0;box-sizing:border-box;width:' + ta.clientWidth + 'px;padding:' + cs.padding
-        + ';font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize + ';font-weight:' + cs.fontWeight + ';line-height:' + cs.lineHeight + ';letter-spacing:' + cs.letterSpacing + ';tab-size:' + cs.tabSize;
-      m.textContent = ta.value.slice(0, pos) + '​'; document.body.appendChild(m);
-      var y = m.scrollHeight; m.remove(); ta.scrollTop = Math.max(0, y - ta.clientHeight / 3);
-    }
-    once(); requestAnimationFrame(once); setTimeout(once, 160);
-  }
   /** 編集対象の要素を、ページ（と画面幅の確認）の中から探す */
   function findTargetEls() {
     var out = []; if (!tgt) return out;
@@ -704,32 +690,26 @@
       if (r.top < 48 || r.bottom > vh - 12) w.scrollBy({ top: r.top - Math.min(96, vh / 4), behavior: 'instant' });
     });
   }
-  /** 入力欄の選択を、編集対象の行に合わせる */
+  /** 入力欄に出す部分を、編集対象の行に合わせる（選んでいなければ、全体） */
   function applyTarget(reveal) {
-    var ta = mdTa();
-    if (!ta || !tgt) { clearMarks(); if (tbar) tbar.paint(); return; }
-    var s = lineStart(ta.value, tgt.a), e = lineEnd(ta.value, tgt.b); tgt.lc = nLines(ta.value);
-    ta.focus({ preventScroll: true }); ta.setSelectionRange(s, e);
-    if (reveal) revealInTextarea(ta, s);
-    tbar.paint(); markTarget(); if (reveal) revealOnPage();
+    var P = mdPanel();
+    if (!P) { clearMarks(); return; }
+    if (!tgt) { P.showAll(); clearMarks(); tbar.paint(); return; }
+    var f = P.getFull(); P.showRange(lineStart(f, tgt.a), lineEnd(f, tgt.b));
+    P.ta.focus({ preventScroll: true }); tbar.paint(); markTarget(); if (reveal) revealOnPage();
   }
-  /** 本文を直したとき、編集対象の行の位置を、増減に合わせてずらす */
+  /** 入力欄を直したとき: 編集対象の行数に合わせて、終わりの行（と、外側の要素の終わりの行）をずらす */
   function onMdInput() {
-    var ta = mdTa(); if (!tgt || !ta) return;
-    var lc = nLines(ta.value), d = lc - tgt.lc;
-    if (d !== 0) {
-      var caret = ta.value.slice(0, ta.selectionStart).split('\n').length - 1, grow = d > 0 ? 0 : -d;
-      function shift(r) { if (caret < r[0]) { r[0] += d; r[1] += d; } else if (caret <= r[1] + grow) r[1] = Math.max(r[0], r[1] + d); }
-      var cur = [tgt.a, tgt.b]; shift(cur); tgt.a = cur[0]; tgt.b = cur[1]; tgt.trail.forEach(shift);
-      tgt.lc = lc;
-    }
+    var P = mdPanel(); if (!P || !tgt || !P.view()) return;
+    var nb = tgt.a + nLines(P.ta.value) - 1, d = nb - tgt.b;
+    if (d !== 0) { tgt.b = nb; tgt.trail.forEach(function (r) { r[1] += d; }); }
     tbar.paint();
   }
   /** 選んだ要素（ページの中の位置）を、編集対象にする。中の要素なら、本文の行の範囲を、外から順に掘っていく */
   function setTarget(a, b, path, root) {
-    var ta = mdTa(); if (!ta) return;
-    var lines = ta.value.split('\n');
-    tgt = { a: a, b: Math.min(b, lines.length - 1), path: [], crumbs: [], trail: [], root: root, lc: lines.length };
+    var P = mdPanel(); if (!P) return;
+    var lines = P.getFull().split('\n');
+    tgt = { a: a, b: Math.min(b, lines.length - 1), path: [], crumbs: [], trail: [], root: root };
     for (var i = 0; i < path.length; i++) {
       var info = childRanges(lines.slice(tgt.a, tgt.b + 1).join('\n')); if (!info) break;
       var same = info.all.filter(function (k) { return k.name === path[i].tag; }), k = same[path[i].nth];
@@ -737,37 +717,38 @@
       tgt.trail.push([tgt.a, tgt.b]); tgt.crumbs.push(info.name); tgt.path.push(path[i]);
       var a0 = tgt.a; tgt.a = a0 + k.s; tgt.b = a0 + k.e;
     }
-    applyTarget(true);
+    tbar.reset(); applyTarget(true);
   }
-  /** 編集対象のバー（本文パネルの上に出る）: 階層・中へ/外へ・上下に追加・複製・削除 */
-  function buildTbar(ta) {
+  /** 編集対象のバー（本文パネルの上）: 階層・中へ/外へ・上下に追加・複製・削除・追加などを元に戻す・全体を表示 */
+  function buildTbar() {
     var bar = el('div', 'fv-tbar'), where = el('span', 'fv-where'), kids = el('div', 'fv-kids'), hint = el('div', 'fv-hint');
     var into = ibtn('subdirectory_arrow_right', T('visual_js_into_title'), ''), outo = ibtn('arrow_back', T('visual_js_out_title'), '');
     var above = ibtn('add_row_above', T('visual_js_add_above'), ''), below = ibtn('add_row_below', T('visual_js_add_below'), '');
-    var dup = ibtn('content_copy', T('visual_js_dup_block'), ''), del = ibtn('delete', T('visual_js_delete_block'), 'fv-del'), off = ibtn('close', T('visual_js_deselect'), '');
-    var row = el('div', 'fv-tbar-row'); row.append(where, into, outo, above, below, dup, del, off);
+    var dup = ibtn('content_copy', T('visual_js_dup_block'), ''), del = ibtn('delete', T('visual_js_delete_block'), 'fv-del');
+    var undo = ibtn('undo', T('visual_js_op_undo'), ''), off = ibtn('close', T('visual_js_show_all'), '');
+    var row = el('div', 'fv-tbar-row'); row.append(where, into, outo, above, below, dup, del, undo, off);
     hint.textContent = T('visual_js_tag_hint'); bar.append(row, kids, hint);
-    var delTimer = null;
+    var delTimer = null, stack = [];
     function inner() { return tgt && tgt.path.length > 0; }
     function innerTag() { return tgt.path[tgt.path.length - 1].tag; }
     function paint() {
       bar.style.display = tgt ? '' : 'none'; if (!tgt) return;
-      var info = childRanges(targetText(ta)), n = info ? info.kids.length : 0;
-      outo.disabled = !tgt.trail.length; into.disabled = !n;
+      var info = childRanges(targetText()), n = info ? info.kids.length : 0;
+      outo.disabled = !tgt.trail.length; into.disabled = !n; undo.disabled = !stack.length;
       into.innerHTML = ic('subdirectory_arrow_right') + (n ? '<span class="fv-badge">' + n + '</span>' : '');
       where.innerHTML = ic('account_tree') + tgt.crumbs.concat(info ? [info.name] : []).map(function (t) { return '<code>' + H(t) + '</code>'; }).join('<span class="fv-sep">›</span>')
         + '<small>' + (tgt.a + 1) + (tgt.b > tgt.a ? '–' + (tgt.b + 1) : '') + '</small>';
-      hint.style.display = LOADING_TAG.test(targetText(ta)) ? '' : 'none';
+      hint.style.display = LOADING_TAG.test(targetText()) ? '' : 'none';
     }
     function go(k, info) {
       var a0 = tgt.a, nth = info.all.filter(function (x) { return x.name === k.name; }).indexOf(k);
       tgt.trail.push([tgt.a, tgt.b]); tgt.crumbs.push(info.name); tgt.path.push({ tag: k.name, nth: nth }); tgt.a = a0 + k.s; tgt.b = a0 + k.e; kids.textContent = ''; applyTarget(true);
     }
     into.addEventListener('click', function () {
-      var info = childRanges(targetText(ta)); if (!info || !info.kids.length) return;
+      var info = childRanges(targetText()); if (!info || !info.kids.length) return;
       if (info.kids.length === 1) { go(info.kids[0], info); return; }
       kids.textContent = '';
-      var lines = ta.value.split('\n');
+      var lines = mdPanel().getFull().split('\n');
       info.kids.forEach(function (k, i) {
         var t = lines.slice(tgt.a + k.s, tgt.a + k.e + 1).join(' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
         var kb = el('button', 'fv-kid', (i + 1) + ' <' + k.name + '> ' + t); kb.type = 'button'; kb.addEventListener('click', function () { go(k, info); }); kids.append(kb);
@@ -776,37 +757,100 @@
     outo.addEventListener('click', function () {
       if (!tgt || !tgt.trail.length) return; var p = tgt.trail.pop(); tgt.crumbs.pop(); tgt.path.pop(); tgt.a = p[0]; tgt.b = p[1]; kids.textContent = ''; applyTarget(true);
     });
-    off.addEventListener('click', function () { tgt = null; kids.textContent = ''; clearMarks(); paint(); });
-    /** 入力欄に、いまの対象の前後へ文字を足す（⌘/Ctrl+Z で戻せる。ページにも、すぐ反映される） */
-    function insertAt(pos, text) { replaceRange(ta, pos, pos, text, pos + text.length, pos + text.length); }
+    off.addEventListener('click', function () { tgt = null; kids.textContent = ''; applyTarget(false); });
+    // 追加・複製・削除は、全体のテキストを直す。入力欄の取り消しは効かないので、専用の「元に戻す」を持つ
+    function snap() { stack.push({ full: mdPanel().getFull(), tgt: tgt ? JSON.parse(JSON.stringify(tgt)) : null }); if (stack.length > 30) stack.shift(); }
+    undo.addEventListener('click', function () {
+      var s = stack.pop(); if (!s || !mdPanel()) return; tgt = s.tgt; mdPanel().setFull(s.full); kids.textContent = ''; applyTarget(true);
+    });
     function newPara() { return inner() ? '<' + innerTag() + '>' + T('visual_js_new_paragraph') + '</' + innerTag() + '>' : T('visual_js_new_paragraph'); }
-    function reselect(a, b, nthDelta) {
+    /** 全体を newFull にして、(a..b) を新しい編集対象にする。外側の要素の終わりの行は、増えた行数だけずらす */
+    function edit(newFull, a, b, nthDelta) {
+      var P = mdPanel(), added = nLines(newFull) - nLines(P.getFull());
+      snap(); P.setFull(newFull);
+      tgt.trail.forEach(function (r) { r[1] += added; });
       tgt.a = a; tgt.b = b; if (nthDelta && tgt.path.length) tgt.path[tgt.path.length - 1].nth += nthDelta; if (!inner()) tgt.root = 0;
       applyTarget(true);
     }
     above.addEventListener('click', function () {
-      if (!tgt) return; var a = tgt.a, t = newPara() + (inner() ? '\n' : '\n\n'); insertAt(lineStart(ta.value, a), t); reselect(a, a, 0);
+      var P = mdPanel(); if (!P || !tgt) return; var f = P.getFull(), pos = lineStart(f, tgt.a), a = tgt.a;
+      edit(f.slice(0, pos) + newPara() + (inner() ? '\n' : '\n\n') + f.slice(pos), a, a, 0);
     });
     below.addEventListener('click', function () {
-      if (!tgt) return; var b = tgt.b, t = (inner() ? '\n' : '\n\n') + newPara(), at = lineEnd(ta.value, b); insertAt(at, t); var n = inner() ? 1 : 2; reselect(b + n, b + n, 1);
+      var P = mdPanel(); if (!P || !tgt) return; var f = P.getFull(), pos = lineEnd(f, tgt.b), n = inner() ? 1 : 2, nb = tgt.b + n;
+      edit(f.slice(0, pos) + (inner() ? '\n' : '\n\n') + newPara() + f.slice(pos), nb, nb, 1);
     });
     dup.addEventListener('click', function () {
-      if (!tgt) return; var a = tgt.a, b = tgt.b, src = targetText(ta), n = inner() ? 1 : 2, len = nLines(src);
-      insertAt(lineEnd(ta.value, b), (inner() ? '\n' : '\n\n') + src); reselect(b + n, b + n + len - 1, 1);
+      var P = mdPanel(); if (!P || !tgt) return; var f = P.getFull(), src = targetText(), pos = lineEnd(f, tgt.b), n = inner() ? 1 : 2, na = tgt.b + n;
+      edit(f.slice(0, pos) + (inner() ? '\n' : '\n\n') + src + f.slice(pos), na, na + nLines(src) - 1, 1);
     });
     del.addEventListener('click', function () {
-      if (!tgt) return;
+      var P = mdPanel(); if (!P || !tgt) return;
       if (del.dataset.armed === '1') {
         clearTimeout(delTimer); del.dataset.armed = '0'; del.classList.remove('armed'); del.innerHTML = ic('delete');
-        var v = ta.value, s = lineStart(v, tgt.a), e = lineEnd(v, tgt.b), next = v.indexOf('\n', e) < 0 ? e : e + 1;
-        if (!inner() && v.slice(next, lineEnd(v, tgt.b + 1)).trim() === '' && tgt.b + 1 < nLines(v)) next = Math.min(v.length, lineEnd(v, tgt.b + 1) + 1);
-        replaceRange(ta, s, Math.min(v.length, next), '', s, s); tgt = null; kids.textContent = ''; clearMarks(); paint(); return;
+        var f = P.getFull(), s = lineStart(f, tgt.a), e = lineEnd(f, tgt.b), next = f.indexOf('\n', e) < 0 ? e : e + 1;
+        if (!inner() && tgt.b + 1 < nLines(f) && f.slice(next, lineEnd(f, tgt.b + 1)).trim() === '') next = Math.min(f.length, lineEnd(f, tgt.b + 1) + 1);
+        snap(); P.setFull(f.slice(0, s) + f.slice(Math.min(f.length, next))); tgt = null; kids.textContent = ''; applyTarget(false); return;
       }
       del.dataset.armed = '1'; del.innerHTML = ic('delete') + '<span class="fv-lb">' + H(T('visual_js_delete_really')) + '</span>'; del.classList.add('armed');
       delTimer = setTimeout(function () { del.dataset.armed = '0'; del.innerHTML = ic('delete'); del.classList.remove('armed'); }, 3500);
     });
     bar.style.display = 'none';
-    return { el: bar, paint: paint };
+    return { el: bar, paint: paint, reset: function () { stack = []; kids.textContent = ''; } };
+  }
+
+  // ---------------------------------------------------------------- CSS: セレクタに当たるルールだけを切り出す
+  function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  /** CSSのテキストの中で、セレクタ（なければ、その末尾・クラス名）のルール { s, e } を、出てきた順に返す */
+  function cssRulesFor(css, sel) {
+    var last = sel.split(/\s+/).pop(), cm = /\.[\w-]+/.exec(last), cands = [sel, last, cm && cm[0]].filter(Boolean);
+    for (var ci = 0; ci < cands.length; ci++) {
+      var re = new RegExp('(^|[^\\w-])(' + escRe(cands[ci]) + ')(?![\\w-])', 'g'), m, out = [], seen = {};
+      while ((m = re.exec(css))) {
+        var idx = m.index + m[1].length, brace = css.indexOf('{', idx);
+        if (brace < 0 || /[;}]/.test(css.slice(idx, brace))) continue;          // セレクタの位置ではない（値の中・コメントなど）
+        var st = idx; while (st > 0 && !/[;{}]/.test(css.charAt(st - 1))) st--;
+        while (st < idx && /\s/.test(css.charAt(st))) st++;
+        var depth = 0, en = css.length;
+        for (var k = brace; k < css.length; k++) { var ch = css.charAt(k); if (ch === '{') depth++; else if (ch === '}' && --depth === 0) { en = k + 1; break; } }
+        if (!seen[st]) { seen[st] = 1; out.push({ s: st, e: en }); }
+      }
+      if (out.length) return { rules: out, matched: cands[ci] };
+    }
+    return null;
+  }
+  function buildCssBar() {
+    var bar = el('div', 'fv-tbar'), row = el('div', 'fv-tbar-row'), what = el('span', 'fv-where');
+    var prev = ibtn('arrow_upward', T('visual_js_css_prev'), ''), next = ibtn('arrow_downward', T('visual_js_css_next'), ''), off = ibtn('close', T('visual_js_show_all'), '');
+    row.append(what, prev, next, off); bar.append(row); bar.style.display = 'none';
+    var rules = [], cur = 0, label = '';
+    function paint() {
+      var P = active && active.kind === 'css' ? active : null;
+      bar.style.display = P && P.view() ? '' : 'none'; if (!P || !P.view()) return;
+      what.innerHTML = ic('palette') + '<code>' + H(label) + '</code><small>' + (cur + 1) + ' / ' + rules.length + '</small>';
+      prev.disabled = cur <= 0; next.disabled = cur >= rules.length - 1;
+    }
+    function show(i) { var P = active; cur = i; P.showRange(rules[i].s, rules[i].e); P.ta.focus({ preventScroll: true }); paint(); }
+    prev.addEventListener('click', function () { if (cur > 0) show(cur - 1); });
+    next.addEventListener('click', function () { if (cur < rules.length - 1) show(cur + 1); });
+    off.addEventListener('click', function () { rules = []; active.showAll(); paint(); });
+    return {
+      el: bar, paint: paint,
+      set: function (r, sel) { rules = r; label = sel; show(0); },
+      /** 入力欄を直したあと: 切り出している範囲より後ろの、ほかのルールを、増減に合わせてずらす */
+      shift: function (delta) { if (!delta) return; for (var j = cur + 1; j < rules.length; j++) { rules[j].s += delta; rules[j].e += delta; } rules[cur].e = active.view() ? active.view().e : rules[cur].e; paint(); }
+    };
+  }
+  function onCssInput(delta) { if (cssbar) cssbar.shift(delta); }
+  function showCssFor(sel) {
+    function go() {
+      var P = active && active.kind === 'css' ? active : null; if (!P) return;
+      var r = cssRulesFor(P.getFull(), sel);
+      if (!r) { toast(T('visual_js_css_not_found')); return; }
+      cssbar.set(r.rules, r.matched);
+    }
+    closePop(); setInspect(false);
+    if (active && active.kind === 'css') go(); else openPanel('css', go);
   }
 
   /** 虫眼鏡で選んだ要素を、本文パネルの編集対象にする（画面幅の確認の中で選んでも、確認は閉じない） */
