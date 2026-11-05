@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.16.4</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.16.5</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -511,6 +511,7 @@ JavaScriptにはCSSのスコープ設定は適用されません。JS欄ではMa
 - 選んだあとの切り替えるモードはありません。「本文」パネルの中ほどにある**編集対象のバー**で、どの要素を選んでいるかが `nav › div › a` のように出て、本文全体での行番号も分かります。[[close]{.material-symbols-outlined}]{.m-btn} で、切り出しをやめて、全体を表示できます。
 - 本文のブロックではない場所（レイアウトなど）を選んだときは、本文のボタンが押せなくなり、理由が出ます。ページタイトル（レイアウトに出ているタイトル）を選んだときは「ページタイトルです」と出て、変更するページの設定を開けます。本文の中に選べるまとまりがないページでは、画面の下に案内が出ます。「Raw HTML」のページも、同じように選べます。`<html>` から `<body>` までを持つ文書のページでは、`html › body › main › section › p` のように、タグの階層をたどって選びます（ページの `<script>` や `<style>` の中の文字は、タグとして読みません）。
 - 編集対象が `<div>` や `<ul>` のような入れ物のときは、バーの [[subdirectory_arrow_right]{.material-symbols-outlined}]{.m-btn} で、**中の要素を選び直せます**（バッジの数字が、中の要素の数です）。中が1つならそのまま、並んでいれば「1 `<li>` …」のように番号で選びます。[[arrow_back]{.material-symbols-outlined}]{.m-btn} でひとつ外に戻ります（入力欄に出る部分が、そのぶん変わります）。要素の範囲は、行ではなく**文字の位置**で分けるので、HTMLが1行に書かれていても、同じ行に並んでいても、選べます。
+- `<div>` などのHTMLの中に書いたMarkdownの段落（空行で区切ったまとまり）も、ページの上で選ぶと、その段落だけが切り出されます。この段落に足す・複製・削除するときは、ふつうの段落として扱います（タグで包みません）。
 - バーの [[add_row_above]{.material-symbols-outlined}]{.m-btn} [[add_row_below]{.material-symbols-outlined}]{.m-btn} で、選んだ要素の上・下に段落を足し（中の要素のときは、同じタグで包んで足します）、[[content_copy]{.material-symbols-outlined}]{.m-btn} で複製し、[[delete]{.material-symbols-outlined}]{.m-btn} で削除します（削除は確認のため、**2回押します**）。これらは、切り出した部分の外も変えるので、入力欄の ⌘/Ctrl+Z ではなく、バーの [[undo]{.material-symbols-outlined}]{.m-btn} で、ひとつずつ戻せます。文字を直すときの ⌘/Ctrl+Z は、これまでどおり入力欄で効きます。
 - 入力欄の上のバーで、見出し・太字・斜体・リンク・箇条書き・番号つきリスト・引用・コード・画像を入れられます（⌘/Ctrl+B・I・K も使えます）。
 - 入力欄の上のバーの [[image]{.material-symbols-outlined}]{.m-btn} で、`media` フォルダの**画像の一覧**が開きます（新しい順。名前で絞り込めます）。選ぶと、カーソルの位置に Markdown の `![](ファイル名)` が入ります。一覧の「追加」で、新しい画像を入れることもできます。画像は、入力欄に**貼り付け**（またはドラッグ）でも入れられます（png・jpg・gif・webp、10MBまで）。

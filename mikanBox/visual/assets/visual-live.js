@@ -490,5 +490,8 @@
     const html = isHtml ? text : new MikanBoxMarkdown().text(text);
     return needsServer(html) ? null : html;
   }
-  globalThis.MikanBoxLive = { splitBlocks, renderBlock, needsServer, scopeCss };
+  function markdown(text) {
+    return new MikanBoxMarkdown().text(text);
+  }
+  globalThis.MikanBoxLive = { splitBlocks, renderBlock, needsServer, scopeCss, markdown };
 })();

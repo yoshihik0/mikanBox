@@ -649,13 +649,13 @@
       return { blk: rootEl, path: dpath, doc: true };
     }
     var blk = target.closest('[data-ln]'); if (!blk || blk.classList.contains('fv-editing') || blk.closest('.fv-ui')) return null;
-    var path = [], cur = target;
+    var path = [], els = [], cur = target;
     while (cur !== blk && cur.parentElement) {
       var tag = cur.tagName.toLowerCase(), n = 0;
       for (var sib = cur.parentElement.firstElementChild; sib && sib !== cur; sib = sib.nextElementSibling) if (sib.tagName.toLowerCase() === tag) n++;
-      path.unshift({ tag: tag, nth: n }); cur = cur.parentElement;
+      path.unshift({ tag: tag, nth: n }); els.unshift(cur); cur = cur.parentElement;
     }
-    return { blk: blk, path: path };
+    return { blk: blk, path: path, els: els };
   }
   function showPop(target, x, y) {
     closePop();
@@ -770,7 +770,7 @@
     }
     if (stack.length || top.length !== 1) return null;
     var root = top[0], all = kids.map(function (k) { return { s: k.s, e: k.e, name: k.name, usable: true }; });
-    return { name: root.name, kids: all, all: all };
+    return { name: root.name, kids: all, all: all, inner: root.closeAt > root.openEnd ? { s: root.openEnd, e: root.closeAt } : null };
   }
 
   // ---------------------------------------------------------------- 編集対象の選択（下のパネルに、選んだ部分だけを切り出して出す）
@@ -830,16 +830,48 @@
     tbar.paint();
   }
   /** 選んだ要素（ページの中の位置）を、編集対象にする。中の要素なら、文字の範囲を、外から順に掘っていく */
-  function setTarget(a, b, path, root, doc) {
+  /**
+   * ページの要素 elm に当たる、本文の中の部分を、文字で探す（text の中の文字の位置で返す）。候補は、外の要素の直下の、
+   * 同じタグの要素と、HTML の中に書かれた Markdown の段落（空行で区切ったまとまり。本文にそのタグはない）。
+   * 変換したときの文字（{{…}} タグを除き、表示されない GHOST の DATA と DATAROW も除く）が、elm の文字と同じものを、ページの上の順番で選ぶ。
+   * 決まらないとき（タグの展開で文字が変わるときなど）は null（呼び出し側は、これまでどおり「同じタグの何番目か」で選ぶ）
+   */
+  function pickByText(text, info, elm) {
+    if (!LIVE || !LIVE.markdown || !elm) return null;
+    var norm = function (t) { return String(t || '').replace(/\s+/g, ' ').trim(); }, want = norm(elm.textContent);
+    if (!want) return null;
+    var shown = function (t) {
+      t = t.replace(/\{\{DATAROW:[^}]*\}\}[\s\S]*?\{\{\/DATAROW\}\}/g, '').replace(/\{\{DATA:[^}]*:GHOST\}\}[\s\S]*?\{\{\/DATA\}\}/g, '').replace(/\{\{[^}]*\}\}/g, '');
+      return norm(new DOMParser().parseFromString(LIVE.markdown(t), 'text/html').body.textContent);
+    };
+    var tag = elm.tagName.toLowerCase(), cands = [];
+    info.all.forEach(function (k) { if (k.name === tag && shown(text.slice(k.s, k.e)) === want) cands.push(k); });
+    if (info.inner) {
+      var gaps = [], at = info.inner.s;
+      info.all.concat([{ s: info.inner.e, e: info.inner.e }]).forEach(function (k) { if (k.s > at) gaps.push([at, k.s]); at = Math.max(at, k.e); });
+      gaps.forEach(function (g) {
+        var part = text.slice(g[0], g[1]);
+        LIVE.splitBlocks(part).forEach(function (bk) { if (shown(bk.text) === want) cands.push({ s: g[0] + lineStart(part, bk.start), e: g[0] + lineEnd(part, bk.end), name: tag, md: true }); });
+      });
+    }
+    if (!cands.length) return null;
+    cands.sort(function (x, y) { return x.s - y.s; });
+    var nth = 0; for (var x = elm.previousElementSibling; x; x = x.previousElementSibling) if (norm(x.textContent) === want) nth++;
+    return cands[nth] || cands[0];
+  }
+  function setTarget(a, b, path, root, doc, els) {
     var P = mdPanel(); if (!P) return;
     var full = P.getFull(), s = doc ? 0 : lineStart(full, a), e = doc ? full.length : lineEnd(full, b);
     tgt = { s: s, e: e, path: [], crumbs: [], trail: [], root: root, doc: !!doc };
     for (var i = 0; i < path.length; i++) {
       var info = childRanges(full.slice(tgt.s, tgt.e)); if (!info) break;
       var same = info.all.filter(function (k) { return k.name === path[i].tag; }), k = same[path[i].nth];
+      // 文字で当たるものを優先する（HTML の中に Markdown の段落があると、ページの上の何番目と、本文のタグの何番目がずれるため）
+      var byText = els ? pickByText(full.slice(tgt.s, tgt.e), info, els[i]) : null; if (byText) k = byText;
       if (!k) break;
       tgt.trail.push([tgt.s, tgt.e]); tgt.crumbs.push(info.name); tgt.path.push(path[i]);
       var s0 = tgt.s; tgt.s = s0 + k.s; tgt.e = s0 + k.e;
+      if (k.md) { tgt.md = k.name; break; }
     }
     tbar.reset(); applyTarget(true);
   }
@@ -861,7 +893,7 @@
       var la = lineOfPos(full, tgt.s) + 1, lb = lineOfPos(full, Math.max(tgt.s, tgt.e - 1)) + 1;
       outo.disabled = !tgt.trail.length; into.disabled = !n; undo.disabled = !stack.length;
       into.innerHTML = ic('subdirectory_arrow_right') + (n ? '<span class="fv-badge">' + n + '</span>' : '');
-      where.innerHTML = ic('account_tree') + tgt.crumbs.concat(info ? [info.name] : []).map(function (t) { return '<code>' + H(t) + '</code>'; }).join('<span class="fv-sep">›</span>')
+      where.innerHTML = ic('account_tree') + tgt.crumbs.concat(info ? [info.name] : tgt.md ? [tgt.md] : []).map(function (t) { return '<code>' + H(t) + '</code>'; }).join('<span class="fv-sep">›</span>')
         + '<small>' + la + (lb > la ? '–' + lb : '') + '</small>';
       hint.style.display = LOADING_TAG.test(targetText()) ? '' : 'none';
     }
@@ -880,7 +912,7 @@
       });
     });
     outo.addEventListener('click', function () {
-      if (!tgt || !tgt.trail.length) return; var p = tgt.trail.pop(); tgt.crumbs.pop(); tgt.path.pop(); tgt.s = p[0]; tgt.e = p[1]; kids.textContent = ''; applyTarget(true);
+      if (!tgt || !tgt.trail.length) return; var p = tgt.trail.pop(); tgt.crumbs.pop(); tgt.path.pop(); tgt.s = p[0]; tgt.e = p[1]; tgt.md = null; kids.textContent = ''; applyTarget(true);
     });
     off.addEventListener('click', function () { tgt = null; kids.textContent = ''; applyTarget(false); });
     // 追加・複製・削除は、全体のテキストを直す。入力欄の取り消しは効かないので、専用の「元に戻す」を持つ
@@ -888,13 +920,14 @@
     undo.addEventListener('click', function () {
       var s = stack.pop(); if (!s || !mdPanel()) return; tgt = s.tgt; mdPanel().setFull(s.full); kids.textContent = ''; applyTarget(true);
     });
-    function newPara() { return inner() ? '<' + innerTag() + '>' + T('visual_js_new_paragraph') + '</' + innerTag() + '>' : T('visual_js_new_paragraph'); }
+    function nested() { return inner() && !tgt.md; }   // HTML の中の要素（Markdown の段落は、ふつうの段落として扱う）
+    function newPara() { return nested() ? '<' + innerTag() + '>' + T('visual_js_new_paragraph') + '</' + innerTag() + '>' : T('visual_js_new_paragraph'); }
     /** 要素が、行をまるごと使っているか（前後が改行か、端か）。使っていれば改行で区切り、同じ行の中なら、区切らずに並べる */
     function wholeLines(f) {
       var ls = f.lastIndexOf('\n', tgt.s - 1) + 1, le = f.indexOf('\n', tgt.e); if (le < 0) le = f.length;
       return f.slice(ls, tgt.s).trim() === '' && f.slice(tgt.e, le).trim() === '';
     }
-    function sepFor(f) { return inner() ? (wholeLines(f) ? '\n' : '') : '\n\n'; }
+    function sepFor(f) { return nested() ? (wholeLines(f) ? '\n' : '') : '\n\n'; }
     /** newFull にして、[s, e) を新しい編集対象にする。外側の要素の終わりは、増えた文字数だけずらす */
     function edit(newFull, s, e, nthDelta) {
       var P = mdPanel(), added = newFull.length - P.getFull().length;
@@ -922,7 +955,7 @@
         var f = P.getFull(), s = tgt.s, e = tgt.e;
         if (wholeLines(f)) {   // 行をまるごと使っているときは、行ごと（ページ直下のブロックは、後ろの空行も）消す
           s = f.lastIndexOf('\n', tgt.s - 1) + 1; e = f.indexOf('\n', tgt.e); e = e < 0 ? f.length : e + 1;
-          if (!inner() && /^[ \t]*\n/.test(f.slice(e))) e += f.slice(e).indexOf('\n') + 1;
+          if (!nested() && /^[ \t]*\n/.test(f.slice(e))) e += f.slice(e).indexOf('\n') + 1;
         }
         snap(); P.setFull(f.slice(0, s) + f.slice(e)); tgt = null; kids.textContent = ''; applyTarget(false); return;
       }
@@ -1039,7 +1072,7 @@
     var ln = ep.doc ? '' : ep.blk.getAttribute('data-ln'), m = ep.doc ? [0, 0, 0] : /^(\d+)-(\d+)$/.exec(ln); if (!m) return false;
     var root = ep.doc ? 0 : Math.max(0, [].slice.call(ep.blk.ownerDocument.querySelectorAll('[data-ln="' + ln + '"]')).indexOf(ep.blk));
     setInspect(false);
-    function go() { setTarget(+m[1], +m[2], ep.path, root, !!ep.doc); }
+    function go() { setTarget(+m[1], +m[2], ep.path, root, !!ep.doc, ep.els); }
     if (active && active.kind === 'md') go(); else openPanel('md', go);
     return true;
   }
