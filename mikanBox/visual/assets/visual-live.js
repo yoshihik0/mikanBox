@@ -340,13 +340,14 @@
         cur = null;
       }
     };
+    const inHtml = (i) => prot.has(i) && prot.has(i + 1);
     for (let i = 0; i < lines.length; i++) {
       const l = lines[i];
       if (fence) {
         cur.end = i;
         if (closingFence(fence, l)) {
           fence = null;
-          flush();
+          if (!inHtml(i)) flush();
         }
         continue;
       }
@@ -355,7 +356,7 @@
         dataDepth += count(DATA_OPEN, l) - count(DATA_CLOSE, l);
         if (dataDepth <= 0) {
           dataDepth = 0;
-          flush();
+          if (!inHtml(i)) flush();
         }
         continue;
       }

@@ -40,16 +40,17 @@ function mbv_split_blocks(string $src): array {
     $prot = mbv_html_protected_lines($lines);
     $isListStart = static fn($l) => preg_match('/^\s*([-*+]|\d+[.)])\s/', $l);
     $flush = function () use (&$cur, &$blocks) { if ($cur) { $blocks[] = $cur; $cur = null; } };
+    $inHtml = static fn($i) => !empty($prot[$i]) && !empty($prot[$i + 1]);   // HTML がまだ閉じていない（次の行も同じ範囲）。DATA やコードフェンスが閉じても、ここでは切らない
     foreach ($lines as $i => $l) {
         if ($fence !== null) {
             $cur['end'] = $i;
-            if (preg_match('/^\s*' . preg_quote($fence[0], '/') . '{' . $fence[1] . ',}\s*$/', $l)) { $fence = null; $flush(); }
+            if (preg_match('/^\s*' . preg_quote($fence[0], '/') . '{' . $fence[1] . ',}\s*$/', $l)) { $fence = null; if (!$inHtml($i)) $flush(); }
             continue;
         }
         if ($dataDepth > 0) {
             $cur['end'] = $i;
             $dataDepth += preg_match_all('/\{\{DATA(?:ROW)?:[^}]*\}\}/', $l) - preg_match_all('/\{\{\/DATA(?:ROW)?\}\}/', $l);
-            if ($dataDepth <= 0) { $dataDepth = 0; $flush(); }
+            if ($dataDepth <= 0) { $dataDepth = 0; if (!$inHtml($i)) $flush(); }
             continue;
         }
         if (trim($l) === '') {

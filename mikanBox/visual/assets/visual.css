@@ -57,6 +57,7 @@ html.fv-inspect *{cursor:crosshair!important}
 .fv-pop-row button:hover{background:var(--fv-navy-line)}
 .fv-pop-row button .fv-ic{font-size:18px}
 .fv-pop-note{margin-top:6px;color:#f3b4b4;font-size:.78rem;line-height:1.5}
+.fv-pop-note a{color:#9fd3ff}
 
 /* 画面幅の確認 */
 .fv-vp{position:fixed;left:0;right:0;top:0;bottom:0;z-index:2147482000;background:#c9d6e2;display:flex;flex-direction:column}

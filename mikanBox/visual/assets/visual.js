@@ -674,8 +674,16 @@
       css.addEventListener('click', function () { pop.showCssChoices(it); });
       row.append(path, el('small', '', T('visual_js_n_matches', it.n)), body, css, cp); pop.appendChild(row);
     });
-    if (!anyEditable) pop.appendChild(el('div', 'fv-pop-note', T('visual_js_not_editable_note')));
-    if (!r.inScope) pop.appendChild(el('div', 'fv-pop-note', T('visual_js_outside_note')));
+    // 本文の外で、文字がこのページのタイトルそのもの（レイアウトの {{TITLE}} など）なら、ページタイトルだと伝え、直す場所を開けるようにする
+    var pageTitle = String(((PAGES.filter(function (p) { return p.id === PAGE; })[0]) || {}).title || '').trim(), isTitle = false;
+    for (var tx = target; !anyEditable && pageTitle && tx && tx !== target.ownerDocument.body; tx = tx.parentElement) { if ((tx.textContent || '').trim() === pageTitle) { isTitle = true; break; } }
+    if (isTitle) {
+      var tnote = el('div', 'fv-pop-note', T('visual_js_title_note') + ' '), tgo = el('a', '', T('visual_js_admin_page_title'));
+      tgo.href = ADMIN.page || '#'; tgo.target = '_blank'; tgo.rel = 'noopener'; tnote.appendChild(tgo); pop.appendChild(tnote);
+    } else {
+      if (!anyEditable) pop.appendChild(el('div', 'fv-pop-note', T('visual_js_not_editable_note')));
+      if (!r.inScope) pop.appendChild(el('div', 'fv-pop-note', T('visual_js_outside_note')));
+    }
     document.body.appendChild(pop);
     place();
     /** CSSボタン: その行の要素に当たる、または、その要素のクラス名・idを含むルールを、番号つきの選択肢で出す。選んだものを、CSSパネルに切り出す */

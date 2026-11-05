@@ -756,6 +756,7 @@
     "visual_js_copied": "Copied",
     "visual_js_n_matches": "%s found",
     "visual_js_outside_note": "This is outside the page body (header, footer, etc.). The page CSS only applies inside the body. Use a component's CSS for it.",
+    "visual_js_title_note": "This is the page title. It is not part of the body, so it cannot be edited here; change Title in the page settings.",
     "visual_js_tag_hint": "This part is a {{…}} tag (it builds cards, navigation, etc. automatically). The text and images of the cards come from the linked pages' settings, so they cannot be edited here (edit the original page instead).",
     "visual_js_add_above": "Add a paragraph above",
     "visual_js_add_below": "Add a paragraph below",
