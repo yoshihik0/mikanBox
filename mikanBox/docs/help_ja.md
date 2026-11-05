@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.15.0</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.15.1</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -506,7 +506,7 @@ JavaScriptにはCSSのスコープ設定は適用されません。JS欄ではMa
 - 直したい場所は、右下の [[search]{.material-symbols-outlined} 選んで編集]{.m-btn}（虫眼鏡）で、クリックして選びます。出てきたセレクタの行で、**パス（`.pillar` など）をクリック**するか、[[edit_note]{.material-symbols-outlined}]{.m-btn} を押すと、「本文」パネルが開き、**その要素の部分だけ**が入力欄に出ます。ページ側にも、選んだ要素に枠が出て、選んだ場所が見えるように、ページが自動でスクロールします。切り出した部分は、本文全体のその場所と対応していて、保存すると、全体が保存されます。
 - 文字を直すと、その場でページに反映されます（画面幅の確認の中にも反映されるので、**スマホ幅のまま**直せます）。保存は ⌘/Ctrl+Enter か、パネル右上の保存ボタンです。保存しても、ページは読み込み直されません。未保存のあいだは「未保存」と出ます。
 - 選んだあとの切り替えるモードはありません。「本文」パネルの中ほどにある**編集対象のバー**で、どの要素を選んでいるかが `nav › div › a` のように出て、本文全体での行番号も分かります。[[close]{.material-symbols-outlined}]{.m-btn} で、切り出しをやめて、全体を表示できます。
-- 本文のブロックではない場所（レイアウトなど）を選んだときは、本文のボタンが押せなくなり、理由が出ます。本文の中に選べるまとまりがないページでは、画面の下に案内が出ます。「Raw HTML」のページも、同じように選べます。
+- 本文のブロックではない場所（レイアウトなど）を選んだときは、本文のボタンが押せなくなり、理由が出ます。本文の中に選べるまとまりがないページでは、画面の下に案内が出ます。「Raw HTML」のページも、同じように選べます。`<html>` から `<body>` までを持つ文書のページでは、`html › body › main › section › p` のように、タグの階層をたどって選びます（ページの `<script>` や `<style>` の中の文字は、タグとして読みません）。
 - 編集対象が `<div>` や `<ul>` のような入れ物のときは、バーの [[subdirectory_arrow_right]{.material-symbols-outlined}]{.m-btn} で、**中の要素を選び直せます**（バッジの数字が、中の要素の数です）。中が1つならそのまま、並んでいれば「1 `<li>` …」のように番号で選びます。[[arrow_back]{.material-symbols-outlined}]{.m-btn} でひとつ外に戻ります（入力欄に出る部分が、そのぶん変わります）。開きタグと子要素、または子要素どうしが同じ行にあるものは、行で分けられないので選べません。
 - バーの [[add_row_above]{.material-symbols-outlined}]{.m-btn} [[add_row_below]{.material-symbols-outlined}]{.m-btn} で、選んだ要素の上・下に段落を足し（中の要素のときは、同じタグで包んで足します）、[[content_copy]{.material-symbols-outlined}]{.m-btn} で複製し、[[delete]{.material-symbols-outlined}]{.m-btn} で削除します（削除は確認のため、**2回押します**）。これらは、切り出した部分の外も変えるので、入力欄の ⌘/Ctrl+Z ではなく、バーの [[undo]{.material-symbols-outlined}]{.m-btn} で、ひとつずつ戻せます。文字を直すときの ⌘/Ctrl+Z は、これまでどおり入力欄で効きます。
 - 入力欄の上のバーで、見出し・太字・斜体・リンク・箇条書き・番号つきリスト・引用・コード・画像を入れられます（⌘/Ctrl+B・I・K も使えます）。
@@ -517,7 +517,7 @@ JavaScriptにはCSSのスコープ設定は適用されません。JS欄ではMa
 #### 本文全体・ページ専用CSS
 
 - 右下の「本文」を押すと、選ばずに、ページ本文の全体を開けます。
-- 「CSS」で、そのページ専用のCSSを直せます。入力しながら反映され、保存は ⌘/Ctrl+Enter です。未保存のまま閉じると、元に戻ります。虫眼鏡のセレクタの行の [[palette]{.material-symbols-outlined}]{.m-btn} からは、**そのセレクタのルールだけ**が切り出されて開きます。同じセレクタのルールが複数あるとき（`@media` の中など）は、バーの [[arrow_upward]{.material-symbols-outlined}]{.m-btn} [[arrow_downward]{.material-symbols-outlined}]{.m-btn} で、前後の該当に移れます。[[close]{.material-symbols-outlined}]{.m-btn} で全体を表示します。
+- 「CSS」で、そのページ専用のCSSを直せます。入力しながら反映され、保存は ⌘/Ctrl+Enter です。未保存のまま閉じると、元に戻ります。虫眼鏡のセレクタの行の [[palette]{.material-symbols-outlined}]{.m-btn} からは、**そのセレクタのルールだけ**が切り出されて開きます（CSSのコメントや文字列の中に書かれた同じ名前は、無視します）。同じセレクタのルールが複数あるとき（`@media` の中など）は、バーの [[arrow_upward]{.material-symbols-outlined}]{.m-btn} [[arrow_downward]{.material-symbols-outlined}]{.m-btn} で、前後の該当に移れます。[[close]{.material-symbols-outlined}]{.m-btn} で全体を表示します。
 
 #### 元に戻す・やり直す
 

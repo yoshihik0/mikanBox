@@ -44,6 +44,12 @@ for n, src in sources.items():
     check(not code, n + ' has no hard-coded Japanese text: ' + str(code[:2]))
 check('（' not in ''.join(l for l in (PROJECT / 'mikanBox/visual/assets/visual.css').read_text().split('\n') if not l.strip().startswith('/*')), 'visual.css has no hard-coded text')
 
+# ---- 0b. ブラウザなしで試せる部品（CSSのルールの探し方・HTMLの子要素の範囲）: node があるときだけ
+NODE = shutil.which('node')
+if NODE:
+    r = subprocess.run([NODE, str(PROJECT / 'tests' / 'visual_js_test.js')], capture_output=True, text=True)
+    check(r.returncode == 0, 'visual.js parts pass their node test: ' + (r.stdout + r.stderr)[-600:])
+
 with tempfile.TemporaryDirectory(prefix='mikanbox-visual-test-') as tmp:
     site = Path(tmp) / 'site'
     site.mkdir()
@@ -136,6 +142,9 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-visual-test-') as tmp:
         php(site, 'saveData(POSTS_DIR, "rawtest", ["title" => "Raw", "content_md" => "<div>\\n<p>x</p>\\n\\n<p>y</p>\\n</div>", "css" => "", "js" => "", "is_html" => true, "status" => "draft", "category" => "", "description" => "", "memo" => "", "keywords" => "", "ogp_image" => "", "wrapper_comp" => "", "exclude_tracking" => false, "sort_order" => 0]);')
         st, raw, _ = req(ed, VIS + '?id=rawtest')
         check(st == 200 and re.search(r'<!--fv:\d+-\d+-->\s*<div>', raw), 'Raw HTML pages get block markers too (so the magnifier can pick them)')
+        php(site, 'saveData(POSTS_DIR, "doctest", ["title" => "Doc", "content_md" => "<!DOCTYPE html>\\n<html>\\n<body>\\n<p>x</p>\\n\\n<p>y</p>\\n</body>\\n</html>", "css" => "", "js" => "", "is_html" => true, "status" => "draft", "category" => "", "description" => "", "memo" => "", "keywords" => "", "ogp_image" => "", "wrapper_comp" => "__none", "exclude_tracking" => false, "sort_order" => 0]);')
+        st, dpage, _ = req(ed, VIS + '?id=doctest')
+        check(st == 200 and 'window.__VISUAL_DOC=true' in dpage and '<!--fv:' not in dpage, 'a whole HTML document page is picked by its tag tree (no block markers, DOC flag set)')
         st, page, hd = req(ed, VIS + '?id=index')
         check(st == 200 and 'window.__VISUAL_CSRF' in page and '<!--fv:' in page, 'editing page has CSRF token and block markers')
         nonce = re.search(r"nonce-([A-Za-z0-9_-]+)", hd['Content-Security-Policy'])[1]

@@ -34,11 +34,24 @@
   function post(url, body) { if (body && typeof body === 'object') body.sid = SID; return jfetch(url, { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body: JSON.stringify(body) }); }
   function scopeEl() { return document.querySelector('.mikan-content-scope'); }
   var PAGES = window.__VISUAL_PAGES || [];
+  var DOC = !!window.__VISUAL_DOC;   // Raw HTML の、<html>…<body> を持つ文書のページ（ブロックの目印は入れず、文書の木をたどって選ぶ）
   // 最近開いたページ（このブラウザだけ。サイトごと）
   var RKEY = 'fv-recent:' + (ADMIN.site || '/');
   function loadRecent() { try { return JSON.parse(localStorage.getItem(RKEY) || '[]'); } catch (e) { return []; } }
   function pushRecent(id) { try { var l = loadRecent().filter(function (x) { return x !== id; }); l.unshift(id); localStorage.setItem(RKEY, JSON.stringify(l.slice(0, 20))); } catch (e) {} }
   pushRecent(PAGE);
+  /** ページの本文を差し替える。本文の入れ物が <body> のとき（Raw HTML の文書）は、この画面の部品（.fv-ui など）を残す */
+  function swapScope(sc, neu) {
+    var d = sc.ownerDocument;
+    if (sc !== d.body) { sc.innerHTML = neu.innerHTML; return; }
+    var keep = [];
+    [].slice.call(sc.childNodes).forEach(function (n) {
+      var mine = n.nodeType === 1 && (n.classList.contains('fv-ui') || (n.tagName === 'SCRIPT' && n.hasAttribute('nonce')) || (n.tagName === 'LINK' && /visual\.css|fonts\.googleapis/.test(n.getAttribute('href') || '')));
+      if (mine) keep.push(n); else sc.removeChild(n);
+    });
+    var first = keep[0] || null;
+    [].slice.call(neu.childNodes).forEach(function (n) { sc.insertBefore(d.importNode(n, true), first); });
+  }
   /** 目印のコメント <!--fv:a-b--> … <!--/fv--> の間にある要素に、data-ln="a-b" を付ける */
   function applyLn(rootEl) {
     var w = rootEl.ownerDocument.createTreeWalker(rootEl, NodeFilter.SHOW_COMMENT), list = [], n;
@@ -87,7 +100,7 @@
   dock.append(tgPages, lnkList, lnkPage, sep1, tgUndo, tgRedo, tgPoints, sep2, tgView, tgInspect, tgMd, tgCss); document.body.appendChild(dock);
   // 使い方は1つだけ: ふだんは閲覧（クリックでリンクをたどる。サイト内のリンクは、そのページのビジュアル編集で開く）。直したいところは、虫眼鏡で選ぶ
   var pageNote = null;
-  if (scopeEl() && !scopeEl().querySelector('[data-ln]')) {   // 本文がクリックで選べないページ（Raw HTML など）
+  if (!DOC && scopeEl() && !scopeEl().querySelector('[data-ln]')) {   // 本文がクリックで選べないページ（Raw HTML など）
     pageNote = el('div', 'fv-pagenote fv-ui'); pageNote.innerHTML = ic('info') + '<span>' + H(T('visual_js_page_not_clickable')) + '</span>'; document.body.appendChild(pageNote);
   }
   /** 別タブで開くリンク（編集画面ではないところ）に、触れたときだけ、目印を出す */
@@ -301,7 +314,7 @@
       var doc = new DOMParser().parseFromString(html, 'text/html');
       var neu = doc.querySelector('.mikan-content-scope'), cur = scopeEl();
       if (!neu || !cur) { location.reload(); return; }
-      cur.innerHTML = neu.innerHTML; applyLn(cur); rewriteLinks(cur); window.scrollTo(0, y);
+      swapScope(cur, neu); applyLn(cur); rewriteLinks(cur); window.scrollTo(0, y);
       syncMtime(); refreshHistory();
     });
   }
@@ -467,7 +480,7 @@
       btn: tgMd, icon: 'edit_note', title: T('visual_js_md_panel'), note: T('visual_js_panel_note'), ph: T('visual_js_md_placeholder'),
       load: function () { return jfetch(API('source') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (x) { return x.j.text; }); },
       save: function (o, n) { return post(API('save-md'), { id: PAGE, old: o, new: n }); },
-      live: function (text) { return post(API('render'), { id: PAGE, text: text }).then(function (x) { if (!x.ok) return; var neu = new DOMParser().parseFromString(x.j.html, 'text/html').querySelector('.mikan-content-scope'); if (!neu) return; liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; sc.innerHTML = neu.innerHTML; applyLn(sc); if (d === document) rewriteLinks(sc); }); markTarget(); }); }
+      live: function (text) { return post(API('render'), { id: PAGE, text: text }).then(function (x) { if (!x.ok) return; var neu = new DOMParser().parseFromString(x.j.html, 'text/html').querySelector('.mikan-content-scope'); if (!neu) return; liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; swapScope(sc, neu); applyLn(sc); if (d === document) rewriteLinks(sc); }); markTarget(); }); }
     }
   };
   function closePanel(force) {
@@ -559,6 +572,16 @@
   }
   /** クリックした要素の、本文ブロックの中での位置（同じタグの何番目か、を外から順に） */
   function editPath(target) {
+    if (DOC) {   // 文書全体が1つのまとまり。<html> から、タグと「同じタグの何番目か」で、選んだ要素までをたどる
+      if (target.closest('.fv-ui')) return null;
+      var rootEl = target.ownerDocument.documentElement, dpath = [], dcur = target;
+      while (dcur && dcur !== rootEl && dcur.parentElement) {
+        var dtag = dcur.tagName.toLowerCase(), dn = 0;
+        for (var dsib = dcur.parentElement.firstElementChild; dsib && dsib !== dcur; dsib = dsib.nextElementSibling) if (dsib.tagName.toLowerCase() === dtag) dn++;
+        dpath.unshift({ tag: dtag, nth: dn }); dcur = dcur.parentElement;
+      }
+      return { blk: rootEl, path: dpath, doc: true };
+    }
     var blk = target.closest('[data-ln]'); if (!blk || blk.classList.contains('fv-editing') || blk.closest('.fv-ui')) return null;
     var path = [], cur = target;
     while (cur !== blk && cur.parentElement) {
@@ -633,6 +656,9 @@
     while ((m = re.exec(text))) {
       if (m[0].indexOf('<!--') === 0) continue;
       var name = m[2].toLowerCase(), ln = lineOf(m.index), endLn = lineOf(m.index + m[0].length - 1);
+      if (!m[1] && m[3] !== '/' && /^(script|style|textarea|title)$/.test(name)) {   // 中身は、タグとして読まない
+        var closeAt = text.toLowerCase().indexOf('</' + name, re.lastIndex); if (closeAt >= 0) re.lastIndex = closeAt;
+      }
       if (m[1]) {
         var o = stack.pop(); if (!o || o.name !== name) return null;
         o.close = endLn; o.closeOpenLn = ln;
@@ -668,9 +694,13 @@
   function findTargetEls() {
     var out = []; if (!tgt) return out;
     liveDocs().forEach(function (d) {
-      var sc = d.querySelector('.mikan-content-scope'); if (!sc) return;
-      var blocks = [].slice.call(sc.querySelectorAll('[data-ln]')).filter(function (x) { var m = /^(\d+)-(\d+)$/.exec(x.getAttribute('data-ln')); return m && +m[1] <= tgt.a && tgt.b <= +m[2]; });
-      var cur = blocks[Math.min(tgt.root, blocks.length - 1)];
+      var cur;
+      if (tgt.doc) cur = d.documentElement;
+      else {
+        var sc = d.querySelector('.mikan-content-scope'); if (!sc) return;
+        var blocks = [].slice.call(sc.querySelectorAll('[data-ln]')).filter(function (x) { var m = /^(\d+)-(\d+)$/.exec(x.getAttribute('data-ln')); return m && +m[1] <= tgt.a && tgt.b <= +m[2]; });
+        cur = blocks[Math.min(tgt.root, blocks.length - 1)];
+      }
       for (var i = 0; cur && i < tgt.path.length; i++) {
         var st = tgt.path[i], n = 0, nx = null;
         for (var c = cur.firstElementChild; c; c = c.nextElementSibling) { if (c.tagName.toLowerCase() === st.tag) { if (n === st.nth) { nx = c; break; } n++; } }
@@ -706,10 +736,10 @@
     tbar.paint();
   }
   /** 選んだ要素（ページの中の位置）を、編集対象にする。中の要素なら、本文の行の範囲を、外から順に掘っていく */
-  function setTarget(a, b, path, root) {
+  function setTarget(a, b, path, root, doc) {
     var P = mdPanel(); if (!P) return;
     var lines = P.getFull().split('\n');
-    tgt = { a: a, b: Math.min(b, lines.length - 1), path: [], crumbs: [], trail: [], root: root };
+    tgt = { a: a, b: Math.min(b, lines.length - 1), path: [], crumbs: [], trail: [], root: root, doc: !!doc };
     for (var i = 0; i < path.length; i++) {
       var info = childRanges(lines.slice(tgt.a, tgt.b + 1).join('\n')); if (!info) break;
       var same = info.all.filter(function (k) { return k.name === path[i].tag; }), k = same[path[i].nth];
@@ -804,15 +834,17 @@
   /** CSSのテキストの中で、セレクタ（なければ、その末尾・クラス名）のルール { s, e } を、出てきた順に返す */
   function cssRulesFor(css, sel) {
     var last = sel.split(/\s+/).pop(), cm = /\.[\w-]+/.exec(last), cands = [sel, last, cm && cm[0]].filter(Boolean);
+    // コメントと文字列の中は、同じ長さの空白にして探す（コメントに書かれた名前に、反応しないため）
+    var plain = css.replace(/\/\*[\s\S]*?(\*\/|$)|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, function (x) { return x.replace(/[^\n]/g, ' '); });
     for (var ci = 0; ci < cands.length; ci++) {
       var re = new RegExp('(^|[^\\w-])(' + escRe(cands[ci]) + ')(?![\\w-])', 'g'), m, out = [], seen = {};
-      while ((m = re.exec(css))) {
-        var idx = m.index + m[1].length, brace = css.indexOf('{', idx);
-        if (brace < 0 || /[;}]/.test(css.slice(idx, brace))) continue;          // セレクタの位置ではない（値の中・コメントなど）
-        var st = idx; while (st > 0 && !/[;{}]/.test(css.charAt(st - 1))) st--;
-        while (st < idx && /\s/.test(css.charAt(st))) st++;
+      while ((m = re.exec(plain))) {
+        var idx = m.index + m[1].length, brace = plain.indexOf('{', idx);
+        if (brace < 0 || /[;}]/.test(plain.slice(idx, brace))) continue;          // セレクタの位置ではない（値の中など）
+        var st = idx; while (st > 0 && !/[;{}]/.test(plain.charAt(st - 1))) st--;
+        while (st < idx && /\s/.test(plain.charAt(st))) st++;
         var depth = 0, en = css.length;
-        for (var k = brace; k < css.length; k++) { var ch = css.charAt(k); if (ch === '{') depth++; else if (ch === '}' && --depth === 0) { en = k + 1; break; } }
+        for (var k = brace; k < css.length; k++) { var ch = plain.charAt(k); if (ch === '{') depth++; else if (ch === '}' && --depth === 0) { en = k + 1; break; } }
         if (!seen[st]) { seen[st] = 1; out.push({ s: st, e: en }); }
       }
       if (out.length) return { rules: out, matched: cands[ci] };
@@ -856,10 +888,10 @@
   /** 虫眼鏡で選んだ要素を、本文パネルの編集対象にする（画面幅の確認の中で選んでも、確認は閉じない） */
   function openEditAt(at) {
     var ep = editPath(at); if (!ep) return false;
-    var ln = ep.blk.getAttribute('data-ln'), m = /^(\d+)-(\d+)$/.exec(ln); if (!m) return false;
-    var root = Math.max(0, [].slice.call(ep.blk.ownerDocument.querySelectorAll('[data-ln="' + ln + '"]')).indexOf(ep.blk));
+    var ln = ep.doc ? '' : ep.blk.getAttribute('data-ln'), m = ep.doc ? [0, 0, 0] : /^(\d+)-(\d+)$/.exec(ln); if (!m) return false;
+    var root = ep.doc ? 0 : Math.max(0, [].slice.call(ep.blk.ownerDocument.querySelectorAll('[data-ln="' + ln + '"]')).indexOf(ep.blk));
     setInspect(false);
-    function go() { setTarget(+m[1], +m[2], ep.path, root); }
+    function go() { if (ep.doc) setTarget(0, mdPanel().getFull().split('\n').length - 1, ep.path, 0, true); else setTarget(+m[1], +m[2], ep.path, root); }
     if (active && active.kind === 'md') go(); else openPanel('md', go);
     return true;
   }

@@ -83,12 +83,15 @@ function mbv_site_base(): string {
     return ($d === '/' || $d === '.' || $d === '\\') ? '/' : rtrim($d, '/') . '/';
 }
 
+/** Raw HTML で、<html> か <body> を持つ文書のページか（この画面では、文書の木をたどって選ぶ） */
+function mbv_is_doc(array $data): bool { return !empty($data['is_html']) && (bool)preg_match('~<(?:html|body)\b~i', (string)($data['content_md'] ?? '')); }
+
 /** ページを本体の描画処理で表示する（目印を入れて、行番号つきのHTMLにする） */
 function mbv_render(string $id, ?array $override = null): ?string {
     $data = $override ?? loadData(POSTS_DIR, $id);
     if (!$data) return null;
     $md = mbv_nl((string)($data['content_md'] ?? ''));
-    $data['content_md'] = mbv_inject_markers($md);     // Raw HTML のページにも入れる（目印はHTMLコメントなので、見た目は変わらない）
+    $data['content_md'] = mbv_is_doc($data) ? $md : mbv_inject_markers($md);     // Raw HTML のページにも入れる（目印はHTMLコメントなので、見た目は変わらない）。<html>…<body> を持つ文書は、目印の位置が決まらないので入れない
     $data['css'] = ".fv-css-start{}\n" . mbv_nl((string)($data['css'] ?? '')) . "\n.fv-css-end{}";   // 空でも、範囲用の枠を出す＋ライブ反映の目印
     $data['status'] = 'public_dynamic';                                                              // 下書きでも表示する（ログイン済みの管理者だけが、ここに来る）
     $settings = $GLOBALS['mikanbox_settings'] ?? [];
@@ -257,7 +260,7 @@ if ($id !== '') {
     $v = static fn(string $f) => @filemtime(__DIR__ . '/visual/assets/' . $f) ?: 0;
     $tags = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0&display=block">'
           . '<link rel="stylesheet" href="' . htmlspecialchars($CORE_URL) . '/visual/assets/visual.css?v=' . $v('visual.css') . '">'
-          . '<script nonce="' . $n . '">window.__VISUAL_PAGE=' . json_encode($id) . ';window.__VISUAL_ADMIN=' . json_encode($info) . ';window.__VISUAL_PAGES=' . json_encode($pages, JSON_UNESCAPED_UNICODE) . ';window.__VISUAL_CSRF=' . json_encode($CSRF) . ';window.__VISUAL_T=' . json_encode(mbv_js_strings(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) . ';</script>'
+          . '<script nonce="' . $n . '">window.__VISUAL_PAGE=' . json_encode($id) . ';window.__VISUAL_ADMIN=' . json_encode($info) . ';window.__VISUAL_PAGES=' . json_encode($pages, JSON_UNESCAPED_UNICODE) . ';window.__VISUAL_CSRF=' . json_encode($CSRF) . ';window.__VISUAL_DOC=' . json_encode(mbv_is_doc((array)loadData(POSTS_DIR, $id))) . ';window.__VISUAL_T=' . json_encode(mbv_js_strings(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) . ';</script>'
           . '<script nonce="' . $n . '" src="' . htmlspecialchars($CORE_URL) . '/visual/assets/visual.js?v=' . $v('visual.js') . '"></script>';
     echo stripos($html, '</body>') !== false ? preg_replace('~</body>~i', str_replace('$', '\\$', $tags) . '</body>', $html, 1) : $html . $tags;
     exit;
