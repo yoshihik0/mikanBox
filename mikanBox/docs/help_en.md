@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.16.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.16.1</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -517,7 +517,7 @@ Body editing is **one panel that opens from the bottom: "Body"**. Only the part 
 #### Whole body and page CSS
 
 - "Body" at the bottom right opens the whole body without picking anything.
-- "CSS" edits this page's own CSS. It applies as you type; save with ⌘/Ctrl+Enter. Closing with unsaved changes reverts them. The [[palette]{.material-symbols-outlined}]{.m-btn} button on a magnifier selector row shows a **list of the CSS rules** related to that row's element as numbered choices, such as `1 .a-mikan`, `2 .a-mikan p`. "applies" means the rule really applies to the element (including ones with `:hover`), and "mentions it" means the selector contains the element's class name or id (such as `.a-mikan p`, which applies to elements inside it). The rule you choose is cut out into the CSS panel. [[arrow_upward]{.material-symbols-outlined}]{.m-btn} [[arrow_downward]{.material-symbols-outlined}]{.m-btn} on the bar move to the other choices and [[close]{.material-symbols-outlined}]{.m-btn} shows everything. Names inside CSS comments or strings are ignored. If nothing is listed, the rule may be in the site CSS or a part's CSS rather than the page CSS.
+- "CSS" edits this page's own CSS. It applies as you type; save with ⌘/Ctrl+Enter. Closing with unsaved changes reverts them. The [[palette]{.material-symbols-outlined}]{.m-btn} button on a magnifier selector row shows a **list of the CSS rules** related to that row's element as numbered choices, such as `1 .a-mikan`, `2 .a-mikan p`. "applies" means the rule really applies to the element (including ones with `:hover`), and "mentions it" means the selector contains the element's class name or id (such as `.a-mikan p`, which applies to elements inside it). The rule you choose is cut out into the CSS panel. Each choice shows its condition such as `@media`, its line in the CSS and its first declaration (such as `padding: 12px 0`), so rules with the same selector in several places can be told apart. "applies" comes first, then "mentions it". The list is about **the first element of the row you pressed** (the same level as when picking the body: for the row `div.profile div.rows ul li` it is `div.profile`; to see the rules of the `li`, press the `li` row). [[arrow_upward]{.material-symbols-outlined}]{.m-btn} [[arrow_downward]{.material-symbols-outlined}]{.m-btn} on the bar move to the other choices and [[close]{.material-symbols-outlined}]{.m-btn} shows everything. Names inside CSS comments or strings are ignored. If nothing is listed, the rule may be in the site CSS or a part's CSS rather than the page CSS.
 
 #### Undo and redo
 

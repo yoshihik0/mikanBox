@@ -169,5 +169,9 @@ html.fv-panel-open .fv-vp{bottom:38vh}
 .fv-choice{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;margin:3px 0;padding:5px 8px;border:1px solid transparent;border-radius:8px;background:var(--fv-navy-2);color:#e6eef6;cursor:pointer;text-align:left;font:inherit}
 .fv-choice:hover{border-color:var(--fv-sky-line)}
 .fv-choice b{flex:none;width:18px;text-align:center;color:var(--fv-sky-strong)}
+.fv-choice-col{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.fv-choice-top{display:flex;align-items:center;gap:8px;min-width:0}
 .fv-choice code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:12px ui-monospace,Menlo,monospace}
 .fv-choice small{flex:none;color:#9db4c9;white-space:nowrap}
+.fv-choice-sub{color:#8fa8be;font-size:11px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fv-pop{max-height:calc(100vh - 24px);overflow:auto}

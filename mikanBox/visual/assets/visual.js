@@ -620,11 +620,14 @@
         pop.textContent = '';
         var head = el('div', 'fv-pop-title'), back = ibtn('arrow_back', T('visual_js_css_back'), 'fv-pop-back');
         back.addEventListener('click', function () { showPop(target, x, y); });
-        head.append(back, el('span', '', T('visual_js_css_choices_of', it.sel))); pop.appendChild(head);
+        head.append(back, el('span', '', T('visual_js_css_choices_of', simple(it.at)))); pop.appendChild(head);
         if (!list.length) pop.appendChild(el('div', 'fv-pop-note', T('visual_js_css_not_found')));
         list.forEach(function (c, i) {
           var b = el('button', 'fv-choice'); b.type = 'button';
-          b.append(el('b', '', String(i + 1)), el('code', '', c.label), el('small', '', c.kind === 'match' ? T('visual_js_css_applies') : T('visual_js_css_mentions')));
+          var top = el('span', 'fv-choice-top'), sub = el('span', 'fv-choice-sub', [c.ctx, 'L' + c.line, c.preview].filter(Boolean).join(' · '));
+          top.append(el('code', '', c.label), el('small', '', c.kind === 'match' ? T('visual_js_css_applies') : T('visual_js_css_mentions')));
+          var col = el('span', 'fv-choice-col'); col.append(top, sub);
+          b.append(el('b', '', String(i + 1)), col);
           b.addEventListener('click', function () { openCssAt(list, i); });
           pop.appendChild(b);
         });
@@ -878,18 +881,22 @@
   }
   /** CSSのテキストの、すべてのルール { s, e, sels } を、出てきた順に返す（@media などの中も読む） */
   function cssRuleList(css) {
-    var plain = maskCss(css), out = [], i = 0, start = 0, n = plain.length;
+    var plain = maskCss(css), out = [], i = 0, start = 0, n = plain.length, ctx = [];
+    function lineAt(pos) { var c = 1, p = css.indexOf('\n'); while (p >= 0 && p < pos) { c++; p = css.indexOf('\n', p + 1); } return c; }
     while (i < n) {
+      while (ctx.length && i >= ctx[ctx.length - 1].end) ctx.pop();
       var ch = plain.charAt(i);
       if (ch === ';' || ch === '}') { start = i + 1; i++; continue; }
       if (ch === '{') {
         var head = plain.slice(start, i).trim(), end = matchBrace(plain, i);
         if (head.charAt(0) === '@') {
-          if (/^@(media|supports|layer|container|document|scope|starting-style)\b/i.test(head)) { start = i + 1; i++; continue; }   // 中のルールを、続けて読む
+          if (/^@(media|supports|layer|container|document|scope|starting-style)\b/i.test(head)) { ctx.push({ head: head.replace(/\s+/g, ' '), end: end }); start = i + 1; i++; continue; }   // 中のルールを、続けて読む
           start = end; i = end; continue;   // @keyframes・@font-face など
         }
         var s = start; while (s < i && /\s/.test(plain.charAt(s))) s++;
-        out.push({ s: s, e: end, sels: splitSelectors(head) }); start = end; i = end; continue;
+        var first = plain.slice(i + 1, end - 1).split(';')[0].replace(/\s+/g, ' ').trim();
+        out.push({ s: s, e: end, sels: splitSelectors(head), ctx: ctx.map(function (c) { return c.head; }).join(' '), preview: first.slice(0, 44), line: lineAt(s) });
+        start = end; i = end; continue;
       }
       i++;
     }
@@ -909,7 +916,7 @@
     function paint() {
       var P = active && active.kind === 'css' ? active : null;
       bar.style.display = P && P.view() ? '' : 'none'; if (!P || !P.view()) return;
-      what.innerHTML = ic('palette') + '<code>' + H(rules[cur].label || '') + '</code><small>' + (cur + 1) + ' / ' + rules.length + '</small>';
+      what.innerHTML = ic('palette') + '<code>' + H(rules[cur].label || '') + '</code>' + (rules[cur].ctx ? '<small>' + H(rules[cur].ctx) + '</small>' : '') + '<small>' + (cur + 1) + ' / ' + rules.length + '</small>';
       prev.disabled = cur <= 0; next.disabled = cur >= rules.length - 1;
     }
     function show(i) { var P = active; cur = i; P.showRange(rules[i].s, rules[i].e); P.ta.focus({ preventScroll: true }); paint(); }
@@ -938,10 +945,12 @@
         if (ok && !matched) matched = sel;
         if (!mentioned && res.some(function (re) { return re.test(sel); })) mentioned = sel;
       });
-      if (matched) out.push({ s: r.s, e: r.e, label: matched, kind: 'match' });
-      else if (mentioned) out.push({ s: r.s, e: r.e, label: mentioned, kind: 'mention' });
+      var info = { s: r.s, e: r.e, ctx: r.ctx, preview: r.preview, line: r.line };
+      if (matched) out.push(Object.assign({ label: matched, kind: 'match' }, info));
+      else if (mentioned) out.push(Object.assign({ label: mentioned, kind: 'mention' }, info));
     });
-    return out;
+    // 実際に当たっているものを先に（それぞれ、CSSに出てきた順）
+    return out.filter(function (c) { return c.kind === 'match'; }).concat(out.filter(function (c) { return c.kind === 'mention'; }));
   }
   /** 選択肢の中の i 番目を、CSSパネルに切り出す（前後の矢印で、ほかの選択肢にも移れる） */
   function openCssAt(list, i) {

@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.16.0</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.16.1</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -517,7 +517,7 @@ JavaScriptにはCSSのスコープ設定は適用されません。JS欄ではMa
 #### 本文全体・ページ専用CSS
 
 - 右下の「本文」を押すと、選ばずに、ページ本文の全体を開けます。
-- 「CSS」で、そのページ専用のCSSを直せます。入力しながら反映され、保存は ⌘/Ctrl+Enter です。未保存のまま閉じると、元に戻ります。虫眼鏡のセレクタの行の [[palette]{.material-symbols-outlined}]{.m-btn} を押すと、その行の要素に関係する**CSSのルールの一覧**が、`1 .a-mikan`、`2 .a-mikan p` のように、番号つきの選択肢で出ます。「当たる」はその要素に実際に当たっているルール（`:hover` つきのものも含む）、「名前を含む」はその要素のクラス名・idをセレクタに含むルール（`.a-mikan p` のように、中の要素に当たるもの）です。選んだルールだけが切り出されて、CSSパネルに開きます。バーの [[arrow_upward]{.material-symbols-outlined}]{.m-btn} [[arrow_downward]{.material-symbols-outlined}]{.m-btn} で、ほかの選択肢にも移れ、[[close]{.material-symbols-outlined}]{.m-btn} で全体を表示します。CSSのコメントや文字列の中に書かれた名前は、無視します。一覧に出ないときは、ページ専用CSSではなく、サイト全体や部品のCSSにあるかもしれません。
+- 「CSS」で、そのページ専用のCSSを直せます。入力しながら反映され、保存は ⌘/Ctrl+Enter です。未保存のまま閉じると、元に戻ります。虫眼鏡のセレクタの行の [[palette]{.material-symbols-outlined}]{.m-btn} を押すと、その行の要素に関係する**CSSのルールの一覧**が、`1 .a-mikan`、`2 .a-mikan p` のように、番号つきの選択肢で出ます。「当たる」はその要素に実際に当たっているルール（`:hover` つきのものも含む）、「名前を含む」はその要素のクラス名・idをセレクタに含むルール（`.a-mikan p` のように、中の要素に当たるもの）です。選んだルールだけが切り出されて、CSSパネルに開きます。各選択肢には、`@media` などの条件、CSSの行番号、最初の宣言（`padding: 12px 0` など）が付くので、同じセレクタのルールが何か所にあっても、区別できます。「当たる」が上、「名前を含む」が下に並びます。一覧の対象は、押した行の**先頭にある要素**です（本文を選ぶときと同じ階層です。たとえば `div.profile div.rows ul li` の行なら `div.profile`。`li` のルールを見たいときは、`li` の行で押します）。バーの [[arrow_upward]{.material-symbols-outlined}]{.m-btn} [[arrow_downward]{.material-symbols-outlined}]{.m-btn} で、ほかの選択肢にも移れ、[[close]{.material-symbols-outlined}]{.m-btn} で全体を表示します。CSSのコメントや文字列の中に書かれた名前は、無視します。一覧に出ないときは、ページ専用CSSではなく、サイト全体や部品のCSSにあるかもしれません。
 
 #### 元に戻す・やり直す
 
