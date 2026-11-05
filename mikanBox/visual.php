@@ -125,14 +125,13 @@ if ($isApi) {
     }
     $in = $post && $api !== 'upload' ? mbv_body() : [];
     $id = (string)($in['id'] ?? $_GET['id'] ?? '');
-    $needId = !in_array($api, ['scope-css', 'upload', 'create', 'media'], true);
+    $needId = !in_array($api, ['upload', 'create', 'media'], true);
     if ($needId && (!mbv_valid_id($id) || !loadData(POSTS_DIR, $id))) mbv_json(['error' => t('visual_err_page_not_found')], 400);
 
     switch ($api) {
         case 'history':     mbv_json(mbv_counts($id));
         case 'source':      { $d = loadData(POSTS_DIR, $id); mbv_json(['text' => mbv_nl((string)($d['content_md'] ?? '')), 'is_html' => !empty($d['is_html'])]); }
         case 'css':         mbv_json(['css' => mbv_nl((string)(loadData(POSTS_DIR, $id)['css'] ?? ''))]);
-        case 'scope-css':   mbv_json(['css' => scopeCss(".fv-css-start{}\n" . mbv_nl((string)($in['css'] ?? '')) . "\n.fv-css-end{}", '.mikan-content-scope')]);
         case 'render': {
             if (!$post) mbv_json(['error' => 'method'], 405);
             $data = loadData(POSTS_DIR, $id);
@@ -260,6 +259,7 @@ if ($id !== '') {
     $tags = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0&display=block">'
           . '<link rel="stylesheet" href="' . htmlspecialchars($CORE_URL) . '/visual/assets/visual.css?v=' . $v('visual.css') . '">'
           . '<script nonce="' . $n . '">window.__VISUAL_PAGE=' . json_encode($id) . ';window.__VISUAL_ADMIN=' . json_encode($info) . ';window.__VISUAL_PAGES=' . json_encode($pages, JSON_UNESCAPED_UNICODE) . ';window.__VISUAL_CSRF=' . json_encode($CSRF) . ';window.__VISUAL_DOC=' . json_encode(mbv_is_doc((array)loadData(POSTS_DIR, $id))) . ';window.__VISUAL_T=' . json_encode(mbv_js_strings(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) . ';</script>'
+          . '<script nonce="' . $n . '" src="' . htmlspecialchars($CORE_URL) . '/visual/assets/visual-live.js?v=' . $v('visual-live.js') . '"></script>'
           . '<script nonce="' . $n . '" src="' . htmlspecialchars($CORE_URL) . '/visual/assets/visual.js?v=' . $v('visual.js') . '"></script>';
     echo stripos($html, '</body>') !== false ? preg_replace('~</body>~i', str_replace('$', '\\$', $tags) . '</body>', $html, 1) : $html . $tags;
     exit;

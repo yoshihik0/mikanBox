@@ -299,15 +299,77 @@
   if (y0) { sessionStorage.removeItem('fv-scroll'); window.addEventListener('load', function () { window.scrollTo(0, +y0); }); }
 
   // ---------------------------------------------------------------- 本文だけを、再読み込みなしで差し替える
-  function refreshContent() {
+  function refreshContent(text) {
     var y = window.scrollY;
     return fetch(location.href, { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (html) {
       var doc = new DOMParser().parseFromString(html, 'text/html');
       var neu = doc.querySelector('.mikan-content-scope'), cur = scopeEl();
       if (!neu || !cur) { location.reload(); return; }
-      swapScope(cur, neu); applyLn(cur); rewriteLinks(cur); window.scrollTo(0, y);
+      liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; swapScope(sc, neu); applyLn(sc); if (d === document) rewriteLinks(sc); });   // 画面幅の確認の中も、同じ本文にそろえる
+      window.scrollTo(0, y);
+      domText = text === undefined ? null : text;
       refreshHistory();
     });
+  }
+
+  // ---------------------------------------------------------------- 入力中の反映を、ブラウザの中で行う
+  // 変換は visual-live.js（Cloud版と同じMarkdown・ブロック分け・CSSの範囲指定）。前に表示した本文と比べて、
+  // 変わったブロックだけを描き直し、後ろのブロックは目印の行番号だけをずらす。{{…}} タグ・相対リンク・画像など、
+  // サーバーが手を加えるものを含むブロックや、ページと目印が合わないときは、これまでどおりサーバーで描画する。
+  var LIVE = window.MikanBoxLive || null;
+  var domText = null, bodyIsHtml = false;   // domText: いまページに表示している本文（ここから差分を取る）
+  function sameBlock(a, b, d) { return a.start + d === b.start && a.end + d === b.end && a.text === b.text; }
+  /** ページの中の目印（<!--fv:a-b--> と、その後の <!--/fv-->）を、上から順に */
+  function blockMarks(sc) {
+    var w = sc.ownerDocument.createTreeWalker(sc, NodeFilter.SHOW_COMMENT), out = [], open = null, n;
+    while ((n = w.nextNode())) {
+      if (/^fv:\d+-\d+$/.test(n.nodeValue)) { if (open) return null; open = { s: n, e: null }; }
+      else if (n.nodeValue === '/fv') { if (!open) return null; open.e = n; out.push(open); open = null; }
+    }
+    return open ? null : out;
+  }
+  function setLn(mark, ln) {
+    mark.s.nodeValue = 'fv:' + ln;
+    for (var x = mark.s.nextSibling; x && x !== mark.e; x = x.nextSibling) { if (x.nodeType === 1) x.setAttribute('data-ln', ln); }
+  }
+  /** 本文 text を、ブラウザの中で反映する。できたら true（できないときは何も変えずに false） */
+  function localBody(text) {
+    if (!LIVE || DOC || domText === null) return false;
+    if (text === domText) return true;
+    var isHtml = bodyIsHtml || /^\s*<!DOCTYPE/i.test(text);
+    if (isHtml !== (bodyIsHtml || /^\s*<!DOCTYPE/i.test(domText))) return false;
+    var ob = LIVE.splitBlocks(domText), nb = LIVE.splitBlocks(text), d = text.split('\n').length - domText.split('\n').length;
+    var i = 0; while (i < ob.length && i < nb.length && sameBlock(ob[i], nb[i], 0)) i++;
+    var j = 0; while (j < ob.length - i && j < nb.length - i && sameBlock(ob[ob.length - 1 - j], nb[nb.length - 1 - j], d)) j++;
+    var gone = ob.length - i - j, added = nb.slice(i, nb.length - j), htmls = [];
+    for (var k = 0; k < added.length; k++) { var h = LIVE.renderBlock(added[k].text, isHtml); if (h === null) return false; htmls.push(h); }
+    // すべてのページ（画面幅の確認の中も）で、目印が、前の本文のブロックと合っていることを先に確かめる
+    var plans = [];
+    var ok = liveDocs().every(function (doc) {
+      var sc = doc.querySelector('.mikan-content-scope'), marks = sc && blockMarks(sc);
+      if (!marks || marks.length !== ob.length) return false;
+      for (var m = 0; m < marks.length; m++) { if (marks[m].s.nodeValue !== 'fv:' + ob[m].start + '-' + ob[m].end) return false; }
+      if (gone && marks[i].s.parentNode !== marks[i + gone - 1].e.parentNode) return false;
+      if (!gone && !marks.length) return false;
+      plans.push({ doc: doc, sc: sc, marks: marks });
+      return true;
+    });
+    if (!ok) return false;
+    plans.forEach(function (p) {
+      var doc = p.doc, marks = p.marks, frag = doc.createDocumentFragment(), tpl = doc.createElement('template'), at;
+      added.forEach(function (b, n) {
+        tpl.innerHTML = htmls[n];
+        frag.append(doc.createComment('fv:' + b.start + '-' + b.end), tpl.content.cloneNode(true), doc.createComment('/fv'), doc.createTextNode('\n'));
+      });
+      if (gone) {
+        var r = doc.createRange(); r.setStartBefore(marks[i].s); r.setEndAfter(marks[i + gone - 1].e); r.deleteContents(); r.insertNode(frag);
+      } else if (i > 0) { at = marks[i - 1].e; at.parentNode.insertBefore(frag, at.nextSibling); }
+      else { at = marks[0].s; at.parentNode.insertBefore(frag, at); }
+      for (var m = ob.length - j; m < ob.length; m++) { var b = nb[m - ob.length + nb.length]; setLn(marks[m], b.start + '-' + b.end); }
+      applyLn(p.sc); if (doc === document) rewriteLinks(p.sc);
+    });
+    domText = text;
+    return true;
   }
 
   // ---------------------------------------------------------------- 画面幅の確認
@@ -465,13 +527,13 @@
       btn: tgCss, icon: 'palette', title: T('visual_js_css_panel'), note: T('visual_js_panel_note'), ph: T('visual_js_css_placeholder'),
       load: function () { return jfetch(API('css') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (x) { return x.j.css; }); },
       save: function (o, n) { return post(API('save-css'), { id: PAGE, old: o, new: n }); },
-      live: function (text) { return post(API('scope-css'), { css: text }).then(function (x) { if (!x.ok) return false; liveDocs().forEach(function (d) { applyScoped(d, x.j.css); }); return true; }).catch(function () { return false; }); }
+      live: function (text) { if (!LIVE) return Promise.resolve(false); var scoped = LIVE.scopeCss('.fv-css-start{}\n' + text + '\n.fv-css-end{}', '.mikan-content-scope'); liveDocs().forEach(function (d) { applyScoped(d, scoped); }); return Promise.resolve(true); }
     },
     md: {
       btn: tgMd, icon: 'edit_note', title: T('visual_js_md_panel'), note: T('visual_js_panel_note'), ph: T('visual_js_md_placeholder'),
-      load: function () { return jfetch(API('source') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (x) { return x.j.text; }); },
+      load: function () { return jfetch(API('source') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (x) { bodyIsHtml = !!x.j.is_html; domText = x.j.text; return x.j.text; }); },
       save: function (o, n) { return post(API('save-md'), { id: PAGE, old: o, new: n }); },
-      live: function (text) { return post(API('render'), { id: PAGE, text: text }).then(function (x) { if (!x.ok) return false; var neu = new DOMParser().parseFromString(x.j.html, 'text/html').querySelector('.mikan-content-scope'); if (!neu) return false; liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; swapScope(sc, neu); applyLn(sc); if (d === document) rewriteLinks(sc); }); markTarget(); return true; }).catch(function () { return false; }); }
+      live: function (text) { if (localBody(text)) { markTarget(); return Promise.resolve(true); } return post(API('render'), { id: PAGE, text: text }).then(function (x) { if (!x.ok) return false; var neu = new DOMParser().parseFromString(x.j.html, 'text/html').querySelector('.mikan-content-scope'); if (!neu) return false; liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; swapScope(sc, neu); applyLn(sc); if (d === document) rewriteLinks(sc); }); markTarget(); domText = text; return true; }).catch(function () { return false; }); }
     }
   };
   function closePanel(force) {
@@ -530,10 +592,11 @@
         changed();
       });
       function doSave() {
-        K.save(old, full).then(function (x) {
+        var sent = full;
+        K.save(old, sent).then(function (x) {
           if (!x.ok) { msg.style.color = '#fca5a5'; msg.textContent = x.j.error || T('visual_js_save_failed'); return; }
-          old = full; setDirty(false); msg.textContent = T('visual_js_saved') + (x.j.notice ? ' ' + x.j.notice : '');   // notice: 版によって、保存後に伝えたいこと（例: Cloud版は公開し直すまで公開サイトに反映されない） refreshHistory();
-          if (kind === 'md') refreshContent().then(markTarget);
+          old = sent; setDirty(full !== old); if (full === old) msg.textContent = T('visual_js_saved') + (x.j.notice ? ' ' + x.j.notice : '');   // notice: 版によって、保存後に伝えたいこと（例: Cloud版は公開し直すまで公開サイトに反映されない） refreshHistory();
+          if (kind === 'md') refreshContent(sent).then(markTarget);
         }).catch(function () { msg.style.color = '#fca5a5'; msg.textContent = T('visual_js_save_failed'); });
       }
       save.addEventListener('click', doSave); close.addEventListener('click', function () { closePanel(false); });

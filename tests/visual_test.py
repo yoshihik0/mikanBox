@@ -149,6 +149,7 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-visual-test-') as tmp:
         check(st == 200 and 'window.__VISUAL_CSRF' in page and '<!--fv:' in page, 'editing page has CSRF token and block markers')
         nonce = re.search(r"nonce-([A-Za-z0-9_-]+)", hd['Content-Security-Policy'])[1]
         check(page.count('nonce="' + nonce + '"') >= 2, 'inline script carries the CSP nonce')
+        check(page.count('nonce="' + nonce + '"') >= 3 and 'visual/assets/visual-live.js' in page and page.index('visual-live.js') < page.index('visual/assets/visual.js'), 'the browser converter loads (with the nonce) before the screen')
         token = json.loads(re.search(r'window\.__VISUAL_CSRF=("[^"]+")', page)[1])
         check(len(token) >= 32, 'CSRF token present')
 
@@ -248,7 +249,7 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-visual-test-') as tmp:
         st, r, _ = api(ed, 'render', {'id': 'index', 'text': 'x'})
         check(st == 403, 'render without token is refused')
         st, r, _ = api(ed, 'scope-css', {'css': 'h1{color:red}'}, token=token)
-        check(st == 200 and '.mikan-content-scope' in r['css'], 'scope css')
+        check(st in (400, 404), 'CSS is scoped in the browser (no scope-css call)')
 
         # ---- 7. 新規作成・複製
         st, r, _ = api(ed, 'create', {'id': 'vt_new', 'title': 'テスト'}, token=token)
