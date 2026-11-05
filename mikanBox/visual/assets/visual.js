@@ -605,15 +605,38 @@
       var body = ibtn('edit_note', editable ? T('visual_js_open_body') : T('visual_js_not_editable_title'), ''); body.disabled = !editable;
       var css = ibtn('palette', T('visual_js_open_css'), '');
       if (editable) { path.title = T('visual_js_open_body'); path.addEventListener('click', function () { openEditAt(it.at); }); body.addEventListener('click', function () { openEditAt(it.at); }); }
-      css.addEventListener('click', function () { showCssFor(it.sel); });
+      css.addEventListener('click', function () { pop.showCssChoices(it); });
       row.append(path, el('small', '', T('visual_js_n_matches', it.n)), body, css, cp); pop.appendChild(row);
     });
     if (!anyEditable) pop.appendChild(el('div', 'fv-pop-note', T('visual_js_not_editable_note')));
     if (!r.inScope) pop.appendChild(el('div', 'fv-pop-note', T('visual_js_outside_note')));
     document.body.appendChild(pop);
-    var w = pop.offsetWidth, h = pop.offsetHeight;
-    pop.style.left = Math.max(8, Math.min(x, innerWidth - w - 8)) + 'px';
-    pop.style.top = Math.max(8, Math.min(y + 12, innerHeight - h - 8)) + 'px';
+    place();
+    /** CSSボタン: その行の要素に当たる、または、その要素のクラス名・idを含むルールを、番号つきの選択肢で出す。選んだものを、CSSパネルに切り出す */
+    function showCssChoices(it) {
+      var P = active && active.kind === 'css' ? active : null;
+      (P ? Promise.resolve(P.getFull()) : jfetch(API('css') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (x) { return x.ok ? x.j.css : ''; })).then(function (css) {
+        var list = cssCandidates(css, it.at);
+        pop.textContent = '';
+        var head = el('div', 'fv-pop-title'), back = ibtn('arrow_back', T('visual_js_css_back'), 'fv-pop-back');
+        back.addEventListener('click', function () { showPop(target, x, y); });
+        head.append(back, el('span', '', T('visual_js_css_choices_of', it.sel))); pop.appendChild(head);
+        if (!list.length) pop.appendChild(el('div', 'fv-pop-note', T('visual_js_css_not_found')));
+        list.forEach(function (c, i) {
+          var b = el('button', 'fv-choice'); b.type = 'button';
+          b.append(el('b', '', String(i + 1)), el('code', '', c.label), el('small', '', c.kind === 'match' ? T('visual_js_css_applies') : T('visual_js_css_mentions')));
+          b.addEventListener('click', function () { openCssAt(list, i); });
+          pop.appendChild(b);
+        });
+        place();
+      });
+    }
+    function place() {
+      var w = pop.offsetWidth, h = pop.offsetHeight;
+      pop.style.left = Math.max(8, Math.min(x, innerWidth - w - 8)) + 'px';
+      pop.style.top = Math.max(8, Math.min(y + 12, innerHeight - h - 8)) + 'px';
+    }
+    pop.showCssChoices = showCssChoices;
   }
   // 画面幅の確認（iframe）の中でも、虫眼鏡で選べるようにする。位置は、iframe の位置を足して、親の画面の座標にする
   function frameBox(e, b) { var f = vpFrame && vpFrame.getBoundingClientRect(); return f ? { left: b.left + f.left, top: b.top + f.top, width: b.width, height: b.height } : b; }
@@ -647,58 +670,53 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && inspecting) { if (pop) closePop(); else setInspect(false); } });
 
   // ---------------------------------------------------------------- 本文ブロックの編集（虫眼鏡で選んだところを開く）
-  /** ブロックの Markdown/HTML から、いちばん外の要素の直下の子要素を、行の範囲（先頭からの相対）で返す。行が重なる・外側の開始/終了行と同じ行にあるものは、行では分けられないので数えない */
+  /** テキストの、いちばん外の要素の直下の子要素を、文字の位置（先頭からの相対。e は終わりの次）で返す。1行に書かれたHTMLでも、同じ行の要素どうしでも、分けられる */
   function childRanges(text) {
-    var starts = [0]; text.replace(/\n/g, function (m, i) { starts.push(i + 1); });
-    function lineOf(pos) { var lo = 0, hi = starts.length - 1; while (lo < hi) { var mid = (lo + hi + 1) >> 1; if (starts[mid] <= pos) lo = mid; else hi = mid - 1; } return lo; }
     var VOID = /^(area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)$/i;
-    var re = /<!--[\s\S]*?-->|<(\/?)([a-zA-Z][\w-]*)\b[^>]*?(\/?)>/g, m, stack = [], top = [], kids = [], root = null, rest = false;
+    var re = /<!--[\s\S]*?-->|<(\/?)([a-zA-Z][\w-]*)\b[^>]*?(\/?)>/g, m, stack = [], top = [], kids = [], lower = null;
     while ((m = re.exec(text))) {
       if (m[0].indexOf('<!--') === 0) continue;
-      var name = m[2].toLowerCase(), ln = lineOf(m.index), endLn = lineOf(m.index + m[0].length - 1);
+      var name = m[2].toLowerCase(), at = m.index, end = m.index + m[0].length;
       if (!m[1] && m[3] !== '/' && /^(script|style|textarea|title)$/.test(name)) {   // 中身は、タグとして読まない
-        var closeAt = text.toLowerCase().indexOf('</' + name, re.lastIndex); if (closeAt >= 0) re.lastIndex = closeAt;
+        lower = lower || text.toLowerCase();
+        var closeAt = lower.indexOf('</' + name, re.lastIndex); if (closeAt >= 0) re.lastIndex = closeAt;
       }
       if (m[1]) {
         var o = stack.pop(); if (!o || o.name !== name) return null;
-        o.close = endLn; o.closeOpenLn = ln;
-        if (!stack.length) { top.push(o); } else if (stack.length === 1) kids.push(o);
+        o.e = end; o.closeAt = at;
+        if (!stack.length) top.push(o); else if (stack.length === 1) kids.push(o);
       } else {
-        var self = m[3] === '/' || VOID.test(name), node = { name: name, open: ln, openEnd: endLn };
-        if (self) { node.close = endLn; node.closeOpenLn = ln; if (!stack.length) top.push(node); else if (stack.length === 1) kids.push(node); }
+        var node = { name: name, s: at, openEnd: end };
+        if (m[3] === '/' || VOID.test(name)) { node.e = end; node.closeAt = at; if (!stack.length) top.push(node); else if (stack.length === 1) kids.push(node); }
         else stack.push(node);
       }
     }
     if (stack.length || top.length !== 1) return null;
-    root = top[0];
-    var out = [], all = [], prev = root.openEnd;
-    kids.forEach(function (k) {
-      var ok = k.open > prev && k.close < root.closeOpenLn && k.open > root.openEnd, r = { s: k.open, e: k.close, name: k.name, usable: ok };
-      all.push(r); if (ok) { out.push(r); prev = k.close; }
-    });
-    return { name: root.name, kids: out, all: all };
+    var root = top[0], all = kids.map(function (k) { return { s: k.s, e: k.e, name: k.name, usable: true }; });
+    return { name: root.name, kids: all, all: all };
   }
 
   // ---------------------------------------------------------------- 編集対象の選択（下のパネルに、選んだ部分だけを切り出して出す）
   var LOADING_TAG = /\{\{\s*(NAV_LINKS|NAV_CARDS|POST_MD|EXT_MD|SEARCH_RESULTS)\b/;
-  var tgt = null;     // { a, b, path:[{tag,nth}], crumbs:[タグ名], trail:[[a,b]], root }  行は、本文全体の行番号（0始まり）
+  var tgt = null;     // { s, e, path:[{tag,nth}], crumbs:[タグ名], trail:[[s,e]], root, doc }  s,e は、本文全体の中の文字の位置（e は終わりの次）
   var tbar = null;    // 本文パネルの、編集対象のバー
   var cssbar = null;  // CSSパネルの、該当ルールのバー
   function mdPanel() { return active && active.kind === 'md' ? active : null; }
-  function nLines(text) { return text.split('\n').length; }
   function lineStart(text, n) { var p = 0; for (var i = 0; i < n; i++) { var q = text.indexOf('\n', p); if (q < 0) return text.length; p = q + 1; } return p; }
   function lineEnd(text, n) { var q = text.indexOf('\n', lineStart(text, n)); return q < 0 ? text.length : q; }
-  function targetText() { var P = mdPanel(); if (!P || !tgt) return ''; var f = P.getFull(); return f.slice(lineStart(f, tgt.a), lineEnd(f, tgt.b)); }
+  function lineOfPos(text, pos) { var n = 0, p = text.indexOf('\n'); while (p >= 0 && p < pos) { n++; p = text.indexOf('\n', p + 1); } return n; }
+  function targetText() { var P = mdPanel(); return P && tgt ? P.getFull().slice(tgt.s, tgt.e) : ''; }
 
   /** 編集対象の要素を、ページ（と画面幅の確認）の中から探す */
   function findTargetEls() {
     var out = []; if (!tgt) return out;
+    var P = mdPanel(), full = P ? P.getFull() : '', la = lineOfPos(full, tgt.s), lb = lineOfPos(full, Math.max(tgt.s, tgt.e - 1));
     liveDocs().forEach(function (d) {
       var cur;
       if (tgt.doc) cur = d.documentElement;
       else {
         var sc = d.querySelector('.mikan-content-scope'); if (!sc) return;
-        var blocks = [].slice.call(sc.querySelectorAll('[data-ln]')).filter(function (x) { var m = /^(\d+)-(\d+)$/.exec(x.getAttribute('data-ln')); return m && +m[1] <= tgt.a && tgt.b <= +m[2]; });
+        var blocks = [].slice.call(sc.querySelectorAll('[data-ln]')).filter(function (x) { var m = /^(\d+)-(\d+)$/.exec(x.getAttribute('data-ln')); return m && +m[1] <= la && lb <= +m[2]; });
         cur = blocks[Math.min(tgt.root, blocks.length - 1)];
       }
       for (var i = 0; cur && i < tgt.path.length; i++) {
@@ -720,32 +738,31 @@
       if (r.top < 48 || r.bottom > vh - 12) w.scrollBy({ top: r.top - Math.min(96, vh / 4), behavior: 'instant' });
     });
   }
-  /** 入力欄に出す部分を、編集対象の行に合わせる（選んでいなければ、全体） */
+  /** 入力欄に出す部分を、編集対象に合わせる（選んでいなければ、全体） */
   function applyTarget(reveal) {
     var P = mdPanel();
     if (!P) { clearMarks(); return; }
     if (!tgt) { P.showAll(); clearMarks(); tbar.paint(); return; }
-    var f = P.getFull(); P.showRange(lineStart(f, tgt.a), lineEnd(f, tgt.b));
-    P.ta.focus({ preventScroll: true }); tbar.paint(); markTarget(); if (reveal) revealOnPage();
+    P.showRange(tgt.s, tgt.e); P.ta.focus({ preventScroll: true }); tbar.paint(); markTarget(); if (reveal) revealOnPage();
   }
-  /** 入力欄を直したとき: 編集対象の行数に合わせて、終わりの行（と、外側の要素の終わりの行）をずらす */
+  /** 入力欄を直したとき: 編集対象の終わり（と、外側の要素の終わり）を、増減した文字数だけずらす */
   function onMdInput() {
     var P = mdPanel(); if (!P || !tgt || !P.view()) return;
-    var nb = tgt.a + nLines(P.ta.value) - 1, d = nb - tgt.b;
-    if (d !== 0) { tgt.b = nb; tgt.trail.forEach(function (r) { r[1] += d; }); }
+    var ne = P.view().e, d = ne - tgt.e;
+    if (d !== 0) { tgt.e = ne; tgt.trail.forEach(function (r) { r[1] += d; }); }
     tbar.paint();
   }
-  /** 選んだ要素（ページの中の位置）を、編集対象にする。中の要素なら、本文の行の範囲を、外から順に掘っていく */
+  /** 選んだ要素（ページの中の位置）を、編集対象にする。中の要素なら、文字の範囲を、外から順に掘っていく */
   function setTarget(a, b, path, root, doc) {
     var P = mdPanel(); if (!P) return;
-    var lines = P.getFull().split('\n');
-    tgt = { a: a, b: Math.min(b, lines.length - 1), path: [], crumbs: [], trail: [], root: root, doc: !!doc };
+    var full = P.getFull(), s = doc ? 0 : lineStart(full, a), e = doc ? full.length : lineEnd(full, b);
+    tgt = { s: s, e: e, path: [], crumbs: [], trail: [], root: root, doc: !!doc };
     for (var i = 0; i < path.length; i++) {
-      var info = childRanges(lines.slice(tgt.a, tgt.b + 1).join('\n')); if (!info) break;
+      var info = childRanges(full.slice(tgt.s, tgt.e)); if (!info) break;
       var same = info.all.filter(function (k) { return k.name === path[i].tag; }), k = same[path[i].nth];
-      if (!k || !k.usable) break;
-      tgt.trail.push([tgt.a, tgt.b]); tgt.crumbs.push(info.name); tgt.path.push(path[i]);
-      var a0 = tgt.a; tgt.a = a0 + k.s; tgt.b = a0 + k.e;
+      if (!k) break;
+      tgt.trail.push([tgt.s, tgt.e]); tgt.crumbs.push(info.name); tgt.path.push(path[i]);
+      var s0 = tgt.s; tgt.s = s0 + k.s; tgt.e = s0 + k.e;
     }
     tbar.reset(); applyTarget(true);
   }
@@ -763,29 +780,30 @@
     function innerTag() { return tgt.path[tgt.path.length - 1].tag; }
     function paint() {
       bar.style.display = tgt ? '' : 'none'; if (!tgt) return;
-      var info = childRanges(targetText()), n = info ? info.kids.length : 0;
+      var full = mdPanel().getFull(), info = childRanges(targetText()), n = info ? info.kids.length : 0;
+      var la = lineOfPos(full, tgt.s) + 1, lb = lineOfPos(full, Math.max(tgt.s, tgt.e - 1)) + 1;
       outo.disabled = !tgt.trail.length; into.disabled = !n; undo.disabled = !stack.length;
       into.innerHTML = ic('subdirectory_arrow_right') + (n ? '<span class="fv-badge">' + n + '</span>' : '');
       where.innerHTML = ic('account_tree') + tgt.crumbs.concat(info ? [info.name] : []).map(function (t) { return '<code>' + H(t) + '</code>'; }).join('<span class="fv-sep">›</span>')
-        + '<small>' + (tgt.a + 1) + (tgt.b > tgt.a ? '–' + (tgt.b + 1) : '') + '</small>';
+        + '<small>' + la + (lb > la ? '–' + lb : '') + '</small>';
       hint.style.display = LOADING_TAG.test(targetText()) ? '' : 'none';
     }
     function go(k, info) {
-      var a0 = tgt.a, nth = info.all.filter(function (x) { return x.name === k.name; }).indexOf(k);
-      tgt.trail.push([tgt.a, tgt.b]); tgt.crumbs.push(info.name); tgt.path.push({ tag: k.name, nth: nth }); tgt.a = a0 + k.s; tgt.b = a0 + k.e; kids.textContent = ''; applyTarget(true);
+      var s0 = tgt.s, nth = info.all.filter(function (x) { return x.name === k.name; }).indexOf(k);
+      tgt.trail.push([tgt.s, tgt.e]); tgt.crumbs.push(info.name); tgt.path.push({ tag: k.name, nth: nth }); tgt.s = s0 + k.s; tgt.e = s0 + k.e; kids.textContent = ''; applyTarget(true);
     }
     into.addEventListener('click', function () {
       var info = childRanges(targetText()); if (!info || !info.kids.length) return;
       if (info.kids.length === 1) { go(info.kids[0], info); return; }
       kids.textContent = '';
-      var lines = mdPanel().getFull().split('\n');
+      var text = targetText();
       info.kids.forEach(function (k, i) {
-        var t = lines.slice(tgt.a + k.s, tgt.a + k.e + 1).join(' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
+        var t = text.slice(k.s, k.e).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
         var kb = el('button', 'fv-kid', (i + 1) + ' <' + k.name + '> ' + t); kb.type = 'button'; kb.addEventListener('click', function () { go(k, info); }); kids.append(kb);
       });
     });
     outo.addEventListener('click', function () {
-      if (!tgt || !tgt.trail.length) return; var p = tgt.trail.pop(); tgt.crumbs.pop(); tgt.path.pop(); tgt.a = p[0]; tgt.b = p[1]; kids.textContent = ''; applyTarget(true);
+      if (!tgt || !tgt.trail.length) return; var p = tgt.trail.pop(); tgt.crumbs.pop(); tgt.path.pop(); tgt.s = p[0]; tgt.e = p[1]; kids.textContent = ''; applyTarget(true);
     });
     off.addEventListener('click', function () { tgt = null; kids.textContent = ''; applyTarget(false); });
     // 追加・複製・削除は、全体のテキストを直す。入力欄の取り消しは効かないので、専用の「元に戻す」を持つ
@@ -794,33 +812,42 @@
       var s = stack.pop(); if (!s || !mdPanel()) return; tgt = s.tgt; mdPanel().setFull(s.full); kids.textContent = ''; applyTarget(true);
     });
     function newPara() { return inner() ? '<' + innerTag() + '>' + T('visual_js_new_paragraph') + '</' + innerTag() + '>' : T('visual_js_new_paragraph'); }
-    /** 全体を newFull にして、(a..b) を新しい編集対象にする。外側の要素の終わりの行は、増えた行数だけずらす */
-    function edit(newFull, a, b, nthDelta) {
-      var P = mdPanel(), added = nLines(newFull) - nLines(P.getFull());
+    /** 要素が、行をまるごと使っているか（前後が改行か、端か）。使っていれば改行で区切り、同じ行の中なら、区切らずに並べる */
+    function wholeLines(f) {
+      var ls = f.lastIndexOf('\n', tgt.s - 1) + 1, le = f.indexOf('\n', tgt.e); if (le < 0) le = f.length;
+      return f.slice(ls, tgt.s).trim() === '' && f.slice(tgt.e, le).trim() === '';
+    }
+    function sepFor(f) { return inner() ? (wholeLines(f) ? '\n' : '') : '\n\n'; }
+    /** newFull にして、[s, e) を新しい編集対象にする。外側の要素の終わりは、増えた文字数だけずらす */
+    function edit(newFull, s, e, nthDelta) {
+      var P = mdPanel(), added = newFull.length - P.getFull().length;
       snap(); P.setFull(newFull);
       tgt.trail.forEach(function (r) { r[1] += added; });
-      tgt.a = a; tgt.b = b; if (nthDelta && tgt.path.length) tgt.path[tgt.path.length - 1].nth += nthDelta; if (!inner()) tgt.root = 0;
+      tgt.s = s; tgt.e = e; if (nthDelta && tgt.path.length) tgt.path[tgt.path.length - 1].nth += nthDelta; if (!inner()) tgt.root = 0;
       applyTarget(true);
     }
     above.addEventListener('click', function () {
-      var P = mdPanel(); if (!P || !tgt) return; var f = P.getFull(), pos = lineStart(f, tgt.a), a = tgt.a;
-      edit(f.slice(0, pos) + newPara() + (inner() ? '\n' : '\n\n') + f.slice(pos), a, a, 0);
+      var P = mdPanel(); if (!P || !tgt) return; var f = P.getFull(), t = newPara(), sep = sepFor(f), s = tgt.s;
+      edit(f.slice(0, s) + t + sep + f.slice(s), s, s + t.length, 0);
     });
     below.addEventListener('click', function () {
-      var P = mdPanel(); if (!P || !tgt) return; var f = P.getFull(), pos = lineEnd(f, tgt.b), n = inner() ? 1 : 2, nb = tgt.b + n;
-      edit(f.slice(0, pos) + (inner() ? '\n' : '\n\n') + newPara() + f.slice(pos), nb, nb, 1);
+      var P = mdPanel(); if (!P || !tgt) return; var f = P.getFull(), t = newPara(), sep = sepFor(f), e = tgt.e;
+      edit(f.slice(0, e) + sep + t + f.slice(e), e + sep.length, e + sep.length + t.length, 1);
     });
     dup.addEventListener('click', function () {
-      var P = mdPanel(); if (!P || !tgt) return; var f = P.getFull(), src = targetText(), pos = lineEnd(f, tgt.b), n = inner() ? 1 : 2, na = tgt.b + n;
-      edit(f.slice(0, pos) + (inner() ? '\n' : '\n\n') + src + f.slice(pos), na, na + nLines(src) - 1, 1);
+      var P = mdPanel(); if (!P || !tgt) return; var f = P.getFull(), src = targetText(), sep = sepFor(f), e = tgt.e;
+      edit(f.slice(0, e) + sep + src + f.slice(e), e + sep.length, e + sep.length + src.length, 1);
     });
     del.addEventListener('click', function () {
       var P = mdPanel(); if (!P || !tgt) return;
       if (del.dataset.armed === '1') {
         clearTimeout(delTimer); del.dataset.armed = '0'; del.classList.remove('armed'); del.innerHTML = ic('delete');
-        var f = P.getFull(), s = lineStart(f, tgt.a), e = lineEnd(f, tgt.b), next = f.indexOf('\n', e) < 0 ? e : e + 1;
-        if (!inner() && tgt.b + 1 < nLines(f) && f.slice(next, lineEnd(f, tgt.b + 1)).trim() === '') next = Math.min(f.length, lineEnd(f, tgt.b + 1) + 1);
-        snap(); P.setFull(f.slice(0, s) + f.slice(Math.min(f.length, next))); tgt = null; kids.textContent = ''; applyTarget(false); return;
+        var f = P.getFull(), s = tgt.s, e = tgt.e;
+        if (wholeLines(f)) {   // 行をまるごと使っているときは、行ごと（ページ直下のブロックは、後ろの空行も）消す
+          s = f.lastIndexOf('\n', tgt.s - 1) + 1; e = f.indexOf('\n', tgt.e); e = e < 0 ? f.length : e + 1;
+          if (!inner() && /^[ \t]*\n/.test(f.slice(e))) e += f.slice(e).indexOf('\n') + 1;
+        }
+        snap(); P.setFull(f.slice(0, s) + f.slice(e)); tgt = null; kids.textContent = ''; applyTarget(false); return;
       }
       del.dataset.armed = '1'; del.innerHTML = ic('delete') + '<span class="fv-lb">' + H(T('visual_js_delete_really')) + '</span>'; del.classList.add('armed');
       delTimer = setTimeout(function () { del.dataset.armed = '0'; del.innerHTML = ic('delete'); del.classList.remove('armed'); }, 3500);
@@ -829,37 +856,60 @@
     return { el: bar, paint: paint, reset: function () { stack = []; kids.textContent = ''; } };
   }
 
-  // ---------------------------------------------------------------- CSS: セレクタに当たるルールだけを切り出す
+  // ---------------------------------------------------------------- CSS: 選んだ要素に当たっているルールだけを切り出す
   function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-  /** CSSのテキストの中で、セレクタ（なければ、その末尾・クラス名）のルール { s, e } を、出てきた順に返す */
-  function cssRulesFor(css, sel) {
-    var last = sel.split(/\s+/).pop(), cm = /\.[\w-]+/.exec(last), cands = [sel, last, cm && cm[0]].filter(Boolean);
-    // コメントと文字列の中は、同じ長さの空白にして探す（コメントに書かれた名前に、反応しないため）
-    var plain = css.replace(/\/\*[\s\S]*?(\*\/|$)|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, function (x) { return x.replace(/[^\n]/g, ' '); });
-    for (var ci = 0; ci < cands.length; ci++) {
-      var re = new RegExp('(^|[^\\w-])(' + escRe(cands[ci]) + ')(?![\\w-])', 'g'), m, out = [], seen = {};
-      while ((m = re.exec(plain))) {
-        var idx = m.index + m[1].length, brace = plain.indexOf('{', idx);
-        if (brace < 0 || /[;}]/.test(plain.slice(idx, brace))) continue;          // セレクタの位置ではない（値の中など）
-        var st = idx; while (st > 0 && !/[;{}]/.test(plain.charAt(st - 1))) st--;
-        while (st < idx && /\s/.test(plain.charAt(st))) st++;
-        var depth = 0, en = css.length;
-        for (var k = brace; k < css.length; k++) { var ch = plain.charAt(k); if (ch === '{') depth++; else if (ch === '}' && --depth === 0) { en = k + 1; break; } }
-        if (!seen[st]) { seen[st] = 1; out.push({ s: st, e: en }); }
-      }
-      if (out.length) return { rules: out, matched: cands[ci] };
+  /** コメントと文字列の中を、同じ長さの空白にする（位置は変えない） */
+  function maskCss(css) {
+    return css.replace(/\/\*[\s\S]*?(\*\/|$)|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, function (x) { return x.replace(/[^\n]/g, ' '); });
+  }
+  function matchBrace(plain, i) {   // plain[i] は {。対応する } の次の位置
+    var depth = 0;
+    for (var k = i; k < plain.length; k++) { var c = plain.charAt(k); if (c === '{') depth++; else if (c === '}' && --depth === 0) return k + 1; }
+    return plain.length;
+  }
+  function splitSelectors(head) {
+    var out = [], depth = 0, cur = '';
+    for (var i = 0; i < head.length; i++) {
+      var c = head.charAt(i);
+      if (c === '(' || c === '[') depth++; else if (c === ')' || c === ']') depth--;
+      if (c === ',' && depth === 0) { out.push(cur.trim()); cur = ''; } else cur += c;
     }
-    return null;
+    out.push(cur.trim()); return out.filter(Boolean);
+  }
+  /** CSSのテキストの、すべてのルール { s, e, sels } を、出てきた順に返す（@media などの中も読む） */
+  function cssRuleList(css) {
+    var plain = maskCss(css), out = [], i = 0, start = 0, n = plain.length;
+    while (i < n) {
+      var ch = plain.charAt(i);
+      if (ch === ';' || ch === '}') { start = i + 1; i++; continue; }
+      if (ch === '{') {
+        var head = plain.slice(start, i).trim(), end = matchBrace(plain, i);
+        if (head.charAt(0) === '@') {
+          if (/^@(media|supports|layer|container|document|scope|starting-style)\b/i.test(head)) { start = i + 1; i++; continue; }   // 中のルールを、続けて読む
+          start = end; i = end; continue;   // @keyframes・@font-face など
+        }
+        var s = start; while (s < i && /\s/.test(plain.charAt(s))) s++;
+        out.push({ s: s, e: end, sels: splitSelectors(head) }); start = end; i = end; continue;
+      }
+      i++;
+    }
+    return out;
+  }
+  /** 見た目のきっかけ（:hover など）と疑似要素を外して、要素に当たるかを調べられる形にする */
+  function cleanSel(sel) {
+    var c = sel.replace(/:global\(([^)]*)\)/g, '$1').replace(/::?(before|after|first-line|first-letter|placeholder|marker|selection|backdrop)\b/gi, '')
+      .replace(/:(hover|focus|focus-within|focus-visible|active|visited|target)\b/gi, '').trim();
+    return c && !/[>+~]$/.test(c) && c.indexOf('&') < 0 ? c : '';
   }
   function buildCssBar() {
     var bar = el('div', 'fv-tbar'), row = el('div', 'fv-tbar-row'), what = el('span', 'fv-where');
     var prev = ibtn('arrow_upward', T('visual_js_css_prev'), ''), next = ibtn('arrow_downward', T('visual_js_css_next'), ''), off = ibtn('close', T('visual_js_show_all'), '');
     row.append(what, prev, next, off); bar.append(row); bar.style.display = 'none';
-    var rules = [], cur = 0, label = '';
+    var rules = [], cur = 0;
     function paint() {
       var P = active && active.kind === 'css' ? active : null;
       bar.style.display = P && P.view() ? '' : 'none'; if (!P || !P.view()) return;
-      what.innerHTML = ic('palette') + '<code>' + H(label) + '</code><small>' + (cur + 1) + ' / ' + rules.length + '</small>';
+      what.innerHTML = ic('palette') + '<code>' + H(rules[cur].label || '') + '</code><small>' + (cur + 1) + ' / ' + rules.length + '</small>';
       prev.disabled = cur <= 0; next.disabled = cur >= rules.length - 1;
     }
     function show(i) { var P = active; cur = i; P.showRange(rules[i].s, rules[i].e); P.ta.focus({ preventScroll: true }); paint(); }
@@ -868,20 +918,35 @@
     off.addEventListener('click', function () { rules = []; active.showAll(); paint(); });
     return {
       el: bar, paint: paint,
-      set: function (r, sel) { rules = r; label = sel; show(0); },
+      set: function (r, first) { rules = r; show(first || 0); },
       /** 入力欄を直したあと: 切り出している範囲より後ろの、ほかのルールを、増減に合わせてずらす */
       shift: function (delta) { if (!delta) return; for (var j = cur + 1; j < rules.length; j++) { rules[j].s += delta; rules[j].e += delta; } rules[cur].e = active.view() ? active.view().e : rules[cur].e; paint(); }
     };
   }
   function onCssInput(delta) { if (cssbar) cssbar.shift(delta); }
-  function showCssFor(sel) {
-    function go() {
-      var P = active && active.kind === 'css' ? active : null; if (!P) return;
-      var r = cssRulesFor(P.getFull(), sel);
-      if (!r) { toast(T('visual_js_css_not_found')); return; }
-      cssbar.set(r.rules, r.matched);
-    }
+  /** 要素に関係するルール（出てきた順）: 要素に当たるもの（match）と、要素のクラス名・idをセレクタに含むもの（mention。たとえば .a-mikan p は、.a-mikan の中の p に当たる） */
+  function cssCandidates(css, at) {
+    var tokens = [].slice.call(at.classList).filter(function (c) { return !/^fv-/.test(c); }).map(function (c) { return '.' + c; });
+    if (at.id) tokens.push('#' + at.id);
+    var res = tokens.map(function (t) { return new RegExp('(^|[^\\w-])' + escRe(t) + '(?![\\w-])'); });
+    var out = [];
+    cssRuleList(css).forEach(function (r) {
+      var matched = null, mentioned = null;
+      r.sels.forEach(function (sel) {
+        var c = cleanSel(sel), ok = false;
+        if (c) { try { ok = at.matches(c); } catch (e) { ok = false; } }
+        if (ok && !matched) matched = sel;
+        if (!mentioned && res.some(function (re) { return re.test(sel); })) mentioned = sel;
+      });
+      if (matched) out.push({ s: r.s, e: r.e, label: matched, kind: 'match' });
+      else if (mentioned) out.push({ s: r.s, e: r.e, label: mentioned, kind: 'mention' });
+    });
+    return out;
+  }
+  /** 選択肢の中の i 番目を、CSSパネルに切り出す（前後の矢印で、ほかの選択肢にも移れる） */
+  function openCssAt(list, i) {
     closePop(); setInspect(false);
+    function go() { cssbar.set(list, i); }
     if (active && active.kind === 'css') go(); else openPanel('css', go);
   }
 
@@ -891,7 +956,7 @@
     var ln = ep.doc ? '' : ep.blk.getAttribute('data-ln'), m = ep.doc ? [0, 0, 0] : /^(\d+)-(\d+)$/.exec(ln); if (!m) return false;
     var root = ep.doc ? 0 : Math.max(0, [].slice.call(ep.blk.ownerDocument.querySelectorAll('[data-ln="' + ln + '"]')).indexOf(ep.blk));
     setInspect(false);
-    function go() { if (ep.doc) setTarget(0, mdPanel().getFull().split('\n').length - 1, ep.path, 0, true); else setTarget(+m[1], +m[2], ep.path, root); }
+    function go() { setTarget(+m[1], +m[2], ep.path, root, !!ep.doc); }
     if (active && active.kind === 'md') go(); else openPanel('md', go);
     return true;
   }

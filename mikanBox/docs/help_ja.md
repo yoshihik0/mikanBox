@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.15.1</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.16.0</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -507,7 +507,7 @@ JavaScriptにはCSSのスコープ設定は適用されません。JS欄ではMa
 - 文字を直すと、その場でページに反映されます（画面幅の確認の中にも反映されるので、**スマホ幅のまま**直せます）。保存は ⌘/Ctrl+Enter か、パネル右上の保存ボタンです。保存しても、ページは読み込み直されません。未保存のあいだは「未保存」と出ます。
 - 選んだあとの切り替えるモードはありません。「本文」パネルの中ほどにある**編集対象のバー**で、どの要素を選んでいるかが `nav › div › a` のように出て、本文全体での行番号も分かります。[[close]{.material-symbols-outlined}]{.m-btn} で、切り出しをやめて、全体を表示できます。
 - 本文のブロックではない場所（レイアウトなど）を選んだときは、本文のボタンが押せなくなり、理由が出ます。本文の中に選べるまとまりがないページでは、画面の下に案内が出ます。「Raw HTML」のページも、同じように選べます。`<html>` から `<body>` までを持つ文書のページでは、`html › body › main › section › p` のように、タグの階層をたどって選びます（ページの `<script>` や `<style>` の中の文字は、タグとして読みません）。
-- 編集対象が `<div>` や `<ul>` のような入れ物のときは、バーの [[subdirectory_arrow_right]{.material-symbols-outlined}]{.m-btn} で、**中の要素を選び直せます**（バッジの数字が、中の要素の数です）。中が1つならそのまま、並んでいれば「1 `<li>` …」のように番号で選びます。[[arrow_back]{.material-symbols-outlined}]{.m-btn} でひとつ外に戻ります（入力欄に出る部分が、そのぶん変わります）。開きタグと子要素、または子要素どうしが同じ行にあるものは、行で分けられないので選べません。
+- 編集対象が `<div>` や `<ul>` のような入れ物のときは、バーの [[subdirectory_arrow_right]{.material-symbols-outlined}]{.m-btn} で、**中の要素を選び直せます**（バッジの数字が、中の要素の数です）。中が1つならそのまま、並んでいれば「1 `<li>` …」のように番号で選びます。[[arrow_back]{.material-symbols-outlined}]{.m-btn} でひとつ外に戻ります（入力欄に出る部分が、そのぶん変わります）。要素の範囲は、行ではなく**文字の位置**で分けるので、HTMLが1行に書かれていても、同じ行に並んでいても、選べます。
 - バーの [[add_row_above]{.material-symbols-outlined}]{.m-btn} [[add_row_below]{.material-symbols-outlined}]{.m-btn} で、選んだ要素の上・下に段落を足し（中の要素のときは、同じタグで包んで足します）、[[content_copy]{.material-symbols-outlined}]{.m-btn} で複製し、[[delete]{.material-symbols-outlined}]{.m-btn} で削除します（削除は確認のため、**2回押します**）。これらは、切り出した部分の外も変えるので、入力欄の ⌘/Ctrl+Z ではなく、バーの [[undo]{.material-symbols-outlined}]{.m-btn} で、ひとつずつ戻せます。文字を直すときの ⌘/Ctrl+Z は、これまでどおり入力欄で効きます。
 - 入力欄の上のバーで、見出し・太字・斜体・リンク・箇条書き・番号つきリスト・引用・コード・画像を入れられます（⌘/Ctrl+B・I・K も使えます）。
 - 入力欄の上のバーの [[image]{.material-symbols-outlined}]{.m-btn} で、`media` フォルダの**画像の一覧**が開きます（新しい順。名前で絞り込めます）。選ぶと、カーソルの位置に Markdown の `![](ファイル名)` が入ります。一覧の「追加」で、新しい画像を入れることもできます。画像は、入力欄に**貼り付け**（またはドラッグ）でも入れられます（png・jpg・gif・webp、10MBまで）。
@@ -517,7 +517,7 @@ JavaScriptにはCSSのスコープ設定は適用されません。JS欄ではMa
 #### 本文全体・ページ専用CSS
 
 - 右下の「本文」を押すと、選ばずに、ページ本文の全体を開けます。
-- 「CSS」で、そのページ専用のCSSを直せます。入力しながら反映され、保存は ⌘/Ctrl+Enter です。未保存のまま閉じると、元に戻ります。虫眼鏡のセレクタの行の [[palette]{.material-symbols-outlined}]{.m-btn} からは、**そのセレクタのルールだけ**が切り出されて開きます（CSSのコメントや文字列の中に書かれた同じ名前は、無視します）。同じセレクタのルールが複数あるとき（`@media` の中など）は、バーの [[arrow_upward]{.material-symbols-outlined}]{.m-btn} [[arrow_downward]{.material-symbols-outlined}]{.m-btn} で、前後の該当に移れます。[[close]{.material-symbols-outlined}]{.m-btn} で全体を表示します。
+- 「CSS」で、そのページ専用のCSSを直せます。入力しながら反映され、保存は ⌘/Ctrl+Enter です。未保存のまま閉じると、元に戻ります。虫眼鏡のセレクタの行の [[palette]{.material-symbols-outlined}]{.m-btn} を押すと、その行の要素に関係する**CSSのルールの一覧**が、`1 .a-mikan`、`2 .a-mikan p` のように、番号つきの選択肢で出ます。「当たる」はその要素に実際に当たっているルール（`:hover` つきのものも含む）、「名前を含む」はその要素のクラス名・idをセレクタに含むルール（`.a-mikan p` のように、中の要素に当たるもの）です。選んだルールだけが切り出されて、CSSパネルに開きます。バーの [[arrow_upward]{.material-symbols-outlined}]{.m-btn} [[arrow_downward]{.material-symbols-outlined}]{.m-btn} で、ほかの選択肢にも移れ、[[close]{.material-symbols-outlined}]{.m-btn} で全体を表示します。CSSのコメントや文字列の中に書かれた名前は、無視します。一覧に出ないときは、ページ専用CSSではなく、サイト全体や部品のCSSにあるかもしれません。
 
 #### 元に戻す・やり直す
 
@@ -534,7 +534,7 @@ JavaScriptにはCSSのスコープ設定は適用されません。JS欄ではMa
 
 #### 確かめる道具
 
-- 虫眼鏡（選んで編集）: ページ上の要素をクリックすると、その要素のセレクタ（クラス名など）の候補が出ます。上の行はクリックした要素、下の行ほど外側の親です。各行には、パスのクリックと同じ [[edit_note]{.material-symbols-outlined}]{.m-btn}（その階層の要素を、下の「本文」で選択。本文の中の要素のときだけ）、[[palette]{.material-symbols-outlined}]{.m-btn}（ページ専用CSSを開いて、そのセレクタの場所へ移動。見つからないときは、サイト全体や部品のCSSにある可能性を知らせます）、[[content_copy]{.material-symbols-outlined}]{.m-btn}（コピー）があります。
+- 虫眼鏡（選んで編集）: ページ上の要素をクリックすると、その要素のセレクタ（クラス名など）の候補が出ます。上の行はクリックした要素、下の行ほど外側の親です。各行には、パスのクリックと同じ [[edit_note]{.material-symbols-outlined}]{.m-btn}（その階層の要素を、下の「本文」で選択。本文の中の要素のときだけ）、[[palette]{.material-symbols-outlined}]{.m-btn}（その階層の要素に関係するCSSのルールを、選択肢で選ぶ）、[[content_copy]{.material-symbols-outlined}]{.m-btn}（コピー）があります。
 - 画面幅: スマホ（375）・タブレット（768）・PC（1200）の幅で、同じページを表示します。CSSの入力は、この表示にも、すぐ反映されます。この中でも、虫眼鏡で場所を選べます。確認を閉じずに、下の「本文」で直せて、直した内容もこの表示にすぐ反映されます。「全幅」は、確認を終えて、ふつうの画面に戻ります。
 
 #### 安全のためのきまりと制限
