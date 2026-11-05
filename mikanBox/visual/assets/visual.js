@@ -18,8 +18,6 @@
   function H(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   function API(name) { return ADMIN.api + '?api=' + name; }
   var root = document.documentElement;
-  var on = sessionStorage.getItem('fv-on') !== '0';
-  root.classList.toggle('fv-on', on);
 
   function ic(name) { return '<span class="material-symbols-outlined fv-ic">' + name + '</span>'; }
   function el(tag, cls, text, title) {
@@ -43,7 +41,7 @@
   pushRecent(PAGE);
   /** 目印のコメント <!--fv:a-b--> … <!--/fv--> の間にある要素に、data-ln="a-b" を付ける */
   function applyLn(rootEl) {
-    var w = document.createTreeWalker(rootEl, NodeFilter.SHOW_COMMENT), list = [], n;
+    var w = rootEl.ownerDocument.createTreeWalker(rootEl, NodeFilter.SHOW_COMMENT), list = [], n;
     while ((n = w.nextNode())) list.push(n);
     list.forEach(function (c) {
       var m = /^fv:(\d+-\d+)$/.exec(c.nodeValue); if (!m) return;
@@ -59,13 +57,15 @@
     [].slice.call(rootEl.querySelectorAll('a[href]')).forEach(function (a) {
       if (a.closest('.fv-ui')) return;
       var u; try { u = new URL(a.getAttribute('href'), location.href); } catch (e) { return; }
-      if (u.origin !== location.origin) { a.target = '_blank'; a.rel = 'noopener'; return; }   // 外部サイトは別タブ（編集画面から出ない）
+      function out() { a.target = '_blank'; a.rel = 'noopener'; a.setAttribute('data-fv-out', '1'); }   // 編集画面ではないところへ行くリンクは、別タブ（編集画面から出ない）
+      if (u.origin !== location.origin) { out(); return; }
       if (ADMIN.pick && u.pathname.indexOf(ADMIN.pick) === 0) return;
       var base = ADMIN.site || '/', path = decodeURIComponent(u.pathname);
-      if (path.indexOf(base) !== 0) return;
+      if (u.pathname === location.pathname && u.hash) return;   // 同じページの中（#…）
+      if (path.indexOf(base) !== 0) { out(); return; }
       path = path.slice(base.length).replace(/^\/+/, '').replace(/\.html$/, '').replace(/\/index$/, '').replace(/\/+$/, '');
       var id = (path === '' || path === 'index.php') ? (u.searchParams.get('page') || 'index') : path;
-      if (ids[id]) a.setAttribute('href', ADMIN.view + id.split('/').map(encodeURIComponent).join('/') + u.hash);
+      if (ids[id]) a.setAttribute('href', ADMIN.view + id.split('/').map(encodeURIComponent).join('/') + u.hash); else out();
     });
   }
   function linkPageId(a) {
@@ -84,24 +84,23 @@
   var tgPoints = ibtn('history', T('visual_js_points_title'), 'fv-toggle fv-icon');
   var sep2 = el('span', 'fv-sep');
   var tgView = ibtn('devices', T('visual_js_view_title'), 'fv-toggle fv-icon');
-  var tgInspect = ibtn('search', T('visual_js_inspect_title'), 'fv-toggle fv-icon');
+  var tgInspect = ibtn('search', T('visual_js_inspect_title'), 'fv-toggle', T('visual_js_inspect_label'));
   var tgMd = ibtn('edit_note', T('visual_js_md_title'), 'fv-toggle', T('visual_js_md_label'));
   var tgCss = ibtn('palette', T('visual_js_css_title'), 'fv-toggle', 'CSS');
-  var tgEdit = ibtn('edit', T('visual_js_edit_toggle_title'), 'fv-toggle');
-  var tgBrowse = ibtn('touch_app', T('visual_js_browse_title'), 'fv-toggle');
-  dock.append(tgPages, lnkList, lnkPage, sep1, tgUndo, tgRedo, tgPoints, sep2, tgView, tgBrowse, tgInspect, tgMd, tgCss, tgEdit); document.body.appendChild(dock);
-  // 3つの使い方: 編集（クリックで直す）/ 閲覧（リンクをたどって見て回る。サイト内のリンクは、そのページのビジュアル編集で開く）/ 検査（虫眼鏡）
-  function paintMode() {
-    var edit = on && !inspecting, browse = !on && !inspecting;
-    tgEdit.innerHTML = ic('edit') + (edit ? '<span class="fv-lb">' + H(T('visual_js_editing')) + '</span>' : ''); tgEdit.classList.toggle('active', edit);
-    tgBrowse.innerHTML = ic('touch_app') + (browse ? '<span class="fv-lb">' + H(T('visual_js_browsing')) + '</span>' : ''); tgBrowse.classList.toggle('active', browse);
+  dock.append(tgPages, lnkList, lnkPage, sep1, tgUndo, tgRedo, tgPoints, sep2, tgView, tgInspect, tgMd, tgCss); document.body.appendChild(dock);
+  // 使い方は1つだけ: ふだんは閲覧（クリックでリンクをたどる。サイト内のリンクは、そのページのビジュアル編集で開く）。直したいところは、虫眼鏡で選ぶ
+  var pageNote = null;
+  if (scopeEl() && !scopeEl().querySelector('[data-ln]')) {   // 本文がクリックで選べないページ（Raw HTML など）
+    pageNote = el('div', 'fv-pagenote fv-ui'); pageNote.innerHTML = ic('info') + '<span>' + H(T('visual_js_page_not_clickable')) + '</span>'; document.body.appendChild(pageNote);
   }
-  function setMode(m) {
-    setInspect(false); on = m === 'edit'; sessionStorage.setItem('fv-on', on ? '1' : '0'); root.classList.toggle('fv-on', on); paintMode();
-  }
-  paintMode();
-  tgEdit.addEventListener('click', function () { setMode('edit'); });
-  tgBrowse.addEventListener('click', function () { setMode('browse'); });
+  /** 別タブで開くリンク（編集画面ではないところ）に、触れたときだけ、目印を出す */
+  var outChip = null;
+  document.addEventListener('mouseover', function (e) {
+    var a = e.target.closest && e.target.closest('a[data-fv-out]');
+    if (!a || a.closest('.fv-ui')) { if (outChip) { outChip.remove(); outChip = null; } return; }
+    if (!outChip) { outChip = el('div', 'fv-outchip fv-ui'); outChip.innerHTML = ic('open_in_new') + '<span>' + H(T('visual_js_out_chip')) + '</span>'; document.body.appendChild(outChip); }
+    var r = a.getBoundingClientRect(); outChip.style.left = Math.max(8, Math.min(r.left, innerWidth - 300)) + 'px'; outChip.style.top = Math.max(8, r.top - 34) + 'px';
+  });
 
   var toastEl = null, toastTimer = null;
   function toast(t) {
@@ -320,15 +319,15 @@
     vp = el('div', 'fv-vp fv-ui');
     var bar = el('div', 'fv-vp-bar');
     var sizes = [['smartphone', '375', 375], ['tablet_mac', '768', 768], ['desktop_windows', '1200', 1200], ['width_full', T('visual_js_full_width'), 0]];
-    var btns = sizes.map(function (s) { var b = ibtn(s[0], T('visual_js_show_at', s[1]), 'fv-vp-b', s[1]); b.addEventListener('click', function () { setWidth(s[2]); }); return b; });
+    var btns = sizes.map(function (s) { var b = ibtn(s[0], s[2] ? T('visual_js_show_at', s[1]) : T('visual_js_vp_off'), 'fv-vp-b', s[1]); b.addEventListener('click', function () { if (s[2]) setWidth(s[2]); else closeViewport(); }); return b; });   // 全幅は、確認を終えること
     var close = ibtn('close', T('btn_close'), 'fv-vp-close'); close.addEventListener('click', closeViewport);
-    bar.append.apply(bar, btns.concat([close]));
+    bar.append.apply(bar, btns.concat([el('span', 'fv-vp-note', T('visual_js_vp_note')), close]));
     var stage = el('div', 'fv-vp-stage');
     vpFrame = el('iframe'); vpFrame.src = location.pathname + (location.search ? location.search + '&' : '?') + 'fv-frame=1';
     stage.appendChild(vpFrame); vp.append(bar, stage); document.body.appendChild(vp);
-    function setWidth(w) { vpWidth = w; vpFrame.style.width = w ? w + 'px' : '100%'; btns.forEach(function (b, i) { b.classList.toggle('on', sizes[i][2] === w); }); }
-    setWidth(vpWidth);
-    vpFrame.addEventListener('load', function () { if (active && active.dirty()) active.live(); });
+    function setWidth(w) { vpWidth = w; vpFrame.style.width = w + 'px'; btns.forEach(function (b, i) { b.classList.toggle('on', sizes[i][2] === w); }); }
+    setWidth(vpWidth || 375);
+    vpFrame.addEventListener('load', function () { bindFrame(); if (active && active.dirty()) active.live(); });
   }
   tgView.addEventListener('click', openViewport);
 
@@ -382,11 +381,9 @@
       mediaCache = null; insertImage(ta, x.j.name); say('');
     }).catch(function () { say(T('visual_js_upload_failed')); });
   }
-  /** 画像を入れる: HTMLの中なら {{IMAGE:名前}}、Markdownなら ![](名前)（{{IMAGE}} に使えない名前は、Markdownの形） */
+  /** 画像を入れる: いつも Markdown の ![](名前) */
   function insertImage(ta, name) {
-    var v = ta.value, ls = v.lastIndexOf('\n', ta.selectionStart - 1) + 1, le = v.indexOf('\n', ta.selectionStart); if (le < 0) le = v.length;
-    var inHtml = /^\s*</.test(v.slice(ls, le)) || v.trim().charAt(0) === '<';
-    var tag = inHtml && /^[a-zA-Z0-9_\-.]+$/.test(name) ? '{{IMAGE:' + name + '}}' : '![](' + name + ')', s0 = ta.selectionStart;
+    var tag = '![](' + name + ')', s0 = ta.selectionStart;
     replaceRange(ta, s0, ta.selectionEnd, tag, s0 + tag.length, s0 + tag.length);
   }
   // 画像ピッカー: media の画像を、新しい順にサムネイルで並べる。選ぶと、カーソルの位置に入る
@@ -485,7 +482,7 @@
     if (was) { sessionStorage.setItem('fv-scroll', String(window.scrollY)); location.reload(); }
     return true;
   }
-  function openPanel(kind) {
+  function openPanel(kind, after) {
     if (active && active.kind === kind) return;
     if (active && !closePanel(false)) return;
     var K = KINDS[kind];
@@ -517,6 +514,7 @@
         if (ev.key === 'Tab') { ev.preventDefault(); var s = ta.selectionStart; replaceRange(ta, s, ta.selectionEnd, '  ', s + 2, s + 2); }
       });
       ta.focus();
+      if (after) after();
     });
   }
   tgCss.addEventListener('click', function () { if (active && active.kind === 'css') closePanel(false); else openPanel('css'); });
@@ -527,20 +525,20 @@
   var inspecting = false, hl = el('div', 'fv-hl fv-ui'), pop = null;
   document.body.appendChild(hl);
   function closePop() { if (pop) { pop.remove(); pop = null; } }
-  function setInspect(v) { inspecting = v; tgInspect.classList.toggle('active', v); root.classList.toggle('fv-inspect', v); hl.style.display = 'none'; if (!v) closePop(); paintMode(); }
+  function setInspect(v) { inspecting = v; tgInspect.classList.toggle('active', v); root.classList.toggle('fv-inspect', v); hl.style.display = 'none'; if (!v) closePop(); frameInspect(v); }
   tgInspect.addEventListener('click', function () { setInspect(!inspecting); });
   function cls(e) { return [].slice.call(e.classList).filter(function (c) { return !/^fv-|^mikan-content-scope$/.test(c); }); }
   function simple(e) { return e.tagName.toLowerCase() + cls(e).map(function (c) { return '.' + CSS.escape(c); }).join(''); }
   function count(rootEl, sel) { try { return rootEl.querySelectorAll(sel).length; } catch (e) { return 0; } }
   function selectorsFor(target) {
-    var scope = scopeEl(), inScope = !!(scope && scope.contains(target) && target !== scope);
-    var rootEl = inScope ? scope : document.body, out = [], seen = {};
+    var doc = target.ownerDocument, scope = doc.querySelector('.mikan-content-scope'), inScope = !!(scope && scope.contains(target) && target !== scope);
+    var rootEl = inScope ? scope : doc.body, out = [], seen = {};
     function add(sel, at) { if (!sel || seen[sel]) return; seen[sel] = 1; out.push({ sel: sel, n: count(rootEl, sel), at: at || target }); }   // at: セレクタの先頭の要素（その階層）
     var c = cls(target);
     if (c.length) add('.' + CSS.escape(c[0]));
     add(simple(target));
     var parts = [simple(target)], cur = target.parentElement;
-    for (var i = 0; i < 5 && cur && cur !== rootEl && cur !== document.body; i++) {
+    for (var i = 0; i < 5 && cur && cur !== rootEl && cur !== doc.body; i++) {
       parts.unshift(simple(cur)); var sel = parts.join(' ');
       add(sel, cur); if (count(rootEl, sel) === 1) break; cur = cur.parentElement;
     }
@@ -557,25 +555,86 @@
     }
     return { blk: blk, path: path };
   }
+  /** 本文のブロックの、その階層の要素を編集対象にして、エディタを開く。画面幅の確認の中で選んだときは、確認を閉じて、同じブロックを開く */
+  function openEditAt(at) {
+    var ep = editPath(at); if (!ep) return false;
+    var blk = ep.blk;
+    if (blk.ownerDocument !== document) {
+      blk = document.querySelector('[data-ln="' + blk.getAttribute('data-ln') + '"]'); if (!blk) return false;
+      closeViewport();
+    }
+    setInspect(false); startEdit(blk, null, ep.path); return true;
+  }
+  /** 検索用: セレクタ（またはその末尾・クラス名）が、CSSのテキストのどこにあるか */
+  function findCssPos(css, sel) {
+    var last = sel.split(/\s+/).pop(), cm = /\.[\w-]+/.exec(last), cands = [sel, last, cm && cm[0]].filter(Boolean);
+    for (var i = 0; i < cands.length; i++) {
+      var re = new RegExp(cands[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w-])'), m = re.exec(css);
+      if (m) return { pos: m.index, len: cands[i].length };
+    }
+    return null;
+  }
+  /** 入力欄の pos の行が、見える位置に来るようにスクロールする（折り返しも含めて測る） */
+  function scrollTextareaTo(ta, pos) {
+    var cs = getComputedStyle(ta), m = document.createElement('div');
+    m.style.cssText = 'position:absolute;visibility:hidden;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;left:-9999px;top:0;box-sizing:border-box;width:' + ta.clientWidth + 'px;font:' + cs.font + ';padding:' + cs.padding + ';tab-size:' + cs.tabSize;
+    m.textContent = ta.value.slice(0, pos) + '\u200b'; document.body.appendChild(m);
+    var y = m.scrollHeight; m.remove(); ta.scrollTop = Math.max(0, y - ta.clientHeight / 3);
+  }
+  function showCssFor(sel) {
+    function go() {
+      if (!active || active.kind !== 'css') return;
+      var ta = active.ta, f = findCssPos(ta.value, sel);
+      if (!f) { toast(T('visual_js_css_not_found')); return; }
+      ta.focus({ preventScroll: true }); ta.setSelectionRange(f.pos, f.pos + f.len); scrollTextareaTo(ta, f.pos);
+    }
+    closePop(); setInspect(false);
+    if (active && active.kind === 'css') go(); else openPanel('css', go);
+  }
   function showPop(target, x, y) {
     closePop();
     var r = selectorsFor(target);
     pop = el('div', 'fv-pop fv-ui');
     pop.appendChild(el('div', 'fv-pop-title', T('visual_js_selectors_of', target.tagName.toLowerCase())));
+    var anyEditable = false;
     r.list.forEach(function (it) {
-      var row = el('div', 'fv-pop-row');
+      var row = el('div', 'fv-pop-row'), editable = !!editPath(it.at); anyEditable = anyEditable || editable;
+      var path = el('code', editable ? 'fv-pop-path' : '', it.sel);
       var cp = ibtn('content_copy', T('btn_copy'), '');
       cp.addEventListener('click', function () { if (navigator.clipboard) navigator.clipboard.writeText(it.sel).then(function () { toast(T('visual_js_copied')); }); });
-      var ep = editPath(it.at), pen = null;
-      if (ep) { pen = ibtn('edit', T('visual_js_edit_here'), ''); pen.addEventListener('click', function () { setInspect(false); startEdit(ep.blk, null, ep.path); }); }
-      row.append(el('code', '', it.sel), el('small', '', T('visual_js_n_matches', it.n)), cp); if (pen) row.append(pen); pop.appendChild(row);
+      var body = ibtn('edit_note', editable ? T('visual_js_open_body') : T('visual_js_not_editable_title'), ''); body.disabled = !editable;
+      var css = ibtn('palette', T('visual_js_open_css'), '');
+      if (editable) { path.title = T('visual_js_open_body'); path.addEventListener('click', function () { openEditAt(it.at); }); body.addEventListener('click', function () { openEditAt(it.at); }); }
+      css.addEventListener('click', function () { showCssFor(it.sel); });
+      row.append(path, el('small', '', T('visual_js_n_matches', it.n)), body, css, cp); pop.appendChild(row);
     });
+    if (!anyEditable) pop.appendChild(el('div', 'fv-pop-note', T('visual_js_not_editable_note')));
     if (!r.inScope) pop.appendChild(el('div', 'fv-pop-note', T('visual_js_outside_note')));
     document.body.appendChild(pop);
     var w = pop.offsetWidth, h = pop.offsetHeight;
     pop.style.left = Math.max(8, Math.min(x, innerWidth - w - 8)) + 'px';
     pop.style.top = Math.max(8, Math.min(y + 12, innerHeight - h - 8)) + 'px';
   }
+  // 画面幅の確認（iframe）の中でも、虫眼鏡で選べるようにする。位置は、iframe の位置を足して、親の画面の座標にする
+  function frameBox(e, b) { var f = vpFrame && vpFrame.getBoundingClientRect(); return f ? { left: b.left + f.left, top: b.top + f.top, width: b.width, height: b.height } : b; }
+  function bindFrame() {
+    var d; try { d = vpFrame.contentDocument; } catch (e) { return; }
+    if (!d || !d.body || d.documentElement.hasAttribute('data-fv-bound')) return;
+    d.documentElement.setAttribute('data-fv-bound', '1');
+    var st = d.createElement('style'); st.textContent = 'html.fv-inspect *{cursor:crosshair!important}'; d.head.appendChild(st);
+    var sc = d.querySelector('.mikan-content-scope'); if (sc) { applyLn(sc); }
+    d.addEventListener('mouseover', function (e) {
+      if (!inspecting) return;
+      var b = frameBox(e, e.target.getBoundingClientRect());
+      hl.style.cssText = 'display:block;left:' + b.left + 'px;top:' + b.top + 'px;width:' + b.width + 'px;height:' + b.height + 'px';
+    }, true);
+    d.addEventListener('click', function (e) {
+      if (!inspecting) return;
+      e.preventDefault(); e.stopPropagation(); var f = vpFrame.getBoundingClientRect(); showPop(e.target, f.left + e.clientX, f.top + e.clientY);
+    }, true);
+    d.documentElement.classList.toggle('fv-inspect', !!inspecting);
+  }
+  function frameInspect(v) { try { if (vpFrame && vpFrame.contentDocument) vpFrame.contentDocument.documentElement.classList.toggle('fv-inspect', !!v); } catch (e) {} }
   document.addEventListener('mouseover', function (e) {
     if (!inspecting || e.target.closest('.fv-ui')) { if (inspecting) hl.style.display = 'none'; return; }
     var b = e.target.getBoundingClientRect();
@@ -587,22 +646,7 @@
   }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && inspecting) { if (pop) closePop(); else setInspect(false); } });
 
-  // ---------------------------------------------------------------- 本文ブロックのクリック編集
-  // リンク: 編集中は、本文の中のリンクを押しても移動せず、その部分の編集を開く（⌘/Ctrl+クリックで、リンク先を開く）
-  document.addEventListener('click', function (e) {
-    if (!on || inspecting) return;
-    var link = e.target.closest('a'); if (!link || link.closest('.fv-ui')) return;
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-    var blk = link.closest('[data-ln]'); if (!blk || blk.classList.contains('fv-editing')) return;
-    e.preventDefault(); e.stopPropagation(); startEdit(blk, link);
-  }, true);
-  document.addEventListener('click', function (e) {
-    if (!on || inspecting) return;
-    if (e.target.closest('a,button,input,select,textarea,label,.fv-ui')) return;
-    if (String(window.getSelection()) !== '') return;
-    var node = e.target.closest('[data-ln]'); if (!node || node.classList.contains('fv-editing')) return;
-    e.preventDefault(); startEdit(node);
-  });
+  // ---------------------------------------------------------------- 本文ブロックの編集（虫眼鏡で選んだところを開く）
   /** ブロックの Markdown/HTML から、いちばん外の要素の直下の子要素を、行の範囲（先頭からの相対）で返す。行が重なる・外側の開始/終了行と同じ行にあるものは、行では分けられないので数えない */
   function childRanges(text) {
     var starts = [0]; text.replace(/\n/g, function (m, i) { starts.push(i + 1); });
@@ -662,8 +706,10 @@
       var dup = ibtn('content_copy', T('visual_js_dup_block')), del = ibtn('delete', T('visual_js_delete_block'), 'fv-del');
       var into = ibtn('subdirectory_arrow_right', T('visual_js_into_title')), outo = ibtn('arrow_back', T('visual_js_out_title'));
       var kidsBox = el('div', 'fv-kids'), where = el('div', 'fv-where'), trail = [], crumbs = [];
+      var head = el('div', 'fv-box-head'), headActs = el('div', 'fv-box-acts'), saveTop = ibtn('save', T('visual_js_save_title'), 'fv-save'), closeTop = ibtn('close', T('visual_js_cancel_esc'));
+      headActs.append(saveTop, closeTop); head.append(where, headActs);
       bar.append(save, cancel, into, outo, up, down, dup, del);
-      box.append(where, mdToolbar(ta, function (t) { msg.textContent = t; }, false), ta, bar, kidsBox, hint); box.append(msg);
+      box.append(head, mdToolbar(ta, function (t) { msg.textContent = t; }, false), ta, bar, kidsBox, hint); box.append(msg);
       node.classList.add('fv-editing'); node.style.display = 'none'; node.parentNode.insertBefore(box, node);
       function fit() { var y = window.scrollY; ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 4) + 'px'; if (window.scrollY !== y) jump(y); }   // 一瞬ページが縮んで、スクロール位置が飛ぶのを防ぐ
       ta.addEventListener('input', fit); fit(); ta.focus({ preventScroll: true });
@@ -688,7 +734,7 @@
         outo.disabled = !trail.length; into.disabled = !n;
         into.innerHTML = ic('subdirectory_arrow_right') + (n ? '<span class="fv-badge">' + n + '</span>' : '');
         where.innerHTML = ic('account_tree') + crumbs.concat(info ? [info.name] : []).map(function (t) { return '<code>' + H(t) + '</code>'; }).join('<span class="fv-sep">›</span>');
-        where.style.display = (crumbs.length || n) ? '' : 'none';
+        where.style.visibility = (crumbs.length || n) ? '' : 'hidden';
       }
       refreshNav();
       into.addEventListener('click', function () {
@@ -721,6 +767,8 @@
       }
       save.addEventListener('click', function () { send('replace', ta.value); });
       cancel.addEventListener('click', close);
+      saveTop.addEventListener('click', function () { send('replace', ta.value); });
+      closeTop.addEventListener('click', close);
       up.addEventListener('click', function () { send('insert-before', newText()); });
       down.addEventListener('click', function () { send('insert-after', newText()); });
       dup.addEventListener('click', function () { send('insert-after', ta.value); });

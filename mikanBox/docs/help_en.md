@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.12.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.13.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -500,16 +500,16 @@ Open a page **exactly as it looks** and edit its body and page CSS right there. 
 
 #### Editing blocks of the body
 
-- **Click** a paragraph, heading, list, table, etc. and its Markdown becomes an input box. Save with ⌘/Ctrl+Enter, cancel with Esc. The page is not reloaded after saving.
+- The everyday screen is **browsing**. Clicking follows links as usual. Links within the site open in that page's **visual editor**, so you can look around. Links that lead outside the editor, such as other sites, open in a new tab and show a note when you touch them.
+- To change something, click it with the [[search]{.material-symbols-outlined} Pick to edit]{.m-btn} (magnifier) at the bottom right. On a selector row, **click the path (such as `.pillar`)** or press [[edit_note]{.material-symbols-outlined}]{.m-btn}, and the Markdown of the element at that level becomes an input box. Save with ⌘/Ctrl+Enter, cancel with Esc. The page is not reloaded after saving. The box also has Save and Close buttons at its top right. There is no mode to switch; after you pick, you are back to browsing.
+- If you pick a place that is not a body block (for example the layout), the body button is disabled and the reason is shown. If the whole page cannot be picked (for example Raw HTML), a note appears at the bottom of the screen.
 - The bar above the box inserts headings, bold, italic, links, bulleted and numbered lists, quotes, code and images (⌘/Ctrl+B, I and K also work). Undo (⌘/Ctrl+Z) inside the box keeps working after using the bar.
-- The [[image]{.material-symbols-outlined}]{.m-btn} button on the bar above the box opens a **list of the images** in the `media` folder (newest first, filterable by name). Picking one inserts it at the cursor: `{{IMAGE:filename}}` inside HTML, `![](filename)` in Markdown. "Add" in the list uploads a new image.
+- The [[image]{.material-symbols-outlined}]{.m-btn} button on the bar above the box opens a **list of the images** in the `media` folder (newest first, filterable by name). Picking one inserts Markdown `![](filename)` at the cursor. "Add" in the list uploads a new image.
 - You can also **paste** (or drag) an image into the box. It is saved to the `media` folder and inserted in the same way (png, jpg, gif, webp, up to 10 MB).
 - Buttons below the box add a paragraph above or below, duplicate the block, or delete it (press **twice** to confirm).
 - An HTML block opens as **one block** even when it contains blank lines before its tags are closed.
 - When the opened block is a container such as `<div>` or `<ul>`, the [[subdirectory_arrow_right]{.material-symbols-outlined}]{.m-btn} button makes **an inner element the editing target** (the badge number is how many inner elements there are). With one inner element it goes straight in; with several you pick by number, such as "1 `<li>` …". The hierarchy is shown above the box as `div › p`, and [[arrow_back]{.material-symbols-outlined}]{.m-btn} goes back out one level. While an inner element is the target, "add above / below", "duplicate" and "delete" act on that element, and an added paragraph is wrapped in the same tag. You cannot switch while there are unsaved edits (save or cancel first). Elements that share a line with their opening tag or with a sibling cannot be told apart by line, so they cannot be chosen.
-- Clicking a part built by a `{{…}}` tag, such as navigation cards, opens the single tag line. The text and images of the cards come from the linked pages' settings, so they cannot be edited here. Links under the box take you to that page (body or settings).
-- While editing, clicking a link inside the body opens the editor instead of following the link. ⌘/Ctrl+click follows it, or press the [[touch_app]{.material-symbols-outlined}]{.m-btn} (Browse) button at the bottom right.
-- In **Browse**, clicking does not open the editor and links work normally. Links within the site open in that page's **visual editor**, so you can look around and switch back to [[edit]{.material-symbols-outlined}]{.m-btn} (Edit) on any page you want to change. Links to other sites open in a new tab. The chosen mode is kept when you move between pages.
+- Picking a part built by a `{{…}}` tag, such as navigation cards, opens the single tag line. The text and images of the cards come from the linked pages' settings, so they cannot be edited here. Links under the box take you to that page (body or settings).
 
 #### Whole body and page CSS
 
@@ -531,8 +531,8 @@ Open a page **exactly as it looks** and edit its body and page CSS right there. 
 
 #### Tools for checking
 
-- Magnifier: click an element on the page to see candidate selectors (class names, etc.). Copy one and use it in the page CSS. The [[edit]{.material-symbols-outlined}]{.m-btn} button on each selector row opens the block editor with **the element at that row's level as the target** (the upper rows are the clicked element, the lower rows its outer parents; only for elements inside a body block).
-- Screen width: shows the same page at phone (375), tablet (768), PC (1200) and full width. CSS you type shows there at once.
+- Magnifier (Pick to edit): click an element on the page to see candidate selectors (class names, etc.). The upper rows are the clicked element, the lower rows its outer parents. Each row has [[edit_note]{.material-symbols-outlined}]{.m-btn} (same as clicking the path: edit the body of the element at that level; only for elements inside a body block), [[palette]{.material-symbols-outlined}]{.m-btn} (opens the page CSS and jumps to that selector; if it is not found, you are told it may be in the site CSS or a part's CSS) and [[content_copy]{.material-symbols-outlined}]{.m-btn} (copy).
+- Screen width: shows the same page at phone (375), tablet (768) and PC (1200). CSS you type shows there at once. You can pick places with the magnifier here too (editing the body closes the check and returns to editing). "Full width" ends the check and returns to the normal screen.
 
 #### Safety rules and limits
 
