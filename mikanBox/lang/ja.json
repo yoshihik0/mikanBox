@@ -751,6 +751,7 @@
     "visual_js_unsaved": "● 未保存",
     "visual_js_save_failed": "保存に失敗しました",
     "visual_js_saved": "保存しました",
+    "visual_js_live_failed": "ページに反映できませんでした（保存はできます）",
     "visual_js_selectors_of": "<%s> のセレクタ",
     "visual_js_copied": "コピーしました",
     "visual_js_n_matches": "%s件",

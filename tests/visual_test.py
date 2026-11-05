@@ -155,8 +155,8 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-visual-test-') as tmp:
         # ---- 3. 読み取り
         st, src, _ = api(ed, 'source', query='&id=index')
         check(st == 200 and src['text'], 'source readable when logged in')
-        st, ms, _ = api(ed, 'mtime', query='&id=index')
-        check(st == 200 and len(ms['t']) == 32, 'mtime token')
+        st, _, _ = api(ed, 'mtime', query='&id=index')
+        check(st == 404, 'no polling endpoint: the screen does not ask the server for changes on a timer')
         st, bad, _ = api(ed, 'source', query='&id=../../config')
         check(st == 400, 'invalid page id refused')
 

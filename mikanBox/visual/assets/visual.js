@@ -295,15 +295,6 @@
     e.preventDefault(); openDrawer();
   });
 
-  // ---------------------------------------------------------------- 外部での変更を検知して再読み込み
-  var last = null;
-  setInterval(function () {
-    fetch(API('mtime') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
-      if (last !== null && j.t !== last) { sessionStorage.setItem('fv-scroll', String(window.scrollY)); location.reload(); }
-      last = j.t;
-    }).catch(function () {});
-  }, 1000);
-  function syncMtime() { fetch(API('mtime') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { last = j.t; }); }
   var y0 = sessionStorage.getItem('fv-scroll');
   if (y0) { sessionStorage.removeItem('fv-scroll'); window.addEventListener('load', function () { window.scrollTo(0, +y0); }); }
 
@@ -315,7 +306,7 @@
       var neu = doc.querySelector('.mikan-content-scope'), cur = scopeEl();
       if (!neu || !cur) { location.reload(); return; }
       swapScope(cur, neu); applyLn(cur); rewriteLinks(cur); window.scrollTo(0, y);
-      syncMtime(); refreshHistory();
+      refreshHistory();
     });
   }
 
@@ -474,13 +465,13 @@
       btn: tgCss, icon: 'palette', title: T('visual_js_css_panel'), note: T('visual_js_panel_note'), ph: T('visual_js_css_placeholder'),
       load: function () { return jfetch(API('css') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (x) { return x.j.css; }); },
       save: function (o, n) { return post(API('save-css'), { id: PAGE, old: o, new: n }); },
-      live: function (text) { return post(API('scope-css'), { css: text }).then(function (x) { if (x.ok) liveDocs().forEach(function (d) { applyScoped(d, x.j.css); }); }); }
+      live: function (text) { return post(API('scope-css'), { css: text }).then(function (x) { if (!x.ok) return false; liveDocs().forEach(function (d) { applyScoped(d, x.j.css); }); return true; }).catch(function () { return false; }); }
     },
     md: {
       btn: tgMd, icon: 'edit_note', title: T('visual_js_md_panel'), note: T('visual_js_panel_note'), ph: T('visual_js_md_placeholder'),
       load: function () { return jfetch(API('source') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (x) { return x.j.text; }); },
       save: function (o, n) { return post(API('save-md'), { id: PAGE, old: o, new: n }); },
-      live: function (text) { return post(API('render'), { id: PAGE, text: text }).then(function (x) { if (!x.ok) return; var neu = new DOMParser().parseFromString(x.j.html, 'text/html').querySelector('.mikan-content-scope'); if (!neu) return; liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; swapScope(sc, neu); applyLn(sc); if (d === document) rewriteLinks(sc); }); markTarget(); }); }
+      live: function (text) { return post(API('render'), { id: PAGE, text: text }).then(function (x) { if (!x.ok) return false; var neu = new DOMParser().parseFromString(x.j.html, 'text/html').querySelector('.mikan-content-scope'); if (!neu) return false; liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; swapScope(sc, neu); applyLn(sc); if (d === document) rewriteLinks(sc); }); markTarget(); return true; }).catch(function () { return false; }); }
     }
   };
   function closePanel(force) {
@@ -511,9 +502,21 @@
       else { cssbar = buildCssBar(); node.append(head, cssbar.el, ta); }
       document.body.appendChild(node);
       function setDirty(v) { dirty = v; msg.textContent = v ? T('visual_js_unsaved') : ''; msg.style.color = v ? '#fcd34d' : '#86efac'; }
-      function changed() { setDirty(full !== old); clearTimeout(timer); timer = setTimeout(function () { K.live(full); }, 200); }
+      // 反映に失敗したら（サーバーの制限・通信の失敗など）、黙って古い表示のままにせず、そう伝える。保存は、反映とは別に動く
+      // 反映は、同時に1つだけ。反映中に入力があれば、終わってから最新の内容で1回だけ反映する（途中の内容は送らない）
+      var liveBusy = false, livePending = false;
+      function runLive() {
+        if (liveBusy) { livePending = true; return; }
+        liveBusy = true; var sent = full;
+        K.live(sent).then(function (ok) {
+          if (ok === false && full === sent) { msg.style.color = '#fca5a5'; msg.textContent = T('visual_js_live_failed'); }
+          liveBusy = false;
+          if (livePending) { livePending = false; runLive(); }
+        });
+      }
+      function changed() { setDirty(full !== old); clearTimeout(timer); timer = setTimeout(runLive, 200); }
       active = {
-        kind: kind, btn: K.btn, node: node, ta: ta, dirty: function () { return dirty; }, live: function () { K.live(full); },
+        kind: kind, btn: K.btn, node: node, ta: ta, dirty: function () { return dirty; }, live: function () { runLive(); },
         getFull: function () { return full; },
         setFull: function (f) { full = f; changed(); },                                   // 追加・削除など、選んだ部分の外も含む変更
         showRange: function (s, e) { view = { s: s, e: e }; ta.value = full.slice(s, e); ta.scrollTop = 0; ta.setSelectionRange(0, 0); },
@@ -529,7 +532,7 @@
       function doSave() {
         K.save(old, full).then(function (x) {
           if (!x.ok) { msg.style.color = '#fca5a5'; msg.textContent = x.j.error || T('visual_js_save_failed'); return; }
-          old = full; setDirty(false); msg.textContent = T('visual_js_saved') + (x.j.notice ? ' ' + x.j.notice : ''); syncMtime();   // notice: 版によって、保存後に伝えたいこと（例: Cloud版は公開し直すまで公開サイトに反映されない） refreshHistory();
+          old = full; setDirty(false); msg.textContent = T('visual_js_saved') + (x.j.notice ? ' ' + x.j.notice : '');   // notice: 版によって、保存後に伝えたいこと（例: Cloud版は公開し直すまで公開サイトに反映されない） refreshHistory();
           if (kind === 'md') refreshContent().then(markTarget);
         }).catch(function () { msg.style.color = '#fca5a5'; msg.textContent = T('visual_js_save_failed'); });
       }

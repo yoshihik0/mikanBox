@@ -129,7 +129,6 @@ if ($isApi) {
     if ($needId && (!mbv_valid_id($id) || !loadData(POSTS_DIR, $id))) mbv_json(['error' => t('visual_err_page_not_found')], 400);
 
     switch ($api) {
-        case 'mtime':       mbv_json(['t' => md5(json_encode(loadData(POSTS_DIR, $id)))]);
         case 'history':     mbv_json(mbv_counts($id));
         case 'source':      { $d = loadData(POSTS_DIR, $id); mbv_json(['text' => mbv_nl((string)($d['content_md'] ?? '')), 'is_html' => !empty($d['is_html'])]); }
         case 'css':         mbv_json(['css' => mbv_nl((string)(loadData(POSTS_DIR, $id)['css'] ?? ''))]);

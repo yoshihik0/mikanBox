@@ -751,6 +751,7 @@
     "visual_js_unsaved": "● Unsaved",
     "visual_js_save_failed": "Could not save",
     "visual_js_saved": "Saved",
+    "visual_js_live_failed": "Could not update the page (saving still works)",
     "visual_js_selectors_of": "Selectors for <%s>",
     "visual_js_copied": "Copied",
     "visual_js_n_matches": "%s found",

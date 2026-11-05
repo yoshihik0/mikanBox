@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.16.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.16.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -505,6 +505,8 @@ Body editing is **one panel that opens from the bottom: "Body"**. Only the part 
 - The everyday screen is **browsing**. Clicking follows links as usual. Links within the site open in that page's **visual editor**, so you can look around. Links that lead outside the editor, such as other sites, open in a new tab and show a note when you touch them.
 - To change something, click it with the [[search]{.material-symbols-outlined} Pick to edit]{.m-btn} (magnifier) at the bottom right. On a selector row, **click the path (such as `.pillar`)** or press [[edit_note]{.material-symbols-outlined}]{.m-btn}: the "Body" panel opens with **only that element** in the input box. The element also gets a frame on the page, and the page scrolls by itself so the picked place is visible. The cut-out part corresponds to that place in the whole body, and saving saves the whole body.
 - Changes appear on the page right away (also inside the screen-width check, so you can edit **at phone width**). Save with ⌘/Ctrl+Enter or the Save button at the top right of the panel. The page is not reloaded after saving. "Unsaved" is shown until you save.
+- Live updates are separate from saving. If one cannot be shown (for example, the connection failed), "Could not update the page (saving still works)" appears at the top right of the panel; you can still save.
+- While the page is open, this screen does not reload by itself when the page changes elsewhere (the management screen, AI through MCP, and so on). If it changed, saving stops and tells you (what you typed stays). Do not edit the same page in two places at once.
 - There is no mode to switch after picking. The **target bar** in the panel shows which element is selected, such as `nav › div › a`, with its line numbers in the whole body. [[close]{.material-symbols-outlined}]{.m-btn} stops the cut-out and shows everything.
 - If you pick a place that is not a body block (for example the layout), the body button is disabled and the reason is shown. If the page has no body block to pick, a note appears at the bottom of the screen. "Raw HTML" pages can be picked in the same way. For a page that is a whole document with `<html>` and `<body>`, you pick by following the tag hierarchy, such as `html › body › main › section › p` (text inside the page's `<script>` and `<style>` is not read as tags).
 - When the target is a container such as `<div>` or `<ul>`, the [[subdirectory_arrow_right]{.material-symbols-outlined}]{.m-btn} button on the bar lets you **pick an inner element** (the badge number is how many inner elements there are). With one inner element it goes straight in; with several you pick by number, such as "1 `<li>` …". [[arrow_back]{.material-symbols-outlined}]{.m-btn} goes back out one level (the part in the input box changes accordingly). Element ranges are split by **character position**, not by line, so HTML written on a single line, or elements side by side on one line, can be picked.
