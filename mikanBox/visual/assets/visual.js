@@ -529,7 +529,7 @@
       function doSave() {
         K.save(old, full).then(function (x) {
           if (!x.ok) { msg.style.color = '#fca5a5'; msg.textContent = x.j.error || T('visual_js_save_failed'); return; }
-          old = full; setDirty(false); msg.textContent = T('visual_js_saved'); syncMtime(); refreshHistory();
+          old = full; setDirty(false); msg.textContent = T('visual_js_saved') + (x.j.notice ? ' ' + x.j.notice : ''); syncMtime();   // notice: 版によって、保存後に伝えたいこと（例: Cloud版は公開し直すまで公開サイトに反映されない） refreshHistory();
           if (kind === 'md') refreshContent().then(markTarget);
         }).catch(function () { msg.style.color = '#fca5a5'; msg.textContent = T('visual_js_save_failed'); });
       }
