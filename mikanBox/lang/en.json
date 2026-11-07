@@ -331,6 +331,7 @@
     "csv_copied": "Copied ✓",
     "csv_no_file": "Please select a CSV file",
     "msg_demo_mode": "Saving is disabled in demo mode.",
+    "msg_demo_no_update": "Updates and restores are not run in the demo. On a real site, this is where you update.",
     "hint_is_active": "\"active\" if current page, else empty",
     "nav_cards_template_vars": "Tags available inside NAV_CARDS template",
     "md_html_block_label": "HTML Block Tags (at line start)",

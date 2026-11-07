@@ -331,6 +331,7 @@
     "csv_copied": "コピーしました ✓",
     "csv_no_file": "CSVファイルを選択してください",
     "msg_demo_mode": "デモモードのため保存できません。",
+    "msg_demo_no_update": "デモのため、更新・復元は実行されません。実際のサイトでは、ここから更新できます。",
     "hint_is_active": "現在のページなら active、それ以外は空",
     "nav_cards_template_vars": "NAV_CARDSテンプレート内で使えるタグ",
     "md_html_block_label": "HTMLブロックタグ（行頭）",
