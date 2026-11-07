@@ -73,6 +73,8 @@ If you run it on your own computer and just upload a static site, flat or this e
 
 ## Requirements
 
+For the PHP editions, the minimum version describes compatibility. Use the latest patched, supported PHP 8.4 or 8.5 for new installations and Internet-facing sites.
+
 - A web server with PHP 8.0 or later (with the SQLite3 extension enabled — standard on most hosting providers)
 
 ---

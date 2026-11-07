@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.16.5</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.16.6</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -122,6 +122,8 @@ Pages and components are tied directly to their CSS, so the structure is easy to
 - By using the `{{EXT_MD:url}}` tag to source content from an external Markdown file (e.g. on GitHub), you can adopt a workflow where simply telling an AI agent to update the repository is enough to update the website — no need to even open the admin panel
 - Because the codebase is small and easy for AI to understand, you add features by having AI rewrite the source directly, rather than relying on plugins
 
+The official demo uses a dedicated flat sample site. MCP settings remain visible to demonstrate where configuration lives, but the displayed key is a non-functional dummy. Issuing, regenerating or enabling a key has no effect. Management MCP is unavailable over both HTTP and stdio. Never copy real data or production credentials into a demo.
+
 ### Keeping Security Simple
 
 Static site support means the design doesn't have to expand its attack surface.
@@ -138,7 +140,7 @@ Static site support means the design doesn't have to expand its attack surface.
 
 ### Requirements
 
-Requires a server running PHP 8.0 or later. [SQLite Edition]{.type-badge .badge-sqlite} additionally requires the SQLite3 extension to be enabled (this is enabled by default on most shared hosting).
+The minimum runtime remains PHP 8.0. For new installations and Internet-facing sites, use the latest patched release of supported PHP 8.4 or 8.5. [SQLite Edition]{.type-badge .badge-sqlite} additionally requires the SQLite3 extension to be enabled (this is enabled by default on most shared hosting).
 
 ### Installation
 
@@ -156,7 +158,7 @@ You can run mikanBox on your own computer instead of uploading it to a server. T
 
 PHP is the only requirement. No database, no build tooling, no Node.js.
 
-1. Check whether PHP is installed. Run `php -v` in a terminal; version 8.0 or later is all you need.
+1. Check whether PHP is installed. Run `php -v` in a terminal; check the version and use the latest patched PHP 8.4 or 8.5 for a new installation.
 2. If it is missing, install it. macOS no longer ships PHP, so install [Homebrew](https://brew.sh/) and run `brew install php`. On Windows, download it from [windows.php.net](https://windows.php.net/download/). On Linux, run `sudo apt install php` (Debian family) or `sudo dnf install php` (Fedora family).
 3. Extract `index.php` and the `mikanBox` folder into any folder.
 4. Change into that folder and run `php -S localhost:8000`. This is the server bundled with PHP; nothing else is needed.
@@ -424,7 +426,7 @@ From mikanBox 2.9.5, this URL is valid for 7 days. An expired URL no longer open
 
 #### Memo
 
-A private note visible only to admins. Free-form space for anything you want to remember or hand off to someone else. It's never shown on the site, and is never passed to AI (MCP) either.
+A private note visible only to admins. Free-form space for anything you want to remember or hand off to someone else. It is excluded from public pages and APIs. Authenticated management MCP clients, including AI, can read it as working context. Reading a note does not grant permission to copy it into published content.
 
 #### ID
 
@@ -869,7 +871,7 @@ A package may have an outer folder containing `posts/` or `components/`. That ou
 
 Each page ID comes from its path under `posts/` without the `.json` extension: for example, `posts/coffee/menu.json` becomes `coffee/menu`. Component IDs come from their paths under `components/`. Titles inside the files do not determine IDs. Anything matching an existing ID is skipped; nothing is ever overwritten. If you want to bring in a page or component in a way that overwrites an existing one, either delete the existing item in the admin panel first, or rename the JSON file to your intended ID before including it in the ZIP.
 
-Once import finishes, the extracted folder is renamed to `{folder name}_imported` inside the `import/` folder and left in place (it is not deleted).
+ZIP extraction accepts JSON only (10 MB per file, 50 MB total, 10,000 entries). Once import finishes, the extracted folder is renamed to `{folder name}-{identifier}_imported` inside the protected `mikanData/private-import/` folder and left in place (it is not deleted).
 
 #### Choose File
 
@@ -998,7 +1000,7 @@ The component's identifier. Required. Alphanumeric characters and underscores ar
 
 #### Memo
 
-A private note visible only to admins. Never shown on the site, and never passed to AI (MCP) either.
+A private note visible only to admins. Excluded from public pages and APIs. Authenticated management MCP clients, including AI, can read it as working context. Reading a note does not grant permission to publish it.
 
 #### Type
 
@@ -1373,6 +1375,8 @@ The content of another page can be embedded via `{{POST_MD:ID}}`. This is handy 
 
 A Markdown document hosted on another site, like GitHub, can be embedded via `{{EXT_MD:url}}`. Not only can you edit it directly on GitHub, but you can also adopt an "AI-friendly" workflow where having an AI agent rewrite the file on GitHub is all it takes to update the site.
 
+**PHP setting:** Enable “Allow external Markdown” in Site settings. New sites default to OFF. Existing sites without the setting retain the feature if saved pages or components contain `EXT_MD`. When OFF, rendering, previews and builds make no external requests. When ON, the PHP cURL extension is required. Only public HTTP/HTTPS destinations are allowed; private addresses and redirects are rejected. Use the document's direct URL. Each response is limited to 1 MiB and the transfer to five seconds. Unavailable documents produce no visible content. External HTML is displayed as text, and mikanBox template tags are not executed. DATA/DATAROW values are also text; do not use untrusted values as JavaScript, CSS or URL-attribute code. Rebuild existing static output after disabling the setting.
+
 **Not available in the Cloud edition.** `EXT_MD` fetches a document from an external server. The Cloud edition does not fetch it, so nothing is shown where the tag is.
 
 ### Page Components
@@ -1466,7 +1470,7 @@ Not just components — another page itself can also be loaded as Markdown. Rath
 
 #### You can load a page from another site as Markdown
 
-By loading a page hosted on another site, like GitHub, as Markdown, you can update your site's content without touching the site itself. And for security, JavaScript is never executed.
+By loading a page hosted on another site, like GitHub, as Markdown, you can update your site's content without touching the site itself. External HTML is displayed as text, and mikanBox template tags are not executed.
 
 ### Outputting a GitHub Page as Markdown
 
@@ -1685,3 +1689,14 @@ Permission is hereby granted, free of charge, to use this software and associate
 <strong>Condition:</strong> The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.<br><br>
 <strong>Disclaimer:</strong> The software is provided "as is," without warranty of any kind, express or implied. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
 </div>
+
+
+### Authentication and private working data in 2.16.6
+
+Flat password changes invalidate other browser sessions. Updating to 2.16.6 requires signing in again. Keep Internet-facing installations behind server access restrictions until initial setup is complete; the simple localhost setup is unchanged.
+
+SQLite JSON migration and ZIP imports retain source data under the protected data directory's `private-import/` folder. On access after updating, old import packages under the management folder are moved to protected storage. If an old backup contained credentials, the MCP key is invalidated: issue a new key in the admin screen. Configure the web server to deny the entire data directory and the management folder's `import/` path.
+
+Management notes, including site notes, are available to authenticated management MCP clients as working context. They are excluded from public pages, public APIs and public-help MCP. Reading a note is not permission to publish it.
+
+SVG files are selected and uploaded by trusted administrators and may contain code. Upload processing does not guarantee complete sanitization. Check their source and contents.

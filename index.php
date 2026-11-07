@@ -38,6 +38,12 @@ if ($securityDocRoot && $securityDataRoot && str_starts_with($securityDataRoot, 
     }
 }
 
+// Old SQLite import backups are private even before the storage repair completes.
+$legacyImportPath = rawurldecode((string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'));
+if (preg_match('~/' . preg_quote(basename(CORE_DIR), '~') . '/import(?:/|$)~i', $legacyImportPath)) {
+    http_response_code(404); if (ob_get_length()) ob_clean(); echo 'Not Found'; exit;
+}
+
 // Administration MCP clean URL. Match before base-path normalization so this
 // also works behind a subdirectory and with PHP's built-in test router.
 $rawRequestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';

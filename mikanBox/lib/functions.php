@@ -17,6 +17,7 @@ function getDb() {
     if ($db === null) {
         $dbPath = DB_FILE;
         $dbExists = file_exists($dbPath);
+        $legacyArchives = mikanBoxArchiveLegacyImports();
         
         try {
             $db = new SQLite3($dbPath);
@@ -89,7 +90,7 @@ function getDb() {
                 }
             } catch (Exception $e) {}
             
-            if (!$dbExists) {
+            if (!$dbExists || is_file(DATA_DIR . '/json-migration-pending.php')) {
                 // Check if legacy JSON files exist in the data directory
                 $hasLegacyFiles = file_exists(SETTINGS_FILE) || is_dir(COMPONENTS_DIR) || is_dir(POSTS_DIR);
                 
@@ -109,10 +110,12 @@ function getDb() {
                     if (is_dir($srcPreset)) {
                         importFolderToSqlite($db, $srcPreset);
                         // Rename the imported folder to add _imported suffix
-                        @rename($srcPreset, $srcPreset . '_imported');
+                        // Keep bundled seed folders in place; they contain no site data.
                     }
                 }
             }
+            // Old public import copies may have exposed a live key. Do not reuse it.
+            if ($legacyArchives) $db->exec("UPDATE settings SET value = '\"\"' WHERE key = 'mcp_api_key'");
 
             // Migrate legacy password_hash to users table if users is empty
             $userCount = 0;
@@ -267,40 +270,79 @@ function importFolderToSqlite($db, $folderPath, $importSettings = false) {
 
 /**
  * Migrate existing JSON files into the SQLite database.
- * Moves legacy files/folders from data/ to import/oldsystem, imports them, and renames the folder.
+ * Import transactionally, then archive source JSON inside the protected data directory.
  */
 function migrateJsonToSqlite($db) {
     $settingsFile = SETTINGS_FILE;
     $compDir = COMPONENTS_DIR;
     $postsDir = POSTS_DIR;
 
-    $importDir = __DIR__ . '/../import';
-    $oldsystemDir = $importDir . '/oldsystem';
+    $importDir = DATA_DIR . '/private-import';
+    if (!mikanBoxProtectDataDirectory($importDir)) throw new RuntimeException('Cannot protect import backups.');
+    $oldsystemDir = $importDir . '/oldsystem-' . bin2hex(random_bytes(8));
+    $pending = DATA_DIR . '/json-migration-pending.php';
+    if (file_put_contents($pending, "<?php http_response_code(404); exit; ?>") === false) throw new RuntimeException('Cannot record migration state.');
+    // Import while the JSON source is still protected and intact. Retry after a failure.
+    $db->enableExceptions(true);
+    try {
+        $db->exec('BEGIN IMMEDIATE');
+        importFolderToSqlite($db, DATA_DIR, true);
+        $db->exec('COMMIT');
+    } catch (Throwable $error) {
+        $db->exec('ROLLBACK');
+        throw $error;
+    } finally { @$db->enableExceptions(false); }
     
     if (!is_dir($oldsystemDir)) {
-        @mkdir($oldsystemDir, 0777, true);
+        if (!mkdir($oldsystemDir, 0700, true)) throw new RuntimeException('Cannot create import backup.');
     }
 
     // Move settings
     if (file_exists($settingsFile)) {
-        @rename($settingsFile, $oldsystemDir . '/settings.json');
+        if (!rename($settingsFile, $oldsystemDir . '/settings.json')) throw new RuntimeException('Cannot archive legacy settings.');
     }
     // Move components
     if (is_dir($compDir)) {
-        moveDirectory($compDir, $oldsystemDir . '/components');
+        if (!rename($compDir, $oldsystemDir . '/components')) throw new RuntimeException('Cannot archive legacy components.');
     }
     // Move posts
     if (is_dir($postsDir)) {
-        moveDirectory($postsDir, $oldsystemDir . '/posts');
+        if (!rename($postsDir, $oldsystemDir . '/posts')) throw new RuntimeException('Cannot archive legacy posts.');
     }
 
-    // Import from oldsystem folder（flat→sqlite移行なので、自分自身の既存設定を引き継ぐ）
-    importFolderToSqlite($db, $oldsystemDir, true);
+    // All source folders are now safely archived.
+    unlink($pending);
 
     // Rename oldsystem -> oldsystem_imported
     if (is_dir($oldsystemDir)) {
         @rename($oldsystemDir, $oldsystemDir . '_imported');
     }
+}
+
+/** Recover old uploaded packages without merging or importing them over current data. */
+function mikanBoxArchiveLegacyImports(): bool {
+    $source = CORE_DIR . '/import'; $found = false;
+    foreach (is_dir($source) ? scandir($source) : [] as $name) {
+        if (in_array($name, ['.', '..', 'ja', 'en'], true) || !is_dir($source . '/' . $name)) continue;
+        $destination = DATA_DIR . '/private-import';
+        if (!mikanBoxProtectDataDirectory($destination)) throw new RuntimeException('Cannot protect import backups.');
+        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source . '/' . $name, RecursiveDirectoryIterator::SKIP_DOTS));
+        foreach ($files as $file) {
+            // Retain old server rules as inert backups: they must not override DATA_DIR's denial.
+            if ($file->getFilename() === '.htaccess') {
+                if (!rename($file->getPathname(), $file->getPathname() . '.saved-' . bin2hex(random_bytes(4)))) throw new RuntimeException('Cannot secure old import server rules.');
+                continue;
+            }
+            if ($file->isFile() && $file->getFilename() === 'settings.json') {
+                $old = json_decode((string)file_get_contents($file->getPathname()), true);
+                if (!empty($old['mcp_api_key'])) $found = true;
+            }
+        }
+        if (!rename($source . '/' . $name, $destination . '/' . $name . '-' . bin2hex(random_bytes(8)))) throw new RuntimeException('Cannot secure old import backups.');
+        // Only old account-bearing backups require rotating the active key.
+        $found = $found || str_starts_with($name, 'oldsystem');
+    }
+    return $found;
 }
 
 /**

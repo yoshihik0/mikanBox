@@ -34,7 +34,7 @@ function mikanBoxStartSession(): void {
 }
 
 function mikanBoxClearAuthentication(): void {
-    unset($_SESSION['admin_logged_in'], $_SESSION['admin_username'], $_SESSION['admin_display_name']);
+    unset($_SESSION['admin_logged_in'], $_SESSION['admin_username'], $_SESSION['admin_display_name'], $_SESSION['mikanbox_password_fingerprint']);
 }
 
 function mikanBoxRenewAuthentication(): void {

@@ -1,4 +1,7 @@
-<?php defined('MIKANBOX') or die(); ?>
+<?php defined('MIKANBOX') or die();
+$mcpDemo = !empty($settings['demo_mode']);
+$mcpDisplayKey = $mcpDemo ? 'DEMO-NOT-A-VALID-API-KEY' : (string)($settings['mcp_api_key'] ?? '');
+?>
     <div id="mcp-api-key">
         <div class="section-container section-tight">
             <details class="section-accordion">
@@ -11,13 +14,13 @@
                     <small class="sub-text sub-text-intro"><?= t('mcp_key_hint') ?></small>
                     <form method="post" class="mt-10">
                         <?= csrfField() ?><input type="hidden" name="save_action" value="set_mcp_enabled">
-                        <label><input type="checkbox" name="mcp_enabled" value="1" <?= mikanBoxMcpEnabled() ? 'checked' : '' ?>> <?= t('mcp_enable_label') ?></label>
+                        <label><input type="checkbox" name="mcp_enabled" value="1" <?= (!$mcpDemo && mikanBoxMcpEnabled()) ? 'checked' : '' ?>> <?= t('mcp_enable_label') ?></label>
                         <button type="submit" class="btn btn-gray btn-small"><?= t('btn_save') ?></button>
                         <p class="sub-text"><?= t('mcp_enable_hint') ?></p>
                     </form>
-                    <?php $mcpUsedAt = mikanBoxMcpLastUsed((string)($settings['mcp_api_key'] ?? '')); ?>
+                    <?php $mcpUsedAt = $mcpDemo ? 0 : mikanBoxMcpLastUsed($mcpDisplayKey); ?>
                     <p><?= t('mcp_last_used_label') ?>: <span id="mcp-last-used"><?= $mcpUsedAt ? htmlspecialchars(gmdate('Y-m-d H:i', $mcpUsedAt) . ' UTC', ENT_QUOTES, 'UTF-8') : t('mcp_never_used') ?></span></p>
-                    <?php $mcpHasKey = !empty($settings['mcp_api_key']);
+                    <?php $mcpHasKey = $mcpDisplayKey !== '';
                           // The admin MCP endpoint sits beside admin.php: {site URL}/{admin folder}/mcp
                           $mcpHttps = !empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off';
                           $mcpUrl = ($mcpHttps ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
@@ -36,7 +39,7 @@
                         <div class="form-group mt-10">
                             <label for="mcp-key-display"><?= t('mcp_key_label') ?></label>
                             <div class="copy-row">
-                                <input type="text" id="mcp-key-display" value="<?= $mcpHasKey ? htmlspecialchars($settings['mcp_api_key']) : '' ?>" readonly>
+                                <input type="text" id="mcp-key-display" value="<?= $mcpHasKey ? htmlspecialchars($mcpDisplayKey) : '' ?>" readonly>
                                 <button type="button" class="btn btn-gray btn-small" onclick="navigator.clipboard.writeText(document.getElementById('mcp-key-display').value).then(()=>showToast('<?= t('msg_copied') ?>'))"><?= getIcon('copy') ?> <?= t('btn_copy') ?></button>
                             </div>
                         </div>
@@ -60,6 +63,6 @@
 <p class="sub-text"><?= t('audit_hint') ?></p>
 <?php if ((!empty($GLOBALS['mikanbox_audit_unavailable']) || !empty($_SESSION['mikanbox_audit_unavailable']))): ?><p role="alert"><?= t('audit_unavailable') ?></p><?php endif; ?>
 <table><thead><tr><th><?= t('audit_time') ?></th><th><?= t('audit_action') ?></th><th><?= t('audit_actor') ?></th><th><?= t('audit_target') ?></th><th>IP</th></tr></thead><tbody>
-<?php foreach (mikanBoxAuditRecent() as $event): ?>
+<?php foreach (($mcpDemo ? [] : mikanBoxAuditRecent()) as $event): ?>
 <tr><?php foreach ([$event['at'] ?? '', t('audit_event_' . ($event['event'] ?? '')), $event['actor'] ?? '', (($event['target'] ?? '') . (isset($event['from'],$event['to']) ? ' (' . $event['from'] . ' → ' . $event['to'] . ')' : '')), $event['ip'] ?? ''] as $value): ?><td><?= htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') ?></td><?php endforeach; ?></tr>
 <?php endforeach; ?></tbody></table></div></details></div>

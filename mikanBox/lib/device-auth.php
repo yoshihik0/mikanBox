@@ -549,28 +549,27 @@ function mikanBoxSetupTokenMatches(string $input): bool {
  * key are cleared. Returns false when another request spent it first.
  */
 function mikanBoxSetupTokenConsume(string $token): bool {
-    $db = getDb();
-    $hadUsers = (int)$db->querySingle('SELECT COUNT(*) FROM users') > 0;
-    $recovery = mikanBoxDeviceActiveCount() > 0;
-    $insert = $db->prepare('INSERT OR IGNORE INTO auth_meta (key, value) VALUES (:k, :v)');
-    $insert->bindValue(':k', 'setup_token_used:' . hash('sha256', trim($token)), SQLITE3_TEXT);
-    $insert->bindValue(':v', (string)time(), SQLITE3_TEXT);
-    $insert->execute();
-    if ($db->changes() !== 1) return false; // another request spent it first
+    try {
+        $result = mikanBoxDeviceTransaction(function ($db) use ($token) {
+            $hadUsers = (int)$db->querySingle('SELECT COUNT(*) FROM users') > 0;
+            mikanBoxDeviceWrite($db, 'INSERT OR IGNORE INTO auth_meta (key, value) VALUES (:k, :v)', [':k'=>'setup_token_used:' . hash('sha256', trim($token)), ':v'=>(string)time()]);
+            if ($db->changes() !== 1) return null;
+            $recovery = $hadUsers && (int)$db->querySingle('SELECT COUNT(*) FROM device_sessions') > 0;
+            if ($recovery) {
+                mikanBoxDeviceWrite($db, 'UPDATE device_sessions SET revoked_at = :n WHERE revoked_at IS NULL', [':n'=>time()]);
+                mikanBoxDeviceWrite($db, 'DELETE FROM device_codes', []);
+                mikanBoxDeviceWrite($db, 'DELETE FROM locks', []);
+                mikanBoxDeviceWrite($db, "INSERT INTO settings(key,value) VALUES('mcp_api_key',:empty) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [':empty'=>'""']);
+            }
+            return $recovery;
+        });
+    } catch (Throwable $error) { return false; }
+    if ($result === null) return false;
     mikanBoxSetupTokenReset();
-    if ($recovery) {
-        $stmt = $db->prepare('UPDATE device_sessions SET revoked_at = :n WHERE revoked_at IS NULL');
-        $stmt->bindValue(':n', time(), SQLITE3_INTEGER);
-        $stmt->execute();
-        $db->exec('DELETE FROM device_codes');
-        $db->exec('DELETE FROM locks');
-        $settings = loadSettings();
-        if (!empty($settings['mcp_api_key'])) {
-            $settings['mcp_api_key'] = '';
-            saveSettings($settings);
-        }
+    if ($result) {
+        $GLOBALS['mikanbox_settings']['mcp_api_key'] = '';
+        mikanBoxAudit('recovery');
     }
-    if ($hadUsers) mikanBoxAudit('recovery');
     return true;
 }
 

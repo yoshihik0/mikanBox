@@ -1031,7 +1031,7 @@ if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
             }
 
             $settings = loadSettings();
-            if (!mikanBoxMcpEnabled()) {
+            if (!empty($settings['demo_mode']) || !mikanBoxMcpEnabled()) {
                 echo json_encode(mcpErrorResponse($request['id'] ?? null, -32001, t('mcp_err_mcp_disabled'))) . "\n";
                 flush(); continue;
             }
@@ -1143,7 +1143,7 @@ if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
         $settings = loadSettings();
         $apiKey   = $settings['mcp_api_key'] ?? '';
 
-        if (empty($apiKey) || !mikanBoxMcpEnabled()) {
+        if (!empty($settings['demo_mode']) || empty($apiKey) || !mikanBoxMcpEnabled()) {
             http_response_code(403);
             echo json_encode(mcpErrorResponse($id, -32001, t('mcp_err_mcp_disabled')), JSON_UNESCAPED_UNICODE);
             exit;

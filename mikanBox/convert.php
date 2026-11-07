@@ -68,12 +68,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($action)) {
             // Replace non-alphanumeric chars to be safe for directory name
             $baseName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $baseName);
             
-            $importDir = __DIR__ . '/import';
+            $importDir = DATA_DIR . '/private-import';
+            if (!mikanBoxProtectDataDirectory($importDir)) throw new Exception('Cannot protect import directory.');
             if (!is_dir($importDir)) {
                 @mkdir($importDir, 0777, true);
             }
             
-            $extractTo = $importDir . '/' . $baseName;
+            $extractTo = $importDir . '/' . ($baseName ?: 'package') . '-' . bin2hex(random_bytes(8));
             // Clean up existing folder with same name if any
             if (is_dir($extractTo)) {
                 moveDirectory($extractTo, $importDir . '/_temp_trash_' . time());
@@ -87,7 +88,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($action)) {
             $zip = new ZipArchive;
             if ($zip->open($zipPath) === TRUE) {
                 @mkdir($extractTo, 0777, true);
-                $zip->extractTo($extractTo);
+                $entries = []; $total = 0;
+                if ($zip->numFiles > 10000) throw new Exception('Too many archive entries.');
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $entry = $zip->statIndex($i); $name = $entry['name'];
+                    if (preg_match('~(^/|\\\\|(^|/)\.\.(/|$)|:)~', $name)) throw new Exception('Invalid archive path.');
+                    if (str_ends_with($name, '/')) continue;
+                    // Import content only: never extract scripts, server configuration or symlinks.
+                    if (strtolower(pathinfo($name, PATHINFO_EXTENSION)) !== 'json') continue;
+                    $opsys = 0; $attributes = 0; $zip->getExternalAttributesIndex($i, $opsys, $attributes);
+                    if (($attributes >> 16 & 0170000) === 0120000) throw new Exception('Archive links are not allowed.');
+                    $total += $entry['size'];
+                    if ($entry['size'] > 10000000 || $total > 50000000) throw new Exception('Archive is too large.');
+                    $entries[] = $name;
+                }
+                if (!$entries || !$zip->extractTo($extractTo, $entries)) throw new Exception('No valid JSON package.');
                 $zip->close();
                 $log[] = "[SUCCESS] ZIPファイルを一時フォルダに解凍しました: {$baseName}";
             } else {
@@ -512,7 +527,7 @@ function wp_html_to_markdown($html) {
                     <input type="hidden" name="action" value="upload_import">
                     <p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 12px; line-height: 1.5;">
                         テーマや初期データを含むZIPパッケージ（<code>settings.json</code>, <code>posts/</code>, <code>components/</code> フォルダなどを含むアーカイブ）をアップロードして、現在のSQLiteデータベースにインポートします。<br>
-                        ※インポートされたファイル群は、<code>import/</code> フォルダ配下に <code>{フォルダ名}_imported</code> として展開されます。
+                        ※インポートされたファイル群は、<code>mikanData/private-import/</code> フォルダ配下に <code>{フォルダ名}_imported</code> として展開されます。
                     </p>
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <input type="file" name="package_zip" accept=".zip" required style="font-size: 0.9rem; padding: 6px; border: 1px solid var(--border); border-radius: 6px; flex-grow: 1; background: #fafafa;">

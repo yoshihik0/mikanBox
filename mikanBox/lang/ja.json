@@ -774,5 +774,7 @@
     "visual_js_delete_block": "このブロックを削除",
     "visual_js_new_paragraph": "（新しい段落）",
     "visual_js_delete_really": "本当に削除",
-    "btn_visual_edit": "ビジュアル編集"
+    "btn_visual_edit": "ビジュアル編集",
+    "external_markdown_label": "外部Markdownの読み込みを許可",
+    "external_markdown_hint": "EXT_MDで外部の文書を取得します。HTMLは文字として表示します。利用にはPHPのcURL拡張が必要です。転送先URLは取得できないため、文書の直接URLを指定してください。"
 }

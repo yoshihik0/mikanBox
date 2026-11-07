@@ -764,27 +764,24 @@ class MikanBoxRenderer {
             $rowId = $matches[2];
             $key   = $matches[3];
             $lookupKey = $rowId ? "#{$rowId}:{$key}" : $key;
-            if (!$this->isUrlSafeForExternalFetch($url)) return "<!-- Error: URL not allowed (private/internal address) $url -->";
-            $context = stream_context_create(['http' => ['timeout' => 5]]);
-            $externalContent = @file_get_contents($url, false, $context);
-            if ($externalContent === false) return "<!-- Error: Fetch failed $url -->";
-            $externalContent = $this->sanitizeExternalContent($externalContent);
+            if (!mikanBoxExternalMarkdownEnabled($this->siteSettings)) return '';
+            $externalContent = mikanBoxFetchExternalMarkdown($url);
+            if ($externalContent === null) return '<!-- External Markdown unavailable -->';
             $dataBlocks = [];
             $this->extractDataBlocks($externalContent, $dataBlocks);
-            return $dataBlocks[$lookupKey] ?? '';
+            return mikanBoxExternalMarkdownText($dataBlocks[$lookupKey] ?? '');
         }, $html);
 
         // EXT_MD:url — render full external content
         $html = preg_replace_callback('/\{\{EXT_MD:(https?:\/\/[^\}]+)\}\}/', function($matches) {
             $url = $matches[1];
-            if (!$this->isUrlSafeForExternalFetch($url)) return "<!-- Error: URL not allowed (private/internal address) $url -->";
-            $context = stream_context_create(['http' => ['timeout' => 5]]);
-            $externalContent = @file_get_contents($url, false, $context);
-            if ($externalContent === false) return "<!-- Error: Fetch failed $url -->";
-            $sanitized = $this->sanitizeExternalContent($externalContent);
+            if (!mikanBoxExternalMarkdownEnabled($this->siteSettings)) return '';
+            $externalContent = mikanBoxFetchExternalMarkdown($url);
+            if ($externalContent === null) return '<!-- External Markdown unavailable -->';
+            $sanitized = $externalContent;
             $dataBlocks = [];
             $sanitized = $this->extractDataBlocks($sanitized, $dataBlocks);
-            return $this->markdown->text($sanitized);
+            return $this->markdown->text(mikanBoxExternalMarkdownText($sanitized));
         }, $html);
 
         // POST_MD:pageID#rowID:KEY — another page, specific DATAROW (must come first)
@@ -847,38 +844,6 @@ class MikanBoxRenderer {
         }, $html);
 
         return $html;
-    }
-
-    /**
-     * Strip dangerous content from externally fetched HTML/Markdown.
-     * Removes <script> blocks, on* event handlers, and javascript: hrefs.
-     */
-    private function sanitizeExternalContent($content) {
-        $content = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $content);
-        $content = preg_replace('/\s+on\w+\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $content);
-        $content = preg_replace('/href\s*=\s*["\']javascript:[^"\']*["\']/i', 'href="#"', $content);
-        return $content;
-    }
-
-    /**
-     * SSRF guard for {{EXT_MD:url}}: resolve the URL's host to its IP(s) and
-     * reject private/reserved ranges (loopback, link-local incl. cloud
-     * metadata endpoints, RFC1918 private networks, etc.) before fetching.
-     */
-    private function isUrlSafeForExternalFetch($url) {
-        $host = parse_url($url, PHP_URL_HOST);
-        if (!$host) return false;
-        if (strtolower($host) === 'localhost') return false;
-
-        $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : (gethostbynamel($host) ?: []);
-        if (empty($ips)) return false;
-
-        foreach ($ips as $ip) {
-            if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                return false;
-            }
-        }
-        return true;
     }
 
     /**

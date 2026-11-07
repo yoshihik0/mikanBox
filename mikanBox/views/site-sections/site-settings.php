@@ -72,6 +72,11 @@ $siteEnvironment = (string)($settings['site_environment'] ?? 'unspecified');
                             </div>
                         </div>
                         <div class="form-group mt-15">
+                            <input type="hidden" name="external_markdown_present" value="1">
+                            <label><input type="checkbox" name="external_markdown_enabled" value="1" <?= mikanBoxExternalMarkdownEnabled($settings) ? 'checked' : '' ?>> <?= t('external_markdown_label') ?></label>
+                            <small class="sub-text sub-text-block"><?= t('external_markdown_hint') ?></small>
+                        </div>
+                        <div class="form-group mt-15">
                             <h3><?= t('label_common_loading') ?></h3>
                             <?php
                             $trackingHeadCode = (string)($settings['tracking_head_code'] ?? '');

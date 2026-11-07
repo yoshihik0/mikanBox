@@ -4,3 +4,9 @@
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
     RewriteRule ^mcp/?$ mcp.php [L,QSA]
 </IfModule>
+
+# Never serve private JSON left by older flat-to-SQLite migrations.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^import(?:/|$) - [F,L,NC]
+</IfModule>

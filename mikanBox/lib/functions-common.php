@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . "/security.php";
+require_once __DIR__ . "/external-markdown.php";
 /**
  * Public JS assets use design component IDs only, never paths or AI documents.
  * Null means not found; an existing component with no JS returns an empty file.

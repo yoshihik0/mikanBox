@@ -35,7 +35,7 @@ try {
     $stmtUsersCount = $db->querySingle("SELECT COUNT(*) FROM users") ?: 0;
 } catch (Exception $e) {}
 $isInitialSetup = ($stmtUsersCount === 0);
-$isDemoMode = !empty($settings['demo_mode']);
+$isDemoMode = false; // Public demo access is available only in the flat edition.
 $loginError = ''; // Initialize loginError
 $inviteStep = null; // set when an invite code was accepted and its owner must choose an ID and name
 
@@ -84,7 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
                             'system_lang' => '',
                             'ssg_structure' => 'directory',
                             'ssg_server_structure' => 'directory',
-                            'ssg_export_structure' => 'file'
+                            'ssg_export_structure' => 'file',
+                            'external_markdown_enabled' => false
                         ];
                         saveSettings($settings);
                     }
@@ -281,7 +282,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     $resolvedFilename = null;
 
     // Demo mode: block write operations if not logged in with password
-    if ($isDemoMode && !$isLoggedIn) {
+    if ($isDemoMode && (!$isLoggedIn || in_array($_POST['save_action'], ['generate_mcp_key', 'set_mcp_enabled'], true))) {
         $message = t('msg_demo_mode');
         goto skip_post_actions;
     }
@@ -871,6 +872,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             if (isset($_POST['pages_per_page'])) $settings['pages_per_page'] = (int)$_POST['pages_per_page'];
             if (isset($_POST['media_per_page'])) $settings['media_per_page'] = (int)$_POST['media_per_page'];
             if (isset($_POST['category_candidates'])) $settings['category_candidates'] = $_POST['category_candidates'];
+            if (isset($_POST['external_markdown_present'])) $settings['external_markdown_enabled'] = isset($_POST['external_markdown_enabled']);
         } elseif ($_POST['save_action'] === 'save_memo') {
             $settings['memo'] = $_POST['memo'] ?? '';
         }

@@ -774,5 +774,7 @@
     "visual_js_delete_block": "Delete this block",
     "visual_js_new_paragraph": "(new paragraph)",
     "visual_js_delete_really": "Really delete",
-    "btn_visual_edit": "Visual edit"
+    "btn_visual_edit": "Visual edit",
+    "external_markdown_label": "Allow external Markdown",
+    "external_markdown_hint": "Fetch documents with EXT_MD. HTML is displayed as text. Requires the PHP cURL extension. Redirects are not followed; use the document’s direct URL."
 }
