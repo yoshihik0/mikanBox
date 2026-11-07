@@ -65,13 +65,9 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-auth-audit-') as td:
      status,out=Browser().req(url+'/mikanBox/mcp.php',{'jsonrpc':'2.0','id':1,'method':'tools/call','params':{'name':tool,'arguments':args}},{'Content-Type':'application/json','Authorization':'Bearer '+key})
      assert status == 200 and marker in out
      print(edition,tool,': authenticated notes preserved')
-    php(site,'$s=loadSettings();$s["demo_mode"]=true;saveSettings($s);')
     anon=Browser();status,html=anon.req(admin)
     assert key not in html
-    if edition=='flat': assert 'DEMO-NOT-A-VALID-API-KEY' in html
-    status,out=Browser().req(url+'/mikanBox/mcp.php',{'jsonrpc':'2.0','id':1,'method':'tools/list'},{'Content-Type':'application/json','Authorization':'Bearer '+key})
-    assert status == 403
-    print(edition, 'demo management MCP refused; real key absent')
+    print(edition, 'unauthenticated admin page never carries the MCP key')
     for public_path in ['/private-audit','/api/private-audit','/mikanBox/public-mcp.php?action=get_product_info']:
      status,body=Browser().req(url+public_path)
      assert 'PAGE_PRIVATE_MARKER' not in body and 'SITE_PRIVATE_MARKER' not in body and 'COMPONENT_PRIVATE_MARKER' not in body

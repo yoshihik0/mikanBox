@@ -1,7 +1,7 @@
 <?php
 // Sign-in screen (SQLite edition). Included by admin.php for visitors whose
 // browser is not a registered device. Expects: $loginError, $installedVersion,
-// $isInitialSetup, $isDemoMode.
+// $isInitialSetup.
 $setupState = mikanBoxSetupTokenState();
 $hasDevices = mikanBoxDeviceActiveCount() > 0;
 $e = static fn($value) => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
@@ -60,7 +60,6 @@ $guide = static function () use ($e, $setupState) {
             echo "<div class='error' style='background-color:#e2f0d9; border-color:#a9d08e; color:#375623; margin-bottom:15px; font-size:0.85rem; padding:10px; border-radius:4px; border:1px solid;'>" . $e($_SESSION['admin_message']) . "</div>";
             unset($_SESSION['admin_message']);
         }
-        if ($isDemoMode) echo '<p>' . t('hint_demo_login') . '</p>';
         if (!empty($loginError)) echo '<div class="error" role="alert">' . $e($loginError) . '</div>';
         ?>
 
@@ -114,9 +113,6 @@ $guide = static function () use ($e, $setupState) {
             </details>
         <?php endif; ?>
 
-        <?php if ($isDemoMode): ?>
-            <p><a href="<?= $e(basename($_SERVER['PHP_SELF'])) ?>"><?= t('btn_demo_back') ?></a></p>
-        <?php endif; ?>
     </div>
 </body>
 </html>

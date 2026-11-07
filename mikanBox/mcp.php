@@ -940,11 +940,6 @@ function buildPageData($args) {
 function executeTool($name, $args, $settings) {
     $GLOBALS['mcp_settings'] = $settings;
 
-    // デモモード中は書き込み系ツールをブロック
-    $writeTools = mcpWriteToolNames();
-    if (!empty($settings['demo_mode']) && in_array($name, $writeTools)) {
-        return ['error' => t('mcp_err_demo_mode')];
-    }
 
     return match($name) {
         'get_site_info'     => toolGetSiteInfo($settings),
@@ -1031,7 +1026,7 @@ if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
             }
 
             $settings = loadSettings();
-            if (!empty($settings['demo_mode']) || !mikanBoxMcpEnabled()) {
+            if (!mikanBoxMcpEnabled()) {
                 echo json_encode(mcpErrorResponse($request['id'] ?? null, -32001, t('mcp_err_mcp_disabled'))) . "\n";
                 flush(); continue;
             }
@@ -1143,7 +1138,7 @@ if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
         $settings = loadSettings();
         $apiKey   = $settings['mcp_api_key'] ?? '';
 
-        if (!empty($settings['demo_mode']) || empty($apiKey) || !mikanBoxMcpEnabled()) {
+        if (empty($apiKey) || !mikanBoxMcpEnabled()) {
             http_response_code(403);
             echo json_encode(mcpErrorResponse($id, -32001, t('mcp_err_mcp_disabled')), JSON_UNESCAPED_UNICODE);
             exit;

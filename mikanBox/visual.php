@@ -104,7 +104,7 @@ function mbv_render(string $id, ?array $override = null): ?string {
 $S = $GLOBALS['mikanbox_settings'] ?? [];
 // flat版は設定にパスワードがあること、SQLite版（端末認証）は管理画面と同じログイン済みのセッションであること
 $hasAccount = function_exists('getPreviewToken') ? true : !empty($S['password_hash']);
-$loggedIn = (($_SESSION['admin_logged_in'] ?? false) === true) && $hasAccount && empty($S['demo_mode']);
+$loggedIn = (($_SESSION['admin_logged_in'] ?? false) === true) && $hasAccount;
 $isApi = isset($_GET['api']);
 if (!$loggedIn) {
     if ($isApi) mbv_json(['error' => t('visual_err_login'), 'login' => true], 401);

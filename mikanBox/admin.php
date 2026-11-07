@@ -35,7 +35,6 @@ try {
     $stmtUsersCount = $db->querySingle("SELECT COUNT(*) FROM users") ?: 0;
 } catch (Exception $e) {}
 $isInitialSetup = ($stmtUsersCount === 0);
-$isDemoMode = false; // Public demo access is available only in the flat edition.
 $loginError = ''; // Initialize loginError
 $inviteStep = null; // set when an invite code was accepted and its owner must choose an ID and name
 
@@ -153,8 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
 }
 
 // Show the sign-in screen when this browser is not a registered device.
-// In demo mode, allow access without login (unless ?login=1 is requested for full access)
-if ($isInitialSetup || (!$isLoggedIn && (!$isDemoMode || isset($_GET['login'])))) {
+if ($isInitialSetup || !$isLoggedIn) {
     if (ob_get_length()) ob_clean();
     require __DIR__ . '/views/login.php';
     exit;
@@ -283,12 +281,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     }
     $success = true;
     $resolvedFilename = null;
-
-    // Demo mode: block write operations if not logged in with password
-    if ($isDemoMode && (!$isLoggedIn || in_array($_POST['save_action'], ['generate_mcp_key', 'set_mcp_enabled'], true))) {
-        $message = t('msg_demo_mode');
-        goto skip_post_actions;
-    }
 
     if (in_array($_POST['save_action'], ['system_update', 'system_restore'], true)) {
         require_once __DIR__ . '/lib/updater.php';
@@ -1565,9 +1557,6 @@ function getIcon($name) {
     <?php endif; ?>
     <div class="page-top-links">
         <a href="<?= $lastSsgRelPath ?>" target="_blank"><?= t('admin_view_site') ?></a>
-        <?php if ($isDemoMode && !$isLoggedIn): ?>
-        <a href="?login=1"><?= t('btn_login') ?></a>
-        <?php endif; ?>
     </div>
 
     <!-- Category Cloud (Steps 3 & 4) -->

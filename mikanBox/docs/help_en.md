@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.16.9</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.16.10</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -122,7 +122,7 @@ Pages and components are tied directly to their CSS, so the structure is easy to
 - By using the `{{EXT_MD:url}}` tag to source content from an external Markdown file (e.g. on GitHub), you can adopt a workflow where simply telling an AI agent to update the repository is enough to update the website — no need to even open the admin panel
 - Because the codebase is small and easy for AI to understand, you add features by having AI rewrite the source directly, rather than relying on plugins
 
-The official demo uses a dedicated flat sample site. MCP settings remain visible to demonstrate where configuration lives, but the displayed key is a non-functional dummy. Issuing, regenerating or enabling a key has no effect. Management MCP is unavailable over both HTTP and stdio. The system update and restore buttons are shown, but pressing them does nothing, even for a signed-in administrator. Never copy real data or production credentials into a demo.
+The official demo is a dedicated flat sample site frozen at v2.16.9. The product itself (v2.16.10 and later) has no demo feature. In the demo, MCP settings remain visible to demonstrate where configuration lives, but the displayed key is a non-functional dummy. Issuing, regenerating or enabling a key has no effect. Management MCP is unavailable over both HTTP and stdio. The system update and restore buttons are shown, but pressing them does nothing, even for a signed-in administrator. Never copy real data or production credentials into a demo.
 
 ### Keeping Security Simple
 
