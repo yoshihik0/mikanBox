@@ -297,7 +297,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                     CORE_DIR,
                     DATA_DIR,
                     $_POST['target_version'] ?? null,
-                    $_POST['update_ref'] ?? 'main',
+                    $_POST['update_ref'] ?? '',
                     !empty($_POST['reinstall'])
                 );
                 $message = !empty($result['success'])

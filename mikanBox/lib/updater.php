@@ -204,38 +204,42 @@ function mikanBoxUpdateFetchText(string $url, int $timeout = 10): ?string {
     return is_string($body) && $body !== '' ? $body : null;
 }
 
+/** Only published stable releases are eligible; tags and branches alone are not releases. */
+function mikanBoxUpdateRelease(string $githubRepo, ?string $tag = null): ?array {
+    if (!preg_match('~^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$~', $githubRepo)) return null;
+    if ($tag !== null && !preg_match('/^v?[0-9]+\.[0-9]+\.[0-9]+$/', $tag)) return null;
+    $endpoint = $tag === null ? 'latest' : 'tags/' . rawurlencode($tag);
+    $release = json_decode(mikanBoxUpdateFetchText("https://api.github.com/repos/{$githubRepo}/releases/{$endpoint}") ?? '', true);
+    if (!is_array($release) || ($release['draft'] ?? true) !== false ||
+        ($release['prerelease'] ?? true) !== false || empty($release['published_at']) ||
+        !preg_match('/^v?[0-9]+\.[0-9]+\.[0-9]+$/', $release['tag_name'] ?? '') ||
+        ($tag !== null && $release['tag_name'] !== $tag)) return null;
+    return $release;
+}
+
 function mikanBoxFetchLatestVersion(string $githubRepo): array {
-    $candidates = [];
+    $release = mikanBoxUpdateRelease($githubRepo);
+    return ['version' => $release['tag_name'] ?? null, 'ref' => $release['tag_name'] ?? null];
+}
 
-    $releaseJson = mikanBoxUpdateFetchText("https://api.github.com/repos/{$githubRepo}/releases/latest");
-    if ($releaseJson) {
-        $release = json_decode($releaseJson, true);
-        if (!empty($release['tag_name'])) {
-            $candidates[] = ['version' => $release['tag_name'], 'ref' => $release['tag_name']];
-        }
+/** Resolve once, then download by immutable commit ID, including annotated tags. */
+function mikanBoxUpdateReleaseCommit(string $githubRepo, string $tag): ?string {
+    if (!mikanBoxUpdateRelease($githubRepo, $tag)) return null;
+    $commit = json_decode(mikanBoxUpdateFetchText("https://api.github.com/repos/{$githubRepo}/commits/" . rawurlencode($tag)) ?? '', true);
+    $sha = $commit['sha'] ?? '';
+    return is_string($sha) && preg_match('/^[a-f0-9]{40}$/', $sha) ? $sha : null;
+}
+
+/** Keep this inode outside DATA_DIR, which a legacy restore may move. Never unlink it. */
+function mikanBoxUpdateWithLock(string $coreDir, callable $operation): array {
+    $lock = @fopen(rtrim($coreDir, '/\\') . '/.update.lock', 'c');
+    if (!$lock) return ['success' => false, 'code' => 'lock_failed'];
+    if (!flock($lock, LOCK_EX | LOCK_NB)) {
+        fclose($lock);
+        return ['success' => false, 'code' => 'busy'];
     }
-
-    $tagsJson = mikanBoxUpdateFetchText("https://api.github.com/repos/{$githubRepo}/tags");
-    if ($tagsJson) {
-        $tags = json_decode($tagsJson, true);
-        foreach (is_array($tags) ? $tags : [] as $tag) {
-            if (!empty($tag['name'])) $candidates[] = ['version' => $tag['name'], 'ref' => $tag['name']];
-        }
-    }
-
-    $configPhp = mikanBoxUpdateFetchText(
-        "https://raw.githubusercontent.com/{$githubRepo}/main/mikanBox/config.php"
-    );
-    if ($configPhp && preg_match('/define\\s*\\(\\s*[\'"]MIKANBOX_VERSION[\'"]\\s*,\\s*[\'"]([^\'"]+)[\'"]\\s*\\)/', $configPhp, $match)) {
-        $candidates[] = ['version' => $match[1], 'ref' => 'main'];
-    }
-
-    if (!$candidates) return ['version' => null, 'ref' => null];
-    usort($candidates, fn($a, $b) => version_compare(
-        ltrim($b['version'], 'vV'),
-        ltrim($a['version'], 'vV')
-    ));
-    return $candidates[0];
+    try { return $operation(); }
+    finally { flock($lock, LOCK_UN); fclose($lock); }
 }
 
 function mikanBoxUpdateRestoreFromDirectory(string $backupDir, string $siteRoot): bool {
@@ -297,11 +301,32 @@ function mikanBoxInstallUpdate(
     string $coreDir,
     string $dataDir,
     ?string $expectedVersion = null,
-    string $archiveRef = 'main',
+    string $archiveRef = '',
+    bool $allowReinstall = false
+): array {
+    return mikanBoxUpdateWithLock($coreDir, static function () use ($githubRepo, $coreDir, $dataDir, $expectedVersion, $archiveRef, $allowReinstall) {
+        $currentVersion = mikanBoxUpdateReadVersion($coreDir . '/config.php');
+        if (!$currentVersion) return ['success' => false, 'code' => 'archive_invalid'];
+        return mikanBoxInstallUpdateLocked($githubRepo, $currentVersion, $coreDir, $dataDir, $expectedVersion, $archiveRef, $allowReinstall);
+    });
+}
+
+function mikanBoxInstallUpdateLocked(
+    string $githubRepo,
+    string $currentVersion,
+    string $coreDir,
+    string $dataDir,
+    ?string $expectedVersion = null,
+    string $archiveRef = '',
     bool $allowReinstall = false
 ): array {
     if (!class_exists('ZipArchive')) return ['success' => false, 'code' => 'zip_unavailable'];
     if (function_exists('set_time_limit')) @set_time_limit(120);
+
+    if ($expectedVersion === null || !preg_match('/^v?[0-9]+\.[0-9]+\.[0-9]+$/', $archiveRef) ||
+        ltrim($archiveRef, 'v') !== ltrim($expectedVersion, 'v')) return ['success' => false, 'code' => 'archive_invalid'];
+    $commit = mikanBoxUpdateReleaseCommit($githubRepo, $archiveRef);
+    if (!$commit) return ['success' => false, 'code' => 'release_unavailable'];
 
     $siteRoot = dirname($coreDir);
     $workRoot = $dataDir . '/update-temp';
@@ -314,14 +339,8 @@ function mikanBoxInstallUpdate(
         return ['success' => false, 'code' => 'backup_failed'];
     }
 
-    if ($archiveRef !== 'main' && !preg_match('/^[0-9A-Za-z._-]+$/', $archiveRef)) {
-        mikanBoxUpdateRemoveTree($workDir);
-        mikanBoxUpdateRemoveTree($pendingBackup);
-        return ['success' => false, 'code' => 'archive_invalid'];
-    }
     $zipPath = $workDir . '/update.zip';
-    $archiveType = $archiveRef === 'main' ? 'heads' : 'tags';
-    $archiveUrl = 'https://github.com/' . $githubRepo . '/archive/refs/' . $archiveType . '/' . rawurlencode($archiveRef) . '.zip';
+    $archiveUrl = 'https://github.com/' . $githubRepo . '/archive/' . $commit . '.zip';
     if (!mikanBoxUpdateDownload($archiveUrl, $zipPath)) {
         mikanBoxUpdateRemoveTree($workDir);
         mikanBoxUpdateRemoveTree($pendingBackup);
@@ -412,6 +431,7 @@ function mikanBoxInstallUpdate(
         'to_version' => $newVersion,
         'created_at' => time(),
         'github_repo' => $githubRepo,
+        'commit' => $commit,
         'files' => $manifestFiles,
     ];
     @file_put_contents($pendingBackup . '/.htaccess', "Require all denied\nDeny from all\n");
@@ -432,34 +452,36 @@ function mikanBoxInstallUpdate(
     }
 
     $installed = true;
-    foreach ($programFiles as $relative) {
-        $targetRelative = mikanBoxUpdateTargetRelativePath($relative, $coreDir);
-        if (!mikanBoxUpdateCopyFile(
-            $packageRoot . '/' . $relative,
-            $siteRoot . '/' . $targetRelative
-        )) {
-            $installed = false;
-            break;
+    try {
+        foreach ($programFiles as $relative) {
+            $targetRelative = mikanBoxUpdateTargetRelativePath($relative, $coreDir);
+            if (!mikanBoxUpdateCopyFile(
+                $packageRoot . '/' . $relative,
+                $siteRoot . '/' . $targetRelative
+            )) {
+                $installed = false;
+                break;
+            }
         }
-    }
+    } catch (Throwable $error) { $installed = false; }
     if (!$installed || mikanBoxUpdateReadVersion($coreDir . '/config.php') !== $newVersion) {
-        mikanBoxUpdateRestoreFromDirectory($pendingBackup, $siteRoot);
+        $restored = mikanBoxUpdateRestoreFromDirectory($pendingBackup, $siteRoot);
         mikanBoxUpdateRemoveTree($workDir);
-        mikanBoxUpdateRemoveTree($pendingBackup);
-        return ['success' => false, 'code' => 'install_failed'];
+        if ($restored) mikanBoxUpdateRemoveTree($pendingBackup);
+        return ['success' => false, 'code' => $restored ? 'install_failed' : 'rollback_failed'];
     }
 
-    $stableBackup = $backupRoot . '/' . preg_replace('/[^0-9A-Za-z._-]/', '_', $currentVersion);
-    foreach (scandir($backupRoot) ?: [] as $item) {
-        if ($item === '.' || $item === '..' || $item === basename($pendingBackup)) continue;
-        mikanBoxUpdateRemoveTree($backupRoot . '/' . $item);
-    }
-    mikanBoxUpdateRemoveTree($stableBackup);
+    $stableBackup = $backupRoot . '/' . preg_replace('/[^0-9A-Za-z._-]/', '_', $currentVersion) . '-' . $token;
     if (!@rename($pendingBackup, $stableBackup)) {
-        mikanBoxUpdateRestoreFromDirectory($pendingBackup, $siteRoot);
+        $restored = mikanBoxUpdateRestoreFromDirectory($pendingBackup, $siteRoot);
         mikanBoxUpdateRemoveTree($workDir);
-        mikanBoxUpdateRemoveTree($pendingBackup);
-        return ['success' => false, 'code' => 'backup_failed'];
+        if ($restored) mikanBoxUpdateRemoveTree($pendingBackup);
+        return ['success' => false, 'code' => $restored ? 'backup_failed' : 'rollback_failed'];
+    }
+    // Retire old backups only after the new backup is safely published.
+    foreach (scandir($backupRoot) ?: [] as $item) {
+        if ($item === '.' || $item === '..' || $item === basename($stableBackup) || str_starts_with($item, '.pending-')) continue;
+        mikanBoxUpdateRemoveTree($backupRoot . '/' . $item);
     }
 
     mikanBoxUpdateRemoveTree($workDir);
@@ -467,6 +489,10 @@ function mikanBoxInstallUpdate(
 }
 
 function mikanBoxRestorePreviousVersion(string $coreDir, string $dataDir): array {
+    return mikanBoxUpdateWithLock($coreDir, static fn() => mikanBoxRestorePreviousVersionLocked($coreDir, $dataDir));
+}
+
+function mikanBoxRestorePreviousVersionLocked(string $coreDir, string $dataDir): array {
     $backup = mikanBoxGetUpdateBackup($dataDir);
     if (!$backup || empty($backup['directory'])) {
         return ['success' => false, 'code' => 'restore_missing'];

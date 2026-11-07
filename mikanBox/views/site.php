@@ -25,16 +25,17 @@
     $cachedVersion = $_SESSION[$vCacheKey] ?? null;
     $cachedLatest = is_array($cachedVersion) ? ($cachedVersion['version'] ?? null) : null;
     $cacheIsCurrent = $cachedLatest
+        && ($cachedVersion['release_only'] ?? false) === true
         && version_compare(ltrim($cachedLatest, 'vV'), ltrim($installedVersion, 'vV'), '>=');
     if (!$forceVersionRefresh && is_array($cachedVersion) && $cacheIsCurrent && (time() - ($cachedVersion['checked_at'] ?? 0)) < 1800) {
         $latestVersion = $cachedVersion['version'] ?? null;
-        $latestRef = $cachedVersion['ref'] ?? 'main';
+        $latestRef = $cachedVersion['ref'] ?? '';
     } else {
         $latestInfo = mikanBoxFetchLatestVersion($githubRepo);
         $latestVersion = $latestInfo['version'];
         $latestRef = $latestInfo['ref'];
         if ($latestVersion) {
-            $_SESSION[$vCacheKey] = ['version' => $latestVersion, 'ref' => $latestRef, 'checked_at' => time()];
+            $_SESSION[$vCacheKey] = ['version' => $latestVersion, 'ref' => $latestRef, 'checked_at' => time(), 'release_only' => true];
         } else {
             unset($_SESSION[$vCacheKey]);
         }
@@ -54,7 +55,7 @@
                         <?= csrfField() ?>
                         <input type="hidden" name="save_action" value="system_update">
                         <input type="hidden" name="target_version" value="<?= htmlspecialchars($latestVersion, ENT_QUOTES) ?>">
-                        <input type="hidden" name="update_ref" value="<?= htmlspecialchars($latestRef ?? 'main', ENT_QUOTES) ?>">
+                        <input type="hidden" name="update_ref" value="<?= htmlspecialchars($latestRef ?? '', ENT_QUOTES) ?>">
                         <button type="submit" class="btn btn-blue btn-small"><?= t('btn_system_update') ?></button>
                     </form>
                 <?php elseif ($latestVersion): ?>
@@ -66,7 +67,7 @@
                         <?= csrfField() ?>
                         <input type="hidden" name="save_action" value="system_update">
                         <input type="hidden" name="target_version" value="<?= htmlspecialchars($latestVersion, ENT_QUOTES) ?>">
-                        <input type="hidden" name="update_ref" value="<?= htmlspecialchars($latestRef ?? 'main', ENT_QUOTES) ?>">
+                        <input type="hidden" name="update_ref" value="<?= htmlspecialchars($latestRef ?? '', ENT_QUOTES) ?>">
                         <input type="hidden" name="reinstall" value="1">
                         <button type="submit" style="font:inherit; color:inherit; background:none; border:0; padding:0; text-decoration:underline; cursor:pointer;"><?= t('btn_system_reinstall') ?></button>
                     </form>

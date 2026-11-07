@@ -283,15 +283,22 @@ function migrateJsonToSqlite($db) {
     $pending = DATA_DIR . '/json-migration-pending.php';
     if (file_put_contents($pending, "<?php http_response_code(404); exit; ?>") === false) throw new RuntimeException('Cannot record migration state.');
     // Import while the JSON source is still protected and intact. Retry after a failure.
-    $db->enableExceptions(true);
+    // A dedicated connection keeps migration exceptions independent of legacy callers.
+    $migrationDb = new SQLite3(DB_FILE);
+    $migrationDb->busyTimeout(5000);
+    $migrationDb->enableExceptions(true);
+    $began = false;
     try {
-        $db->exec('BEGIN IMMEDIATE');
-        importFolderToSqlite($db, DATA_DIR, true);
-        $db->exec('COMMIT');
+        $migrationDb->exec('BEGIN IMMEDIATE');
+        $began = true;
+        importFolderToSqlite($migrationDb, DATA_DIR, true);
+        $migrationDb->exec('COMMIT');
     } catch (Throwable $error) {
-        $db->exec('ROLLBACK');
+        if ($began) {
+            try { $migrationDb->exec('ROLLBACK'); } catch (Throwable $rollbackError) {}
+        }
         throw $error;
-    } finally { @$db->enableExceptions(false); }
+    } finally { $migrationDb->close(); }
     
     if (!is_dir($oldsystemDir)) {
         if (!mkdir($oldsystemDir, 0700, true)) throw new RuntimeException('Cannot create import backup.');

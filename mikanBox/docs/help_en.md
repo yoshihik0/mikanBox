@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.16.6</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.16.7</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -572,9 +572,11 @@ Saves the memo's content.
 
 Displays the installed version and the latest version available on GitHub. When a newer version is available, use the [Update] button to update mikanBox.
 
+Updates use only published stable GitHub releases. Development branches and tags without a release are excluded. Publication is verified again when the update starts, and the download is pinned to a specific commit. If verification fails, the update stops. Only one update or restore can run per site; if another operation is running, try again after it finishes.
+
 When you are already on the latest version, [Reinstall] is offered instead. It installs the program files for the same version again, and exists as a recovery path for when an update did not apply cleanly and left the program files incomplete. Your pages, settings and media are untouched.
 
-Only program files are replaced. Pages, settings, media, the database, and generated static files are left untouched. One generation of the previous program files is stored in a protected area on the server. A failed update is restored automatically, and after a successful update you can use the [Restore] button to return to the immediately preceding version.
+Only program files are replaced. Pages, settings, media, the database, and generated static files are left untouched. One generation of the previous program files is stored in a protected area on the server. A failed update attempts automatic rollback. If rollback also fails, an error is displayed and the backup is retained under `update-backups/.pending-*` in protected storage; keep it for recovery by the server administrator. After a successful update you can use the [Restore] button to return to the immediately preceding version.
 
 After you confirm an update, the button changes to [Updating…] and remains disabled until the operation finishes. When the update completes, the admin screen reloads automatically and shows the newly installed version number and a completion message without a manual reload. The restore operation similarly displays [Restoring…] while it is running.
 
