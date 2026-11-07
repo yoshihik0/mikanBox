@@ -8,18 +8,21 @@ $e = static fn($value) => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 $inputStyle = 'padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.9rem;';
 $buttonStyle = 'width: 100%; padding: 10px; font-size: 0.95rem; margin-top: 10px;';
 
-$deviceField = static function () use ($e, $inputStyle) {
+$localInitial = $isInitialSetup && mikanBoxIsLocalRequest(); // this computer itself: no token, device name optional
+$deviceField = static function () use ($e, $inputStyle, $localInitial) {
     ?>
-    <input type="text" name="device_name" maxlength="60" required placeholder="<?= $e(t('device_label_name')) ?>" style="<?= $inputStyle ?>">
+    <input type="text" name="device_name" maxlength="60" <?= $localInitial ? '' : 'required' ?> placeholder="<?= $e($localInitial ? t('device_default_name') : t('device_label_name')) ?>" style="<?= $inputStyle ?>">
     <?php
 };
 // Registration with the setup token: the first device, or recovery when every device is lost.
-$setupForm = static function (bool $withDisplayName, string $button) use ($e, $inputStyle, $buttonStyle, $deviceField) {
+$setupForm = static function (bool $withDisplayName, string $button) use ($e, $inputStyle, $buttonStyle, $deviceField, $localInitial) {
     ?>
     <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
         <?= csrfField() ?>
         <input type="hidden" name="login_action" value="setup">
+        <?php if (!$localInitial): ?>
         <input type="password" name="setup_token" autocomplete="off" required placeholder="<?= $e(t('device_label_setup_token')) ?>" style="<?= $inputStyle ?>">
+        <?php endif; ?>
         <input type="text" name="username" autocomplete="off" required placeholder="<?= $e(t('label_username')) ?>" style="<?= $inputStyle ?>">
         <?php if ($withDisplayName): ?>
         <input type="text" name="display_name" required placeholder="<?= $e(t('label_display_name')) ?>" style="<?= $inputStyle ?>">
@@ -77,7 +80,7 @@ $guide = static function () use ($e, $setupState) {
                 <button type="submit" class="btn btn-blue" style="<?= $buttonStyle ?>"><?= $e(t('device_btn_register')) ?></button>
             </form>
         <?php elseif ($isInitialSetup): ?>
-            <?php if ($setupState === 'ready'): ?>
+            <?php if ($localInitial || $setupState === 'ready'): ?>
                 <p><strong><?= t('hint_initial_setup') ?></strong><br><?= $e(t('device_setup_intro')) ?></p>
                 <?php $setupForm(true, t('device_btn_register')); ?>
             <?php else: ?>

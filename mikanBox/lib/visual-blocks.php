@@ -1,4 +1,5 @@
 <?php
+if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) { http_response_code(403); exit; } // direct request guard
 // Markdown のブロック分割・目印の挿入・HTMLの後処理（本体の描画処理は、そのまま使う）
 
 /** 1行ぶんの HTML タグの開閉の差（開いたまま残る数）。コメント・自己閉じ・void 要素は数えない。<p> は閉じ省略があるので数えない */

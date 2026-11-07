@@ -1,4 +1,5 @@
 <?php
+if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) { http_response_code(403); exit; } // direct request guard
 // Authentication belongs to one installation, never to the whole hostname.
 function mikanBoxStartSession(): void {
     $site = hash('sha256', realpath(CORE_DIR) ?: CORE_DIR);

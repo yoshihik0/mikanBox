@@ -1,8 +1,9 @@
 <?php
+if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) { http_response_code(403); exit; } // direct request guard
 // ==========================================
 // mikanBox Basic Settings
 // ==========================================
-define('MIKANBOX_VERSION', '2.16.7');
+define('MIKANBOX_VERSION', '2.16.8');
 if (!defined('CORE_DIR')) define('CORE_DIR', __DIR__);
 
 // Site-specific options survive self-updates because local-config.php is not

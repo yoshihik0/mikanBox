@@ -10,3 +10,9 @@
     RewriteEngine On
     RewriteRule ^import(?:/|$) - [F,L,NC]
 </IfModule>
+
+# Program internals are never served directly.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(?:lib|views|lang)(?:/|$) - [F,L,NC]
+</IfModule>

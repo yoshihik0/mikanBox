@@ -45,6 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
     $rateLimitId = getClientIp() . '|device';
     $lockedRemain = checkLoginRateLimit($rateLimitId);
     $deviceName = trim($_POST['device_name'] ?? '');
+    // The first registration on this computer itself needs no token and no device name.
+    $localInitialSetup = $isInitialSetup && mikanBoxIsLocalRequest();
+    if ($localInitialSetup && $loginAction === 'setup' && $deviceName === '') $deviceName = t('device_default_name');
     if (!in_array($loginAction, ['setup', 'claim'], true)) {
         // Unknown action: show the sign-in screen again.
     } elseif (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
@@ -56,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
     } elseif ($loginAction === 'setup') {
         $user = trim($_POST['username'] ?? '');
         $disp = trim($_POST['display_name'] ?? '');
-        if (!mikanBoxSetupTokenMatches($_POST['setup_token'] ?? '')) {
+        if (!$localInitialSetup && !mikanBoxSetupTokenMatches($_POST['setup_token'] ?? '')) {
             recordLoginFailure($rateLimitId);
             $loginError = t('err_setup_token_invalid');
         } elseif (empty($user) || !preg_match('/^[a-zA-Z0-9_\-]+$/', $user)) {
@@ -70,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
             $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
             if (!$isInitialSetup && !$row) {
                 $loginError = t('reset_err_user_not_found');
-            } elseif (!mikanBoxSetupTokenConsume($_POST['setup_token'] ?? '')) {
+            } elseif (!$localInitialSetup && !mikanBoxSetupTokenConsume($_POST['setup_token'] ?? '')) {
                 $loginError = t('err_setup_token_invalid');
             } else {
                 if ($isInitialSetup) {

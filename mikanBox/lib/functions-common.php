@@ -1,4 +1,5 @@
 <?php
+if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) { http_response_code(403); exit; } // direct request guard
 require_once __DIR__ . "/security.php";
 require_once __DIR__ . "/external-markdown.php";
 /**

@@ -1,4 +1,5 @@
 <?php
+if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) { http_response_code(403); exit; } // direct request guard
 // ビジュアル編集: 履歴。
 //   元に戻す / やり直す … 直近 MBV_UNDO_MAX 回分。編集の作業（ページを開いてから離れるまで）が変わると捨てる。
 //   復元ポイント      … 編集の作業ごとに1件（その作業を始める前の状態）。ページごとに MBV_POINTS_MAX 件まで。

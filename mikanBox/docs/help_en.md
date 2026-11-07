@@ -54,7 +54,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.16.7</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.16.8</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -142,6 +142,8 @@ Static site support means the design doesn't have to expand its attack surface.
 
 The minimum runtime remains PHP 8.0. For new installations and Internet-facing sites, use the latest patched release of supported PHP 8.4 or 8.5. [SQLite Edition]{.type-badge .badge-sqlite} additionally requires the SQLite3 extension to be enabled (this is enabled by default on most shared hosting).
 
+The web server is assumed to be Apache with `.htaccess` enabled, because `.htaccess` is what keeps the data folder and similar files from being opened directly in a browser. Environments without `.htaccess` (such as Nginx) are not supported.
+
 ### Installation
 
 Upload the `mikanBox` folder into the same directory as `index.php`. This folder name can be changed — doing so is recommended for security, since it makes the location of the admin panel (`admin.php`) harder to guess. If you rename it, update `$core_dir` near the top of `index.php` accordingly. From 2.6.4 on that setting survives system updates, because the updater writes back the folder it is running from. Up to 2.6.3 every update discarded it and the site stopped rendering; if you are in that state, running a system update from the admin panel repairs it. This document refers to it as the `mikanBox` directory throughout.
@@ -172,7 +174,22 @@ To publish, upload the folder that static generation produces. In this style the
 
 ### Initial Setup and Sign-in {#first-setup}
 
-[flat Edition]{.type-badge .badge-flat}: whoever accesses `mikanBox/admin.php` first after setup sets the admin password. Its hash (the encrypted value) is stored in `mikanData/settings.json`.
+[flat Edition]{.type-badge .badge-flat}: whoever opens `mikanBox/admin.php` first sets the admin password (at least 7 characters). Its hash (a one-way converted value) is stored in `mikanData/settings.json`. After a password change, sign-ins in other browsers expire.
+
+#### Set the first password {#flat-setup}
+
+[flat Edition only]{.type-badge .badge-flat}
+
+On a server, a setup token is required so that nobody else can set the password first (v2.16.8 and later).
+
+1. Make a random string (at least 20 characters). It is used only once, so keep a copy until setup is done.
+2. Open `setup-token.txt` in the `setup-token` folder and write that string on a single line below the instructions.
+3. Upload the `mikanBox` folder, `index.php` and the `setup-token` folder.
+4. Open `mikanBox/admin.php`, then enter the token and a password. The used token is removed from `setup-token.txt`.
+
+If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the setup screen is not shown. The token is needed only when setting the first password; it is not needed on a site that is already set up.
+
+When you run mikanBox on your own computer (`localhost`), no token is needed; a password is enough. This applies only when the connection comes from your own computer and the address is `localhost`. A connection through a tunnel or reverse proxy that exposes it to the Internet needs the token.
 
 [SQLite Edition]{.type-badge .badge-sqlite} (v2.9.0 and later) has no passwords. Only registered devices (browsers) can open the admin screen. A device's key (a random token) lives in that browser's cookie, and the server stores only its hash. A leaked database cannot reveal the key, and there is no password to reuse or leak. Even if someone guesses the admin URL, they get no further than the sign-in screen without a key.
 
@@ -186,7 +203,7 @@ To publish, upload the folder that static generation produces. In this style the
 4. Open `mikanBox/admin.php`, enter the token you kept, a username, a display name and a name for this device (for example, "Work laptop"), then press "Register this device".
 5. When registration succeeds, this browser stores the device's key and you are taken straight into the admin screen. A token works only once.
 
-If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the registration screen is not shown. Only a notice reading "The installation method has changed. Please see this page." appears. Nobody becomes the admin just by visiting first. The same steps apply when you run mikanBox locally.
+If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the registration screen is not shown. Only a notice reading "The installation method has changed. Please see this page." appears. Nobody becomes the admin just by visiting first. When you run mikanBox on your own computer (`localhost`), no token is needed to register the first device: enter a username and a display name (leaving the device name empty makes it "This computer"). A connection through a tunnel or reverse proxy that exposes it to the Internet needs the token. Recovery after every device is lost needs the token even locally.
 
 After you clear cookies, or when you sign in from another browser or computer, that device is unregistered. Add it as follows.
 
@@ -245,7 +262,7 @@ If you deliver a site to someone else — including your own custom design and c
 
 #### Security
 
-Files other than `admin.php` (such as the JSON files inside the `data` folder) are blocked from direct browser access (via `.htaccess` or similar restrictions).
+Files other than `admin.php` (such as the JSON files inside the `data` folder) are blocked from direct browser access (via `.htaccess`). The program inside the admin folder (`lib`, `views`, `lang`) cannot be opened directly from a browser either.
 
 ---
 
@@ -841,7 +858,7 @@ Enter the password you currently use to log in.
 
 #### New Password
 
-Enter a new password (at least 4 characters).
+Enter a new password (at least 7 characters).
 
 #### [save]{.material-symbols-outlined} Save{.m-btn .m-btn-blue}
 

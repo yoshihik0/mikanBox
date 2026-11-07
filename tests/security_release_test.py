@@ -37,7 +37,7 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-auth-audit-') as td:
      except OSError:time.sleep(.03)
     if edition=='flat':
      password=secrets.token_hex(18); newpass=secrets.token_hex(18)
-     a.req(admin,{'login_action':'set_initial_password','new_password':password})
+     a.post(admin,{'login_action':'set_initial_password','new_password':password})
      b.req(admin,{'login_action':'login','password':password})
      assert 'class="page-top-links"' in b.req(admin)[1]
      a.post(admin,{'save_action':'save_settings','current_password':password,'new_password':newpass})

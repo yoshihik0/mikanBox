@@ -1,4 +1,5 @@
 <?php
+if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) { http_response_code(403); exit; } // direct request guard
 /** Render the submitted editor state without writing a page or revision. */
 function mikanBoxRenderEditorPreview(array $settings, array $input): void {
     $text = static function (string $key, string $default = '') use ($input): string {

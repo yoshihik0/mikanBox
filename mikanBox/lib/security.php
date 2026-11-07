@@ -1,5 +1,21 @@
 <?php
+if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) { http_response_code(403); exit; } // direct request guard
 const MIKANBOX_SECURITY_GUARD = "<?php http_response_code(404); exit; ?>\n";
+
+/**
+ * True only when the request comes from this computer itself: the connection is a loopback
+ * address AND the browser addressed it as localhost. Tunnels and local reverse proxies also
+ * connect from loopback but carry the public host name or forwarding headers, so they are not local.
+ */
+function mikanBoxIsLocalRequest(): bool {
+    if (!in_array((string)($_SERVER['REMOTE_ADDR'] ?? ''), ['127.0.0.1', '::1', '::ffff:127.0.0.1'], true)) return false;
+    foreach (['HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED_HOST', 'HTTP_FORWARDED', 'HTTP_X_REAL_IP', 'HTTP_CLIENT_IP', 'HTTP_CF_CONNECTING_IP'] as $header) {
+        if (!empty($_SERVER[$header])) return false;
+    }
+    $host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? '')));
+    $host = preg_match('/^\[([^\]]+)\](?::\d+)?$/', $host, $m) ? $m[1] : (string)preg_replace('/:\d+$/', '', $host);
+    return $host === 'localhost' || $host === '127.0.0.1' || $host === '::1' || str_ends_with($host, '.localhost');
+}
 // Security metadata is kept apart from settings so usage updates cannot restore an old key.
 function mikanBoxSecurityDirectory(): ?string {
     $dir = DATA_DIR . '/security';

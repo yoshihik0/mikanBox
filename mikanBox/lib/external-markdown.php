@@ -1,4 +1,5 @@
 <?php
+if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) { http_response_code(403); exit; } // direct request guard
 /** External documents are untrusted text, never templates or executable HTML. */
 function mikanBoxExternalMarkdownText(string $text): string {
     return str_replace(['{', '}'], ['&#123;', '&#125;'], htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
