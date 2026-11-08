@@ -163,6 +163,13 @@ if ($isInitialSetup || !$isLoggedIn) {
 // ==========================================
 // Logged in: Load common data
 // $settings is already loaded above
+// Preview of a saved page in the output it publishes (Markdown versions and data pages as UTF-8 text).
+if (isset($_GET['page_preview']) && is_string($_GET['page_preview'])) {
+    require_once __DIR__ . '/lib/editor-preview.php';
+    if (ob_get_length()) ob_clean();
+    mikanBoxRenderSavedPreview($settings, $_GET['page_preview']);
+    exit;
+}
 $site_name = $settings['site_name'] ?? SITE_NAME;
 $view = $_GET['view'] ?? 'pages';
 if ($view === 'design') $view = 'components'; // 'design' is an alias for 'components'
@@ -292,6 +299,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         } elseif (($formatError = mikanBoxValidatePageSave($id, (string)($oldId ?? ''), [
             'category' => trim($_POST['category'] ?? ''),
             'output_format' => (string)($_POST['output_format'] ?? 'html'),
+            'status' => $status,
         ], $settings)) !== null) {
             $message = $formatError;
         } else {
@@ -400,6 +408,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $id = $_POST['id'];
         $newStatus = $_POST['status'];
         $data = loadData(POSTS_DIR, $id);
+        if ($data && $newStatus === 'db' && mikanBoxIsDataFormat(mikanBoxPageOutputFormat($data))) {
+            $_SESSION['admin_message'] = t('err_output_format_db');
+            header("Location: admin.php?view=pages#pages");
+            exit;
+        }
         if ($data) {
             $data['status'] = $newStatus;
             saveData(POSTS_DIR, $id, $data);
@@ -1039,6 +1052,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $id = $_POST['id'];
         $status = $_POST['status'];
         $data = loadData(POSTS_DIR, $id);
+        if ($data && $status === 'db' && mikanBoxIsDataFormat(mikanBoxPageOutputFormat($data))) {
+            $message = t('err_output_format_db');
+            $data = null;
+        }
         if ($data) {
             $data['status'] = $status;
             if (saveData(POSTS_DIR, $id, $data)) {
@@ -1233,6 +1250,8 @@ if (isset($_POST['ajax_request'])) {
     }
     // Compute preview URL for page saves so JS can inject/update the preview button
     if (($_POST['save_action'] ?? '') === 'save_page' && !empty($editId)) {
+        // Where the editor's preview button opens the saved page (same as the page list).
+        $responseData['preview_href'] = mikanBoxAdminPreviewUrl($editId, loadData(POSTS_DIR, $editId) ?: [], $settings, $lastSsgRelPath);
         $savedStatus = $_POST['status'] ?? 'draft';
         $ssgStruct = $settings['ssg_structure'] ?? 'directory';
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -2952,6 +2971,22 @@ function getIcon($name) {
                         const oldIdInput = form.querySelector('input[name="old_id"]');
                         if (oldIdInput && idInput && !oldIdInput.value) {
                             oldIdInput.value = idInput.value;
+                        }
+
+                        // The editor's preview button follows the saved page (new page, ID or format change).
+                        if (action === 'save_page' && json.preview_href) {
+                            const previewLink = document.getElementById('editor-preview-link');
+                            if (previewLink) {
+                                const link = document.createElement('a');
+                                link.id = 'editor-preview-link';
+                                link.className = 'btn btn-blue';
+                                link.target = '_blank';
+                                link.rel = 'noopener';
+                                link.href = json.preview_href;
+                                link.title = previewLink.title;
+                                link.innerHTML = previewLink.innerHTML;
+                                previewLink.replaceWith(link);
+                            }
                         }
 
                         // Refresh page/comp list in background after save

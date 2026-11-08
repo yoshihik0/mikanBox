@@ -1,4 +1,5 @@
-<?php defined('MIKANBOX') or die(); ?>
+<?php defined('MIKANBOX') or die(); // admin.php is requested directly on real servers; load the renderer this view uses.
+require_once CORE_DIR . '/lib/renderer.php'; ?>
 
             <!-- Page Editor State Background -->
             <div id="page-editor" class="editor-focus-bg section-anchor">
@@ -106,6 +107,7 @@
                                       <input type="radio" name="status" value="db" <?= $s==='db'?'checked':'' ?> onchange="document.querySelectorAll('.radio-label').forEach(l=>l.classList.remove('active','draft','dynamic','static','db'<?= $pendingCls ?>)); this.parentElement.classList.add('active','db');<?= $previewCall ?>"> <?= t('page_status_db') ?>
                                   </label>
                               </div>
+                              <small class="sub-text sub-text-block" data-formats="json xml csv txt js css"><?= t('output_format_db_hint') ?></small>
                               <?php if (function_exists('getPreviewToken')): ?>
                               <div id="pending-preview-block" class="preview-url-container" style="<?= ($s === 'pending') ? 'display: block;' : 'display: none;' ?> margin-top: 10px; background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 14px; border-radius: 6px;">
                                   <?php if ($editId): ?>
@@ -146,6 +148,27 @@
                             <small class="sub-text sub-text-block"><?= t('page_id_hint') ?></small>
                         </div>
                         <div class="form-group grid-span-1">
+                            <label class="sub-label" for="output-format-select"><?= t('label_output_format') ?></label>
+                            <select name="output_format" id="output-format-select" class="output-format-select"
+                                data-dynamic-base="<?= htmlspecialchars($dynamicBase) ?>" data-static-base="<?= htmlspecialchars($staticBase) ?>"
+                                data-structure="<?= htmlspecialchars($settings['ssg_structure'] ?? 'directory') ?>">
+                                <?php foreach (['html', 'html_md', 'md'] as $_fmt):
+                                    $_disabled = ($_fmt !== 'html' && $isErrorPage) || (mikanBoxFormatHasMarkdown($_fmt) && !$markdownAvailable && $currentFormat !== $_fmt); ?>
+                                <option value="<?= $_fmt ?>" <?= $currentFormat === $_fmt ? 'selected' : '' ?> <?= $_disabled ? 'disabled' : '' ?>><?= t('output_format_' . $_fmt) ?></option>
+                                <?php endforeach; ?>
+                                <optgroup label="<?= t('output_format_data_group') ?>">
+                                    <?php foreach (mikanBoxDataFormats() as $_fmt): ?>
+                                    <option value="<?= $_fmt ?>" data-expand="<?= mikanBoxExpandTagsDefault($_fmt) ? '1' : '0' ?>" <?= $currentFormat === $_fmt ? 'selected' : '' ?> <?= $isErrorPage ? 'disabled' : '' ?>><?= t('output_format_' . $_fmt) ?> (.<?= $_fmt ?>)</option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            </select>
+                            <small class="sub-text sub-text-block output-url-line"><?= t('output_url_label') ?>: <code id="output-format-url"></code></small>
+                            <?php if (!$markdownAvailable): ?>
+                            <small class="sub-text sub-text-block"><?= t('output_format_md_unavailable_hint') ?></small>
+                            <?php endif; ?>
+                            <small class="sub-text sub-text-block" data-formats="json xml csv txt js css"><?= t('output_format_data_hint') ?></small>
+                        </div>
+                        <div class="form-group grid-span-1">
                             <label class="sub-label"><?= t('label_category') ?> <?= t('hint_comma_separated') ?></label>
                             <input type="text" name="category" value="<?= htmlspecialchars($editData['category'] ?? ($_GET['cat'] ?? '')) ?>" placeholder="news, blog, ...">
                             <small class="sub-text sub-text-block">
@@ -170,27 +193,6 @@
                                     : t('label_none');
                                 ?>
                             </small>
-                        </div>
-                        <div class="form-group grid-span-1">
-                            <label class="sub-label" for="output-format-select"><?= t('label_output_format') ?></label>
-                            <select name="output_format" id="output-format-select" class="output-format-select"
-                                data-dynamic-base="<?= htmlspecialchars($dynamicBase) ?>" data-static-base="<?= htmlspecialchars($staticBase) ?>"
-                                data-structure="<?= htmlspecialchars($settings['ssg_structure'] ?? 'directory') ?>">
-                                <?php foreach (['html', 'html_md', 'md'] as $_fmt):
-                                    $_disabled = ($_fmt !== 'html' && $isErrorPage) || (mikanBoxFormatHasMarkdown($_fmt) && !$markdownAvailable && $currentFormat !== $_fmt); ?>
-                                <option value="<?= $_fmt ?>" <?= $currentFormat === $_fmt ? 'selected' : '' ?> <?= $_disabled ? 'disabled' : '' ?>><?= t('output_format_' . $_fmt) ?></option>
-                                <?php endforeach; ?>
-                                <optgroup label="<?= t('output_format_data_group') ?>">
-                                    <?php foreach (mikanBoxDataFormats() as $_fmt): ?>
-                                    <option value="<?= $_fmt ?>" data-expand="<?= mikanBoxExpandTagsDefault($_fmt) ? '1' : '0' ?>" <?= $currentFormat === $_fmt ? 'selected' : '' ?> <?= $isErrorPage ? 'disabled' : '' ?>><?= t('output_format_' . $_fmt) ?> (.<?= $_fmt ?>)</option>
-                                    <?php endforeach; ?>
-                                </optgroup>
-                            </select>
-                            <small class="sub-text sub-text-block output-url-line"><?= t('output_url_label') ?>: <code id="output-format-url"></code></small>
-                            <?php if (!$markdownAvailable): ?>
-                            <small class="sub-text sub-text-block"><?= t('output_format_md_unavailable_hint') ?></small>
-                            <?php endif; ?>
-                            <small class="sub-text sub-text-block" data-formats="json xml csv txt js css"><?= t('output_format_data_hint') ?></small>
                         </div>
                         <div class="form-group grid-span-1" data-formats="html html_md">
                             <label class="sub-label"><?= t('label_design_component') ?></label>
@@ -266,7 +268,11 @@
                     <div class="flex-row flex-between mt-10">
                         <div class="flex-row">
                             <button type="submit" form="page-form" name="save_action" value="save_page" class="btn btn-blue"><?= getIcon('save') ?> <?= t('btn_save') ?></button>
-                            <button type="button" class="btn btn-blue" data-editor-preview="admin.php?editor_preview=1" data-preview-title="<?= htmlspecialchars(t('btn_preview')) ?>" data-preview-close="<?= htmlspecialchars(t('btn_close')) ?>" data-preview-error="<?= htmlspecialchars(t('err_network_error_detail')) ?>"><?= getIcon('view') ?> <?= t('btn_preview') ?></button>
+                            <?php if ($editId): ?>
+                            <a id="editor-preview-link" href="<?= htmlspecialchars(mikanBoxAdminPreviewUrl($editId, $editData ?? [], $settings, $lastSsgRelPath ?? '../')) ?>" target="_blank" rel="noopener" class="btn btn-blue" title="<?= htmlspecialchars(t('preview_saved_hint')) ?>"><?= getIcon('view') ?> <?= t('btn_preview') ?></a>
+                            <?php else: ?>
+                            <span id="editor-preview-link" class="btn btn-gray btn-disabled" aria-disabled="true" title="<?= htmlspecialchars(t('preview_saved_hint')) ?>"><?= getIcon('view') ?> <?= t('btn_preview') ?></span>
+                            <?php endif; ?>
                             <a href="admin.php#pages" class="btn btn-gray"><?= getIcon('arrow_back') ?> <?= t('btn_back_to_list') ?></a>
                         </div>
                         <?php if ($editId): ?>
@@ -374,6 +380,13 @@
             el.hidden = !el.dataset.formats.split(' ').includes(format);
         });
         if (urlCode) urlCode.textContent = pageUrl(format) + (format === 'html_md' ? '  ·  ' + pageUrl('md') : '');
+        // Data pages are published with an ordinary status; "DB" is a different mechanism.
+        const dbRadio = form.querySelector('input[name="status"][value="db"]');
+        if (dbRadio) {
+            const isData = !['html', 'html_md', 'md'].includes(format);
+            dbRadio.disabled = isData && !dbRadio.checked;
+            dbRadio.parentElement.classList.toggle('is-disabled', dbRadio.disabled);
+        }
         const contentLabel = document.getElementById('content-label');
         if (contentLabel) {
             try { contentLabel.textContent = JSON.parse(contentLabel.dataset.labels)[format] || contentLabel.textContent; } catch (e) {}

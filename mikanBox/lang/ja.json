@@ -814,5 +814,8 @@
     "hint_output_formats": "出力形式がHTML以外のページは /ID.拡張子 で出ます（Markdown版は /ID.md）。Markdown版ではタグを読者向けに処理し、データ形式では値を形式に合わせてエスケープします。",
     "label_output_formats_head": "出力形式とURL",
     "label_content_md": "本文 (Markdown)",
-    "label_content_data": "本文 (%s)"
+    "label_content_data": "本文 (%s)",
+    "err_output_format_db": "データ形式のページは、公開設定を「DB」にできません。「公開(動的)」か「公開(静的)」で公開してください。",
+    "output_format_db_hint": "データ形式は、公開設定を「公開(動的)」「公開(静的)」にして /ID.拡張子 で公開します。公開設定の「DB」は、ページを非公開にしたまま、本文のDATAROWのデータを /api/ID でJSONとして返す別のしくみで、データ形式では選べません。",
+    "preview_saved_hint": "保存済みの内容を新しいタブで開きます。"
 }

@@ -1,5 +1,20 @@
 <?php
 if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) { http_response_code(403); exit; } // direct request guard
+/** Preview a saved page in the output it publishes (admin.php?page_preview=ID). */
+function mikanBoxRenderSavedPreview(array $settings, string $id): void {
+    $data = $id !== '' && strlen($id) <= 200 ? loadData(POSTS_DIR, $id) : null;
+    if (!$data) { http_response_code(404); header('Content-Type: text/plain; charset=utf-8'); echo 'Not Found'; return; }
+    $base = dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/mikanBox/admin.php'));
+    $settings['_site_base'] = ($base === '/' || $base === '.') ? '/' : rtrim($base, '/') . '/';
+    $preview = (new MikanBoxRenderer($settings))->renderPreview($id, $data);
+    header('Content-Type: ' . $preview['type']);
+    header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: no-store');
+    header('Referrer-Policy: no-referrer');
+    header('Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals');
+    echo $preview['body'];
+}
+
 /** Render the submitted editor state without writing a page or revision. */
 function mikanBoxRenderEditorPreview(array $settings, array $input): void {
     $text = static function (string $key, string $default = '') use ($input): string {

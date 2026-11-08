@@ -781,6 +781,9 @@ function mikanBoxValidatePageSave($id, $oldId, array $data, array $settings): ?s
         return t('err_output_format_invalid');
     }
     if (mikanBoxIsErrorPage($id) && $format !== 'html') return t('err_output_format_404');
+    // "DB" keeps a page private and serves its DATAROW data at /api/ID; a data page is
+    // published with its own status instead. Mixing the two would only confuse.
+    if (mikanBoxIsDataFormat($format) && ($data['status'] ?? '') === 'db') return t('err_output_format_db');
     if (mikanBoxFormatHasMarkdown($format) && !mikanBoxMarkdownAvailable($settings)) return t('err_output_format_md_unavailable');
     $extension = mikanBoxFormatExtension($format);
     if ($extension !== null && in_array(strtolower($id . '.' . $extension), ['sitemap.xml', 'rss.xml', 'podcast.xml'], true)) {
@@ -812,6 +815,26 @@ function mikanBoxPageFormatFields(array $input, ?array $existing = null): array 
         }
     }
     return $fields;
+}
+
+/**
+ * Where the admin preview buttons (page list and page editor) open a page, relative
+ * to admin.php. HTML pages open at their public URL. Markdown-only and data pages open
+ * through admin.php?page_preview=ID, which always answers with charset=utf-8: a static
+ * .md/.txt file served by the web server may come without a charset and look garbled.
+ */
+function mikanBoxAdminPreviewUrl($pid, $data, array $settings, $staticRelPath): string {
+    $status = $data['status'] ?? 'draft';
+    if (mikanBoxFormatExtension(mikanBoxPageOutputFormat($data)) !== null) {
+        return 'admin.php?page_preview=' . rawurlencode($pid);
+    }
+    $pending = function_exists('getPreviewToken') && $status === 'pending';
+    if ($pid === 'index') return '../' . ($pending ? '?preview=' . getPreviewToken($pid) : '');
+    if ($pending) return '../' . $pid . '?preview=' . getPreviewToken($pid);
+    if ($status === 'public_static') {
+        return $staticRelPath . $pid . (($settings['ssg_structure'] ?? 'directory') === 'directory' ? '/index.html' : '.html');
+    }
+    return '../' . $pid;
 }
 
 /** Dynamic-site URL of a page for sitemap and RSS: Markdown-only pages point at /id.md. */

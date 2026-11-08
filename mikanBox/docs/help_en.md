@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.17.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.17.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -377,7 +377,7 @@ A dropdown for switching each page's publication status. Changes are saved immed
 - **Pending approval** — [SQLite Edition only]{.type-badge .badge-sqlite} Private, but anyone who knows the unguessable preview URL (`?preview=token`, valid for 7 days) can view it. Useful for sending a page to a reviewer for approval. Pages pending approval are shown at the top of the list.
 - **Public (Dynamic)** — Rendered dynamically by PHP.
 - **Public (Static)** — Published as a static HTML file, following the directory/file settings configured under Static Site Generation (SSG) on the Site screen.
-- **DB** — The page itself stays private, and its `{{DATAROW}}` data becomes readable as an API at `siteURL/api/pageID`.
+- **DB** — The page itself stays private, and its `{{DATAROW}}` data becomes readable as an API at `siteURL/api/pageID`. Not available for [data-format](#data-formats) pages ([the difference](#db-vs-data)).
 
 If you switch a page that was set to Public (Static) to any other status, its static HTML file is deleted.
 
@@ -403,7 +403,7 @@ Shows the categories assigned to the page. Used for filtering via things like `{
 
 #### Output format labels
 
-Pages whose output format is not HTML show a small label beside the title: `+MD` for HTML + Markdown, `MD` for Markdown, and `JSON`, `JS` and so on for data formats. For Markdown-only and data pages, the preview button opens `/ID.extension`. The Visual Editing button is greyed out and cannot be pressed on pages that do not publish HTML.
+Pages whose output format is not HTML show a small label beside the title: `+MD` for HTML + Markdown, `MD` for Markdown, and `JSON`, `JS` and so on for data formats. For Markdown-only and data pages, the preview button opens the published text through the admin screen (a static file served without a charset could otherwise look garbled). The Visual Editing button is greyed out and cannot be pressed on pages that do not publish HTML.
 
 ### Static Site Build Button
 
@@ -439,7 +439,7 @@ Choose the page's publication status via radio buttons.
 - **Pending approval** — [SQLite Edition only]{.type-badge .badge-sqlite} Private, but an unguessable preview share URL (`?preview=token`, valid for 7 days) is generated automatically and shown right on this screen. You can just send the URL to a reviewer so they can check the content without ever logging into the admin panel.
 - **Public (Dynamic)** — Rendered dynamically by PHP.
 - **Public (Static)** — Published as a static HTML file, following the directory/file settings configured under Static Site Generation (SSG) on the Site screen.
-- **DB** — The page itself stays private, and its `{{DATAROW}}` data becomes readable as an API at `siteURL/api/pageID`.
+- **DB** — The page itself stays private, and its `{{DATAROW}}` data becomes readable as an API at `siteURL/api/pageID`. Not available for [data-format](#data-formats) pages ([the difference](#db-vs-data)).
 
 If you switch a page that was set to Public (Static) to any other status, its static HTML file is deleted.
 
@@ -519,7 +519,7 @@ Saves everything about the page.
 
 #### [open_in_new]{.material-symbols-outlined} Preview{.m-btn .m-btn-blue}
 
-Shows the current editor contents, including unsaved body text, CSS, and JavaScript, in a panel over the editor. Pages that publish HTML (HTML, HTML + Markdown) show the rendered HTML; Markdown-only pages show the Markdown version as published; data pages show the text that is actually published. The top of the panel shows the URL. Close it with "Close" or the Esc key. Previewing does not save or publish the page. Open a new preview after making further changes. This also works for new pages. The HTML preview runs in an isolated frame so it cannot affect the admin screen; JavaScript in the page that loads data from another URL may not work in the preview.
+Opens the saved content in a new tab, the same as the preview button in the page list. Pages that publish HTML (HTML, HTML + Markdown) open at the URL matching their status; Markdown-only and data pages show the text that is published as it is (through the admin screen, in UTF-8, so it never looks garbled). Save first to check your changes. For a new page, the button becomes available after the first save.
 
 #### [arrow_back]{.material-symbols-outlined} Back to List{.m-btn .m-btn-gray}
 
@@ -1733,8 +1733,20 @@ Every format is sent with `X-Content-Type-Options: nosniff`.
 - **Tag expansion** can be switched per page. By default JSON, XML, CSV and Text expand tags, and JavaScript and CSS do not (so code that uses `{{ }}` is not broken). When tags are expanded, values are escaped for the format: as a string in JSON; `&` `<` `>` `"` `'` as entities in XML; values containing a separator, quote or newline wrapped in `"…"` in CSV; as they are in Text. Values inside a `NAV_CARDS` item component follow the same rule. `COMPONENT` inserts just the component's content, without CSS or a scope.
 - Write JavaScript and CSS in the body. The page CSS and JS fields, design component, OGP image, description and keywords are not used, so the editor hides them.
 - Data pages are parts of a site rather than content, so they are never included in `NAV_LINKS`, `NAV_CARDS` (including `all`), `@same`, `sitemap.xml`, `rss.xml` or search results. Publication works as for any page: drafts are not served, and a static build writes only "Public (Static)" pages.
-- The editor preview shows the raw text that is actually published. [Visual Editing](#visual-edit) works only on pages that publish HTML.
-- The existing "DB" publication (`/api/pageID` returning DATAROW data as JSON) is unchanged. Data formats extend that idea to any format.
+- The preview shows the raw text that is actually published. [Visual Editing](#visual-edit) works only on pages that publish HTML.
+- The "DB" status is a different mechanism (see the table below). Data-format pages cannot use the "DB" status.
+
+#### The "DB" status vs. data formats {#db-vs-data}
+
+||"DB" status|"Data" output format (JSON etc.)|
+|---|---|---|
+|Where it is set|Status|Output format (with the Public (Dynamic) or Public (Static) status)|
+|The page itself|Private (not shown as a page)|Published as it is at `/ID.json` etc.|
+|What is served|The `{{DATAROW}}` data in the body, converted to a fixed JSON shape|The body itself, in the shape you write (tags can be expanded)|
+|URL|`/api/ID` (dynamic only)|`/ID.extension` (dynamic and static builds)|
+|Suited to|Serving table data embedded in a page as an API|Files whose shape you decide: catalogs, per-category RSS, `llms.txt`, site JS/CSS|
+
+Choose "DB" to keep table data in a page body and read it through the API; choose a data format to write the file's shape yourself.
 
 ### Embedding a Page's URL: `{{PAGE_URL:ID}}` {#page-url-id}
 

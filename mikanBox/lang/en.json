@@ -814,5 +814,8 @@
     "hint_output_formats": "Pages whose output format is not HTML are published at /ID.extension (the Markdown version at /ID.md). Markdown versions handle tags for readers; data formats escape values for the format.",
     "label_output_formats_head": "Output formats and URLs",
     "label_content_md": "Content (Markdown)",
-    "label_content_data": "Content (%s)"
+    "label_content_data": "Content (%s)",
+    "err_output_format_db": "A data-format page cannot use the \"DB\" status. Publish it as Public (Dynamic) or Public (Static).",
+    "output_format_db_hint": "A data page is published at /ID.extension with the Public (Dynamic) or Public (Static) status. The \"DB\" status is a different mechanism: the page stays private and the DATAROW data in its body is returned as JSON at /api/ID. It cannot be used with data formats.",
+    "preview_saved_hint": "Opens the saved content in a new tab."
 }

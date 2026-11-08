@@ -131,28 +131,7 @@
                          <span class="btn btn-sm btn-gray btn-disabled" aria-disabled="true" title="<?= htmlspecialchars(t('visual_err_not_html')) ?>"><?= getIcon('visual') ?></span>
                          <?php endif; ?>
                          <?php endif; ?>
-                          <?php
-                          $ssgStruct = $settings['ssg_structure'] ?? 'directory';
-                          if ($pid === 'index') {
-                              $previewUrl = '../';
-                              if (function_exists('getPreviewToken') && $status === 'pending') {
-                                  $previewUrl .= '?preview=' . getPreviewToken($pid);
-                              }
-                          } elseif (function_exists('getPreviewToken') && $status === 'pending') {
-                              $previewUrl = '../' . $pid . '?preview=' . getPreviewToken($pid);
-                          } elseif ($status === 'public_dynamic') {
-                              $previewUrl = '../' . $pid;
-                          } elseif ($status === 'public_static') {
-                              $previewUrl = $lastSsgRelPath . $pid . ($ssgStruct === 'directory' ? '/index.html' : '.html');
-                          } else {
-                              $previewUrl = '../' . $pid;
-                          }
-                          // Markdown-only and data pages live at /id.<extension>.
-                          if ($pageExt !== null) {
-                              $previewUrl = ($status === 'public_static' ? $lastSsgRelPath : '../') . $pid . '.' . $pageExt
-                                  . (function_exists('getPreviewToken') && $status === 'pending' ? '?preview=' . getPreviewToken($pid) : '');
-                          }
-                          ?>
+                          <?php $previewUrl = mikanBoxAdminPreviewUrl($pid, $d, $settings, $lastSsgRelPath); ?>
                           <a href="<?= htmlspecialchars($previewUrl) ?>" target="_blank" class="btn btn-sm btn-blue" title="<?= t('btn_preview') ?>"><?php echo getIcon('open_in_new'); ?></a>
                      </div>
                  </td>
@@ -174,7 +153,7 @@
                              <?php endif; ?>
                              <option value="public_dynamic" <?= $status==='public_dynamic'?'selected':'' ?>><?= t('page_status_public_dynamic') ?></option>
                              <option value="public_static" <?= $status==='public_static'?'selected':'' ?>><?= t('page_status_public_static') ?></option>
-                             <option value="db" <?= $status==='db'?'selected':'' ?>><?= t('page_status_db') ?></option>
+                             <option value="db" <?= $status==='db'?'selected':'' ?> <?= mikanBoxIsDataFormat($pageFormat) ? 'disabled title="' . htmlspecialchars(t('output_format_db_hint')) . '"' : '' ?>><?= t('page_status_db') ?></option>
                          </select>
                     </div>
                 </td>
