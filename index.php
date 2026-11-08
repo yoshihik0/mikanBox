@@ -159,7 +159,7 @@ if ($pageId === 'mcp') {
 // 3. API endpoint: /api/{pageId}
 if (str_starts_with($pageId, 'api/')) {
     $targetId = substr($pageId, 4);
-    $targetData = loadData(POSTS_DIR, $targetId);
+    $targetData = mikanBoxNormalizeLegacyPage(loadData(POSTS_DIR, $targetId));
     header('Content-Type: application/json; charset=utf-8');
     header('Access-Control-Allow-Origin: *');
     if (!$targetData) {
@@ -167,13 +167,15 @@ if (str_starts_with($pageId, 'api/')) {
         if (ob_get_length()) ob_clean();
         echo json_encode(['error' => 'not found']); exit;
     }
-    if (($targetData['status'] ?? '') !== 'db') {
+    // Output format "mikanBox DB" and published (a draft stops the API like any other page).
+    if (!mikanBoxIsApiFormat(mikanBoxPageOutputFormat($targetData))
+        || !in_array($targetData['status'] ?? '', ['public_dynamic', 'public_static'], true)) {
         http_response_code(403);
         if (ob_get_length()) ob_clean();
         echo json_encode(['error' => 'forbidden']); exit;
     }
     $renderer = new MikanBoxRenderer($GLOBALS['mikanbox_settings']);
-    $jsonOutput = json_encode($renderer->getPageDataBlocks($targetId), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    $jsonOutput = json_encode($renderer->getPageDataBlocks($targetId, $targetData), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     if (ob_get_length()) ob_clean();
     echo $jsonOutput;
     exit;
@@ -215,7 +217,7 @@ $renderer = new MikanBoxRenderer($GLOBALS['mikanbox_settings']);
 $pageRecord = loadData(POSTS_DIR, $pageId);
 $pageFormat = mikanBoxPageOutputFormat($pageRecord);
 if ($requestedExtension === null) {
-    $serve = !$pageRecord ? 'html' : ($pageFormat === 'md' ? 'md' : (mikanBoxIsDataFormat($pageFormat) ? 'none' : 'html'));
+    $serve = !$pageRecord ? 'html' : ($pageFormat === 'md' ? 'md' : (mikanBoxFormatHasHtml($pageFormat) ? 'html' : 'none'));
 } elseif ($requestedExtension === 'html') {
     $serve = ($pageRecord && !mikanBoxFormatHasHtml($pageFormat)) ? 'none' : 'html';
 } elseif ($requestedExtension === 'md') {

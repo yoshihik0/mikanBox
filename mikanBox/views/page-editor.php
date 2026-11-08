@@ -1,5 +1,4 @@
-<?php defined('MIKANBOX') or die(); // admin.php is requested directly on real servers; load the renderer this view uses.
-require_once CORE_DIR . '/lib/renderer.php'; ?>
+<?php defined('MIKANBOX') or die(); // This view does not use the renderer; site URLs come from mikanBoxDynamicSiteUrl(). ?>
 
             <!-- Page Editor State Background -->
             <div id="page-editor" class="editor-focus-bg section-anchor">
@@ -81,8 +80,7 @@ require_once CORE_DIR . '/lib/renderer.php'; ?>
                                   $previewUrl = '';
                                   if ($editId) {
                                       global $settings;
-                                      $renderer = new MikanBoxRenderer($settings);
-                                      $siteUrl = rtrim($renderer->getSiteUrl(), '/');
+                                      $siteUrl = mikanBoxDynamicSiteUrl($settings);
                                       $token = getPreviewToken($editId);
                                       $previewExt = mikanBoxFormatExtension(mikanBoxPageOutputFormat($editData ?? []));
                                       $previewUrl = $siteUrl . '/' . ($previewExt !== null ? $editId . '.' . $previewExt : ($editId === 'index' ? '' : $editId)) . '?preview=' . $token;
@@ -103,11 +101,7 @@ require_once CORE_DIR . '/lib/renderer.php'; ?>
                                   <label class="radio-label <?= $s==='public_static'?'active static':'' ?>">
                                       <input type="radio" name="status" value="public_static" <?= $s==='public_static'?'checked':'' ?> onchange="document.querySelectorAll('.radio-label').forEach(l=>l.classList.remove('active','draft','dynamic','static','db'<?= $pendingCls ?>)); this.parentElement.classList.add('active','static');<?= $previewCall ?>"> <?= t('page_status_public_static') ?>
                                   </label>
-                                  <label class="radio-label <?= $s==='db'?'active db':'' ?>">
-                                      <input type="radio" name="status" value="db" <?= $s==='db'?'checked':'' ?> onchange="document.querySelectorAll('.radio-label').forEach(l=>l.classList.remove('active','draft','dynamic','static','db'<?= $pendingCls ?>)); this.parentElement.classList.add('active','db');<?= $previewCall ?>"> <?= t('page_status_db') ?>
-                                  </label>
                               </div>
-                              <small class="sub-text sub-text-block" data-formats="json xml csv txt js css"><?= t('output_format_db_hint') ?></small>
                               <?php if (function_exists('getPreviewToken')): ?>
                               <div id="pending-preview-block" class="preview-url-container" style="<?= ($s === 'pending') ? 'display: block;' : 'display: none;' ?> margin-top: 10px; background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 14px; border-radius: 6px;">
                                   <?php if ($editId): ?>
@@ -135,8 +129,7 @@ require_once CORE_DIR . '/lib/renderer.php'; ?>
                     $currentFormat = mikanBoxPageOutputFormat($editData ?? []);
                     $markdownAvailable = mikanBoxMarkdownAvailable($settings);
                     $isErrorPage = ($editId ?? '') === '404';
-                    $urlRenderer = new MikanBoxRenderer($settings);
-                    $dynamicBase = rtrim($urlRenderer->getSiteUrl(), '/');
+                    $dynamicBase = mikanBoxDynamicSiteUrl($settings);
                     $staticBase = rtrim((string)($settings['ssg_root_url'] ?? ''), '/');
                     if ($staticBase === '') $staticBase = $dynamicBase . (($settings['ssg_dir'] ?? '') !== '' ? '/' . trim($settings['ssg_dir'], '/') : '');
                     $expandTags = mikanBoxIsDataFormat($currentFormat) ? mikanBoxPageExpandsTags($editData) : null;
@@ -160,6 +153,7 @@ require_once CORE_DIR . '/lib/renderer.php'; ?>
                                     <?php foreach (mikanBoxDataFormats() as $_fmt): ?>
                                     <option value="<?= $_fmt ?>" data-expand="<?= mikanBoxExpandTagsDefault($_fmt) ? '1' : '0' ?>" <?= $currentFormat === $_fmt ? 'selected' : '' ?> <?= $isErrorPage ? 'disabled' : '' ?>><?= t('output_format_' . $_fmt) ?> (.<?= $_fmt ?>)</option>
                                     <?php endforeach; ?>
+                                    <option value="db" <?= $currentFormat === 'db' ? 'selected' : '' ?> <?= $isErrorPage ? 'disabled' : '' ?>><?= t('output_format_db') ?> (/api/)</option>
                                 </optgroup>
                             </select>
                             <small class="sub-text sub-text-block output-url-line"><?= t('output_url_label') ?>: <code id="output-format-url"></code></small>
@@ -167,6 +161,7 @@ require_once CORE_DIR . '/lib/renderer.php'; ?>
                             <small class="sub-text sub-text-block"><?= t('output_format_md_unavailable_hint') ?></small>
                             <?php endif; ?>
                             <small class="sub-text sub-text-block" data-formats="json xml csv txt js css"><?= t('output_format_data_hint') ?></small>
+                            <small class="sub-text sub-text-block" data-formats="db"><?= t('output_format_db_hint') ?></small>
                         </div>
                         <div class="form-group grid-span-1">
                             <label class="sub-label"><?= t('label_category') ?> <?= t('hint_comma_separated') ?></label>
@@ -247,7 +242,7 @@ require_once CORE_DIR . '/lib/renderer.php'; ?>
                         <?php
                         // The body heading names what the body is for the chosen output format.
                         $contentLabels = ['html' => t('label_content'), 'html_md' => t('label_content'), 'md' => t('label_content_md')];
-                        foreach (mikanBoxDataFormats() as $_fmt) $contentLabels[$_fmt] = t('label_content_data', t('output_format_' . $_fmt));
+                        foreach (array_merge(mikanBoxDataFormats(), ['db']) as $_fmt) $contentLabels[$_fmt] = t('label_content_data', t('output_format_' . $_fmt));
                         ?>
                         <label id="content-label" data-labels="<?= htmlspecialchars(json_encode($contentLabels, JSON_UNESCAPED_UNICODE)) ?>"><?= htmlspecialchars($contentLabels[$currentFormat] ?? t('label_content')) ?></label>
                         <label data-formats="html html_md" class="checkbox-label" style="font-size:0.85em; margin-bottom:4px; display:flex; align-items:center; gap:6px; font-weight:normal;">
@@ -367,6 +362,7 @@ require_once CORE_DIR . '/lib/renderer.php'; ?>
         const id = (idInput && idInput.value.trim()) || 'page';
         const isStatic = statusValue() === 'public_static';
         const base = isStatic ? select.dataset.staticBase : select.dataset.dynamicBase;
+        if (format === 'db') return select.dataset.dynamicBase + '/api/' + id;  // mikanBox DB answers at /api/ID (dynamic only)
         const ext = format === 'md' ? 'md' : (['html', 'html_md'].includes(format) ? '' : format);
         if (ext) return base + '/' + id + '.' + ext;
         if (id === 'index') return base + '/';
@@ -380,13 +376,6 @@ require_once CORE_DIR . '/lib/renderer.php'; ?>
             el.hidden = !el.dataset.formats.split(' ').includes(format);
         });
         if (urlCode) urlCode.textContent = pageUrl(format) + (format === 'html_md' ? '  ·  ' + pageUrl('md') : '');
-        // Data pages are published with an ordinary status; "DB" is a different mechanism.
-        const dbRadio = form.querySelector('input[name="status"][value="db"]');
-        if (dbRadio) {
-            const isData = !['html', 'html_md', 'md'].includes(format);
-            dbRadio.disabled = isData && !dbRadio.checked;
-            dbRadio.parentElement.classList.toggle('is-disabled', dbRadio.disabled);
-        }
         const contentLabel = document.getElementById('content-label');
         if (contentLabel) {
             try { contentLabel.textContent = JSON.parse(contentLabel.dataset.labels)[format] || contentLabel.textContent; } catch (e) {}

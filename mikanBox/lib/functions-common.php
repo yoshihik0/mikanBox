@@ -651,7 +651,58 @@ function mikanBoxIsErrorPage($pageId) {
 
 /** Output formats in the order the editor shows them. */
 function mikanBoxOutputFormats(): array {
-    return ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css'];
+    return ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css', 'db'];
+}
+
+/**
+ * "mikanBox DB" (2.18.0): the page publishes the DATAROW data in its body as JSON at
+ * /api/ID, and nothing at /ID. It replaces the former "DB" status; that URL is kept so
+ * existing API users keep working.
+ */
+function mikanBoxIsApiFormat($format): bool {
+    return $format === 'db';
+}
+
+/**
+ * Pages saved before 2.18.0 with the status "db" read as output format "db" + public.
+ * Applied when pages are loaded, saved, and received over MCP.
+ */
+function mikanBoxNormalizeLegacyPage($data) {
+    if (is_array($data) && ($data['status'] ?? '') === 'db') {
+        $data['status'] = 'public_dynamic';
+        $data['output_format'] = 'db';
+        unset($data['expand_tags']);
+    }
+    return $data;
+}
+
+/** Site base path (e.g. /mikanbox/), shared by the renderer and admin screens. */
+function mikanBoxSiteBasePath(array $settings): string {
+    // 1. Computed by index.php (the most reliable value when serving dynamically)
+    if (!empty($settings['_site_base'])) return $settings['_site_base'];
+    // 2. Published root URL (static site on another domain or path)
+    $rootUrl = trim($settings['ssg_root_url'] ?? '');
+    if ($rootUrl !== '') {
+        $path = parse_url($rootUrl, PHP_URL_PATH);
+        return ($path && $path !== '/') ? rtrim($path, '/') . '/' : '/';
+    }
+    // 3. Admin screens: derive from DOCUMENT_ROOT and the core folder
+    if (defined('CORE_DIR') && isset($_SERVER['DOCUMENT_ROOT'])) {
+        $docRoot = rtrim(realpath($_SERVER['DOCUMENT_ROOT']) ?: $_SERVER['DOCUMENT_ROOT'], '/');
+        $siteDir = rtrim(realpath(dirname(CORE_DIR)) ?: dirname(CORE_DIR), '/');
+        if ($siteDir !== $docRoot && strpos($siteDir, $docRoot) === 0) {
+            $sitePath = substr($siteDir, strlen($docRoot));
+            if ($sitePath && $sitePath !== '/') return rtrim($sitePath, '/') . '/';
+        }
+    }
+    return '/';
+}
+
+/** The site URL as it is being served right now (scheme, host and base path, no trailing slash). */
+function mikanBoxDynamicSiteUrl(array $settings): string {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    return $scheme . '://' . $host . rtrim(mikanBoxSiteBasePath($settings), '/');
 }
 
 /** Data formats: the body is published as it is, with no wrapper and no Markdown conversion. */
@@ -665,6 +716,7 @@ function mikanBoxIsDataFormat($format): bool {
 
 /** The page's output format; anything unset or unknown is HTML. */
 function mikanBoxPageOutputFormat($pageData): string {
+    if (is_array($pageData) && ($pageData['status'] ?? '') === 'db') return 'db';
     $format = is_array($pageData) ? ($pageData['output_format'] ?? 'html') : 'html';
     return in_array($format, mikanBoxOutputFormats(), true) ? $format : 'html';
 }
@@ -709,9 +761,10 @@ function mikanBoxPageExpandsTags($pageData): bool {
     return is_bool($value) ? $value : mikanBoxExpandTagsDefault($format);
 }
 
-/** Pages that appear in NAV lists, sitemap, RSS and visitor search: everything except data formats. */
+/** Pages that appear in NAV lists, sitemap, RSS and visitor search: everything except data formats and mikanBox DB. */
 function mikanBoxPageIsListed($pageData): bool {
-    return !mikanBoxIsDataFormat(mikanBoxPageOutputFormat($pageData));
+    $format = mikanBoxPageOutputFormat($pageData);
+    return !mikanBoxIsDataFormat($format) && !mikanBoxIsApiFormat($format);
 }
 
 /** Markdown versions use absolute URLs, so they need a site URL. Only a relative export without one lacks it. */
@@ -781,9 +834,6 @@ function mikanBoxValidatePageSave($id, $oldId, array $data, array $settings): ?s
         return t('err_output_format_invalid');
     }
     if (mikanBoxIsErrorPage($id) && $format !== 'html') return t('err_output_format_404');
-    // "DB" keeps a page private and serves its DATAROW data at /api/ID; a data page is
-    // published with its own status instead. Mixing the two would only confuse.
-    if (mikanBoxIsDataFormat($format) && ($data['status'] ?? '') === 'db') return t('err_output_format_db');
     if (mikanBoxFormatHasMarkdown($format) && !mikanBoxMarkdownAvailable($settings)) return t('err_output_format_md_unavailable');
     $extension = mikanBoxFormatExtension($format);
     if ($extension !== null && in_array(strtolower($id . '.' . $extension), ['sitemap.xml', 'rss.xml', 'podcast.xml'], true)) {
@@ -825,7 +875,8 @@ function mikanBoxPageFormatFields(array $input, ?array $existing = null): array 
  */
 function mikanBoxAdminPreviewUrl($pid, $data, array $settings, $staticRelPath): string {
     $status = $data['status'] ?? 'draft';
-    if (mikanBoxFormatExtension(mikanBoxPageOutputFormat($data)) !== null) {
+    $format = mikanBoxPageOutputFormat($data);
+    if (mikanBoxFormatExtension($format) !== null || mikanBoxIsApiFormat($format)) {
         return 'admin.php?page_preview=' . rawurlencode($pid);
     }
     $pending = function_exists('getPreviewToken') && $status === 'pending';
@@ -839,6 +890,7 @@ function mikanBoxAdminPreviewUrl($pid, $data, array $settings, $staticRelPath): 
 
 /** Dynamic-site URL of a page for sitemap and RSS: Markdown-only pages point at /id.md. */
 function mikanBoxFeedPageUrl($siteUrl, $pageId, $data): string {
+    if (mikanBoxIsApiFormat(mikanBoxPageOutputFormat($data))) return $siteUrl . '/api/' . $pageId;
     if (mikanBoxPageOutputFormat($data) === 'md') return $siteUrl . '/' . $pageId . '.md';
     return $siteUrl . '/' . ($pageId === 'index' ? '' : $pageId);
 }

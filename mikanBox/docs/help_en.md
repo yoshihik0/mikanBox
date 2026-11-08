@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.17.2</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.18.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -377,7 +377,6 @@ A dropdown for switching each page's publication status. Changes are saved immed
 - **Pending approval** — [SQLite Edition only]{.type-badge .badge-sqlite} Private, but anyone who knows the unguessable preview URL (`?preview=token`, valid for 7 days) can view it. Useful for sending a page to a reviewer for approval. Pages pending approval are shown at the top of the list.
 - **Public (Dynamic)** — Rendered dynamically by PHP.
 - **Public (Static)** — Published as a static HTML file, following the directory/file settings configured under Static Site Generation (SSG) on the Site screen.
-- **DB** — The page itself stays private, and its `{{DATAROW}}` data becomes readable as an API at `siteURL/api/pageID`. Not available for [data-format](#data-formats) pages ([the difference](#db-vs-data)).
 
 If you switch a page that was set to Public (Static) to any other status, its static HTML file is deleted.
 
@@ -439,7 +438,6 @@ Choose the page's publication status via radio buttons.
 - **Pending approval** — [SQLite Edition only]{.type-badge .badge-sqlite} Private, but an unguessable preview share URL (`?preview=token`, valid for 7 days) is generated automatically and shown right on this screen. You can just send the URL to a reviewer so they can check the content without ever logging into the admin panel.
 - **Public (Dynamic)** — Rendered dynamically by PHP.
 - **Public (Static)** — Published as a static HTML file, following the directory/file settings configured under Static Site Generation (SSG) on the Site screen.
-- **DB** — The page itself stays private, and its `{{DATAROW}}` data becomes readable as an API at `siteURL/api/pageID`. Not available for [data-format](#data-formats) pages ([the difference](#db-vs-data)).
 
 If you switch a page that was set to Public (Static) to any other status, its static HTML file is deleted.
 
@@ -459,7 +457,7 @@ The identifying slug that becomes part of the page's URL. Alphanumeric character
 
 #### Output format
 
-Choose one output format: HTML, HTML + Markdown, Markdown, or a data format (JSON, XML, CSV, Text, JavaScript, CSS). The default is HTML. The URL the page will be published at (for example `https://example.com/news-list.json`) is shown right below. Fields the chosen format does not use are hidden (for Markdown, the design component and the page CSS and JS; for data formats, also the OGP image, description and keywords). Without a published URL, formats with Markdown cannot be chosen. See [Output Formats](#output-formats).
+Choose one output format: HTML, HTML + Markdown, Markdown, or a data format (JSON, XML, CSV, Text, JavaScript, CSS, [mikanBox DB](#mikanbox-db)). The default is HTML. The URL the page will be published at (for example `https://example.com/news-list.json`) is shown right below. Fields the chosen format does not use are hidden (for Markdown, the design component and the page CSS and JS; for data formats, also the OGP image, description and keywords). Without a published URL, formats with Markdown cannot be chosen. See [Output Formats](#output-formats).
 
 #### Design Component
 
@@ -715,7 +713,7 @@ Claude's custom connector screen supports authless or OAuth authentication. Its 
 
 Treat the API key like a password. Never store it in a public repository or shared file. If several mikanBox sites are connected, AI calls `get_site_info` on first connection and before writes to confirm the target site.
 
-A page's [output format](#output-formats) is set through `output_format` (`html` / `html_md` / `md` / `json` / `xml` / `csv` / `txt` / `js` / `css`), `md_footer_comps` (an array of footer component IDs) and `expand_tags` (whether a data page expands tags; the format's default when omitted) in `create_page` and `update_page`. `get_page` and `list_pages` also return `output_format`. Updating a published page with `update_page` no longer changes its update date (`updated_at`); it becomes the current time only when a page goes from non-public to public, the same as on the admin screen (since 2.17.0).
+A page's [output format](#output-formats) is set through `output_format` (`html` / `html_md` / `md` / `json` / `xml` / `csv` / `txt` / `js` / `css` / `db`), `md_footer_comps` (an array of footer component IDs) and `expand_tags` (whether a data page expands tags; the format's default when omitted) in `create_page` and `update_page`. `get_page` and `list_pages` also return `output_format`. Updating a published page with `update_page` no longer changes its update date (`updated_at`); it becomes the current time only when a page goes from non-public to public, the same as on the admin screen (since 2.17.0). `status` is `draft`, `public_dynamic` or `public_static`; the former `db` is accepted and saved as `output_format` `db` with Public (Dynamic).
 
 Starting with mikanBox 2.5.1, the MCP connection instructions tell AI to call `get_ai_context` on first connection. This tool returns every [AI Instructions]{.type-badge .badge-ai} component—such as `DESIGN.md`, `BRAND.md`, and `CONTENTS.md`—in a single response. AI treats the returned content as site-specific project instructions for content, design, and code changes. Updating an instruction component updates what AI receives the next time it loads the context.
 
@@ -766,7 +764,7 @@ Reads the first row as field names and converts every other row into a `{{DATARO
 - Write field names (the first row) using alphanumeric characters.
 - Thousands separators in prices (e.g. `1,000`) are read correctly, since Excel automatically quotes them.
 - We recommend keeping data-only pages set to **Draft**. Visitors won't see them, but they can still be referenced via `{{POST_MD:pageID#rowID:FIELD}}` or `{{NAV_CARDS}}`.
-- Setting the status to **DB** keeps the page itself private, while its `{{DATAROW}}` data becomes readable as an API at `siteURL/api/pageID`.
+- Publishing the page with the output format **mikanBox DB** shows nothing as a page, while its `{{DATAROW}}` data becomes readable as a JSON API at `siteURL/api/pageID` ([mikanBox DB](#mikanbox-db)).
 
 ### Data Management [SQLite Edition only]{.type-badge .badge-sqlite} {#site-data-mgmt}
 
@@ -1617,7 +1615,7 @@ Reads the first row as field names and converts every other row into a `{{DATARO
 
 ### It Can Even Act as a Headless CMS
 
-By publishing a page that embeds `{{DATAROW}}` with status set to "DB," it becomes readable externally as an API.
+Publishing a page that embeds `{{DATAROW}}` with the output format "[mikanBox DB](#mikanbox-db)" makes it readable externally as an API.
 
 `https://yoursite.com/api/pageID`
 
@@ -1652,6 +1650,7 @@ Each page has one "Output format". The default is HTML, so existing pages do not
 |HTML + Markdown|HTML and a Markdown version|Pages meant for reading|
 |Markdown|Markdown version only|Documents for Markdown readers and AI; Markdown-only sites|
 |JSON, XML, CSV, Text, JavaScript, CSS|The body as it is|Catalogs, per-category RSS, data exports, `llms.txt`, the site's JS and CSS|
+|mikanBox DB|The `{{DATAROW}}` data in the body, as JSON (`/api/ID`)|An API for table data embedded in a page|
 
 ### URL Rules {#output-urls}
 
@@ -1668,6 +1667,7 @@ For a page at `/ID`, everything with an extension lives at `/ID.extension`.
 - When served dynamically, a Markdown-only page also answers at `/ID` with its Markdown version, and `/ID.html` returns 404. A data page answers only at `/ID.extension`.
 - A static build writes `ID.md` beside the HTML, and `ID.extension` for data pages. A Markdown-only page has no file at `/ID/`, so it is readable only at `/ID.md` (links inside the site always point at `/ID.md` explicitly). No `.htaccess` is written, so an `.htaccess` you placed on the server is never overwritten.
 - `rss`, `sitemap` and `podcast` cannot use the XML format, because `/rss.xml` and the others are system files. The `404` page can only be HTML.
+- So that static `.md`, `.txt` and `.csv` files never look garbled, the site-root `.htaccess` that mikanBox writes at first setup sets their charset (`AddCharset utf-8 .md .txt .csv` and `AddType text/markdown .md`). A system update appends these lines to the end when they are missing (existing lines are not changed; if the file cannot be written, the message after the update says so). When you put a static build on another server, add the same two lines to that server's `.htaccess` or equivalent. `.json` is UTF-8 by definition and `.xml` declares its encoding inside the file, so they need nothing.
 
 ### Markdown Versions {#markdown-version}
 
@@ -1734,19 +1734,23 @@ Every format is sent with `X-Content-Type-Options: nosniff`.
 - Write JavaScript and CSS in the body. The page CSS and JS fields, design component, OGP image, description and keywords are not used, so the editor hides them.
 - Data pages are parts of a site rather than content, so they are never included in `NAV_LINKS`, `NAV_CARDS` (including `all`), `@same`, `sitemap.xml`, `rss.xml` or search results. Publication works as for any page: drafts are not served, and a static build writes only "Public (Static)" pages.
 - The preview shows the raw text that is actually published. [Visual Editing](#visual-edit) works only on pages that publish HTML.
-- The "DB" status is a different mechanism (see the table below). Data-format pages cannot use the "DB" status.
+- To read the table data in a body (`{{DATAROW}}`) as an API, use the output format "[mikanBox DB](#mikanbox-db)".
 
-#### The "DB" status vs. data formats {#db-vs-data}
+### mikanBox DB {#mikanbox-db}
 
-||"DB" status|"Data" output format (JSON etc.)|
+With the output format "mikanBox DB", the `{{DATAROW}}` and `{{DATA}}` data in the body is converted to JSON of a fixed shape and returned at `/api/ID`. Nothing is shown as a page (no HTML, no Markdown version). This is the former "DB" status (up to 2.17), moved to the output format.
+
+- The status works as for any page: Public (Dynamic) and Public (Static) serve the API, and Draft stops it. `/api/ID` is answered when served dynamically (a static build writes no file for it).
+- The API URL is still `/api/ID` (not `/ID.json`). The URL shown under the output format is `/api/ID` too, and the editor preview shows the JSON the API returns.
+- These pages are not included in lists, sitemap, RSS or search. Other pages can still read their values with `{{POST_MD:ID:key}}` and `{{POST_MD:ID#rowID:key}}`.
+- Pages saved with the "DB" status up to 2.17 are read as "output format mikanBox DB + Public (Dynamic)" and saved that way the next time they are saved. Their API URL does not change. `status: db` over MCP is treated the same way.
+
+|Kind|What is served|URL|
 |---|---|---|
-|Where it is set|Status|Output format (with the Public (Dynamic) or Public (Static) status)|
-|The page itself|Private (not shown as a page)|Published as it is at `/ID.json` etc.|
-|What is served|The `{{DATAROW}}` data in the body, converted to a fixed JSON shape|The body itself, in the shape you write (tags can be expanded)|
-|URL|`/api/ID` (dynamic only)|`/ID.extension` (dynamic and static builds)|
-|Suited to|Serving table data embedded in a page as an API|Files whose shape you decide: catalogs, per-category RSS, `llms.txt`, site JS/CSS|
+|mikanBox DB|The `{{DATAROW}}` data in the body, converted to a fixed JSON shape|`/api/ID`|
+|Data formats (JSON etc.)|The body itself, in the shape you write (tags can be expanded)|`/ID.extension`|
 
-Choose "DB" to keep table data in a page body and read it through the API; choose a data format to write the file's shape yourself.
+Choose "mikanBox DB" to serve table data embedded in a page as an API; choose a data format such as JSON to write the file's shape yourself.
 
 ### Embedding a Page's URL: `{{PAGE_URL:ID}}` {#page-url-id}
 
@@ -1880,7 +1884,7 @@ Example: [https://yoshihiko.com/mikanbox/demo/podcast.xml](https://yoshihiko.com
 
 ### API
 
-By publishing a page that embeds `{{DATAROW}}` with status set to "DB," it becomes readable externally as an API.
+Publishing a page that embeds `{{DATAROW}}` with the output format "[mikanBox DB](#mikanbox-db)" makes it readable externally as an API.
 
 `https://yoursite.com/api/pageID`
 

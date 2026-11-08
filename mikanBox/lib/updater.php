@@ -486,7 +486,36 @@ function mikanBoxInstallUpdateLocked(
     }
 
     mikanBoxUpdateRemoveTree($workDir);
-    return ['success' => true, 'version' => $newVersion];
+    // The site-root .htaccess belongs to the site owner and is never replaced; only the
+    // charset block for static text files is appended once when it is missing.
+    return ['success' => true, 'version' => $newVersion, 'htaccess' => mikanBoxEnsureSiteHtaccessCharset($siteRoot)];
+}
+
+/** The block that makes static .md/.txt/.csv files come with charset=utf-8 (2.18.0). */
+function mikanBoxHtaccessCharsetBlock(): string {
+    return "# BEGIN mikanBox charset (static .md/.txt/.csv as UTF-8)\n"
+        . "<IfModule mod_mime.c>\n"
+        . "    AddCharset utf-8 .md .txt .csv\n"
+        . "    AddType text/markdown .md\n"
+        . "</IfModule>\n"
+        . "# END mikanBox charset\n";
+}
+
+/**
+ * Append the charset block to the site-root .htaccess when it is not there yet.
+ * Existing lines are never changed. Returns 'added', 'present', 'missing' (no
+ * .htaccess, nothing done) or 'failed' (could not write; the update still succeeds).
+ */
+function mikanBoxEnsureSiteHtaccessCharset(string $siteRoot): string {
+    $file = rtrim($siteRoot, '/\\') . '/.htaccess';
+    if (!is_file($file)) return 'missing';
+    $current = @file_get_contents($file);
+    if ($current === false) return 'failed';
+    if (strpos($current, '# BEGIN mikanBox charset') !== false
+        || preg_match('/^\s*AddCharset\s+utf-8\b[^\n]*\.md\b/mi', $current)) return 'present';
+    $prefix = ($current === '' || substr($current, -1) === "\n") ? "\n" : "\n\n";
+    if (!is_writable($file) || @file_put_contents($file, $prefix . mikanBoxHtaccessCharsetBlock(), FILE_APPEND | LOCK_EX) === false) return 'failed';
+    return 'added';
 }
 
 function mikanBoxRestorePreviousVersion(string $coreDir, string $dataDir): array {

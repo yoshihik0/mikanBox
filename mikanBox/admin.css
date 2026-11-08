@@ -2012,4 +2012,3 @@ input[type="datetime-local"], input:not([type]) {
 .editor-header-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
 .editor-visual-btn { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .btn.btn-disabled { opacity: 0.55; cursor: not-allowed; pointer-events: none; }
-.radio-label.is-disabled { opacity: 0.5; cursor: not-allowed; }

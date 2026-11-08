@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.17.2</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.18.0</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -379,7 +379,6 @@ GPTの起動文には人が読む公式マニュアルURLを含めます。Claud
 - **承認待ち** — [SQLite版のみ]{.type-badge .badge-sqlite} 非公開ですが、推測不可能な確認用URL（`?preview=トークン`、有効期限7日）を知っている人だけが内容を確認できます。承認者へのレビュー依頼に使います。承認待ちのページは一覧の先頭に表示されます。
 - **公開(動的)** — PHPで動的に表示します。
 - **公開(静的)** — サイト画面の静的サイト生成 (SSG)の設定に従ったディレクトリ、ファイル設定で静的HTMLファイルとして公開します。
-- **DB** — ページとしては非公開になり、`{{DATAROW}}`のデータが、`サイトURL/api/ページID`のアドレスのAPIとして読み取れるようになります。[データ形式](#data-formats)のページでは選べません（[違い](#db-vs-data)）。
 
 公開(静的)のページをそれ以外の公開設定に設定すると、静的HTMLファイルは削除されます。
 
@@ -441,7 +440,6 @@ GPTの起動文には人が読む公式マニュアルURLを含めます。Claud
 - **承認待ち** — [SQLite版のみ]{.type-badge .badge-sqlite} 非公開ですが、推測不可能な確認用の共有URL（`?preview=トークン`、有効期限7日）が自動生成され、この画面にも表示されます。URLを知らせるだけで、承認者に管理画面へログインさせずに内容を確認してもらえます。
 - **公開(動的)** — PHPで動的に表示します。
 - **公開(静的)** — サイト画面の静的サイト生成 (SSG)の設定に従ったディレクトリ、ファイル設定で静的HTMLファイルとして公開します。
-- **DB** — ページとしては非公開になり、`{{DATAROW}}`のデータが、`サイトURL/api/ページID`のアドレスのAPIとして読み取れるようになります。[データ形式](#data-formats)のページでは選べません（[違い](#db-vs-data)）。
 
 公開(静的)のページをそれ以外の公開設定に設定すると、静的HTMLファイルは削除されます。
 
@@ -461,7 +459,7 @@ URLになるページの識別記号（スラッグ）です。半角英数字�
 
 #### 出力形式
 
-ページの出力形式を、HTML / HTML + Markdown / Markdown / データ（JSON・XML・CSV・テキスト・JavaScript・CSS）から1つ選びます。既定はHTMLです。すぐ下に、実際に出るURL（例 `https://example.com/news-list.json`）が表示されます。選んだ形式で使わない欄は隠れます（Markdownではデザインコンポーネントとページ専用CSS・JS、データ形式ではさらにOGP画像・概要・キーワード）。公開URLがないときは、Markdownを含む形式は選べません。詳しくは[出力形式](#output-formats)を参照してください。
+ページの出力形式を、HTML / HTML + Markdown / Markdown / データ（JSON・XML・CSV・テキスト・JavaScript・CSS・[mikanBox DB](#mikanbox-db)）から1つ選びます。既定はHTMLです。すぐ下に、実際に出るURL（例 `https://example.com/news-list.json`）が表示されます。選んだ形式で使わない欄は隠れます（Markdownではデザインコンポーネントとページ専用CSS・JS、データ形式ではさらにOGP画像・概要・キーワード）。公開URLがないときは、Markdownを含む形式は選べません。詳しくは[出力形式](#output-formats)を参照してください。
 
 #### デザインコンポーネント
 
@@ -717,7 +715,7 @@ Claudeのカスタムコネクタ画面が扱う認証は「認証なし」ま�
 
 APIキーはパスワードと同じように扱い、公開リポジトリや共有ファイルへ記録しないでください。複数のmikanBoxサイトを接続している場合、AIは初回接続時と書き込み前に `get_site_info` を呼び、対象サイトを確認します。
 
-ページの[出力形式](#output-formats)は、`create_page`・`update_page` の `output_format`（`html` / `html_md` / `md` / `json` / `xml` / `csv` / `txt` / `js` / `css`）、`md_footer_comps`（末尾コンポーネントのIDの配列）、`expand_tags`（データ形式でタグを展開するか。省略時は形式ごとの既定）で設定します。`get_page`・`list_pages` の結果にも `output_format` が入ります。`update_page` で公開済みのページを更新しても、更新日（`updated_at`）は変わりません。非公開から公開へ切り替えたときだけ現在時刻になります（2.17.0から管理画面と同じ動きです）。
+ページの[出力形式](#output-formats)は、`create_page`・`update_page` の `output_format`（`html` / `html_md` / `md` / `json` / `xml` / `csv` / `txt` / `js` / `css` / `db`）、`md_footer_comps`（末尾コンポーネントのIDの配列）、`expand_tags`（データ形式でタグを展開するか。省略時は形式ごとの既定）で設定します。`get_page`・`list_pages` の結果にも `output_format` が入ります。`update_page` で公開済みのページを更新しても、更新日（`updated_at`）は変わりません。非公開から公開へ切り替えたときだけ現在時刻になります（2.17.0から管理画面と同じ動きです）。`status` は `draft` / `public_dynamic` / `public_static` です。2.17までの `db` を渡すと、`output_format` を `db` にして公開(動的)で保存します。
 
 mikanBox 2.5.1以降では、MCPの接続指示によりAIは初回接続時に `get_ai_context` を呼びます。このツールは `DESIGN.md`、`BRAND.md`、`CONTENTS.md` など、登録されているすべての [AI指示]{.type-badge .badge-ai} コンポーネントを一度に返します。AIは受け取った内容をそのサイト固有のプロジェクト指示として、コンテンツ・デザイン・コードの変更に適用します。指示コンポーネントを更新すれば、次回取得時からAIへの指示も更新されます。
 
@@ -768,7 +766,7 @@ CSVファイルを選択します。エンコーディング（UTF-8 / Shift-JIS
 - フィールド名（1行目）は英数字で記述してください。
 - 価格の位取りカンマ（例: `1,000`）はExcelが自動的にクォートするため正しく読み込めます。
 - データ専用ページは**下書き**にしておくことを推奨します。訪問者には見えませんが、`{{POST_MD:pageID#rowID:FIELD}}` や `{{NAV_CARDS}}` からは参照できます。
-- 公開設定を**DB**にすると、ページとしては非公開になり、`{{DATAROW}}`のデータが、`サイトURL/api/ページID`のアドレスのAPIとして読み取れるようになります。
+- 出力形式を**mikanBox DB**にして公開すると、ページとしては表示せず、`{{DATAROW}}`のデータを `サイトURL/api/ページID` のAPI（JSON）として読み取れるようになります（[mikanBox DB](#mikanbox-db)）。
 
 ### データ管理 [SQLite版のみ]{.type-badge .badge-sqlite} {#site-data-mgmt}
 
@@ -1622,7 +1620,7 @@ PHP版はサイト画面、Cloud版はデータ移行・インポート画面の
 
 ### ヘッドレスCMSにもなる
 
-`{{DATAROW}}`を埋め込んだページを、公開設定「DB」で公開することで、外部からAPIで読み取ることができるようになります。
+`{{DATAROW}}`を埋め込んだページを、出力形式「[mikanBox DB](#mikanbox-db)」にして公開すると、外部からAPIで読み取ることができるようになります。
 
 `https://yoursite.com/api/pageID`
 
@@ -1658,6 +1656,7 @@ PHP版はサイト画面、Cloud版はデータ移行・インポート画面の
 |HTML + Markdown|HTMLとMarkdown版|読み物のページ|
 |Markdown|Markdown版だけ|Markdownの読者・AI向けの文書、Markdownだけのサイト|
 |JSON・XML・CSV・テキスト・JavaScript・CSS|本文をそのまま|目録、カテゴリ別RSS、データの書き出し、`llms.txt`、サイトのJS・CSS|
+|mikanBox DB|本文の `{{DATAROW}}` のデータをJSONで（`/api/ID`）|ページに埋め込んだ表データを読ませるAPI|
 
 ### URLの規則 {#output-urls}
 
@@ -1674,6 +1673,7 @@ PHP版はサイト画面、Cloud版はデータ移行・インポート画面の
 - 動的表示では、Markdownだけのページは `/ID` でもMarkdown版を返し、`/ID.html` は404になります。データ形式のページは `/ID.拡張子` でだけ読めます。
 - 静的書き出しでは、HTMLと並べて `ID.md` を、データ形式は `ID.拡張子` を書き出します。Markdownだけのページは `/ID/` にファイルがないため `/ID.md` でだけ読めます（サイト内のリンクは常に `/ID.md` を明示して出力します）。`.htaccess` は書き出しません（サーバーに置いた `.htaccess` を上書きしないためです）。
 - `rss`・`sitemap`・`podcast` をXML形式にすると、システムのファイル（`/rss.xml` など）と重なるため保存できません。`404` ページの出力形式はHTMLだけです。
+- 静的に置いた `.md`・`.txt`・`.csv` を文字化けさせないため、初回設定で作るサイト直下の `.htaccess` に、文字コードの設定（`AddCharset utf-8 .md .txt .csv` と `AddType text/markdown .md`）を入れています。システム更新のときに、この設定がなければ末尾に追記します（既存の行は変えません。書き込めないときは、更新後のメッセージで案内します）。静的書き出しを別のサーバーに置くときは、そのサーバーの `.htaccess` などに同じ2行を書いてください。`.json` はUTF-8が決まりで、`.xml` はファイル内の宣言で文字コードを示せるため、設定は要りません。
 
 ### Markdown版 {#markdown-version}
 
@@ -1740,19 +1740,23 @@ categories: "coffee, tokyo"
 - JavaScript・CSSは本文に書きます。ページ専用CSS・JS欄、デザインコンポーネント、OGP画像、概要、キーワードは使わないため、編集画面に表示されません。
 - データ形式のページは中身ではなく部品なので、`NAV_LINKS`・`NAV_CARDS`（`all` を含む）、`@same`、`sitemap.xml`、`rss.xml`、検索結果に含まれません。公開設定は通常のページと同じで、下書きは出さず、静的書き出しでは「公開(静的)」のページだけを出します。
 - プレビューでは、実際に出る生のテキストを表示します。[ビジュアル編集](#visual-edit)は、HTMLを出すページだけで使えます。
-- 公開設定の「DB」は、データ形式とは別のしくみです（下の表）。データ形式のページは、公開設定を「DB」にできません。
+- 本文の表データ（`{{DATAROW}}`）をAPIとして読ませたいときは、出力形式「[mikanBox DB](#mikanbox-db)」を使います。
 
-#### 公開設定「DB」とデータ形式の違い {#db-vs-data}
+### mikanBox DB {#mikanbox-db}
 
-||公開設定「DB」|出力形式「データ」（JSONなど）|
+出力形式を「mikanBox DB」にすると、本文の `{{DATAROW}}`・`{{DATA}}` のデータを、決まった形のJSONに変換して `/api/ID` で返します。ページとしての表示（HTML・Markdown版）は出しません。2.17まで公開設定にあった「DB」を、出力形式に移したものです。
+
+- 公開設定は通常のページと同じです。「公開(動的)」「公開(静的)」でAPIが動き、「下書き」にするとAPIも止まります。`/api/ID` は動的表示で答えます（静的書き出しではファイルを出しません）。
+- APIのURLは従来どおり `/api/ID` です（`/ID.json` ではありません）。出力形式の下に表示されるURLも `/api/ID` です。編集画面のプレビューでは、APIが返すJSONを表示します。
+- 一覧・sitemap・RSS・検索には含まれません。`{{POST_MD:ID:key}}`・`{{POST_MD:ID#rowID:key}}` で、ほかのページから値を読むことはこれまでどおりできます。
+- 2.17までに公開設定「DB」で保存したページは、「出力形式 mikanBox DB＋公開(動的)」として読み、次に保存したときにその形で保存します。APIのURLは変わりません。MCPで `status` に `db` を渡したときも同じに扱います。
+
+|形|出るもの|URL|
 |---|---|---|
-|設定する場所|公開設定|出力形式（公開設定は「公開(動的)」「公開(静的)」）|
-|ページ自身|非公開（ページとしては表示しない）|`/ID.json` など、本文がそのまま公開される|
-|出るもの|本文の `{{DATAROW}}` のデータを、決まった形のJSONに変換したもの|本文そのもの（自分で書いた形。タグを展開できる）|
-|URL|`/api/ID`（動的表示だけ）|`/ID.拡張子`（動的表示・静的書き出しの両方）|
-|向いている用途|ページに埋め込んだ表データを、そのままAPIとして読ませる|目録・カテゴリ別RSS・`llms.txt`・サイトのJS/CSSなど、形を自分で決めるファイル|
+|mikanBox DB|本文の `{{DATAROW}}` のデータを、決まった形に変換したJSON|`/api/ID`|
+|データ形式（JSONなど）|本文そのもの（自分で書いた形。タグを展開できる）|`/ID.拡張子`|
 
-データを本文に表形式で持たせてAPIで読ませたいときは「DB」、出すファイルの形を自分で書きたいときは「データ」を選びます。
+ページに埋め込んだ表データをそのままAPIで読ませるなら「mikanBox DB」、出すファイルの形を自分で書くなら「JSON」などのデータ形式を選びます。
 
 ### ページのURLを埋め込む `{{PAGE_URL:ID}}` {#page-url-id}
 
@@ -1886,7 +1890,7 @@ mikanBox本体には、ページャー（ページ送り）や目録ファイル
 
 ### API
 
-`{{DATAROW}}`を埋め込んだページを、公開設定「DB」で公開することで、外部からAPIで読み取ることができるようになります。
+`{{DATAROW}}`を埋め込んだページを、出力形式「[mikanBox DB](#mikanbox-db)」にして公開すると、外部からAPIで読み取ることができるようになります。
 
 `https://yoursite.com/api/pageID`
 

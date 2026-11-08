@@ -352,7 +352,7 @@ function toolDefinitions() {
                     'content_md'   => ['type' => 'string',  'description' => 'ページ本文（MarkdownまたはHTML）'],
                     'css'          => ['type' => 'string',  'description' => 'ページ専用CSS'],
                     'js'           => ['type' => 'string',  'description' => 'ページ専用JavaScript（scriptタグ不要。本文末尾へ自動挿入）'],
-                    'status'       => ['type' => 'string',  'description' => 'ステータス: draft / public_dynamic / public_static', 'enum' => ['draft', 'public_dynamic', 'public_static']],
+                    'status'       => ['type' => 'string',  'description' => 'ステータス: draft / public_dynamic / public_static（db は 2.18.0 から output_format の db。互換のため受け付け、output_format=db・public_dynamic として保存する）', 'enum' => ['draft', 'public_dynamic', 'public_static', 'db']],
                     'description'  => ['type' => 'string',  'description' => 'メタ description'],
                     'keywords'     => ['type' => 'string',  'description' => 'メタ keywords'],
                     'category'     => ['type' => 'string',  'description' => 'カテゴリ'],
@@ -360,7 +360,7 @@ function toolDefinitions() {
                     'exclude_tracking' => ['type' => 'boolean', 'description' => 'サイト設定の計測コンポーネントをこのページでは読み込まない'],
                     'wrapper_comp' => ['type' => 'string',  'description' => 'レイアウトコンポーネントID（省略時: _layout、なし: __none）。{{CONTENT}} タグを含むコンポーネントを指定する'],
                     'sort_order'   => ['type' => 'integer', 'description' => '表示順（数値が小さいほど上位）'],
-                    'output_format' => ['type' => 'string', 'description' => '出力形式: html（既定）/ html_md（HTML と Markdown 版 /id.md）/ md（Markdown 版だけ）/ json / xml / csv / txt / js / css（データ形式。本文をそのまま /id.拡張子 で出す。一覧・sitemap・RSS・検索には出ない）', 'enum' => ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css']],
+                    'output_format' => ['type' => 'string', 'description' => '出力形式: html（既定）/ html_md（HTML と Markdown 版 /id.md）/ md（Markdown 版だけ）/ json / xml / csv / txt / js / css（データ形式。本文をそのまま /id.拡張子 で出す）/ db（mikanBox DB。本文の DATAROW のデータを /api/id で JSON として返す）。データ形式と db は一覧・sitemap・RSS・検索に含まれない', 'enum' => ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css', 'db']],
                     'md_footer_comps' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Markdown 版の最後に順番どおり付けるコンポーネントIDの配列（既定なし。ラッパーと AI 指示は使えない）'],
                     'expand_tags' => ['type' => 'boolean', 'description' => 'データ形式でタグを展開するか（省略時: json/xml/csv/txt は展開する、js/css は展開しない）'],
                 ],
@@ -376,7 +376,7 @@ function toolDefinitions() {
                     'id'           => ['type' => 'string',  'description' => '更新対象のスラッグ/ID'],
                     'title'        => ['type' => 'string'],
                     'content_md'   => ['type' => 'string'],
-                    'status'       => ['type' => 'string',  'enum' => ['draft', 'public_dynamic', 'public_static']],
+                    'status'       => ['type' => 'string',  'description' => 'draft / public_dynamic / public_static（db は互換のため受け付け、output_format=db・public_dynamic にする）', 'enum' => ['draft', 'public_dynamic', 'public_static', 'db']],
                     'description'  => ['type' => 'string'],
                     'keywords'     => ['type' => 'string'],
                     'category'     => ['type' => 'string'],
@@ -387,7 +387,7 @@ function toolDefinitions() {
                     'css'          => ['type' => 'string'],
                     'js'           => ['type' => 'string', 'description' => 'ページ専用JavaScript（scriptタグ不要。本文末尾へ自動挿入）'],
                     'ogp_image'    => ['type' => 'string'],
-                    'output_format' => ['type' => 'string', 'description' => '出力形式: html（既定）/ html_md（HTML と Markdown 版 /id.md）/ md（Markdown 版だけ）/ json / xml / csv / txt / js / css（データ形式。本文をそのまま /id.拡張子 で出す。一覧・sitemap・RSS・検索には出ない）', 'enum' => ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css']],
+                    'output_format' => ['type' => 'string', 'description' => '出力形式: html（既定）/ html_md（HTML と Markdown 版 /id.md）/ md（Markdown 版だけ）/ json / xml / csv / txt / js / css（データ形式。本文をそのまま /id.拡張子 で出す）/ db（mikanBox DB。本文の DATAROW のデータを /api/id で JSON として返す）。データ形式と db は一覧・sitemap・RSS・検索に含まれない', 'enum' => ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css', 'db']],
                     'md_footer_comps' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Markdown 版の最後に順番どおり付けるコンポーネントIDの配列（既定なし。ラッパーと AI 指示は使えない）'],
                     'expand_tags' => ['type' => 'boolean', 'description' => 'データ形式でタグを展開するか（省略時: json/xml/csv/txt は展開する、js/css は展開しない）'],
                 ],
@@ -648,6 +648,7 @@ function toolUpdatePage($args) {
     }
     $formatInput = array_intersect_key($args, array_flip(['output_format', 'md_footer_comps', 'expand_tags']));
     $existing = array_merge($existing, mikanBoxPageFormatFields($formatInput, $before));
+    $existing = mikanBoxNormalizeLegacyPage($existing);
     if (!mikanBoxIsDataFormat($existing['output_format'])) unset($existing['expand_tags']);
     if (($formatError = mikanBoxValidatePageSave($id, $id, $existing, $GLOBALS['mcp_settings'] ?? [])) !== null) {
         return ['error' => $formatError];
@@ -777,7 +778,7 @@ function toolGetAiContext() {
         'documents' => $documents,
         'count' => count($documents),
         'component_naming' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。',
-        'output_formats' => 'ページの output_format は html（既定）/ html_md / md / json / xml / csv / txt / js / css。拡張子のあるものはすべて /id.拡張子（Markdown 版は /id.md、データは /id.json など）。ページIDにドットは使わない。データ形式は本文をそのまま出し、一覧・sitemap・RSS・検索に出ない。サイトのJS・CSSは js・css 形式のページに書き、{{PAGE_URL:ID}} で読み込む（データ形式には ?v= が自動で付く）。一覧は {{NAV_LINKS:カテゴリ:sort=new:limit=5}}、関連ページは {{NAV_LINKS:@same}}。_ で始まるカテゴリは構造用（@same と {{CATEGORY}} で使わない）。ページャー付き一覧は、目録の JSON ページ（[{{NAV_CARDS:カテゴリ:項目用コンポーネント:sort=new:sep=,}}]）と JS ページで作る。',
+        'output_formats' => 'ページの output_format は html（既定）/ html_md / md / json / xml / csv / txt / js / css / db（mikanBox DB: 本文の DATAROW を /api/ID で JSON として返す。公開設定の「DB」は廃止）。拡張子のあるものはすべて /id.拡張子（Markdown 版は /id.md、データは /id.json など）。ページIDにドットは使わない。データ形式は本文をそのまま出し、一覧・sitemap・RSS・検索に出ない。サイトのJS・CSSは js・css 形式のページに書き、{{PAGE_URL:ID}} で読み込む（データ形式には ?v= が自動で付く）。一覧は {{NAV_LINKS:カテゴリ:sort=new:limit=5}}、関連ページは {{NAV_LINKS:@same}}。_ で始まるカテゴリは構造用（@same と {{CATEGORY}} で使わない）。ページャー付き一覧は、目録の JSON ページ（[{{NAV_CARDS:カテゴリ:項目用コンポーネント:sort=new:sep=,}}]）と JS ページで作る。',
     ];
 }
 
@@ -950,7 +951,7 @@ function toolBuildSSG($settings) {
 }
 
 function buildPageData($args) {
-    return [
+    $data = [
         'title'        => $args['title']        ?? '',
         'category'     => trim($args['category']     ?? ''),
         'status'       => $args['status']       ?? 'draft',
@@ -965,7 +966,9 @@ function buildPageData($args) {
         'is_html' => (bool)($args['is_html'] ?? false),
         'sort_order'   => (int)($args['sort_order'] ?? 0),
         'updated_at'   => date('Y-m-d H:i:s'),
-    ] + mikanBoxPageFormatFields(array_intersect_key($args, array_flip(['output_format', 'md_footer_comps', 'expand_tags'])));
+    ];
+    $data += mikanBoxPageFormatFields(array_intersect_key($args, array_flip(['output_format', 'md_footer_comps', 'expand_tags'])));
+    return mikanBoxNormalizeLegacyPage($data);
 }
 
 /** Remove the static files a page's previous output format produced (e.g. /id.json). */

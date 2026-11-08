@@ -455,6 +455,12 @@ function mikanBoxStorageSaveData($dir, $id, $data) {
  * @return array|null The data as an associative array, or null on failure
  */
 function loadData($dir, $id) {
+    $data = mikanBoxLoadDataRaw($dir, $id);
+    // Pages saved before 2.18.0 with the "db" status read as output format "mikanBox DB".
+    return $dir === POSTS_DIR ? mikanBoxNormalizeLegacyPage($data) : $data;
+}
+
+function mikanBoxLoadDataRaw($dir, $id) {
     // Allow slashes for hierarchy but prevent directory traversal
     $id = ltrim($id, '/\\');
     $id = preg_replace('/[^a-zA-Z0-9_\-\/\.]/', '', $id);

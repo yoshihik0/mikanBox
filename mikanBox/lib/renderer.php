@@ -54,8 +54,8 @@ class MikanBoxRenderer {
      * Public API: extract DATA/DATAROW blocks from a page as structured array.
      * Returns ['fields' => [...], 'rows' => [['id'=>..., FIELD=>...], ...]]
      */
-    public function getPageDataBlocks($pageId) {
-        $postData = loadData(POSTS_DIR, $pageId);
+    public function getPageDataBlocks($pageId, $postData = null) {
+        $postData = $postData ?? loadData(POSTS_DIR, $pageId);
         if (!$postData) return null;
         $blocks = [];
         $this->extractDataBlocks($postData['content_md'] ?? '', $blocks);
@@ -641,9 +641,7 @@ class MikanBoxRenderer {
         // carry them yet.
         $ssgRootUrl = rtrim($this->siteSettings['ssg_root_url'] ?? '', '/');
         if ($this->staticMode && $ssgRootUrl !== '') return $ssgRootUrl;
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        return $scheme . '://' . $host . rtrim($this->getSiteBasePath(), '/');
+        return mikanBoxDynamicSiteUrl($this->siteSettings);
     }
 
     public function getConfiguredSiteUrl() {
@@ -664,31 +662,7 @@ class MikanBoxRenderer {
     }
 
     private function getSiteBasePath() {
-        // 1. index.phpが直接計算した値（動的モードで最も確実）
-        if (!empty($this->siteSettings['_site_base'])) {
-            return $this->siteSettings['_site_base'];
-        }
-        // 2. ssg_root_url が設定されている場合（SSG別ドメインデプロイ用）
-        $rootUrl = trim($this->siteSettings['ssg_root_url'] ?? '');
-        if (!empty($rootUrl)) {
-            $path = parse_url($rootUrl, PHP_URL_PATH);
-            if ($path && $path !== '/') {
-                return rtrim($path, '/') . '/';
-            }
-            return '/';
-        }
-        // 3. SSGビルド時（admin.php経由）: DOCUMENT_ROOT と CORE_DIR から算出
-        if (defined('CORE_DIR') && isset($_SERVER['DOCUMENT_ROOT'])) {
-            $docRoot = rtrim(realpath($_SERVER['DOCUMENT_ROOT']) ?: $_SERVER['DOCUMENT_ROOT'], '/');
-            $siteDir = rtrim(realpath(dirname(CORE_DIR)) ?: dirname(CORE_DIR), '/');
-            if ($siteDir !== $docRoot && strpos($siteDir, $docRoot) === 0) {
-                $sitePath = substr($siteDir, strlen($docRoot));
-                if ($sitePath && $sitePath !== '/') {
-                    return rtrim($sitePath, '/') . '/';
-                }
-            }
-        }
-        return '/';
+        return mikanBoxSiteBasePath($this->siteSettings);
     }
 
     private function resolveRootPath($url) {
@@ -1740,6 +1714,10 @@ class MikanBoxRenderer {
     /** Output for the editor preview: what the page actually publishes first. */
     public function renderPreview($pageId, array $pageData) {
         $format = mikanBoxPageOutputFormat($pageData);
+        if (mikanBoxIsApiFormat($format)) {
+            // The JSON that /api/ID returns.
+            return ['type' => 'text/plain; charset=utf-8', 'body' => (string)json_encode($this->getPageDataBlocks($pageId, $pageData), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)];
+        }
         if (mikanBoxIsDataFormat($format)) {
             return ['type' => 'text/plain; charset=utf-8', 'body' => (string)$this->renderData($pageId, array_merge($pageData, ['status' => 'public_dynamic']))];
         }
@@ -1761,6 +1739,12 @@ class MikanBoxRenderer {
         $format = mikanBoxPageOutputFormat($target);
         $extension = mikanBoxFormatExtension($format);
         if ($extension === null && $format === 'html_md' && $this->linkToMarkdown) $extension = 'md';
+        if (mikanBoxIsApiFormat($format)) {
+            // mikanBox DB pages answer only at /api/ID.
+            $path = 'api/' . $this->encodePageIdPath($postId);
+            if ($this->isRelativeStaticMode()) return $this->getStaticRootPrefix() . $path;
+            return $root . $path;
+        }
         if ($extension !== null) {
             $path = $this->encodePageIdPath($postId) . '.' . $extension;
             if ($this->isRelativeStaticMode()) return $this->getStaticRootPrefix() . $path;

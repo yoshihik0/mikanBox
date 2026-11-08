@@ -153,7 +153,6 @@
                              <?php endif; ?>
                              <option value="public_dynamic" <?= $status==='public_dynamic'?'selected':'' ?>><?= t('page_status_public_dynamic') ?></option>
                              <option value="public_static" <?= $status==='public_static'?'selected':'' ?>><?= t('page_status_public_static') ?></option>
-                             <option value="db" <?= $status==='db'?'selected':'' ?> <?= mikanBoxIsDataFormat($pageFormat) ? 'disabled title="' . htmlspecialchars(t('output_format_db_hint')) . '"' : '' ?>><?= t('page_status_db') ?></option>
                          </select>
                     </div>
                 </td>
@@ -162,7 +161,7 @@
                     <div class="title-cell-flex">
                          <a href="?view=pages&edit=<?= $pid ?><?= ($searchQuery !== '') ? '&q=' . urlencode($searchQuery) : '' ?>#page-editor" class="title-link"><?= htmlspecialchars($d['title']??'No Title') ?></a>
                          <?php if ($pageFormat !== 'html'): ?>
-                         <span class="format-badge <?= mikanBoxIsDataFormat($pageFormat) ? 'format-data' : 'format-md' ?>" title="<?= htmlspecialchars(t('label_output_format') . ': ' . t('output_format_' . $pageFormat)) ?>"><?= $pageFormat === 'html_md' ? '+MD' : strtoupper($pageExt) ?></span>
+                         <span class="format-badge <?= mikanBoxIsDataFormat($pageFormat) || $pageFormat === 'db' ? 'format-data' : 'format-md' ?>" title="<?= htmlspecialchars(t('label_output_format') . ': ' . t('output_format_' . $pageFormat)) ?>"><?= $pageFormat === 'html_md' ? '+MD' : ($pageFormat === 'db' ? 'DB' : strtoupper($pageExt)) ?></span>
                          <?php endif; ?>
                     </div>
                 </td>
