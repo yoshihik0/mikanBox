@@ -12,7 +12,7 @@
     "wrapper_comp": "__none",
     "sort_order": 102,
     "updated_at": "2026-11-08 10:00:00",
-    "memo": "A catalog of the pages in the sample category, newest first. Published at /sample_list.json. Not shown in lists, sitemap or RSS.",
+    "memo": "A catalog of the pages in the sample category, newest first. Published at /sample_list.json. Not included in lists, sitemap or RSS.",
     "output_format": "json",
     "md_footer_comps": [],
     "expand_tags": true

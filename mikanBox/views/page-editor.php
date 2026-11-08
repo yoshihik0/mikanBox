@@ -15,9 +15,7 @@
                             <?php endif; ?>
                         </div>
                         
-                        <?php if ($editId && is_file(CORE_DIR . '/visual.php') && mikanBoxFormatHasHtml(mikanBoxPageOutputFormat($editData ?? []))): ?>
-                        <a href="visual.php?id=<?= rawurlencode($editId) ?>" class="btn btn-sm btn-blue editor-visual-btn" style="display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;" title="<?= t('btn_visual_edit') ?>"><?= getIcon('visual') ?> <?= t('btn_visual_edit') ?></a>
-                        <?php endif; ?>
+                        <div class="editor-header-actions">
                         <?php if (function_exists('getPreviewToken')): ?>
                         <div id="editor-revisions-container">
                             <?php if($editId): ?>
@@ -40,6 +38,12 @@
                             <?php endif; ?>
                         </div>
                         <?php endif; ?>
+                        <?php if ($editId && is_file(CORE_DIR . '/visual.php')):
+                            // Pages without HTML (Markdown only, data formats) keep the button, greyed out.
+                            $visualAvailable = mikanBoxFormatHasHtml(mikanBoxPageOutputFormat($editData ?? [])); ?>
+                        <a href="visual.php?id=<?= rawurlencode($editId) ?>" id="editor-visual-btn" class="btn btn-sm editor-visual-btn <?= $visualAvailable ? 'btn-blue' : 'btn-gray btn-disabled' ?>" <?= $visualAvailable ? '' : 'aria-disabled="true" tabindex="-1"' ?> data-saved-html="<?= $visualAvailable ? '1' : '0' ?>" data-title-on="<?= htmlspecialchars(t('btn_visual_edit')) ?>" data-title-off="<?= htmlspecialchars(t('visual_err_not_html')) ?>" title="<?= htmlspecialchars($visualAvailable ? t('btn_visual_edit') : t('visual_err_not_html')) ?>"><?= getIcon('visual') ?> <?= t('btn_visual_edit') ?></a>
+                        <?php endif; ?>
+                        </div>
                     </div>
                     <div class="editor-container editor-container-transparent">
                         <?php if (function_exists('getPreviewToken') && isset($selectedRevId) && $selectedRevId > 0 && !empty($selectedRevInfo)): ?>
@@ -129,7 +133,6 @@
                     $currentFormat = mikanBoxPageOutputFormat($editData ?? []);
                     $markdownAvailable = mikanBoxMarkdownAvailable($settings);
                     $isErrorPage = ($editId ?? '') === '404';
-                    $footerChoices = mikanBoxFooterComponentChoices();
                     $urlRenderer = new MikanBoxRenderer($settings);
                     $dynamicBase = rtrim($urlRenderer->getSiteUrl(), '/');
                     $staticBase = rtrim((string)($settings['ssg_root_url'] ?? ''), '/');
@@ -204,7 +207,6 @@
                                 }
                                 ?>
                             </select>
-                            <small class="sub-text sub-text-block"><?= t('head_completion_hint') ?></small>
                             <?php if (mikanBoxTrackingConfigured($settings)): ?>
                             <input type="hidden" name="tracking_option_present" value="1">
                             <label class="checkbox-label tracking-exclusion"><input type="checkbox" name="exclude_tracking" value="1" <?= !empty($editData['exclude_tracking']) ? 'checked' : '' ?>> <?= t('exclude_tracking_label') ?></label>
@@ -213,7 +215,7 @@
                         <div class="form-group grid-span-2" data-formats="html_md md">
                             <label class="sub-label"><?= t('label_md_footer_comps') ?></label>
                             <input type="text" name="md_footer_comps" value="<?= htmlspecialchars(implode(', ', (array)($editData['md_footer_comps'] ?? []))) ?>" placeholder="_md_footer">
-                            <small class="sub-text sub-text-block"><?= t('md_footer_comps_hint') ?>: <?= $footerChoices ? htmlspecialchars(implode(', ', $footerChoices)) : t('label_none') ?></small>
+                            <small class="sub-text sub-text-block"><?= t('md_footer_comps_hint') ?></small>
                         </div>
                         <div class="form-group grid-span-1" data-formats="json xml csv txt js css">
                             <input type="hidden" name="expand_tags_present" value="1">
@@ -240,7 +242,12 @@
                         <textarea name="description" class="textarea-xs textarea-description"><?= htmlspecialchars($editData['description']??'') ?></textarea>
                         </div>
 
-                        <label><?= t('label_content') ?></label>
+                        <?php
+                        // The body heading names what the body is for the chosen output format.
+                        $contentLabels = ['html' => t('label_content'), 'html_md' => t('label_content'), 'md' => t('label_content_md')];
+                        foreach (mikanBoxDataFormats() as $_fmt) $contentLabels[$_fmt] = t('label_content_data', t('output_format_' . $_fmt));
+                        ?>
+                        <label id="content-label" data-labels="<?= htmlspecialchars(json_encode($contentLabels, JSON_UNESCAPED_UNICODE)) ?>"><?= htmlspecialchars($contentLabels[$currentFormat] ?? t('label_content')) ?></label>
                         <label data-formats="html html_md" class="checkbox-label" style="font-size:0.85em; margin-bottom:4px; display:flex; align-items:center; gap:6px; font-weight:normal;">
                             <input type="checkbox" name="is_html" value="1" <?= !empty($editData['is_html']) ? 'checked' : '' ?>>
                             <?= t('label_raw_html') ?>
@@ -259,7 +266,7 @@
                     <div class="flex-row flex-between mt-10">
                         <div class="flex-row">
                             <button type="submit" form="page-form" name="save_action" value="save_page" class="btn btn-blue"><?= getIcon('save') ?> <?= t('btn_save') ?></button>
-                            <button type="button" class="btn btn-blue" data-editor-preview="admin.php?editor_preview=1"><?= getIcon('view') ?> <?= t('btn_preview') ?></button>
+                            <button type="button" class="btn btn-blue" data-editor-preview="admin.php?editor_preview=1" data-preview-title="<?= htmlspecialchars(t('btn_preview')) ?>" data-preview-close="<?= htmlspecialchars(t('btn_close')) ?>" data-preview-error="<?= htmlspecialchars(t('err_network_error_detail')) ?>"><?= getIcon('view') ?> <?= t('btn_preview') ?></button>
                             <a href="admin.php#pages" class="btn btn-gray"><?= getIcon('arrow_back') ?> <?= t('btn_back_to_list') ?></a>
                         </div>
                         <?php if ($editId): ?>
@@ -367,6 +374,21 @@
             el.hidden = !el.dataset.formats.split(' ').includes(format);
         });
         if (urlCode) urlCode.textContent = pageUrl(format) + (format === 'html_md' ? '  ·  ' + pageUrl('md') : '');
+        const contentLabel = document.getElementById('content-label');
+        if (contentLabel) {
+            try { contentLabel.textContent = JSON.parse(contentLabel.dataset.labels)[format] || contentLabel.textContent; } catch (e) {}
+        }
+        const visual = document.getElementById('editor-visual-btn');
+        if (visual) {
+            // Visual editing opens the saved page, so it needs HTML both saved and selected.
+            const on = ['html', 'html_md'].includes(format) && visual.dataset.savedHtml === '1';
+            visual.classList.toggle('btn-blue', on);
+            visual.classList.toggle('btn-gray', !on);
+            visual.classList.toggle('btn-disabled', !on);
+            if (on) { visual.removeAttribute('aria-disabled'); visual.removeAttribute('tabindex'); }
+            else { visual.setAttribute('aria-disabled', 'true'); visual.setAttribute('tabindex', '-1'); }
+            visual.title = on ? visual.dataset.titleOn : visual.dataset.titleOff;
+        }
         const option = select.selectedOptions[0];
         if (changed && expand && !expandTouched && option && option.dataset.expand !== undefined) {
             expand.checked = option.dataset.expand === '1';

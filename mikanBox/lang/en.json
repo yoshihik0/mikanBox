@@ -799,10 +799,10 @@
     "output_format_js": "JavaScript",
     "output_format_css": "CSS",
     "output_format_md_unavailable_hint": "Formats with Markdown need a published URL (set it under Static Site Export on the Site screen).",
-    "output_format_data_hint": "The body is published as it is: no wrapper, no Markdown conversion, no page CSS/JS. Not shown in lists, sitemap, RSS or search.",
+    "output_format_data_hint": "The body is published as it is. Not included in lists, sitemap, RSS or search.",
     "output_url_label": "URL",
     "label_md_footer_comps": "Markdown version footer components",
-    "md_footer_comps_hint": "Added to the end of the Markdown version in the order written (comma-separated; empty for none). Candidates",
+    "md_footer_comps_hint": "Added to the end of the Markdown version in the order written (comma-separated, several allowed; leave empty for none).",
     "label_expand_tags": "Expand tags",
     "expand_tags_hint": "Expanded by default for JSON, XML, CSV and text; not for JavaScript and CSS. Values are escaped for the format.",
     "visual_err_not_html": "Visual editing is only available for pages whose output format includes HTML.",
@@ -812,5 +812,7 @@
     "hint_nav_options": "Options (joined with \":\"): sort=new (newest first), sort=old (oldest first), limit=N (up to N), sep=text (between items; \\n is a newline)",
     "hint_nav_same": "Pages sharing a non-\"_\" category with this page (excluding itself). With two or more categories, grouped by category",
     "hint_output_formats": "Pages whose output format is not HTML are published at /ID.extension (the Markdown version at /ID.md). Markdown versions handle tags for readers; data formats escape values for the format.",
-    "label_output_formats_head": "Output formats and URLs"
+    "label_output_formats_head": "Output formats and URLs",
+    "label_content_md": "Content (Markdown)",
+    "label_content_data": "Content (%s)"
 }

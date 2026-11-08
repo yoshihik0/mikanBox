@@ -12,7 +12,7 @@
     "wrapper_comp": "__none",
     "sort_order": 102,
     "updated_at": "2026-11-08 10:00:00",
-    "memo": "sampleカテゴリのページを新しい順に並べた目録です。/sample_list.json で出ます。一覧・sitemap・RSSには出ません。",
+    "memo": "sampleカテゴリのページを新しい順に並べた目録です。/sample_list.json で出ます。一覧・sitemap・RSSには含まれません。",
     "output_format": "json",
     "md_footer_comps": [],
     "expand_tags": true

@@ -799,10 +799,10 @@
     "output_format_js": "JavaScript",
     "output_format_css": "CSS",
     "output_format_md_unavailable_hint": "公開URLがないため、Markdownを含む形式は選べません（サイト画面の静的書き出しで公開URLを設定してください）。",
-    "output_format_data_hint": "本文をそのまま出します。ラッパー・Markdownの変換・ページのCSS/JSは使いません。一覧・sitemap・RSS・検索には出ません。",
+    "output_format_data_hint": "本文をそのまま出します。一覧・sitemap・RSS・検索には含まれません。",
     "output_url_label": "URL",
     "label_md_footer_comps": "Markdown版の末尾コンポーネント",
-    "md_footer_comps_hint": "Markdown版の最後に、書いた順に付けます（カンマ区切り。空欄なら付けない）。候補",
+    "md_footer_comps_hint": "Markdown版の最後に、書いた順に付けます（カンマ区切りで複数指定できます。空欄なら付けません）。",
     "label_expand_tags": "タグを展開する",
     "expand_tags_hint": "JSON・XML・CSV・テキストは既定で展開、JavaScript・CSSは既定で展開しません。値は形式に合わせてエスケープします。",
     "visual_err_not_html": "このページの出力形式はHTMLではないため、ビジュアル編集は使えません。",
@@ -812,5 +812,7 @@
     "hint_nav_options": "オプション（「:」でつなぐ）: sort=new（新しい順）・sort=old（古い順）・limit=N（N件まで）・sep=文字（項目の区切り。\\n は改行）",
     "hint_nav_same": "表示中のページと「_」以外のカテゴリが重なるページ（自分を除く）。カテゴリが2つ以上ならカテゴリごとにまとめる",
     "hint_output_formats": "出力形式がHTML以外のページは /ID.拡張子 で出ます（Markdown版は /ID.md）。Markdown版ではタグを読者向けに処理し、データ形式では値を形式に合わせてエスケープします。",
-    "label_output_formats_head": "出力形式とURL"
+    "label_output_formats_head": "出力形式とURL",
+    "label_content_md": "本文 (Markdown)",
+    "label_content_data": "本文 (%s)"
 }

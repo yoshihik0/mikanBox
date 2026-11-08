@@ -124,8 +124,12 @@
                     <div class="flex-center" style="gap: 5px;">
                          <a href="?view=pages&edit=<?= $pid ?><?= ($searchQuery !== '') ? '&q=' . urlencode($searchQuery) : '' ?>#page-editor" class="btn btn-sm btn-blue" title="<?= t('btn_edit') ?>"><?= getIcon('edit') ?></a>
                          <?php $pageFormat = mikanBoxPageOutputFormat($d); $pageExt = mikanBoxFormatExtension($pageFormat); ?>
-                         <?php if (is_file(CORE_DIR . '/visual.php') && mikanBoxFormatHasHtml($pageFormat)): ?>
+                         <?php if (is_file(CORE_DIR . '/visual.php')): ?>
+                         <?php if (mikanBoxFormatHasHtml($pageFormat)): ?>
                          <a href="visual.php?id=<?= rawurlencode($pid) ?>" class="btn btn-sm btn-blue" title="<?= t('btn_visual_edit') ?>"><?= getIcon('visual') ?></a>
+                         <?php else: ?>
+                         <span class="btn btn-sm btn-gray btn-disabled" aria-disabled="true" title="<?= htmlspecialchars(t('visual_err_not_html')) ?>"><?= getIcon('visual') ?></span>
+                         <?php endif; ?>
                          <?php endif; ?>
                           <?php
                           $ssgStruct = $settings['ssg_structure'] ?? 'directory';

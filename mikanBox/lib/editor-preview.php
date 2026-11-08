@@ -31,6 +31,7 @@ function mikanBoxRenderEditorPreview(array $settings, array $input): void {
     // Markdown-only and data pages preview as the plain text they publish.
     $preview = $renderer->renderPreview($id, $data);
     header('Content-Type: ' . $preview['type']);
+    header('X-MikanBox-Preview: ' . (str_starts_with($preview['type'], 'text/html') ? 'html' : 'text'));
     header('X-Content-Type-Options: nosniff');
     header('Cache-Control: no-store');
     header('Referrer-Policy: no-referrer');

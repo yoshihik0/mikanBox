@@ -272,7 +272,7 @@ if ($id !== '') {
 $ids = function_exists('getSortedPostIds') ? getSortedPostIds() : getFileList(POSTS_DIR);
 $rows = '';
 foreach ($ids as $pid) {
-    $d = loadData(POSTS_DIR, $pid); if (!$d) continue;
+    $d = loadData(POSTS_DIR, $pid); if (!$d || !mikanBoxFormatHasHtml(mikanBoxPageOutputFormat($d))) continue;   // HTMLのないページは選べない
     $title = (string)($d['title'] ?? '') ?: t('visual_untitled');
     $status = mbv_status_label((string)($d['status'] ?? ''));
     $rows .= '<a class="row" href="?id=' . htmlspecialchars(rawurlencode($pid), ENT_QUOTES) . '" data-q="' . htmlspecialchars(mb_strtolower($title . ' ' . $pid), ENT_QUOTES) . '">'
