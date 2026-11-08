@@ -1,0 +1,9 @@
+{
+    "html": "{\"title\":\"{{TITLE}}\",\"url\":\"{{PAGE_URL}}\",\"date\":\"{{UPDATE_DATE}}\",\"categories\":\"{{CATEGORY:all}}\"}",
+    "css": "",
+    "js": "",
+    "is_global": true,
+    "is_wrapper": false,
+    "is_ai_doc": false,
+    "memo": "One entry of a catalog (JSON). {{NAV_CARDS:category:json_item:sep=,}} lists one of these per page. Values are escaped for JSON."
+}

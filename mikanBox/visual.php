@@ -127,6 +127,8 @@ if ($isApi) {
     $id = (string)($in['id'] ?? $_GET['id'] ?? '');
     $needId = !in_array($api, ['upload', 'create', 'media'], true);
     if ($needId && (!mbv_valid_id($id) || !loadData(POSTS_DIR, $id))) mbv_json(['error' => t('visual_err_page_not_found')], 400);
+    // Visual editing works on rendered HTML: Markdown-only and data pages have none.
+    if ($needId && !mikanBoxFormatHasHtml(mikanBoxPageOutputFormat(loadData(POSTS_DIR, $id)))) mbv_json(['error' => t('visual_err_not_html')], 400);
 
     switch ($api) {
         case 'history':     mbv_json(mbv_counts($id));
@@ -243,12 +245,13 @@ if ($isApi) {
 $id = (string)($_GET['id'] ?? '');
 if ($id !== '') {
     if (!mbv_valid_id($id) || !loadData(POSTS_DIR, $id)) mbv_die(t('visual_err_page_not_found_id', $id), 404);
+    if (!mikanBoxFormatHasHtml(mikanBoxPageOutputFormat(loadData(POSTS_DIR, $id)))) mbv_die(t('visual_err_not_html'), 400);
     $html = mbv_render($id);
     header('Content-Type: text/html; charset=utf-8'); mbv_headers(true);
     if (isset($_GET['fv-frame'])) { echo $html; exit; }     // 画面幅の確認用（編集機能なし）
     $ids = function_exists('getSortedPostIds') ? getSortedPostIds() : getFileList(POSTS_DIR);
     $pages = [];
-    foreach ($ids as $pid) { $d = loadData(POSTS_DIR, $pid); if ($d) $pages[] = ['id' => $pid, 'title' => (string)($d['title'] ?? ''), 'status' => (string)($d['status'] ?? '')]; }
+    foreach ($ids as $pid) { $d = loadData(POSTS_DIR, $pid); if ($d && mikanBoxFormatHasHtml(mikanBoxPageOutputFormat($d))) $pages[] = ['id' => $pid, 'title' => (string)($d['title'] ?? ''), 'status' => (string)($d['status'] ?? '')]; }
     $info = [
         'api' => $SELF, 'list' => $ADMIN_URL . '?view=pages',
         'page' => $ADMIN_URL . '?view=pages&edit=' . rawurlencode($id) . '#page-editor', 'pick' => $SELF,

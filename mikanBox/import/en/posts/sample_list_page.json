@@ -1,0 +1,18 @@
+{
+    "title": "Catalog and pager sample",
+    "category": "sample",
+    "status": "public_dynamic",
+    "description": "Builds a list with page navigation from a catalog (JSON) and a JavaScript page.",
+    "keywords": "",
+    "ogp_image": "",
+    "content_md": "This page loads the catalog data ([sample_list]({{PAGE_URL:sample_list}})) with a JavaScript page ([sample_pager]({{PAGE_URL:sample_pager}})) and shows two entries at a time.\n\nBoth are ordinary pages. With the output format set to JSON or JavaScript, the body is published as it is at `/ID.json` or `/ID.js`.\n\n<div class=\"mikan-pager\" data-src=\"{{PAGE_URL:sample_list}}\" data-per-page=\"2\"></div>\n<script src=\"{{PAGE_URL:sample_pager}}\"></script>\n",
+    "css": "",
+    "js": "",
+    "is_html": false,
+    "wrapper_comp": "_layout",
+    "sort_order": 100,
+    "updated_at": "2026-11-08 10:00:00",
+    "memo": "This page exists to introduce mikanBox's features. When you publish your site, set it to \"Draft\" or delete it.",
+    "output_format": "html",
+    "md_footer_comps": []
+}

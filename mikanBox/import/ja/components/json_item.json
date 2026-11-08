@@ -1,0 +1,9 @@
+{
+    "html": "{\"title\":\"{{TITLE}}\",\"url\":\"{{PAGE_URL}}\",\"date\":\"{{UPDATE_DATE}}\",\"categories\":\"{{CATEGORY:all}}\"}",
+    "css": "",
+    "js": "",
+    "is_global": true,
+    "is_wrapper": false,
+    "is_ai_doc": false,
+    "memo": "目録（JSON）の1件分です。{{NAV_CARDS:カテゴリ:json_item:sep=,}} で、ページごとにこの形のデータを並べます。値はJSONに合わせてエスケープされます。"
+}

@@ -1,6 +1,6 @@
 {
     "title": "Search Results",
-    "category": "system",
+    "category": "_system",
     "status": "public_dynamic",
     "description": "The site search results page.",
     "memo": "The design used to display search results can be edited via the _search_result_item component.",

@@ -69,8 +69,51 @@ class MikanBoxSSG {
         }
 
         $results = [];
+        $settings = $GLOBALS['mikanbox_settings'] ?? [];
+        $markdownAvailable = mikanBoxMarkdownAvailable(array_merge($settings, [
+            'ssg_mode' => $this->options['output_mode'] ?? 'server',
+            'ssg_link_mode' => $this->options['link_mode'] ?? 'absolute',
+            'ssg_root_url' => $this->renderer->getConfiguredSiteUrl(),
+        ]));
 
+        // Data pages first: HTML pages embed a hash of their built output in {{PAGE_URL:ID}}.
+        $dataPages = [];
+        $otherPages = [];
         foreach ($pagesToBuild as $pageId) {
+            $format = mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId));
+            if (mikanBoxIsDataFormat($format)) $dataPages[] = $pageId;
+            else $otherPages[] = $pageId;
+        }
+        $dataHashes = [];
+        foreach ($dataPages as $pageId) {
+            $format = mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId));
+            $this->renderer->setStaticMode(true, substr_count($pageId, '/'), $this->options['structure'] ?? 'directory', $this->options['link_mode'] ?? 'absolute');
+            $this->renderer->setDataHashes($dataHashes);
+            $output = $this->renderer->renderData($pageId);
+            if ($output === null) continue;
+            $dataHashes[$pageId] = MikanBoxRenderer::dataHash($output);
+            $results[] = $this->writeOutputFile($this->outputDir . '/' . $pageId . '.' . $format, $output);
+            $this->deleteHtmlFiles($pageId);
+        }
+        $this->renderer->setDataHashes($dataHashes);
+
+        foreach ($otherPages as $pageId) {
+            $format = mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId));
+            if (mikanBoxFormatHasMarkdown($format)) {
+                if ($markdownAvailable) {
+                    // Markdown versions use absolute URLs, so their depth does not matter.
+                    $this->renderer->setStaticMode(true, substr_count($pageId, '/'), $this->options['structure'] ?? 'directory', $this->options['link_mode'] ?? 'absolute');
+                    $markdown = $this->renderer->renderMarkdown($pageId);
+                    if ($markdown !== null) $results[] = $this->writeOutputFile($this->outputDir . '/' . $pageId . '.md', $markdown);
+                } else {
+                    $results[] = "Error: A published root URL is required for the Markdown version of $pageId";
+                }
+            }
+            if (!mikanBoxFormatHasHtml($format)) {
+                $this->deleteHtmlFiles($pageId);
+                continue;
+            }
+
             $depth = 0;
             if ($pageId !== 'index') {
                 $slashCount = substr_count($pageId, '/');
@@ -93,16 +136,7 @@ class MikanBoxSSG {
                     $targetFile = $this->outputDir . '/' . $pageId . '.html';
                 }
             }
-
-            // Ensure parent directory exists
-            $dirPath = dirname($targetFile);
-            if (!is_dir($dirPath)) mkdir($dirPath, 0777, true);
-
-            if (file_put_contents($targetFile, $html)) {
-                $results[] = "Generated: $targetFile";
-            } else {
-                $results[] = "Error: Could not write $targetFile";
-            }
+            $results[] = $this->writeOutputFile($targetFile, $html);
         }
 
         if (!empty($this->options['copy_media'])) {
@@ -128,7 +162,9 @@ class MikanBoxSSG {
             $siteUrl = rtrim($this->renderer->getSiteUrl(), '/');
         }
         if ($siteUrl !== '') {
-            $results = array_merge($results, $this->buildSitemap($pagesToBuild, $siteUrl));
+            // The sitemap always covers every static page, also after a single-page build.
+            $allStatic = array_values(array_filter($allPosts, fn($id) => (loadData(POSTS_DIR, $id)['status'] ?? '') === 'public_static'));
+            $results = array_merge($results, $this->buildSitemap($allStatic, $siteUrl));
             $results = array_merge($results, $this->buildRss($siteUrl));
         } elseif (($this->options['output_mode'] ?? 'server') === 'export') {
             foreach (['sitemap.xml', 'rss.xml'] as $feedFile) {
@@ -268,7 +304,16 @@ class MikanBoxSSG {
         }
     }
 
+    private function writeOutputFile($targetFile, $content) {
+        $dirPath = dirname($targetFile);
+        if (!is_dir($dirPath)) mkdir($dirPath, 0777, true);
+        return file_put_contents($targetFile, $content) !== false
+            ? "Generated: $targetFile"
+            : "Error: Could not write $targetFile";
+    }
+
     private function pageUrl($pageId, $siteUrl) {
+        if (mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId)) === 'md') return $siteUrl . '/' . $pageId . '.md';
         $isDirStyle = ($this->options['structure'] ?? 'directory') === 'directory';
         if ($pageId === 'index') return $siteUrl . '/';
         return $isDirStyle ? $siteUrl . '/' . $pageId . '/' : $siteUrl . '/' . $pageId . '.html';
@@ -280,6 +325,7 @@ class MikanBoxSSG {
         foreach ($pageIds as $pageId) {
             if (mikanBoxIsErrorPage($pageId)) continue;
             $data    = loadData(POSTS_DIR, $pageId);
+            if (!mikanBoxPageIsListed($data)) continue;
             $loc     = htmlspecialchars($this->pageUrl($pageId, $siteUrl));
             $lastmod = substr($data['updated_at'] ?? date('Y-m-d H:i:s'), 0, 10);
             $xml .= "  <url>\n    <loc>{$loc}</loc>\n    <lastmod>{$lastmod}</lastmod>\n  </url>\n";
@@ -302,6 +348,7 @@ class MikanBoxSSG {
             if (mikanBoxIsErrorPage($pageId)) continue;
             $data = loadData(POSTS_DIR, $pageId);
             if (($data['status'] ?? '') !== 'public_static') continue;
+            if (!mikanBoxPageIsListed($data)) continue;
             $items[] = ['id' => $pageId, 'data' => $data];
         }
         usort($items, fn($a, $b) => strcmp($b['data']['updated_at'] ?? '', $a['data']['updated_at'] ?? ''));
@@ -334,7 +381,32 @@ class MikanBoxSSG {
     }
 
 
-    public function deletePage($pageId) {
+    /**
+     * Remove a page's static files. $format is the output format the files were built
+     * with (default: the page's saved format). Only that format's /id.md or /id.<extension>
+     * is removed, so a hand-placed file such as robots.txt beside an HTML page "robots" stays.
+     */
+    public function deletePage($pageId, $format = null) {
+        if (empty($pageId)) return 0;
+        $count = 0;
+        $format = $format ?? mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId));
+        $extensions = [];
+        if (mikanBoxFormatHasMarkdown($format)) $extensions[] = 'md';
+        if (mikanBoxIsDataFormat($format)) $extensions[] = $format;
+        foreach ($extensions as $extension) {
+            if (in_array(strtolower($pageId . '.' . $extension), ['sitemap.xml', 'rss.xml', 'podcast.xml'], true)) continue;
+            $file = $this->outputDir . '/' . $pageId . '.' . $extension;
+            if (is_file($file) && unlink($file)) $count++;
+        }
+        $count += $this->deleteHtmlFiles($pageId);
+        if ($pageId !== 'index') {
+            $parentDir = dirname($this->outputDir . '/' . $pageId);
+            if (is_dir($parentDir)) $this->cleanEmptyParents($parentDir);
+        }
+        return $count;
+    }
+
+    private function deleteHtmlFiles($pageId) {
         $count = 0;
         if (empty($pageId)) return 0;
         

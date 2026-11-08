@@ -1,0 +1,19 @@
+{
+    "title": "ページャーのサンプル（JavaScript）",
+    "category": "sample",
+    "status": "public_dynamic",
+    "description": "",
+    "keywords": "",
+    "ogp_image": "",
+    "content_md": "// 目録（JSON）を読み込み、ページ送り付きの一覧を作るサンプルです。\n// 使い方: <div class=\"mikan-pager\" data-src=\"目録のURL\" data-per-page=\"20\"></div>\ndocument.querySelectorAll('.mikan-pager[data-src]').forEach(async (box) => {\n  const perPage = Math.max(1, parseInt(box.dataset.perPage || '20', 10));\n  let items = [];\n  try {\n    const response = await fetch(box.dataset.src);\n    items = await response.json();\n  } catch (error) {\n    box.textContent = \"一覧を読み込めませんでした。\";\n    return;\n  }\n  const pages = Math.max(1, Math.ceil(items.length / perPage));\n  let page = 0;\n  const list = document.createElement('ul');\n  const nav = document.createElement('p');\n  const prev = document.createElement('button');\n  const next = document.createElement('button');\n  const status = document.createElement('span');\n  prev.type = next.type = 'button';\n  prev.textContent = \"← 前へ\";\n  next.textContent = \"次へ →\";\n  nav.append(prev, ' ', status, ' ', next);\n  box.append(list, nav);\n  function show() {\n    list.replaceChildren(...items.slice(page * perPage, (page + 1) * perPage).map((item) => {\n      const li = document.createElement('li');\n      const link = document.createElement('a');\n      link.href = item.url;\n      link.textContent = item.title;\n      li.append(link, ' ', item.date || '');\n      return li;\n    }));\n    status.textContent = (page + 1) + ' / ' + pages;\n    prev.disabled = page === 0;\n    next.disabled = page >= pages - 1;\n  }\n  prev.addEventListener('click', () => { page--; show(); });\n  next.addEventListener('click', () => { page++; show(); });\n  show();\n});\n",
+    "css": "",
+    "js": "",
+    "is_html": false,
+    "wrapper_comp": "__none",
+    "sort_order": 102,
+    "updated_at": "2026-11-08 10:00:00",
+    "memo": "目録（JSON）を読み込み、ページ送り付きの一覧を作るJavaScriptです。/sample_pager.js で出ます。",
+    "output_format": "js",
+    "md_footer_comps": [],
+    "expand_tags": false
+}

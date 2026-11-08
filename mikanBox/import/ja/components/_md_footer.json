@@ -1,0 +1,9 @@
+{
+    "html": "## 関連ページ\n\n{{NAV_LINKS:@same:limit=5}}\n",
+    "css": "",
+    "js": "",
+    "is_global": true,
+    "is_wrapper": false,
+    "is_ai_doc": false,
+    "memo": "Markdown版の末尾に付けるサンプルです。ページ編集の「Markdown版の末尾コンポーネント」に _md_footer と書くと、同じカテゴリのページへのリンクが付きます。"
+}

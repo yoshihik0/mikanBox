@@ -146,11 +146,6 @@ if ($pageId === '' || $pageId === 'index.php') {
     $path = str_replace('index.php', '', $path);
     $path = trim($path, '/');
     $pageId = ($path !== '') ? $path : 'index';
-
-    // Strip .html extension if present to match internal data IDs
-    if (str_ends_with($pageId, '.html')) {
-        $pageId = substr($pageId, 0, -5);
-    }
 }
 
 // 2.8 Public read-only MCP endpoint: /mcp
@@ -204,8 +199,55 @@ if ($pageId === 'podcast.xml') {
     echo $xml; exit;
 }
 
-// 5. Rendering
+// 4.5 Output formats. Page /id has everything with an extension at /id.<extension>:
+// /id.html (HTML in the .html URL style), /id.md (Markdown version), /id.json etc. (data pages).
+// A Markdown-only page also answers at /id; a data page answers only at its extension.
+$requestedExtension = null;
+if (preg_match('~\A(.+)\.(html|md|json|xml|csv|txt|js|css)\z~', $pageId, $extensionMatch)) {
+    // A legacy page whose own ID contains a dot keeps its URL.
+    $legacyDottedPage = $extensionMatch[2] !== 'html' && loadData(POSTS_DIR, $pageId) !== null && loadData(POSTS_DIR, $extensionMatch[1]) === null;
+    if (!$legacyDottedPage) {
+        $pageId = $extensionMatch[1];
+        $requestedExtension = $extensionMatch[2];
+    }
+}
 $renderer = new MikanBoxRenderer($GLOBALS['mikanbox_settings']);
+$pageRecord = loadData(POSTS_DIR, $pageId);
+$pageFormat = mikanBoxPageOutputFormat($pageRecord);
+if ($requestedExtension === null) {
+    $serve = !$pageRecord ? 'html' : ($pageFormat === 'md' ? 'md' : (mikanBoxIsDataFormat($pageFormat) ? 'none' : 'html'));
+} elseif ($requestedExtension === 'html') {
+    $serve = ($pageRecord && !mikanBoxFormatHasHtml($pageFormat)) ? 'none' : 'html';
+} elseif ($requestedExtension === 'md') {
+    $serve = ($pageRecord && mikanBoxFormatHasMarkdown($pageFormat)) ? 'md' : 'none';
+} else {
+    $serve = ($pageRecord && $pageFormat === $requestedExtension) ? 'data' : 'none';
+}
+if ($serve === 'md' || $serve === 'data') {
+    $body = $serve === 'md' ? $renderer->renderMarkdown($pageId) : $renderer->renderData($pageId);
+    if ($body !== null) {
+        header('Content-Type: ' . mikanBoxContentTypeForExtension($serve === 'md' ? 'md' : $pageFormat));
+        header('X-Content-Type-Options: nosniff');
+        if (ob_get_length()) ob_clean();
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') echo $body;
+        exit;
+    }
+    $serve = 'none';
+}
+if ($serve === 'none') {
+    http_response_code(404);
+    if ($requestedExtension !== null && $requestedExtension !== 'html') {
+        header('Content-Type: text/plain; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+        if (ob_get_length()) ob_clean();
+        echo 'Not Found';
+        exit;
+    }
+    // An HTML address that does not hold HTML shows the site's 404 page.
+    $pageId = '404';
+}
+
+// 5. Rendering
 $output = $renderer->render($pageId);
 
 // Clean up any accidental output (whitespace, etc.) from logic/includes

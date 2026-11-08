@@ -15,7 +15,7 @@
                             <?php endif; ?>
                         </div>
                         
-                        <?php if ($editId && is_file(CORE_DIR . '/visual.php')): ?>
+                        <?php if ($editId && is_file(CORE_DIR . '/visual.php') && mikanBoxFormatHasHtml(mikanBoxPageOutputFormat($editData ?? []))): ?>
                         <a href="visual.php?id=<?= rawurlencode($editId) ?>" class="btn btn-sm btn-blue editor-visual-btn" style="display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;" title="<?= t('btn_visual_edit') ?>"><?= getIcon('visual') ?> <?= t('btn_visual_edit') ?></a>
                         <?php endif; ?>
                         <?php if (function_exists('getPreviewToken')): ?>
@@ -79,7 +79,8 @@
                                       $renderer = new MikanBoxRenderer($settings);
                                       $siteUrl = rtrim($renderer->getSiteUrl(), '/');
                                       $token = getPreviewToken($editId);
-                                      $previewUrl = $siteUrl . '/' . ($editId === 'index' ? '' : $editId) . '?preview=' . $token;
+                                      $previewExt = mikanBoxFormatExtension(mikanBoxPageOutputFormat($editData ?? []));
+                                      $previewUrl = $siteUrl . '/' . ($previewExt !== null ? $editId . '.' . $previewExt : ($editId === 'index' ? '' : $editId)) . '?preview=' . $token;
                                   }
                                   ?>
                                   <?php endif; ?>
@@ -124,32 +125,22 @@
                         </div>
                     </div>
 
-                    <div class="page-edit-grid">
+                    <?php
+                    $currentFormat = mikanBoxPageOutputFormat($editData ?? []);
+                    $markdownAvailable = mikanBoxMarkdownAvailable($settings);
+                    $isErrorPage = ($editId ?? '') === '404';
+                    $footerChoices = mikanBoxFooterComponentChoices();
+                    $urlRenderer = new MikanBoxRenderer($settings);
+                    $dynamicBase = rtrim($urlRenderer->getSiteUrl(), '/');
+                    $staticBase = rtrim((string)($settings['ssg_root_url'] ?? ''), '/');
+                    if ($staticBase === '') $staticBase = $dynamicBase . (($settings['ssg_dir'] ?? '') !== '' ? '/' . trim($settings['ssg_dir'], '/') : '');
+                    $expandTags = mikanBoxIsDataFormat($currentFormat) ? mikanBoxPageExpandsTags($editData) : null;
+                    ?>
+                    <div class="page-edit-grid" id="page-format-grid" data-format="<?= htmlspecialchars($currentFormat) ?>">
                         <div class="form-group grid-span-1">
                             <label class="sub-label"><?= t('label_slug') ?></label>
                             <input type="text" name="id" value="<?= htmlspecialchars($editId??'') ?>" placeholder="profile" class="input-height">
                             <small class="sub-text sub-text-block"><?= t('page_id_hint') ?></small>
-                        </div>
-                        <div class="form-group grid-span-1">
-                            <label class="sub-label"><?= t('label_design_component') ?></label>
-                            <select name="wrapper_comp">
-                                <?php
-                                $comps = getFileList(COMPONENTS_DIR);
-                                $currentWrapper = $editData['wrapper_comp'] ?? '_layout';
-                                echo '<option value="__none" ' . ($currentWrapper === '__none' ? 'selected' : '') . '>' . htmlspecialchars(t('wrapper_none')) . '</option>';
-                                foreach($comps as $id) {
-                                    $d = loadData(COMPONENTS_DIR, $id);
-                                    if (empty($d['is_wrapper'])) continue;
-                                    $selected = ($id === $currentWrapper) ? 'selected' : '';
-                                    echo "<option value='{$id}' {$selected}>{$id}</option>";
-                                }
-                                ?>
-                            </select>
-                            <small class="sub-text sub-text-block"><?= t('head_completion_hint') ?></small>
-                            <?php if (mikanBoxTrackingConfigured($settings)): ?>
-                            <input type="hidden" name="tracking_option_present" value="1">
-                            <label class="checkbox-label tracking-exclusion"><input type="checkbox" name="exclude_tracking" value="1" <?= !empty($editData['exclude_tracking']) ? 'checked' : '' ?>> <?= t('exclude_tracking_label') ?></label>
-                            <?php endif; ?>
                         </div>
                         <div class="form-group grid-span-1">
                             <label class="sub-label"><?= t('label_category') ?> <?= t('hint_comma_separated') ?></label>
@@ -170,41 +161,97 @@
                                     $all_cats = array_merge($all_cats, $_reg_cats);
                                 }
                                 $all_cats = array_unique(array_filter($all_cats));
-                                sort($all_cats);
-                                echo !empty($all_cats) ? htmlspecialchars(implode(', ', $all_cats)) : t('label_none');
+                                usort($all_cats, fn($a, $b) => [mikanBoxIsStructuralCategory($a), $a] <=> [mikanBoxIsStructuralCategory($b), $b]);
+                                echo !empty($all_cats)
+                                    ? implode(', ', array_map(fn($c) => mikanBoxIsStructuralCategory($c) ? '<span class="category-structural">' . htmlspecialchars($c) . '</span>' : htmlspecialchars($c), $all_cats))
+                                    : t('label_none');
                                 ?>
                             </small>
+                        </div>
+                        <div class="form-group grid-span-1">
+                            <label class="sub-label" for="output-format-select"><?= t('label_output_format') ?></label>
+                            <select name="output_format" id="output-format-select" class="output-format-select"
+                                data-dynamic-base="<?= htmlspecialchars($dynamicBase) ?>" data-static-base="<?= htmlspecialchars($staticBase) ?>"
+                                data-structure="<?= htmlspecialchars($settings['ssg_structure'] ?? 'directory') ?>">
+                                <?php foreach (['html', 'html_md', 'md'] as $_fmt):
+                                    $_disabled = ($_fmt !== 'html' && $isErrorPage) || (mikanBoxFormatHasMarkdown($_fmt) && !$markdownAvailable && $currentFormat !== $_fmt); ?>
+                                <option value="<?= $_fmt ?>" <?= $currentFormat === $_fmt ? 'selected' : '' ?> <?= $_disabled ? 'disabled' : '' ?>><?= t('output_format_' . $_fmt) ?></option>
+                                <?php endforeach; ?>
+                                <optgroup label="<?= t('output_format_data_group') ?>">
+                                    <?php foreach (mikanBoxDataFormats() as $_fmt): ?>
+                                    <option value="<?= $_fmt ?>" data-expand="<?= mikanBoxExpandTagsDefault($_fmt) ? '1' : '0' ?>" <?= $currentFormat === $_fmt ? 'selected' : '' ?> <?= $isErrorPage ? 'disabled' : '' ?>><?= t('output_format_' . $_fmt) ?> (.<?= $_fmt ?>)</option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            </select>
+                            <small class="sub-text sub-text-block output-url-line"><?= t('output_url_label') ?>: <code id="output-format-url"></code></small>
+                            <?php if (!$markdownAvailable): ?>
+                            <small class="sub-text sub-text-block"><?= t('output_format_md_unavailable_hint') ?></small>
+                            <?php endif; ?>
+                            <small class="sub-text sub-text-block" data-formats="json xml csv txt js css"><?= t('output_format_data_hint') ?></small>
+                        </div>
+                        <div class="form-group grid-span-1" data-formats="html html_md">
+                            <label class="sub-label"><?= t('label_design_component') ?></label>
+                            <select name="wrapper_comp">
+                                <?php
+                                $comps = getFileList(COMPONENTS_DIR);
+                                $currentWrapper = $editData['wrapper_comp'] ?? '_layout';
+                                echo '<option value="__none" ' . ($currentWrapper === '__none' ? 'selected' : '') . '>' . htmlspecialchars(t('wrapper_none')) . '</option>';
+                                foreach($comps as $id) {
+                                    $d = loadData(COMPONENTS_DIR, $id);
+                                    if (empty($d['is_wrapper'])) continue;
+                                    $selected = ($id === $currentWrapper) ? 'selected' : '';
+                                    echo "<option value='{$id}' {$selected}>{$id}</option>";
+                                }
+                                ?>
+                            </select>
+                            <small class="sub-text sub-text-block"><?= t('head_completion_hint') ?></small>
+                            <?php if (mikanBoxTrackingConfigured($settings)): ?>
+                            <input type="hidden" name="tracking_option_present" value="1">
+                            <label class="checkbox-label tracking-exclusion"><input type="checkbox" name="exclude_tracking" value="1" <?= !empty($editData['exclude_tracking']) ? 'checked' : '' ?>> <?= t('exclude_tracking_label') ?></label>
+                            <?php endif; ?>
+                        </div>
+                        <div class="form-group grid-span-2" data-formats="html_md md">
+                            <label class="sub-label"><?= t('label_md_footer_comps') ?></label>
+                            <input type="text" name="md_footer_comps" value="<?= htmlspecialchars(implode(', ', (array)($editData['md_footer_comps'] ?? []))) ?>" placeholder="_md_footer">
+                            <small class="sub-text sub-text-block"><?= t('md_footer_comps_hint') ?>: <?= $footerChoices ? htmlspecialchars(implode(', ', $footerChoices)) : t('label_none') ?></small>
+                        </div>
+                        <div class="form-group grid-span-1" data-formats="json xml csv txt js css">
+                            <input type="hidden" name="expand_tags_present" value="1">
+                            <label class="checkbox-label expand-tags-label"><input type="checkbox" name="expand_tags" id="expand-tags-checkbox" value="1" <?= ($expandTags ?? mikanBoxExpandTagsDefault($currentFormat)) ? 'checked' : '' ?>> <?= t('label_expand_tags') ?></label>
+                            <small class="sub-text sub-text-block"><?= t('expand_tags_hint') ?></small>
                         </div>
                          <div class="form-group grid-span-1">
                              <label class="sub-label"><?= t('label_sort_order') ?></label>
                              <input type="number" name="sort_order" value="<?= htmlspecialchars($editData['sort_order']??'0') ?>" placeholder="0" class="input-full">
                          </div>
-                        <div class="form-group grid-span-2">
+                        <div class="form-group grid-span-2" data-formats="html html_md md">
                             <label class="sub-label"><?= t('label_ogp_image') ?></label>
                             <input type="text" name="ogp_image" value="<?= htmlspecialchars($editData['ogp_image']??'') ?>" placeholder="ogp.jpg">
                         </div>
-                        <div class="form-group grid-span-2">
+                        <div class="form-group grid-span-2" data-formats="html html_md md">
                             <label class="sub-label"><?= t('label_keywords') ?></label>
                             <input type="text" name="keywords" value="<?= htmlspecialchars($editData['keywords']??'') ?>" placeholder="AI, CMS, mikanBox...">
                         </div>
                     </div>
 
                     <div class="form-group">
+                        <div data-formats="html html_md md">
                         <label class="sub-label"><?= t('label_description') ?></label>
                         <textarea name="description" class="textarea-xs textarea-description"><?= htmlspecialchars($editData['description']??'') ?></textarea>
+                        </div>
 
                         <label><?= t('label_content') ?></label>
-                        <label class="checkbox-label" style="font-size:0.85em; margin-bottom:4px; display:flex; align-items:center; gap:6px; font-weight:normal;">
+                        <label data-formats="html html_md" class="checkbox-label" style="font-size:0.85em; margin-bottom:4px; display:flex; align-items:center; gap:6px; font-weight:normal;">
                             <input type="checkbox" name="is_html" value="1" <?= !empty($editData['is_html']) ? 'checked' : '' ?>>
                             <?= t('label_raw_html') ?>
                         </label>
                         <textarea name="content_md" class="textarea-lg textarea-mono"><?= htmlspecialchars($editData['content_md']??'') ?></textarea>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" data-formats="html html_md">
                         <label><?= t('label_css') ?></label>
                         <textarea name="css" class="textarea-sm textarea-mono"><?= htmlspecialchars($editData['css']??'') ?></textarea>
                     </div>
-                    <details class="form-group js-accordion" <?= trim($editData['js'] ?? '') !== '' ? 'open' : '' ?>>
+                    <details data-formats="html html_md" class="form-group js-accordion" <?= trim($editData['js'] ?? '') !== '' ? 'open' : '' ?>>
                         <summary><?= t('label_page_js') ?> <span class="accordion-arrow">▼</span></summary>
                         <small class="sub-text sub-text-block"><?= t('page_js_hint') ?></small>
                         <textarea name="js" aria-label="<?= t('label_page_js') ?>" class="textarea-sm textarea-mono" rows="10"><?= htmlspecialchars($editData['js']??'') ?></textarea>
@@ -286,6 +333,51 @@
                     </div> <!-- /editor-container -->
                 </div> <!-- /editor-floating-card -->
             </div> <!-- /editor-focus-bg -->
+
+<script>
+(function () {
+    // Output format: show only the fields that format uses, and the URL it publishes at.
+    const select = document.getElementById('output-format-select');
+    const grid = document.getElementById('page-format-grid');
+    const form = document.getElementById('page-form');
+    if (!select || !grid || !form) return;
+    const urlCode = document.getElementById('output-format-url');
+    const expand = document.getElementById('expand-tags-checkbox');
+    const idInput = form.querySelector('input[name="id"]');
+    let expandTouched = false;
+    if (expand) expand.addEventListener('change', () => { expandTouched = true; });
+    function statusValue() {
+        const checked = form.querySelector('input[name="status"]:checked');
+        return checked ? checked.value : 'draft';
+    }
+    function pageUrl(format) {
+        const id = (idInput && idInput.value.trim()) || 'page';
+        const isStatic = statusValue() === 'public_static';
+        const base = isStatic ? select.dataset.staticBase : select.dataset.dynamicBase;
+        const ext = format === 'md' ? 'md' : (['html', 'html_md'].includes(format) ? '' : format);
+        if (ext) return base + '/' + id + '.' + ext;
+        if (id === 'index') return base + '/';
+        if (select.dataset.structure === 'directory') return base + '/' + id + '/';
+        return base + '/' + id + (isStatic ? '.html' : '');
+    }
+    function update(changed) {
+        const format = select.value;
+        grid.dataset.format = format;
+        form.querySelectorAll('[data-formats]').forEach((el) => {
+            el.hidden = !el.dataset.formats.split(' ').includes(format);
+        });
+        if (urlCode) urlCode.textContent = pageUrl(format) + (format === 'html_md' ? '  ·  ' + pageUrl('md') : '');
+        const option = select.selectedOptions[0];
+        if (changed && expand && !expandTouched && option && option.dataset.expand !== undefined) {
+            expand.checked = option.dataset.expand === '1';
+        }
+    }
+    select.addEventListener('change', () => update(true));
+    if (idInput) idInput.addEventListener('input', () => update(false));
+    form.querySelectorAll('input[name="status"]').forEach((radio) => radio.addEventListener('change', () => update(false)));
+    update(false);
+})();
+</script>
 
 <?php if (function_exists('getPreviewToken')): ?>
 <script>

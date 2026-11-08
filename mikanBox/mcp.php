@@ -327,7 +327,7 @@ function toolDefinitions() {
         ],
         [
             'name' => 'list_pages',
-            'description' => 'ページ一覧を取得する。ID・タイトル・ステータス・更新日時を返す。',
+            'description' => 'ページ一覧を取得する。ID・タイトル・ステータス・出力形式・更新日時を返す。',
             'inputSchema' => $noProps,
         ],
         [
@@ -360,13 +360,16 @@ function toolDefinitions() {
                     'exclude_tracking' => ['type' => 'boolean', 'description' => 'サイト設定の計測コンポーネントをこのページでは読み込まない'],
                     'wrapper_comp' => ['type' => 'string',  'description' => 'レイアウトコンポーネントID（省略時: _layout、なし: __none）。{{CONTENT}} タグを含むコンポーネントを指定する'],
                     'sort_order'   => ['type' => 'integer', 'description' => '表示順（数値が小さいほど上位）'],
+                    'output_format' => ['type' => 'string', 'description' => '出力形式: html（既定）/ html_md（HTML と Markdown 版 /id.md）/ md（Markdown 版だけ）/ json / xml / csv / txt / js / css（データ形式。本文をそのまま /id.拡張子 で出す。一覧・sitemap・RSS・検索には出ない）', 'enum' => ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css']],
+                    'md_footer_comps' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Markdown 版の最後に順番どおり付けるコンポーネントIDの配列（既定なし。ラッパーと AI 指示は使えない）'],
+                    'expand_tags' => ['type' => 'boolean', 'description' => 'データ形式でタグを展開するか（省略時: json/xml/csv/txt は展開する、js/css は展開しない）'],
                 ],
                 'required' => ['id', 'title']
             ],
         ],
         [
             'name' => 'update_page',
-            'description' => '既存ページを更新する。指定したフィールドのみ上書きされる。',
+            'description' => '既存ページを更新する。指定したフィールドのみ上書きされる。更新日（updated_at）は、非公開から公開に切り替えたときだけ現在時刻になり、公開済みページの編集では変わらない。',
             'inputSchema' => [
                 'type' => 'object',
                 'properties' => [
@@ -384,6 +387,9 @@ function toolDefinitions() {
                     'css'          => ['type' => 'string'],
                     'js'           => ['type' => 'string', 'description' => 'ページ専用JavaScript（scriptタグ不要。本文末尾へ自動挿入）'],
                     'ogp_image'    => ['type' => 'string'],
+                    'output_format' => ['type' => 'string', 'description' => '出力形式: html（既定）/ html_md（HTML と Markdown 版 /id.md）/ md（Markdown 版だけ）/ json / xml / csv / txt / js / css（データ形式。本文をそのまま /id.拡張子 で出す。一覧・sitemap・RSS・検索には出ない）', 'enum' => ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css']],
+                    'md_footer_comps' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Markdown 版の最後に順番どおり付けるコンポーネントIDの配列（既定なし。ラッパーと AI 指示は使えない）'],
+                    'expand_tags' => ['type' => 'boolean', 'description' => 'データ形式でタグを展開するか（省略時: json/xml/csv/txt は展開する、js/css は展開しない）'],
                 ],
                 'required' => ['id']
             ],
@@ -581,6 +587,7 @@ function toolListPages() {
             'id'         => $id,
             'title'      => $d['title']      ?? '',
             'status'     => $d['status']     ?? 'draft',
+            'output_format' => mikanBoxPageOutputFormat($d),
             'category'   => $d['category']   ?? '',
             'sort_order' => $d['sort_order'] ?? 0,
             'updated_at' => $d['updated_at'] ?? '',
@@ -594,6 +601,9 @@ function toolGetPage($id) {
     $d = loadData(POSTS_DIR, $id);
     if ($d === null) return ['error' => t('mcp_err_page_not_found', $id)];
     $d['id'] = $id;
+    $d['output_format'] = mikanBoxPageOutputFormat($d);
+    $d['md_footer_comps'] = array_values((array)($d['md_footer_comps'] ?? []));
+    if (mikanBoxIsDataFormat($d['output_format'])) $d['expand_tags'] = mikanBoxPageExpandsTags($d);
     return $d;
 }
 
@@ -614,6 +624,9 @@ function toolCreatePage($args) {
     }
 
     $data = buildPageData($args);
+    if (($formatError = mikanBoxValidatePageSave($id, '', $data, $GLOBALS['mcp_settings'] ?? [])) !== null) {
+        return ['error' => $formatError];
+    }
     if (saveData(POSTS_DIR, $id, $data)) {
         return ['success' => true, 'id' => $id, 'message' => t('mcp_success_page_created', $id)];
     }
@@ -629,12 +642,29 @@ function toolUpdatePage($args) {
         return ['error' => t('mcp_err_page_not_found_for_update', $id)];
     }
 
+    $before = $existing;
     foreach (['title', 'content_md', 'status', 'description', 'keywords', 'category', 'wrapper_comp', 'is_html', 'exclude_tracking', 'sort_order', 'css', 'js', 'ogp_image'] as $f) {
         if (array_key_exists($f, $args)) $existing[$f] = $args[$f];
     }
-    $existing['updated_at'] = date('Y-m-d H:i:s');
+    $formatInput = array_intersect_key($args, array_flip(['output_format', 'md_footer_comps', 'expand_tags']));
+    $existing = array_merge($existing, mikanBoxPageFormatFields($formatInput, $before));
+    if (!mikanBoxIsDataFormat($existing['output_format'])) unset($existing['expand_tags']);
+    if (($formatError = mikanBoxValidatePageSave($id, $id, $existing, $GLOBALS['mcp_settings'] ?? [])) !== null) {
+        return ['error' => $formatError];
+    }
+    // Same rule as the admin screen: the date moves to "now" only when a page goes from
+    // non-public to public. Editing a published page keeps its date, so fixing an old
+    // notice does not bring it to the top of sort=new lists.
+    $wasPublic = in_array($before['status'] ?? 'draft', ['public_dynamic', 'public_static'], true);
+    $isPublicNow = in_array($existing['status'] ?? 'draft', ['public_dynamic', 'public_static'], true);
+    if (!$wasPublic && $isPublicNow) $existing['updated_at'] = date('Y-m-d H:i:s');
+    elseif (empty($existing['updated_at'])) $existing['updated_at'] = date('Y-m-d H:i:s');
 
     if (saveData(POSTS_DIR, $id, $existing)) {
+        $oldFormat = mikanBoxPageOutputFormat($before);
+        if ($oldFormat !== $existing['output_format'] && ($before['status'] ?? '') === 'public_static') {
+            mcpDeleteStaticPageFiles($id, $oldFormat);
+        }
         return ['success' => true, 'id' => $id, 'message' => t('mcp_success_page_updated', $id)];
     }
     return ['error' => t('mcp_err_page_save_failed')];
@@ -747,6 +777,7 @@ function toolGetAiContext() {
         'documents' => $documents,
         'count' => count($documents),
         'component_naming' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。',
+        'output_formats' => 'ページの output_format は html（既定）/ html_md / md / json / xml / csv / txt / js / css。拡張子のあるものはすべて /id.拡張子（Markdown 版は /id.md、データは /id.json など）。ページIDにドットは使わない。データ形式は本文をそのまま出し、一覧・sitemap・RSS・検索に出ない。サイトのJS・CSSは js・css 形式のページに書き、{{PAGE_URL:ID}} で読み込む（データ形式には ?v= が自動で付く）。一覧は {{NAV_LINKS:カテゴリ:sort=new:limit=5}}、関連ページは {{NAV_LINKS:@same}}。_ で始まるカテゴリは構造用（@same と {{CATEGORY}} で使わない）。ページャー付き一覧は、目録の JSON ページ（[{{NAV_CARDS:カテゴリ:項目用コンポーネント:sort=new:sep=,}}]）と JS ページで作る。',
     ];
 }
 
@@ -934,7 +965,18 @@ function buildPageData($args) {
         'is_html' => (bool)($args['is_html'] ?? false),
         'sort_order'   => (int)($args['sort_order'] ?? 0),
         'updated_at'   => date('Y-m-d H:i:s'),
-    ];
+    ] + mikanBoxPageFormatFields(array_intersect_key($args, array_flip(['output_format', 'md_footer_comps', 'expand_tags'])));
+}
+
+/** Remove the static files a page's previous output format produced (e.g. /id.json). */
+function mcpDeleteStaticPageFiles($id, $format) {
+    $settings = $GLOBALS['mcp_settings'] ?? [];
+    require_once __DIR__ . '/lib/renderer.php';
+    require_once __DIR__ . '/lib/ssg.php';
+    $ssgDir = $settings['ssg_dir'] ?? ($settings['last_ssg_dir'] ?? '');
+    $siteRoot = dirname(CORE_DIR);
+    $absPath = !empty($ssgDir) ? $siteRoot . '/' . ltrim($ssgDir, '/') : $siteRoot;
+    (new MikanBoxSSG(new MikanBoxRenderer($settings), $absPath))->deletePage($id, $format);
 }
 
 function executeTool($name, $args, $settings) {

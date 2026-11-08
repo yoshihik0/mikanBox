@@ -123,7 +123,8 @@
                 <td class="td-narrow">
                     <div class="flex-center" style="gap: 5px;">
                          <a href="?view=pages&edit=<?= $pid ?><?= ($searchQuery !== '') ? '&q=' . urlencode($searchQuery) : '' ?>#page-editor" class="btn btn-sm btn-blue" title="<?= t('btn_edit') ?>"><?= getIcon('edit') ?></a>
-                         <?php if (is_file(CORE_DIR . '/visual.php')): ?>
+                         <?php $pageFormat = mikanBoxPageOutputFormat($d); $pageExt = mikanBoxFormatExtension($pageFormat); ?>
+                         <?php if (is_file(CORE_DIR . '/visual.php') && mikanBoxFormatHasHtml($pageFormat)): ?>
                          <a href="visual.php?id=<?= rawurlencode($pid) ?>" class="btn btn-sm btn-blue" title="<?= t('btn_visual_edit') ?>"><?= getIcon('visual') ?></a>
                          <?php endif; ?>
                           <?php
@@ -141,6 +142,11 @@
                               $previewUrl = $lastSsgRelPath . $pid . ($ssgStruct === 'directory' ? '/index.html' : '.html');
                           } else {
                               $previewUrl = '../' . $pid;
+                          }
+                          // Markdown-only and data pages live at /id.<extension>.
+                          if ($pageExt !== null) {
+                              $previewUrl = ($status === 'public_static' ? $lastSsgRelPath : '../') . $pid . '.' . $pageExt
+                                  . (function_exists('getPreviewToken') && $status === 'pending' ? '?preview=' . getPreviewToken($pid) : '');
                           }
                           ?>
                           <a href="<?= htmlspecialchars($previewUrl) ?>" target="_blank" class="btn btn-sm btn-blue" title="<?= t('btn_preview') ?>"><?php echo getIcon('open_in_new'); ?></a>
@@ -172,6 +178,9 @@
                 <td>
                     <div class="title-cell-flex">
                          <a href="?view=pages&edit=<?= $pid ?><?= ($searchQuery !== '') ? '&q=' . urlencode($searchQuery) : '' ?>#page-editor" class="title-link"><?= htmlspecialchars($d['title']??'No Title') ?></a>
+                         <?php if ($pageFormat !== 'html'): ?>
+                         <span class="format-badge <?= mikanBoxIsDataFormat($pageFormat) ? 'format-data' : 'format-md' ?>" title="<?= htmlspecialchars(t('label_output_format') . ': ' . t('output_format_' . $pageFormat)) ?>"><?= $pageFormat === 'html_md' ? '+MD' : strtoupper($pageExt) ?></span>
+                         <?php endif; ?>
                     </div>
                 </td>
                 <td class="td-narrow text-sub"><?= substr($d['updated_at'] ?? '', 0, 10) ?></td>
@@ -179,7 +188,7 @@
                 <td style="font-size: 0.85rem; color: var(--text-sub);">
                     <?php 
                     $cats = array_filter(array_map('trim', explode(',', $d['category'] ?? '')));
-                    echo htmlspecialchars(implode(', ', $cats));
+                    echo implode(', ', array_map(fn($c) => mikanBoxIsStructuralCategory($c) ? '<span class="category-structural">' . htmlspecialchars($c) . '</span>' : htmlspecialchars($c), $cats));
                     ?>
                 </td>
             </tr>

@@ -641,6 +641,185 @@ function mikanBoxIsErrorPage($pageId) {
     return $pageId === '404';
 }
 
+// ==========================================
+// Page output formats (2.17.0)
+// A page is HTML by default. "html_md" adds a Markdown version at /id.md,
+// "md" publishes only the Markdown version, and the data formats publish the
+// body as it is at /id.<extension>. Everything with an extension lives at
+// /id.<extension>; the URL style setting only affects HTML.
+// ==========================================
+
+/** Output formats in the order the editor shows them. */
+function mikanBoxOutputFormats(): array {
+    return ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css'];
+}
+
+/** Data formats: the body is published as it is, with no wrapper and no Markdown conversion. */
+function mikanBoxDataFormats(): array {
+    return ['json', 'xml', 'csv', 'txt', 'js', 'css'];
+}
+
+function mikanBoxIsDataFormat($format): bool {
+    return in_array($format, mikanBoxDataFormats(), true);
+}
+
+/** The page's output format; anything unset or unknown is HTML. */
+function mikanBoxPageOutputFormat($pageData): string {
+    $format = is_array($pageData) ? ($pageData['output_format'] ?? 'html') : 'html';
+    return in_array($format, mikanBoxOutputFormats(), true) ? $format : 'html';
+}
+
+function mikanBoxFormatHasHtml($format): bool {
+    return $format === 'html' || $format === 'html_md';
+}
+
+function mikanBoxFormatHasMarkdown($format): bool {
+    return $format === 'html_md' || $format === 'md';
+}
+
+/** File extension of a data format, or "md" for the Markdown-only format. HTML has none. */
+function mikanBoxFormatExtension($format): ?string {
+    if (mikanBoxIsDataFormat($format)) return $format;
+    if ($format === 'md') return 'md';
+    return null;
+}
+
+/** Content-Type by extension (md, json, xml, csv, txt, js, css). */
+function mikanBoxContentTypeForExtension($extension): string {
+    return [
+        'md' => 'text/markdown; charset=utf-8',
+        'json' => 'application/json; charset=utf-8',
+        'xml' => 'application/xml; charset=utf-8',
+        'csv' => 'text/csv; charset=utf-8',
+        'txt' => 'text/plain; charset=utf-8',
+        'js' => 'text/javascript; charset=utf-8',
+        'css' => 'text/css; charset=utf-8',
+    ][$extension] ?? 'text/html; charset=utf-8';
+}
+
+/** Tags are expanded by default in JSON, XML, CSV and text, and left alone in JavaScript and CSS. */
+function mikanBoxExpandTagsDefault($format): bool {
+    return in_array($format, ['json', 'xml', 'csv', 'txt'], true);
+}
+
+function mikanBoxPageExpandsTags($pageData): bool {
+    $format = mikanBoxPageOutputFormat($pageData);
+    if (!mikanBoxIsDataFormat($format)) return true;
+    $value = $pageData['expand_tags'] ?? null;
+    return is_bool($value) ? $value : mikanBoxExpandTagsDefault($format);
+}
+
+/** Pages that appear in NAV lists, sitemap, RSS and visitor search: everything except data formats. */
+function mikanBoxPageIsListed($pageData): bool {
+    return !mikanBoxIsDataFormat(mikanBoxPageOutputFormat($pageData));
+}
+
+/** Markdown versions use absolute URLs, so they need a site URL. Only a relative export without one lacks it. */
+function mikanBoxMarkdownAvailable(array $settings): bool {
+    $isRelativeExport = ($settings['ssg_mode'] ?? 'server') === 'export'
+        && ($settings['ssg_link_mode'] ?? 'absolute') === 'relative';
+    return !$isRelativeExport || trim((string)($settings['ssg_root_url'] ?? '')) !== '';
+}
+
+/** Footer component IDs, in order: wrappers, AI documents and unknown IDs are dropped. */
+function mikanBoxNormalizeFooterComponents($value): array {
+    if (is_string($value)) $value = explode(',', $value);
+    if (!is_array($value)) return [];
+    $ids = [];
+    foreach ($value as $id) {
+        $id = trim((string)$id);
+        if ($id === '' || !preg_match('/\A[A-Za-z0-9_-]+\z/', $id) || in_array($id, $ids, true)) continue;
+        $component = loadData(COMPONENTS_DIR, $id);
+        if (!$component || !empty($component['is_wrapper']) || !empty($component['is_ai_doc'])) continue;
+        $ids[] = $id;
+    }
+    return $ids;
+}
+
+/** Components that may be chosen as Markdown footers. */
+function mikanBoxFooterComponentChoices(): array {
+    $ids = [];
+    foreach (getFileList(COMPONENTS_DIR) as $id) {
+        $component = loadData(COMPONENTS_DIR, $id);
+        if (!$component || !empty($component['is_wrapper']) || !empty($component['is_ai_doc'])) continue;
+        $ids[] = $id;
+    }
+    sort($ids);
+    return $ids;
+}
+
+/** Categories: the ones starting with "_" are structural; "@" is reserved for selectors such as @same. */
+function mikanBoxSplitCategories($category): array {
+    return array_values(array_filter(array_map('trim', explode(',', (string)$category)), fn($c) => $c !== ''));
+}
+
+function mikanBoxIsStructuralCategory($category): bool {
+    return str_starts_with((string)$category, '_');
+}
+
+function mikanBoxVisibleCategories($category): array {
+    return array_values(array_filter(mikanBoxSplitCategories($category), fn($c) => !mikanBoxIsStructuralCategory($c)));
+}
+
+/**
+ * Check a page before it is saved (admin screen and MCP alike).
+ * Returns a translated error message, or null when the page may be saved.
+ * $oldId is the ID the page had before this save ('' for a new page).
+ */
+function mikanBoxValidatePageSave($id, $oldId, array $data, array $settings): ?string {
+    $id = (string)$id;
+    $oldId = (string)$oldId;
+    $isNewId = $oldId === '' || $oldId !== $id;
+    // IDs never contain dots: the extension comes from the output format.
+    // A legacy page with a dot keeps working as long as its ID is not changed.
+    if ($isNewId && strpos($id, '.') !== false) return t('err_page_id_dot', $id);
+    foreach (mikanBoxSplitCategories($data['category'] ?? '') as $category) {
+        if (str_starts_with($category, '@')) return t('err_category_reserved', $category);
+    }
+    $format = mikanBoxPageOutputFormat($data);
+    if (isset($data['output_format']) && !in_array($data['output_format'], mikanBoxOutputFormats(), true)) {
+        return t('err_output_format_invalid');
+    }
+    if (mikanBoxIsErrorPage($id) && $format !== 'html') return t('err_output_format_404');
+    if (mikanBoxFormatHasMarkdown($format) && !mikanBoxMarkdownAvailable($settings)) return t('err_output_format_md_unavailable');
+    $extension = mikanBoxFormatExtension($format);
+    if ($extension !== null && in_array(strtolower($id . '.' . $extension), ['sitemap.xml', 'rss.xml', 'podcast.xml'], true)) {
+        return t('err_output_format_reserved', $id . '.' . $extension);
+    }
+    return null;
+}
+
+/**
+ * Output-format fields of a page from submitted values. $input holds
+ * output_format, md_footer_comps (array or comma-separated) and expand_tags;
+ * a key that is absent keeps the existing value.
+ */
+function mikanBoxPageFormatFields(array $input, ?array $existing = null): array {
+    $format = array_key_exists('output_format', $input) ? (string)$input['output_format'] : mikanBoxPageOutputFormat($existing);
+    if (!in_array($format, mikanBoxOutputFormats(), true)) $format = 'html';
+    $footer = array_key_exists('md_footer_comps', $input) ? $input['md_footer_comps'] : ($existing['md_footer_comps'] ?? []);
+    $fields = [
+        'output_format' => $format,
+        'md_footer_comps' => mikanBoxNormalizeFooterComponents($footer),
+    ];
+    if (mikanBoxIsDataFormat($format)) {
+        if (array_key_exists('expand_tags', $input) && $input['expand_tags'] !== null) {
+            $fields['expand_tags'] = (bool)$input['expand_tags'];
+        } elseif (is_bool($existing['expand_tags'] ?? null) && mikanBoxPageOutputFormat($existing) === $format) {
+            $fields['expand_tags'] = $existing['expand_tags'];
+        } else {
+            $fields['expand_tags'] = mikanBoxExpandTagsDefault($format);
+        }
+    }
+    return $fields;
+}
+
+/** Dynamic-site URL of a page for sitemap and RSS: Markdown-only pages point at /id.md. */
+function mikanBoxFeedPageUrl($siteUrl, $pageId, $data): string {
+    if (mikanBoxPageOutputFormat($data) === 'md') return $siteUrl . '/' . $pageId . '.md';
+    return $siteUrl . '/' . ($pageId === 'index' ? '' : $pageId);
+}
+
 function generateSitemapXml($settings) {
     $renderer = new MikanBoxRenderer($settings);
     $siteUrl  = rtrim($renderer->getSiteUrl(), '/');
@@ -651,7 +830,8 @@ function generateSitemapXml($settings) {
         if (mikanBoxIsErrorPage($pageId)) continue;
         $data = loadData(POSTS_DIR, $pageId);
         if (!in_array($data['status'] ?? '', ['public_dynamic', 'public_static'])) continue;
-        $loc     = htmlspecialchars($siteUrl . '/' . ($pageId === 'index' ? '' : $pageId));
+        if (!mikanBoxPageIsListed($data)) continue;
+        $loc     = htmlspecialchars(mikanBoxFeedPageUrl($siteUrl, $pageId, $data));
         $lastmod = substr($data['updated_at'] ?? date('Y-m-d H:i:s'), 0, 10);
         $xml .= "  <url>\n    <loc>{$loc}</loc>\n    <lastmod>{$lastmod}</lastmod>\n  </url>\n";
     }
@@ -670,6 +850,7 @@ function generateRssXml($settings) {
         if (mikanBoxIsErrorPage($pageId)) continue;
         $data = loadData(POSTS_DIR, $pageId);
         if (!in_array($data['status'] ?? '', ['public_dynamic', 'public_static'])) continue;
+        if (!mikanBoxPageIsListed($data)) continue;
         $items[] = ['id' => $pageId, 'data' => $data];
     }
     usort($items, fn($a, $b) => strcmp($b['data']['updated_at'] ?? '', $a['data']['updated_at'] ?? ''));
@@ -680,7 +861,7 @@ function generateRssXml($settings) {
     foreach ($items as $item) {
         $title   = htmlspecialchars($item['data']['title'] ?? $item['id']);
         $desc    = htmlspecialchars($item['data']['description'] ?? '');
-        $link    = htmlspecialchars($siteUrl . '/' . ($item['id'] === 'index' ? '' : $item['id']));
+        $link    = htmlspecialchars(mikanBoxFeedPageUrl($siteUrl, $item['id'], $item['data']));
         $pubDate = date('r', strtotime($item['data']['updated_at'] ?? date('Y-m-d H:i:s')));
         $xml .= "  <item>\n    <title>{$title}</title>\n    <link>{$link}</link>\n";
         $xml .= "    <description>{$desc}</description>\n    <pubDate>{$pubDate}</pubDate>\n";
@@ -705,6 +886,7 @@ function generatePodcastXml($settings) {
     foreach ($allPosts as $pageId) {
         $data = loadData(POSTS_DIR, $pageId);
         if (!in_array($data['status'] ?? '', ['public_dynamic', 'public_static'])) continue;
+        if (!mikanBoxPageIsListed($data)) continue;
         $cats = array_filter(array_map('trim', explode(',', $data['category'] ?? '')));
         if (!in_array('podcast', $cats)) continue;
         $items[] = ['id' => $pageId, 'data' => $data];

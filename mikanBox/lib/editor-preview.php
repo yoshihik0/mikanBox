@@ -20,13 +20,20 @@ function mikanBoxRenderEditorPreview(array $settings, array $input): void {
         'wrapper_comp' => $text('wrapper_comp') ?: '_layout',
         'exclude_tracking' => isset($input['tracking_option_present']) ? isset($input['exclude_tracking']) : !empty($current['exclude_tracking']),
         'sort_order' => (int)$text('sort_order'), 'updated_at' => $text('updated_at'),
-    ];
+    ] + mikanBoxPageFormatFields([
+        'output_format' => $text('output_format', 'html'),
+        'md_footer_comps' => $text('md_footer_comps'),
+        'expand_tags' => isset($input['expand_tags_present']) ? isset($input['expand_tags']) : null,
+    ], $current);
     $base = dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/mikanBox/admin.php'));
     $settings['_site_base'] = ($base === '/' || $base === '.') ? '/' : rtrim($base, '/') . '/';
     $renderer = new MikanBoxRenderer($settings);
-    header('Content-Type: text/html; charset=utf-8');
+    // Markdown-only and data pages preview as the plain text they publish.
+    $preview = $renderer->renderPreview($id, $data);
+    header('Content-Type: ' . $preview['type']);
+    header('X-Content-Type-Options: nosniff');
     header('Cache-Control: no-store');
     header('Referrer-Policy: no-referrer');
     header('Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals');
-    echo $renderer->render($id, $data);
+    echo $preview['body'];
 }

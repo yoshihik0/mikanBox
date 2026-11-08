@@ -19,6 +19,16 @@ class MikanBoxRenderer {
     private $ssgStructure = 'directory';
     private $ssgLinkMode = 'absolute';
     private $currentPageData = []; // DATA blocks of current page
+    // Output formats (2.17.0): 'html' renders the page, 'md' its Markdown version,
+    // 'data' the body of a data-format page (json, xml, csv, txt, js, css).
+    private $outputMode = 'html';
+    private $dataFormat = '';
+    private $forceAbsolute = false;   // Markdown versions always use absolute URLs
+    private $linkToMarkdown = false;  // in Markdown versions, link to other pages' Markdown versions
+    private $currentPageInfo = [];    // stored fields of the page being rendered (for @same)
+    private $pageCache = [];
+    private $dataHashes = [];         // static build: page ID => hash of its built data output
+    private static $hashStack = [];
 
     public function __construct($settings) {
         // Renaming/Aliasing for better visibility: ssg_root_url is the primary source of truth
@@ -82,6 +92,11 @@ class MikanBoxRenderer {
      * Renders a page by its ID.
      */
     public function render($pageId, $previewData = null) {
+        $this->outputMode = 'html';
+        $this->dataFormat = '';
+        $this->forceAbsolute = false;
+        $this->linkToMarkdown = false;
+        $this->pageCache = [];
         $this->currentPageId = $pageId;
         $this->globalCssBuffer = [];
         $this->javascriptBuffer = [];
@@ -143,6 +158,7 @@ class MikanBoxRenderer {
         }
 
         $this->excludeTracking = !empty($pageData['exclude_tracking']);
+        $this->currentPageInfo = $pageData;
 
         // Get site metadata for convenience
         $pageTitle = isset($pageData['title']) ? $pageData['title'] . ' - ' . $this->siteSettings['site_name'] : $this->siteSettings['site_name'];
@@ -280,6 +296,11 @@ class MikanBoxRenderer {
             $html = substr($html, 0, $trackingOffset);
         }
         if ($trackingCode !== null) $trackingHtml = $trackingCode['head'];
+        // A page that also publishes a Markdown version announces it, the way RSS is discovered.
+        if (mikanBoxPageOutputFormat($pageData) === 'html_md' && mikanBoxMarkdownAvailable($this->siteSettings)) {
+            $trackingHtml = '<link rel="alternate" type="text/markdown" href="'
+                . htmlspecialchars($this->absoluteExtensionUrl($pageId, 'md'), ENT_QUOTES) . '">' . $trackingHtml;
+        }
         $html = $this->completeHead($html, $pageTitle, $pageDesc, $this->resolveMediaUrl(resolveMediaPath($ogpImage)), $trackingHtml);
         if ($trackingCode !== null) $html = $this->insertBodyStart($html, $trackingCode['body']);
 
@@ -445,7 +466,7 @@ class MikanBoxRenderer {
         return preg_replace_callback('/<a\s+href="([^"]*)"/i', function($link) {
             $href = preg_replace_callback('/\x{200B}?&lt;!--MKNTG([a-zA-Z0-9+\/=]+)--&gt;\x{200B}?/u', function($tag) {
                 $original = base64_decode($tag[1], true);
-                return $original !== false && preg_match('/^\{\{\s*(?:SITE_URL|BASE_URL|PAGE_URL)\s*\}\}$/', $original) ? $original : $tag[0];
+                return $original !== false && preg_match('/^\{\{\s*(?:SITE_URL|BASE_URL|PAGE_URL(?::[A-Za-z0-9_\-\/]+)?)\s*\}\}$/', $original) ? $original : $tag[0];
             }, $link[1]);
             return '<a href="' . $href . '"';
         }, $html);
@@ -513,34 +534,40 @@ class MikanBoxRenderer {
         $siteUrl = $this->isRelativeStaticMode()
             ? $this->getRelativeSiteRoot()
             : $this->getSiteUrl();
+        $value = fn($v) => $this->escapeValue((string)$v);
+        $url = fn($v) => $this->escapeUrl((string)$v);
 
         $replacements = [
-            '/\{\{\s*SITE_NAME\s*\}\}/' => htmlspecialchars($this->siteSettings['site_name']),
-            '/\{\{\s*SITE_DESCRIPTION\s*\}\}/' => htmlspecialchars($this->siteSettings['description']),
-            '/\{\{\s*SITE_KEYWORDS\s*\}\}/' => htmlspecialchars($this->siteSettings['keywords']),
-            '/\{\{\s*SITE_OGP_IMAGE\s*\}\}/' => $this->resolveMediaUrl(resolveMediaPath($this->siteSettings['ogp_image'])),
+            'SITE_NAME' => $value($this->siteSettings['site_name']),
+            'SITE_DESCRIPTION' => $value($this->siteSettings['description']),
+            'SITE_KEYWORDS' => $value($this->siteSettings['keywords']),
+            'SITE_OGP_IMAGE' => $url($this->resolveMediaUrl(resolveMediaPath($this->siteSettings['ogp_image']))),
 
-            '/\{\{\s*PAGE_TITLE\s*\}\}/' => htmlspecialchars($pageData['title'] ?? ''),
-            '/\{\{\s*PAGE_DESCRIPTION\s*\}\}/' => htmlspecialchars($pageData['description'] ?? ''),
-            '/\{\{\s*PAGE_KEYWORDS\s*\}\}/' => htmlspecialchars($pageData['keywords'] ?? ''),
-            '/\{\{\s*PAGE_OGP_IMAGE\s*\}\}/' => $this->resolveMediaUrl(resolveMediaPath($pageData['ogp_image'] ?? '')),
+            'PAGE_TITLE' => $value($pageData['title'] ?? ''),
+            'PAGE_DESCRIPTION' => $value($pageData['description'] ?? ''),
+            'PAGE_KEYWORDS' => $value($pageData['keywords'] ?? ''),
+            'PAGE_OGP_IMAGE' => $url($this->resolveMediaUrl(resolveMediaPath($pageData['ogp_image'] ?? ''))),
 
-            '/\{\{\s*TITLE\s*\}\}/' => htmlspecialchars($pageData['title'] ?? $this->siteSettings['site_name']),
-            '/\{\{\s*DESCRIPTION\s*\}\}/' => htmlspecialchars($pageDesc),
-            '/\{\{\s*OGP_IMAGE\s*\}\}/' => $this->resolveMediaUrl(resolveMediaPath($ogpImage)),
-            '/\{\{\s*FULL_TITLE\s*\}\}/' => htmlspecialchars($pageTitle),
-            '/\{\{\s*KEYWORDS\s*\}\}/' => htmlspecialchars($pageKeywords),
+            'TITLE' => $value($pageData['title'] ?? $this->siteSettings['site_name']),
+            'DESCRIPTION' => $value($pageDesc),
+            'OGP_IMAGE' => $url($this->resolveMediaUrl(resolveMediaPath($ogpImage))),
+            'FULL_TITLE' => $value($pageTitle),
+            'KEYWORDS' => $value($pageKeywords),
 
-            '/\{\{\s*SITE_URL\s*\}\}/' => $siteUrl,
-            '/\{\{\s*BASE_URL\s*\}\}/' => $siteUrl, // Backward compatibility
-            '/\{\{\s*UPDATE_DATE\s*\}\}/' => substr($pageData['updated_at'] ?? date('Y-m-d H:i:s'), 0, 10),
+            'SITE_URL' => $url($siteUrl),
+            'BASE_URL' => $url($siteUrl), // Backward compatibility
+            'UPDATE_DATE' => $value(substr($pageData['updated_at'] ?? date('Y-m-d H:i:s'), 0, 10)),
         ];
 
         // PAGE_URL: use canonical URL based on page status and structure
         $id = $this->currentPageId;
         $pageStatus = $pageData['status'] ?? 'draft';
         $isDirStyle = ($this->ssgStructure === 'directory');
-        if ($this->isRelativeStaticMode()) {
+        $ownExtension = $this->outputMode === 'md' ? 'md' : ($this->outputMode === 'data' ? $this->dataFormat : null);
+        if ($ownExtension !== null) {
+            // Markdown versions and data pages always live at /id.<extension>.
+            $pageFullUrl = $this->extensionUrl($id, $ownExtension);
+        } elseif ($this->isRelativeStaticMode()) {
             $pageFullUrl = $this->getPageLink($id, '');
         } elseif ($pageStatus === 'public_static') {
             // Static page: URL matches the actual static file
@@ -556,16 +583,24 @@ class MikanBoxRenderer {
             $rootLink = $this->getPageLink($id, '');
             $pageFullUrl = $this->buildFullUrl($siteUrl, $rootLink);
         }
-        $replacements['/\{\{\s*PAGE_URL\s*\}\}/'] = $pageFullUrl;
+        $replacements['PAGE_URL'] = $url($pageFullUrl);
 
-        foreach ($replacements as $pattern => $replacement) {
-            $text = preg_replace($pattern, $replacement, $text);
-        }
+        $text = preg_replace_callback('/\{\{\s*(' . implode('|', array_keys($replacements)) . ')\s*\}\}/', fn($m) => $replacements[$m[1]], $text);
+
+        // CATEGORY: categories except structural "_" ones; CATEGORY:all includes them.
+        $text = preg_replace_callback('/\{\{\s*CATEGORY(?::\s*(all)\s*)?\}\}/', function($m) use ($pageData) {
+            return $this->formatCategories($pageData['category'] ?? '', !empty($m[1]));
+        }, $text);
+
+        // PAGE_URL:ID — URL of another page, with its extension (and ?v= for data pages).
+        $text = preg_replace_callback('/\{\{\s*PAGE_URL:\s*([A-Za-z0-9_\-\/]+)\s*\}\}/', function($m) {
+            return $this->escapeUrl($this->pageUrlTag($m[1]));
+        }, $text);
 
         // UPDATE_DATE with format: JP = 年月日, SLASH = /区切り
         $rawDate = $pageData['updated_at'] ?? date('Y-m-d H:i:s');
         $text = preg_replace_callback('/\{\{\s*UPDATE_DATE:([A-Z]+)\s*\}\}/', function($m) use ($rawDate) {
-            return $this->formatDate($rawDate, $m[1]);
+            return $this->escapeValue($this->formatDate($rawDate, $m[1]));
         }, $text);
 
         // IS_NEW:days — "new" if updated within N days, else ""
@@ -616,7 +651,7 @@ class MikanBoxRenderer {
     }
 
     private function isRelativeStaticMode() {
-        return $this->staticMode && $this->ssgLinkMode === 'relative';
+        return $this->staticMode && $this->ssgLinkMode === 'relative' && !$this->forceAbsolute;
     }
 
     private function getStaticRootPrefix() {
@@ -725,19 +760,8 @@ class MikanBoxRenderer {
         }, $html);
 
         // 3. Navigation Tags: {{NAV_LINKS:category}}, {{NAV_CARDS:category:template}}
-        $html = preg_replace_callback('/\{\{\s*(NAV_LINKS|NAV_CARDS)\s*(?::\s*([^:}\s]*)\s*)?(?::\s*([a-zA-Z0-9_\-]+)\s*)?\}\}/u', function($matches) {
-            $tagType = trim($matches[1]);
-            $category = isset($matches[2]) ? trim($matches[2]) : '';
-            $compId = isset($matches[3]) ? trim($matches[3]) : '';
-            
-            if ($tagType === 'NAV_LINKS') {
-                return $this->generateNavLinks($category);
-            }
-            if ($tagType === 'NAV_CARDS') {
-                return $this->generateNavCards($category, $compId);
-            }
-            return $matches[0];
-        }, $html);
+        //    with named options :sort=new|old, :limit=N, :sep=text, and the @same selector.
+        $html = $this->replaceNavTags($html);
 
         // 4. Search Results Tag: {{SEARCH_RESULTS:componentID}} or {{SEARCH_RESULTS}}
         // NOTE: only active when searchPosts()/getSearchSnippet() exist (SQLite backend).
@@ -934,71 +958,8 @@ class MikanBoxRenderer {
 
         // 1. Rewrite internal links to be root-relative (e.g. /pages/p3/)
         $html = preg_replace_callback('/href=["\'](\.?\/?)([^"\']+)["\']/i', function($matches) use ($allPosts) {
-            $prefix = $matches[1];
-            $url = $matches[2];
-            $originalUrl = $prefix . $url;
-
-            // Skip external links, hashes, mailto, or already absolute paths
-            if (preg_match('/^(?:https?:\/\/|\/\/|#|mailto:|tel:)/i', $originalUrl)) {
-                return $matches[0];
-            }
-            if (!$this->isRelativeStaticMode() && str_starts_with($originalUrl, '/')) {
-                return $matches[0];
-            }
-            // Links already emitted by portable SSG must not be interpreted as page IDs again.
-            if ($this->isRelativeStaticMode()
-                && preg_match('/(?:^|\/)[^?#]+\.html(?:[?#].*)?$/i', $originalUrl)) {
-                return $matches[0];
-            }
-
-            $path = parse_url($originalUrl, PHP_URL_PATH);
-            $path = $path === null || $path === false ? $originalUrl : $path;
-            $query = parse_url($originalUrl, PHP_URL_QUERY);
-            $fragment = parse_url($originalUrl, PHP_URL_FRAGMENT);
-            $suffix = ($query !== null && $query !== false ? '?' . $query : '')
-                . ($fragment !== null && $fragment !== false ? '#' . $fragment : '');
-
-            if ($this->isRelativeStaticMode() && str_starts_with($path, '/')) {
-                $basePath = trim($this->getSiteBasePath(), '/');
-                $path = ltrim($path, '/');
-                if ($basePath !== '' && ($path === $basePath || str_starts_with($path, $basePath . '/'))) {
-                    $path = ltrim(substr($path, strlen($basePath)), '/');
-                }
-            }
-            if ($this->isRelativeStaticMode()) {
-                $path = preg_replace('#^(?:(?:\./)|(?:\.\./))+#', '', $path);
-            }
-
-            // Normalize generated URL forms for comparison with page IDs.
-            $checkId = trim($path, '/');
-            if (str_ends_with(strtolower($checkId), '/index.html')) {
-                $checkId = substr($checkId, 0, -11);
-            } elseif (str_ends_with(strtolower($checkId), '.html')) {
-                $checkId = substr($checkId, 0, -5);
-            }
-            if ($checkId === 'index') $checkId = 'index';
-
-            // Find matching post (case-insensitive)
-            foreach ($allPosts as $pid) {
-                if (strcasecmp($checkId, $pid) === 0) {
-                    if ($this->isRelativeStaticMode()) {
-                        $post = loadData(POSTS_DIR, $pid);
-                        if (($post['status'] ?? '') !== 'public_static') {
-                            return $matches[0];
-                        }
-                    }
-                    return 'href="' . $this->buildPageUrl($pid) . $suffix . '"';
-                }
-            }
-
-            // Special fallback: if it looks like an ID (no extension, has slash etc.)
-            // and we didn't find a direct match, but it's clearly an internal link attempt
-            if (!$this->isRelativeStaticMode() && preg_match('/^[a-z0-9_\-\/]+$/i', $checkId)) {
-                return 'href="' . $this->buildPageUrl($checkId) . '"';
-            }
-
-            // No match, return original
-            return $matches[0];
+            $resolved = $this->resolveInternalLink($matches[1] . $matches[2], $allPosts);
+            return $resolved === null ? $matches[0] : 'href="' . $resolved . '"';
         }, $html);
 
         // Fix Home link "./" to site base
@@ -1043,32 +1004,6 @@ class MikanBoxRenderer {
             fn($m) => 'url(' . $m[1] . $mediaBase . $m[2] . $m[1] . ')',
             $html
         );
-    }
-
-    private function generateNavLinks($targetCategory) {
-        $postsList = getSortedPostIds();
-        $html = '<ul class="nav-links">';
-
-        foreach ($postsList as $postId) {
-            $postInfo = loadData(POSTS_DIR, $postId);
-            if (in_array($postInfo['status'] ?? 'public', ['draft', 'db'])) continue;
-            if ($this->isRelativeStaticMode() && ($postInfo['status'] ?? '') !== 'public_static') continue;
-            if (($postInfo['sort_order'] ?? 0) < 0) continue;
-
-            $catStr = $postInfo['category'] ?? '';
-            $cats = array_filter(array_map('trim', explode(',', $catStr)));
-            
-            if ($targetCategory !== '') {
-                if ($targetCategory !== 'all' && !in_array($targetCategory, $cats)) continue;
-            } elseif (!empty($cats)) continue;
-
-            $title = htmlspecialchars($postInfo['title'] ?? $postId, ENT_QUOTES);
-            $activeClass = ($this->currentPageId === $postId) ? ' class="active"' : '';
-            $link = $this->buildPageUrl($postId);
-            $html .= "<li{$activeClass}><a href=\"{$link}\">{$title}</a></li>";
-        }
-        $html .= '</ul>';
-        return $html;
     }
 
     // NOTE: only reachable when searchPosts()/getSearchSnippet() exist (SQLite backend).
@@ -1138,13 +1073,152 @@ class MikanBoxRenderer {
         return $outputHtml;
     }
 
-    private function generateNavCards($targetCategory, $templateCompId) {
-        $postsList = getSortedPostIds();
-        $effectiveCompId = $templateCompId ?: '_nav_card';
+    // ==========================================
+    // Navigation lists: NAV_LINKS / NAV_CARDS
+    // ==========================================
+
+    private function replaceNavTags($text) {
+        return preg_replace_callback('/\{\{\s*(NAV_LINKS|NAV_CARDS)\s*((?::[^:}]*)*)\}\}/u', function($m) {
+            $options = $this->parseNavArguments($m[2]);
+            if ($options === null) return $m[0];
+            return $this->renderNav($m[1], $options);
+        }, $text);
+    }
+
+    /**
+     * Positional arguments (category, card component) followed by named options.
+     * A value runs to the next ":" or "}}"; in sep, \n and \t mean newline and tab.
+     */
+    private function parseNavArguments($argumentString) {
+        $options = ['category' => '', 'component' => '', 'sort' => '', 'limit' => 0, 'sep' => ''];
+        $positional = [];
+        $tokens = $argumentString === '' ? [] : explode(':', substr($argumentString, 1));
+        foreach ($tokens as $token) {
+            if (preg_match('/\A\s*(sort|limit|sep)=(.*)\z/s', $token, $named)) {
+                if ($named[1] === 'sort') {
+                    $sort = trim($named[2]);
+                    $options['sort'] = in_array($sort, ['new', 'old'], true) ? $sort : '';
+                } elseif ($named[1] === 'limit') {
+                    $options['limit'] = max(0, (int)trim($named[2]));
+                } else {
+                    $options['sep'] = str_replace(['\n', '\t'], ["\n", "\t"], $named[2]);
+                }
+                continue;
+            }
+            if (strpos($token, '=') !== false) continue; // unknown option
+            $positional[] = trim($token);
+        }
+        $options['category'] = $positional[0] ?? '';
+        $options['component'] = $positional[1] ?? '';
+        if ($options['component'] !== '' && !preg_match('/\A[A-Za-z0-9_\-]+\z/', $options['component'])) return null;
+        return $options;
+    }
+
+    /** Listable pages in display order, matching a category ('' = none, 'all' = every page). */
+    private function navCandidates($category, array $options) {
+        $items = [];
+        foreach (getSortedPostIds() as $postId) {
+            $postInfo = $this->loadPage($postId);
+            if (!$postInfo) continue;
+            if (in_array($postInfo['status'] ?? 'public', ['draft', 'db'], true)) continue;
+            if ($this->isRelativeStaticMode() && ($postInfo['status'] ?? '') !== 'public_static') continue;
+            if (($postInfo['sort_order'] ?? 0) < 0) continue;
+            // Data-format pages are parts of a site, not content, so lists never show them.
+            if (!mikanBoxPageIsListed($postInfo)) continue;
+
+            $cats = mikanBoxSplitCategories($postInfo['category'] ?? '');
+            if ($category !== '') {
+                if ($category !== 'all' && !in_array($category, $cats, true)) continue;
+            } elseif (!empty($cats)) continue;
+            $items[] = ['id' => $postId, 'data' => $postInfo];
+        }
+        if ($options['sort'] !== '') {
+            // usort is stable, so pages with the same date keep their display order.
+            $direction = $options['sort'] === 'new' ? -1 : 1;
+            usort($items, fn($a, $b) => $direction * strcmp((string)($a['data']['updated_at'] ?? ''), (string)($b['data']['updated_at'] ?? '')));
+        }
+        if ($options['limit'] > 0) $items = array_slice($items, 0, $options['limit']);
+        return $items;
+    }
+
+    private function renderNav($tagType, array $options) {
+        if ($options['category'] !== '@same') {
+            return $this->renderNavGroups($tagType, $options, [['label' => null, 'items' => $this->navCandidates($options['category'], $options)]]);
+        }
+        // @same: pages sharing a non-structural category with the page being shown.
+        $groups = [];
+        foreach (mikanBoxVisibleCategories($this->currentPageInfo['category'] ?? '') as $category) {
+            $items = array_values(array_filter(
+                $this->navCandidates($category, array_merge($options, ['limit' => 0])),
+                fn($item) => $item['id'] !== $this->currentPageId
+            ));
+            if ($options['limit'] > 0) $items = array_slice($items, 0, $options['limit']);
+            $groups[] = ['label' => $category, 'items' => $items];
+        }
+        if (!$groups) return '';
+        if (count($groups) === 1) $groups[0]['label'] = null;
+        return $this->renderNavGroups($tagType, $options, $groups);
+    }
+
+    /** $groups: one unlabelled group for a flat list, or labelled groups per category. */
+    private function renderNavGroups($tagType, array $options, array $groups) {
+        $grouped = $groups[0]['label'] !== null;
+        $sep = $options['sep'];
+
+        if ($this->outputMode !== 'html') {
+            $isMarkdown = $this->outputMode === 'md';
+            $template = null;
+            $compData = null;
+            $effectiveCompId = $options['component'] ?: '_nav_card';
+            if ($tagType === 'NAV_CARDS' && !$isMarkdown) {
+                $compData = loadData(COMPONENTS_DIR, $effectiveCompId);
+                $template = $compData ? (string)($compData['html'] ?? '') : null;
+            }
+            $parts = [];
+            foreach ($groups as $group) {
+                $lines = [];
+                foreach ($group['items'] as $item) {
+                    if ($template !== null) {
+                        $lines[] = $this->renderCardItem($item['id'], $item['data'], $template);
+                    } else {
+                        $line = '- [' . $this->escapeMarkdownLinkText($item['data']['title'] ?? $item['id']) . '](' . $this->escapeMarkdownUrl($this->buildPageUrl($item['id'])) . ')';
+                        $lines[] = ($grouped ? '  ' : '') . ($isMarkdown ? $line : $this->escapeValue($line));
+                    }
+                }
+                $joined = implode($sep !== '' ? $sep : ($template !== null ? '' : "\n"), $lines);
+                if ($grouped && $isMarkdown) {
+                    $joined = '- ' . $this->escapeMarkdownLinkText($group['label']) . ($joined !== '' ? "\n" . $joined : '');
+                }
+                $parts[] = $joined;
+            }
+            $parts = array_values(array_filter($parts, fn($part) => $part !== ''));
+            return implode($sep !== '' && !$isMarkdown ? $sep : "\n", $parts);
+        }
+
+        if ($tagType === 'NAV_LINKS') {
+            $renderLinks = function(array $items) use ($sep) {
+                $lis = [];
+                foreach ($items as $item) {
+                    $title = htmlspecialchars($item['data']['title'] ?? $item['id'], ENT_QUOTES);
+                    $activeClass = ($this->currentPageId === $item['id']) ? ' class="active"' : '';
+                    $lis[] = "<li{$activeClass}><a href=\"" . $this->buildPageUrl($item['id']) . "\">{$title}</a></li>";
+                }
+                return implode($sep, $lis);
+            };
+            if (!$grouped) return '<ul class="nav-links">' . $renderLinks($groups[0]['items']) . '</ul>';
+            $html = '<ul class="nav-links">';
+            foreach ($groups as $group) {
+                $html .= '<li class="nav-group"><span class="nav-group-label">' . htmlspecialchars($group['label'], ENT_QUOTES) . '</span>'
+                    . '<ul class="nav-links">' . $renderLinks($group['items']) . '</ul></li>';
+            }
+            return $html . '</ul>';
+        }
+
+        // NAV_CARDS in HTML
+        $effectiveCompId = $options['component'] ?: '_nav_card';
         $compData = loadData(COMPONENTS_DIR, $effectiveCompId);
         $customTemplate = null;
         $prefixClass = '';
-
         if ($compData) {
             $customTemplate = $compData['html'] ?? '';
             $compCss = $compData['css'] ?? '';
@@ -1157,83 +1231,544 @@ class MikanBoxRenderer {
                 }
             }
         }
-
-        $innerHtml = '';
-        foreach ($postsList as $postId) {
-            $postInfo = loadData(POSTS_DIR, $postId);
-            if (in_array($postInfo['status'] ?? 'public', ['draft', 'db'])) continue;
-            if ($this->isRelativeStaticMode() && ($postInfo['status'] ?? '') !== 'public_static') continue;
-            if (($postInfo['sort_order'] ?? 0) < 0) continue;
-
-            $catStr = $postInfo['category'] ?? '';
-            $cats = array_filter(array_map('trim', explode(',', $catStr)));
-
-            if ($targetCategory !== '') {
-                if ($targetCategory !== 'all' && !in_array($targetCategory, $cats)) continue;
-            } elseif (!empty($cats)) continue;
-
-            $title = htmlspecialchars($postInfo['title'] ?? $postId, ENT_QUOTES);
-            $desc = htmlspecialchars($postInfo['description'] ?? '', ENT_QUOTES);
-            $rawImg = resolveMediaPath($postInfo['ogp_image'] ?? '');
-            if (!empty($rawImg) && !preg_match('/^(?:https?:\/\/|data:)/', $rawImg)) {
-                $rawImg = $this->resolveMediaUrl($rawImg);
+        $renderCards = function(array $items) use ($customTemplate, $compData, $effectiveCompId, $sep) {
+            $cards = [];
+            foreach ($items as $item) {
+                $cards[] = $this->renderCardItem($item['id'], $item['data'], $customTemplate);
+                if ($customTemplate && $compData) $this->collectJavaScript($compData, $effectiveCompId);
             }
-            if (empty($rawImg)) {
-                $rawImg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='210'%3E%3Crect width='400' height='210' fill='%23e0e0e0'/%3E%3C/svg%3E";
+            return implode($sep, $cards);
+        };
+        if (!$grouped) {
+            $output = '<div class="nav-cards">' . $renderCards($groups[0]['items']) . '</div>';
+        } else {
+            $output = '';
+            foreach ($groups as $group) {
+                $output .= '<div class="nav-group"><div class="nav-group-label">' . htmlspecialchars($group['label'], ENT_QUOTES) . '</div>'
+                    . '<div class="nav-cards">' . $renderCards($group['items']) . '</div></div>';
             }
-            $img = htmlspecialchars($rawImg, ENT_QUOTES);
+        }
+        return $prefixClass ? '<div class="' . $prefixClass . '">' . $output . '</div>' : $output;
+    }
 
-            $link = $this->buildPageUrl($postId);
-            $pageUrl = $link;
-            $updateDate = substr($postInfo['updated_at'] ?? date('Y-m-d H:i:s'), 0, 10);
-            $isActive = ($this->currentPageId === $postId) ? 'active' : '';
+    /** One card: the item component filled with this page's values, escaped for the output. */
+    private function renderCardItem($postId, array $postInfo, $customTemplate) {
+        $isHtml = $this->outputMode === 'html';
+        $esc = $isHtml ? fn($v) => htmlspecialchars((string)$v, ENT_QUOTES) : fn($v) => $this->escapeValue((string)$v);
+        $title = $esc($postInfo['title'] ?? $postId);
+        $desc = $esc($postInfo['description'] ?? '');
+        $rawImg = resolveMediaPath($postInfo['ogp_image'] ?? '');
+        if (!empty($rawImg) && !preg_match('/^(?:https?:\/\/|data:)/', $rawImg)) {
+            $rawImg = $this->resolveMediaUrl($rawImg);
+        }
+        if (empty($rawImg) && $isHtml) {
+            $rawImg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='210'%3E%3Crect width='400' height='210' fill='%23e0e0e0'/%3E%3C/svg%3E";
+        }
+        $img = $esc($rawImg);
+        $link = $this->buildPageUrl($postId);
+        if (!$isHtml) $link = $this->escapeValue($link);
+        $updateDate = substr($postInfo['updated_at'] ?? date('Y-m-d H:i:s'), 0, 10);
+        $isActive = ($this->currentPageId === $postId) ? 'active' : '';
 
-            if ($customTemplate) {
-                $itemHtml = str_replace(
-                    ['{{TITLE}}', '{{DESCRIPTION}}', '{{LINK}}', '{{OGP_IMAGE}}', '{{PAGE_URL}}', '{{UPDATE_DATE}}', '{{IS_ACTIVE}}'],
-                    [$title, $desc, $link, $img, $pageUrl, $updateDate, $isActive],
-                    $customTemplate
-                );
-                $rawDate = $postInfo['updated_at'] ?? date('Y-m-d H:i:s');
-                $itemHtml = preg_replace_callback('/\{\{UPDATE_DATE:([A-Z]+)\}\}/', function($m) use ($rawDate) {
-                    return $this->formatDate($rawDate, $m[1]);
-                }, $itemHtml);
-                $itemHtml = preg_replace_callback('/\{\{IS_NEW:(\d+)\}\}/', function($m) use ($rawDate) {
-                    return $this->isNew($rawDate, (int)$m[1]) ? 'new' : '';
-                }, $itemHtml);
-                // Expand POST_MD:: tags using this card's own DATA blocks
-                if (!empty($postInfo['content_md'])) {
-                    $cardDataBlocks = [];
-                    $this->extractDataBlocks($postInfo['content_md'], $cardDataBlocks);
-                    // POST_MD::#rowID:KEY — self with row
-                    $itemHtml = preg_replace_callback('/\{\{POST_MD::#([a-zA-Z0-9_\-]+):([a-zA-Z][a-zA-Z0-9_]*)\}\}/', function($m) use ($cardDataBlocks) {
-                        return $cardDataBlocks["#{$m[1]}:{$m[2]}"] ?? '';
-                    }, $itemHtml);
-                    // POST_MD::KEY — self field
-                    $itemHtml = preg_replace_callback('/\{\{POST_MD::([a-zA-Z][a-zA-Z0-9_]*)\}\}/', function($m) use ($cardDataBlocks) {
-                        return $cardDataBlocks[$m[1]] ?? '';
-                    }, $itemHtml);
+        if (!$customTemplate) {
+            $imgHtml = $img ? '<div class="nav-card-img"><img src="' . $img . '" alt="" loading="lazy" decoding="async"></div>' : '';
+            return sprintf('<a href="%s" class="nav-card">%s<div class="nav-card-content"><h3 class="nav-card-title">%s</h3>%s</div></a>',
+                $link, $imgHtml, $title, ($desc ? '<p class="nav-card-desc">' . $desc . '</p>' : ''));
+        }
+        $itemHtml = str_replace(
+            ['{{TITLE}}', '{{DESCRIPTION}}', '{{LINK}}', '{{OGP_IMAGE}}', '{{PAGE_URL}}', '{{UPDATE_DATE}}', '{{IS_ACTIVE}}'],
+            [$title, $desc, $link, $img, $link, $updateDate, $isActive],
+            $customTemplate
+        );
+        $itemHtml = preg_replace_callback('/\{\{\s*CATEGORY(?::\s*(all)\s*)?\}\}/', function($m) use ($postInfo) {
+            return $this->formatCategories($postInfo['category'] ?? '', !empty($m[1]));
+        }, $itemHtml);
+        $rawDate = $postInfo['updated_at'] ?? date('Y-m-d H:i:s');
+        $itemHtml = preg_replace_callback('/\{\{UPDATE_DATE:([A-Z]+)\}\}/', function($m) use ($rawDate) {
+            return $this->formatDate($rawDate, $m[1]);
+        }, $itemHtml);
+        $itemHtml = preg_replace_callback('/\{\{IS_NEW:(\d+)\}\}/', function($m) use ($rawDate) {
+            return $this->isNew($rawDate, (int)$m[1]) ? 'new' : '';
+        }, $itemHtml);
+        // Expand POST_MD:: tags using this card's own DATA blocks
+        if (!empty($postInfo['content_md'])) {
+            $cardDataBlocks = [];
+            $this->extractDataBlocks($postInfo['content_md'], $cardDataBlocks);
+            $valueOut = $isHtml ? fn($v) => $v : fn($v) => $this->escapeValue($v);
+            // POST_MD::#rowID:KEY — self with row
+            $itemHtml = preg_replace_callback('/\{\{POST_MD::#([a-zA-Z0-9_\-]+):([a-zA-Z][a-zA-Z0-9_]*)\}\}/', function($m) use ($cardDataBlocks, $valueOut) {
+                return $valueOut($cardDataBlocks["#{$m[1]}:{$m[2]}"] ?? '');
+            }, $itemHtml);
+            // POST_MD::KEY — self field
+            $itemHtml = preg_replace_callback('/\{\{POST_MD::([a-zA-Z][a-zA-Z0-9_]*)\}\}/', function($m) use ($cardDataBlocks, $valueOut) {
+                return $valueOut($cardDataBlocks[$m[1]] ?? '');
+            }, $itemHtml);
+        }
+        return $itemHtml;
+    }
+
+    // ==========================================
+    // Escaping by output
+    // ==========================================
+
+    /** A text value: HTML-escaped in HTML, as it is in Markdown, escaped for the data format otherwise. */
+    private function escapeValue($value) {
+        if ($this->outputMode === 'html') return htmlspecialchars($value);
+        if ($this->outputMode === 'md') return $value;
+        return $this->escapeForData($value);
+    }
+
+    /** A URL value: as it is in HTML and Markdown (as before), escaped for the data format otherwise. */
+    private function escapeUrl($value) {
+        return $this->outputMode === 'data' ? $this->escapeForData($value) : $value;
+    }
+
+    private function escapeForData($value) {
+        switch ($this->dataFormat) {
+            case 'json':
+                return substr(json_encode((string)$value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE), 1, -1);
+            case 'xml':
+                return htmlspecialchars((string)$value, ENT_QUOTES | ENT_XML1 | ENT_SUBSTITUTE, 'UTF-8');
+            case 'csv':
+                return preg_match('/[",\r\n]/', (string)$value) ? '"' . str_replace('"', '""', (string)$value) . '"' : (string)$value;
+            default:
+                return (string)$value;
+        }
+    }
+
+    private function escapeMarkdownLinkText($text) {
+        return str_replace(['\\', '[', ']'], ['\\\\', '\\[', '\\]'], (string)$text);
+    }
+
+    private function escapeMarkdownUrl($url) {
+        return str_replace([' ', '(', ')'], ['%20', '%28', '%29'], (string)$url);
+    }
+
+    /** {{CATEGORY}}: spans in HTML, comma-separated elsewhere. */
+    private function formatCategories($category, $includeStructural) {
+        $cats = $includeStructural ? mikanBoxSplitCategories($category) : mikanBoxVisibleCategories($category);
+        if ($this->outputMode === 'html') {
+            return implode(' ', array_map(fn($c) => '<span class="category">' . htmlspecialchars($c, ENT_QUOTES) . '</span>', $cats));
+        }
+        return $this->escapeValue(implode(', ', $cats));
+    }
+
+    // ==========================================
+    // Page URLs by output format
+    // ==========================================
+
+    private function loadPage($pageId) {
+        if (!array_key_exists($pageId, $this->pageCache)) $this->pageCache[$pageId] = loadData(POSTS_DIR, $pageId);
+        return $this->pageCache[$pageId];
+    }
+
+    private function encodePageIdPath($pageId) {
+        return implode('/', array_map('urlencode', explode('/', $pageId)));
+    }
+
+    /** /id.<extension> in the current link mode (relative in a relative export, absolute otherwise). */
+    private function extensionUrl($pageId, $extension) {
+        $path = $this->encodePageIdPath($pageId) . '.' . $extension;
+        if ($this->isRelativeStaticMode()) return $this->getStaticRootPrefix() . $path;
+        return rtrim($this->getSiteUrl(), '/') . '/' . $path;
+    }
+
+    /** /id.<extension> as an absolute URL, also during a relative export when the published URL is known. */
+    private function absoluteExtensionUrl($pageId, $extension) {
+        $base = $this->isRelativeStaticMode() ? $this->getConfiguredSiteUrl() : $this->getSiteUrl();
+        return rtrim($base, '/') . '/' . $this->encodePageIdPath($pageId) . '.' . $extension;
+    }
+
+    /** {{PAGE_URL:ID}}: the page's URL with its extension; data pages carry ?v=<hash of content>. */
+    private function pageUrlTag($targetId) {
+        $target = $this->loadPage($targetId);
+        if (!$target) return '';
+        $url = $this->buildPageUrl($targetId);
+        if (mikanBoxIsDataFormat(mikanBoxPageOutputFormat($target))) {
+            $url .= '?v=' . $this->dataVersion($targetId, $target);
+        }
+        return $url;
+    }
+
+    /** Static builds hash the built output; dynamic pages are never cached, so the body is enough. */
+    private function dataVersion($pageId, array $pageData) {
+        if (!$this->staticMode) return substr(hash('sha256', (string)($pageData['content_md'] ?? '')), 0, 8);
+        if (isset($this->dataHashes[$pageId])) return $this->dataHashes[$pageId];
+        if (in_array($pageId, self::$hashStack, true)) return substr(hash('sha256', (string)($pageData['content_md'] ?? '')), 0, 8);
+        self::$hashStack[] = $pageId;
+        try {
+            $builder = new self($this->siteSettings);
+            $builder->setStaticMode(true, substr_count($pageId, '/'), $this->ssgStructure, $this->ssgLinkMode);
+            $builder->setDataHashes($this->dataHashes);
+            $output = $builder->renderData($pageId);
+        } finally {
+            array_pop(self::$hashStack);
+        }
+        $this->dataHashes[$pageId] = substr(hash('sha256', (string)$output), 0, 8);
+        return $this->dataHashes[$pageId];
+    }
+
+    public function setDataHashes(array $hashes) {
+        $this->dataHashes = $hashes;
+    }
+
+    public static function dataHash($output) {
+        return substr(hash('sha256', (string)$output), 0, 8);
+    }
+
+    // ==========================================
+    // Access to Markdown versions and data pages
+    // ==========================================
+
+    /** Same publication rules as render(): drafts and DB pages are private; SQLite pending pages need the preview token. */
+    private function pageIsAccessible($pageId, array $pageData) {
+        $status = $pageData['status'] ?? '';
+        $isAdmin = !$this->staticMode && (($_SESSION['admin_logged_in'] ?? false) === true);
+        if (in_array($status, ['draft', 'db'], true)) return $isAdmin;
+        if ($status === 'pending') {
+            if (!function_exists('getPreviewToken')) return $isAdmin;
+            if ($isAdmin) return true;
+            if (verifyPreviewToken($pageId, $_GET['preview'] ?? '')) {
+                if (!$this->staticMode && !headers_sent()) {
+                    header('Referrer-Policy: no-referrer');
+                    header('X-Robots-Tag: noindex, nofollow');
+                    header('Cache-Control: no-store');
                 }
-                $innerHtml .= $itemHtml;
-                if ($compData) $this->collectJavaScript($compData, $effectiveCompId);
+                return true;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private function beginOutput($pageId, $mode, $format, array $pageData) {
+        $this->outputMode = $mode;
+        $this->dataFormat = $format;
+        $this->forceAbsolute = $mode === 'md';
+        $this->linkToMarkdown = $mode === 'md';
+        $this->pageCache = [];
+        $this->currentPageId = $pageId;
+        $this->currentPageData = [];
+        $this->currentPageInfo = $pageData;
+        $this->globalCssBuffer = [];
+        $this->javascriptBuffer = [];
+        $this->javascriptComponentIds = [];
+        $this->includedComponentIds = [];
+        if (!$this->depthSetManually) $this->depth = substr_count($pageId, '/');
+    }
+
+    private function endOutput() {
+        $this->outputMode = 'html';
+        $this->dataFormat = '';
+        $this->forceAbsolute = false;
+        $this->linkToMarkdown = false;
+    }
+
+    // ==========================================
+    // Data-format pages (json, xml, csv, txt, js, css)
+    // ==========================================
+
+    /**
+     * The body of a data-format page, as it is, with tags expanded when the page asks
+     * for it. Returns null when the page does not exist, is not a data page, or is private.
+     */
+    public function renderData($pageId, $previewData = null) {
+        $pageData = $previewData ?? loadData(POSTS_DIR, $pageId);
+        if (!$pageData) return null;
+        $format = mikanBoxPageOutputFormat($pageData);
+        if (!mikanBoxIsDataFormat($format) || !$this->pageIsAccessible($pageId, $pageData)) return null;
+        $body = (string)($pageData['content_md'] ?? '');
+        if (!mikanBoxPageExpandsTags($pageData)) return $body;
+
+        $this->beginOutput($pageId, 'data', $format, $pageData);
+        try {
+            $body = $this->extractDataBlocks($body, $this->currentPageData);
+            $body = $this->includeComponentsAsText($body);
+            $body = $this->removeFunctionalTags($body);
+            $body = $this->replaceBasicTags($body, $pageData, ...$this->pageMeta($pageData));
+            $body = $this->replaceNavTags($body);
+            $body = $this->replaceTextContentTags($body);
+            return $body;
+        } finally {
+            $this->endOutput();
+        }
+    }
+
+    // ==========================================
+    // Markdown versions (html_md and md pages)
+    // ==========================================
+
+    /**
+     * The Markdown version: front matter, the saved Markdown with tags handled for
+     * Markdown readers, then the chosen footer components. Every URL is absolute.
+     * Returns null when the page has no Markdown version or is private.
+     */
+    public function renderMarkdown($pageId, $previewData = null) {
+        $pageData = $previewData ?? loadData(POSTS_DIR, $pageId);
+        if (!$pageData) return null;
+        if (!mikanBoxFormatHasMarkdown(mikanBoxPageOutputFormat($pageData)) || !$this->pageIsAccessible($pageId, $pageData)) return null;
+
+        $this->beginOutput($pageId, 'md', '', $pageData);
+        try {
+            $body = $this->markdownText((string)($pageData['content_md'] ?? ''), $pageData);
+            $footers = [];
+            foreach (mikanBoxNormalizeFooterComponents($pageData['md_footer_comps'] ?? []) as $componentId) {
+                $component = loadData(COMPONENTS_DIR, $componentId);
+                $footer = trim($this->markdownText((string)($component['html'] ?? ''), $pageData));
+                if ($footer !== '') $footers[] = $footer;
+            }
+
+            $quote = fn($v) => '"' . str_replace(['\\', '"', "\r\n", "\r", "\n"], ['\\\\', '\\"', '\n', '\n', '\n'], (string)$v) . '"';
+            $front = ['---', 'title: ' . $quote($pageData['title'] ?? $pageId), 'date: ' . substr((string)($pageData['updated_at'] ?? date('Y-m-d H:i:s')), 0, 10)];
+            if (trim((string)($pageData['description'] ?? '')) !== '') $front[] = 'description: ' . $quote(trim($pageData['description']));
+            if (mikanBoxPageOutputFormat($pageData) === 'html_md') {
+                $this->linkToMarkdown = false;
+                $front[] = 'url: ' . $quote($this->buildPageUrl($pageId));
+                $this->linkToMarkdown = true;
+            }
+            $categories = mikanBoxVisibleCategories($pageData['category'] ?? '');
+            if ($categories) $front[] = 'categories: ' . $quote(implode(', ', $categories));
+            $front[] = '---';
+
+            $output = implode("\n", $front) . "\n\n" . trim($body);
+            if ($footers) $output .= "\n\n" . implode("\n\n", $footers);
+            return $output . "\n";
+        } finally {
+            $this->endOutput();
+        }
+    }
+
+    /** Tag handling and link completion for Markdown text (the page body or a footer component). */
+    private function markdownText($text, array $pageData, $depth = 0) {
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+        // Code and HTML comments stay exactly as written. Code first, so "<!--" inside
+        // a code span does not start a comment.
+        $codeMap = [];
+        $text = $this->protectCodeSpans($text, $codeMap);
+        $text = preg_replace_callback('/<!--.*?-->/s', function($m) use (&$codeMap) {
+            $key = "\x02MDKEEP" . count($codeMap) . "\x03";
+            $codeMap[$key] = $m[0];
+            return $key;
+        }, $text);
+        $text = $this->extractDataBlocks($text, $this->currentPageData);
+        // Components are design: only the chosen footer components reach the Markdown version.
+        $text = preg_replace('/\{\{\s*COMPONENT:[^}]*\}\}/', '', $text);
+        $text = $this->removeFunctionalTags($text);
+        $text = $this->replaceBasicTags($text, $pageData, ...$this->pageMeta($pageData));
+        $text = $this->replaceNavTags($text);
+        $text = $this->replaceTextContentTags($text, $depth);
+        $text = $this->completeMarkdownLinks($text);
+        // Removed tags can leave runs of empty lines; code blocks are still protected here.
+        $text = preg_replace("/\n[ \t]*\n(?:[ \t]*\n)+/", "\n\n", $text);
+        // Restore in reverse order: a comment may contain a code placeholder.
+        foreach (array_reverse($codeMap, true) as $key => $original) $text = str_replace($key, $original, $text);
+        return $text;
+    }
+
+    private function pageMeta(array $pageData) {
+        $site = $this->siteSettings;
+        $title = isset($pageData['title']) ? $pageData['title'] . ' - ' . $site['site_name'] : $site['site_name'];
+        return [
+            $title,
+            !empty($pageData['description']) ? $pageData['description'] : $site['description'],
+            !empty($pageData['keywords']) ? $pageData['keywords'] : $site['keywords'],
+            !empty($pageData['ogp_image']) ? $pageData['ogp_image'] : $site['ogp_image'],
+        ];
+    }
+
+    /** Functions and decoration that mean nothing outside an HTML page. */
+    private function removeFunctionalTags($text) {
+        return preg_replace('/\{\{\s*(?:AI_QUESTION(?::[^}]*)?|SEARCH_RESULTS(?::[^}]*)?|CONTENT|HEAD_CSS|IS_ACTIVE)\s*\}\}/u', '', $text);
+    }
+
+    /** In data pages, a component is inserted as plain text (no scope wrapper, CSS or JS). */
+    private function includeComponentsAsText($text, array $visited = []) {
+        return preg_replace_callback('/\{\{COMPONENT:([a-zA-Z0-9_\-]+)\}\}/', function($m) use ($visited) {
+            if (in_array($m[1], $visited, true)) return '';
+            $component = loadData(COMPONENTS_DIR, $m[1]);
+            if (!$component || !empty($component['is_ai_doc'])) return '';
+            return $this->includeComponentsAsText((string)($component['html'] ?? ''), array_merge($visited, [$m[1]]));
+        }, $text);
+    }
+
+    /** POST_MD, EXT_MD and media tags for Markdown versions and data pages. */
+    private function replaceTextContentTags($text, $depth = 0) {
+        $isMarkdown = $this->outputMode === 'md';
+        $out = fn($v) => $isMarkdown ? (string)$v : $this->escapeValue((string)$v);
+        $mediaUrl = fn($file) => $this->resolveMediaUrl('media/' . $file);
+
+        $text = preg_replace_callback('/\{\{IMAGE:([a-zA-Z0-9_\-\.]+)\}\}/', fn($m) => $isMarkdown ? '![](' . $this->escapeMarkdownUrl($mediaUrl($m[1])) . ')' : $out($mediaUrl($m[1])), $text);
+        $text = preg_replace_callback('/\{\{(?:AUDIO|VIDEO):([a-zA-Z0-9_\-\.]+)\}\}/', fn($m) => $isMarkdown ? '[' . $this->escapeMarkdownLinkText($m[1]) . '](' . $this->escapeMarkdownUrl($mediaUrl($m[1])) . ')' : $out($mediaUrl($m[1])), $text);
+
+        // EXT_MD:url#rowID:KEY or EXT_MD:url:KEY
+        $text = preg_replace_callback('/\{\{EXT_MD:(https?:\/\/[^\}#]+?)(?:#([a-zA-Z0-9_\-]+))?:([a-zA-Z][a-zA-Z0-9_]*)\}\}/', function($m) use ($out) {
+            if (!mikanBoxExternalMarkdownEnabled($this->siteSettings)) return '';
+            $external = mikanBoxFetchExternalMarkdown($m[1]);
+            if ($external === null) return '';
+            $blocks = [];
+            $this->extractDataBlocks($external, $blocks);
+            return $out(mikanBoxExternalMarkdownText($blocks[$m[2] ? "#{$m[2]}:{$m[3]}" : $m[3]] ?? ''));
+        }, $text);
+        // EXT_MD:url — the external Markdown itself
+        $text = preg_replace_callback('/\{\{EXT_MD:(https?:\/\/[^\}]+)\}\}/', function($m) use ($out) {
+            if (!mikanBoxExternalMarkdownEnabled($this->siteSettings)) return '';
+            $external = mikanBoxFetchExternalMarkdown($m[1]);
+            if ($external === null) return '';
+            $blocks = [];
+            return $out(mikanBoxExternalMarkdownText($this->extractDataBlocks($external, $blocks)));
+        }, $text);
+
+        $pageBlocks = function($pageId) {
+            $postData = $this->loadPage($pageId);
+            if (!$postData || empty($postData['content_md'])) return [];
+            $blocks = [];
+            $this->extractDataBlocks($postData['content_md'], $blocks);
+            return $blocks;
+        };
+        $text = preg_replace_callback('/\{\{POST_MD:([a-zA-Z0-9_\-\/]+)#([a-zA-Z0-9_\-]+):([a-zA-Z][a-zA-Z0-9_]*)\}\}/', fn($m) => $out($pageBlocks($m[1])["#{$m[2]}:{$m[3]}"] ?? ''), $text);
+        $text = preg_replace_callback('/\{\{POST_MD::#([a-zA-Z0-9_\-]+):([a-zA-Z][a-zA-Z0-9_]*)\}\}/', fn($m) => $out($this->currentPageData["#{$m[1]}:{$m[2]}"] ?? ''), $text);
+        $text = preg_replace_callback('/\{\{POST_MD:([a-zA-Z0-9_\-\/]*):([a-zA-Z][a-zA-Z0-9_]*)\}\}/', function($m) use ($out, $pageBlocks) {
+            return $out($m[1] === '' ? ($this->currentPageData[$m[2]] ?? '') : ($pageBlocks($m[1])[$m[2]] ?? ''));
+        }, $text);
+        // POST_MD:ID — the other page's body
+        $text = preg_replace_callback('/\{\{POST_MD:([a-zA-Z0-9_\-\/]+)\}\}/', function($m) use ($isMarkdown, $out, $depth) {
+            $postData = $this->loadPage($m[1]);
+            if (!$postData || empty($postData['content_md']) || $depth >= 5) return '';
+            if (!$isMarkdown) {
+                $blocks = [];
+                return $out($this->extractDataBlocks((string)$postData['content_md'], $blocks));
+            }
+            $savedId = $this->currentPageId;
+            $savedData = $this->currentPageData;
+            $this->currentPageId = $m[1];
+            $this->currentPageData = [];
+            try {
+                return trim($this->markdownText((string)$postData['content_md'], $postData, $depth + 1));
+            } finally {
+                $this->currentPageId = $savedId;
+                $this->currentPageData = $savedData;
+            }
+        }, $text);
+        return $text;
+    }
+
+    /** Markdown links and images: internal links resolve like HTML links; everything becomes absolute. */
+    private function completeMarkdownLinks($text) {
+        $allPosts = getSortedPostIds();
+        $siteUrl = rtrim($this->getSiteUrl(), '/');
+        $origin = preg_match('~\A(https?://[^/]+)~i', $siteUrl, $o) ? $o[1] : $siteUrl;
+        return preg_replace_callback('/(!?)\[((?:\\\\.|[^\[\]\n\\\\])*)\]\(\s*([^)\s]+)((?:\s+"[^"\n]*")?)\s*\)/u', function($m) use ($allPosts, $siteUrl, $origin) {
+            $url = $m[3];
+            if (preg_match('/^(?:[a-z][a-z0-9+.\-]*:|\/\/|#)/i', $url)) return $m[0];
+            if ($m[1] === '!') {
+                $resolved = rtrim($this->getSiteUrl(), '/') . '/media/' . basename(parse_url($url, PHP_URL_PATH) ?: $url);
             } else {
-                $imgHtml = $img ? '<div class="nav-card-img"><img src="' . $img . '" alt="" loading="lazy" decoding="async"></div>' : '';
-                $innerHtml .= sprintf('<a href="%s" class="nav-card">%s<div class="nav-card-content"><h3 class="nav-card-title">%s</h3>%s</div></a>', 
-                    $link, $imgHtml, $title, ($desc ? '<p class="nav-card-desc">' . $desc . '</p>' : ''));
+                $resolved = $this->resolveInternalLink($url, $allPosts);
+                if ($resolved === null) {
+                    if ($url === './' || $url === '.') $resolved = $siteUrl . '/';
+                    elseif (str_starts_with($url, '/')) $resolved = $origin . $url;
+                    else $resolved = $siteUrl . '/' . preg_replace('#^(?:\./)+#', '', $url);
+                }
+            }
+            return $m[1] . '[' . $m[2] . '](' . $this->escapeMarkdownUrl($resolved) . $m[4] . ')';
+        }, $text);
+    }
+
+    /**
+     * Shared by HTML (href="…") and Markdown ([…](…)) link completion: which page a written
+     * link target means, and the URL it should point at. Returns null to leave the link as written.
+     */
+    private function resolveInternalLink($originalUrl, array $allPosts) {
+        // Skip external links, hashes, mailto, or already absolute paths
+        if (preg_match('/^(?:https?:\/\/|\/\/|#|mailto:|tel:)/i', $originalUrl)) return null;
+        $markdownRoot = $this->outputMode === 'md' && str_starts_with($originalUrl, '/');
+        if (!$this->isRelativeStaticMode() && !$markdownRoot && str_starts_with($originalUrl, '/')) return null;
+        // Links already emitted by portable SSG must not be interpreted as page IDs again.
+        if ($this->isRelativeStaticMode()
+            && preg_match('/(?:^|\/)[^?#]+\.html(?:[?#].*)?$/i', $originalUrl)) {
+            return null;
+        }
+
+        $path = parse_url($originalUrl, PHP_URL_PATH);
+        $path = $path === null || $path === false ? $originalUrl : $path;
+        $query = parse_url($originalUrl, PHP_URL_QUERY);
+        $fragment = parse_url($originalUrl, PHP_URL_FRAGMENT);
+        $suffix = ($query !== null && $query !== false ? '?' . $query : '')
+            . ($fragment !== null && $fragment !== false ? '#' . $fragment : '');
+
+        if (($this->isRelativeStaticMode() || $markdownRoot) && str_starts_with($path, '/')) {
+            $basePath = trim($this->getSiteBasePath(), '/');
+            $path = ltrim($path, '/');
+            if ($basePath !== '' && ($path === $basePath || str_starts_with($path, $basePath . '/'))) {
+                $path = ltrim(substr($path, strlen($basePath)), '/');
+            }
+        }
+        if ($this->isRelativeStaticMode() || $this->outputMode === 'md') {
+            $path = preg_replace('#^(?:(?:\./)|(?:\.\./))+#', '', $path);
+        }
+
+        // Normalize generated URL forms for comparison with page IDs.
+        $checkId = trim($path, '/');
+        if (str_ends_with(strtolower($checkId), '/index.html')) {
+            $checkId = substr($checkId, 0, -11);
+        } elseif (str_ends_with(strtolower($checkId), '.html')) {
+            $checkId = substr($checkId, 0, -5);
+        } elseif (str_ends_with(strtolower($checkId), '.md')) {
+            $checkId = substr($checkId, 0, -3);
+        }
+        if ($checkId === '' && $this->outputMode === 'md') $checkId = 'index';
+
+        // Find matching post (case-insensitive)
+        foreach ($allPosts as $pid) {
+            if (strcasecmp($checkId, $pid) === 0) {
+                if ($this->isRelativeStaticMode()) {
+                    $post = $this->loadPage($pid);
+                    if (($post['status'] ?? '') !== 'public_static') return null;
+                }
+                return $this->buildPageUrl($pid) . $suffix;
             }
         }
 
-        $output = '<div class="nav-cards">' . $innerHtml . '</div>';
-        return $prefixClass ? '<div class="' . $prefixClass . '">' . $output . '</div>' : $output;
+        // Special fallback: if it looks like an ID (no extension, has slash etc.)
+        // and we didn't find a direct match, but it's clearly an internal link attempt
+        if (!$this->isRelativeStaticMode() && preg_match('/^[a-z0-9_\-\/]+$/i', $checkId)) {
+            return $this->buildPageUrl($checkId);
+        }
+        return null;
+    }
+
+    /** Output for the editor preview: what the page actually publishes first. */
+    public function renderPreview($pageId, array $pageData) {
+        $format = mikanBoxPageOutputFormat($pageData);
+        if (mikanBoxIsDataFormat($format)) {
+            return ['type' => 'text/plain; charset=utf-8', 'body' => (string)$this->renderData($pageId, array_merge($pageData, ['status' => 'public_dynamic']))];
+        }
+        if ($format === 'md') {
+            return ['type' => 'text/plain; charset=utf-8', 'body' => (string)$this->renderMarkdown($pageId, array_merge($pageData, ['status' => 'public_dynamic']))];
+        }
+        return ['type' => 'text/html; charset=utf-8', 'body' => $this->render($pageId, $pageData)];
     }
 
     public function getPageLink($postId, $relPrefix) {
         $isDirStyle = ($this->ssgStructure === 'directory');
         // Root-relative path (site base, e.g. /mikanbox/ for subdirectory installs)
         $root = $this->getSiteBasePath();
-        
+
+        // Everything with an extension lives at /id.<extension>, whatever the URL style:
+        // data pages, Markdown-only pages, and (inside Markdown versions) pages that also
+        // publish a Markdown version.
+        $target = $this->loadPage($postId);
+        $format = mikanBoxPageOutputFormat($target);
+        $extension = mikanBoxFormatExtension($format);
+        if ($extension === null && $format === 'html_md' && $this->linkToMarkdown) $extension = 'md';
+        if ($extension !== null) {
+            $path = $this->encodePageIdPath($postId) . '.' . $extension;
+            if ($this->isRelativeStaticMode()) return $this->getStaticRootPrefix() . $path;
+            return $root . $path;
+        }
+
         if ($this->staticMode) {
-            if ($this->ssgLinkMode === 'relative') {
+            if ($this->isRelativeStaticMode()) {
                 $parts = explode('/', $postId);
                 $encodedParts = array_map('urlencode', $parts);
                 $path = implode('/', $encodedParts);

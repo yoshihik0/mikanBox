@@ -1,0 +1,9 @@
+{
+    "html": "## Related pages\n\n{{NAV_LINKS:@same:limit=5}}\n",
+    "css": "",
+    "js": "",
+    "is_global": true,
+    "is_wrapper": false,
+    "is_ai_doc": false,
+    "memo": "A sample footer for Markdown versions. Write _md_footer in \"Markdown version footer components\" in the page editor to add links to pages in the same category."
+}

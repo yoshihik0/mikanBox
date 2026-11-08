@@ -667,6 +667,10 @@ function searchPosts($keyword, $isAdmin = false) {
             if (!$isAdmin && (int)($data['sort_order'] ?? 0) < 0) {
                 continue;
             }
+            // Data-format pages (JSON, CSS, ...) are parts of the site, not content to find.
+            if (!$isAdmin && !mikanBoxPageIsListed($data)) {
+                continue;
+            }
 
             $matched = false;
             

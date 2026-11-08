@@ -1984,3 +1984,27 @@ input[type="datetime-local"], input:not([type]) {
 .package-layout-guide .accordion-arrow { font-size: .75em; opacity: .5; }
 .package-layout-guide p { margin: 10px 0 0; }
 .package-layout-guide pre { margin: 10px 0; white-space: pre-wrap; font-size: inherit; }
+
+/* Output formats (2.17.0) */
+[data-formats][hidden] { display: none !important; }
+.output-format-select { width: 100%; }
+.output-url-line code { word-break: break-all; font-size: 0.8rem; background: transparent; padding: 0; }
+.format-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 5px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+    color: var(--text-sub);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.format-badge.format-data { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
+.format-badge.format-md { color: #b45309; border-color: #fde68a; background: #fffbeb; }
+.category-cloud-tag.is-structural { opacity: 0.6; border-style: dashed; }
+.category-structural { opacity: 0.6; }
+.expand-tags-label { display: flex; align-items: center; gap: 6px; margin: 24px 0 6px; font-size: 0.85rem; font-weight: 500; }

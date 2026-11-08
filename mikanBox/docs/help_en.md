@@ -19,6 +19,8 @@
 - <a href="#tags">Available Tags</a>
 - <a href="#init-comps">Bundled Components</a>
 - <a href="#data-embedding">Embedding, Loading &amp; API</a>
+- <a href="#output-formats">Output Formats (Markdown &amp; Data)</a>
+- <a href="#catalog-pager">Catalogs &amp; Page Lists</a>
 - <a href="#site-mapfeed">Sitemap, RSS &amp; API</a>
 - <a href="#podcast">Podcast</a>
 - <a href="#ai-guide">Publishing an AI-generated Design</a>
@@ -54,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.16.10</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.17.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -348,6 +350,8 @@ Above the page list, registered categories are shown as a tag cloud. Click one t
 - [[add]{.material-symbols-outlined}New]{.m-btn .m-btn-blue} — Type a new category name directly and add it. Even a category not yet assigned to any page will show up in the cloud right away.
 - [[delete]{.material-symbols-outlined}Delete]{.m-btn .m-btn-gray} — Switches to "delete mode," where an "×" appears on every category tag for removal.
 
+Categories that start with "_" (`_nav`, `_sample` and so on) are structural markers for building the site. The cloud shows them dimmed, after the ordinary categories. See [Category](#page-edit) in Page Editing.
+
 ### Keyword Search [SQLite Edition only]{.type-badge .badge-sqlite}
 
 #### Search box
@@ -395,7 +399,11 @@ Controls display priority in lists like navigation. Within `NAV_LINKS`/`NAV_CARD
 
 #### Category
 
-Shows the categories assigned to the page. Used for filtering via things like `{{NAV_LINKS:category}}`.
+Shows the categories assigned to the page. Used for filtering via things like `{{NAV_LINKS:category}}`. Categories that start with "_" are shown dimmed.
+
+#### Output format labels
+
+Pages whose output format is not HTML show a small label beside the title: `+MD` for HTML + Markdown, `MD` for Markdown, and `JSON`, `JS` and so on for data formats. For Markdown-only and data pages, the preview button opens `/ID.extension`. The Visual Editing button appears only for pages that publish HTML.
 
 ### Static Site Build Button
 
@@ -447,15 +455,29 @@ A private note visible only to admins. Free-form space for anything you want to 
 
 #### ID
 
-The identifying slug that becomes part of the page's URL. Alphanumeric characters and hyphens are allowed. The page's URL takes the form `siteURL/ID`. Note that saving with an ID matching an existing page will overwrite it. The index page's ID cannot be changed. You can also use "/" within an ID. On a static site, any "/" in the ID is treated as a directory boundary; on a dynamic site, a pseudo directory structure is created the same way. For example, an ID of `news/2024` produces a URL like `siteURL/news/2024`.
+The identifying slug that becomes part of the page's URL. Alphanumeric characters and hyphens are allowed. A dot (`.`) is not allowed; the extension comes from the [output format](#output-formats). The page's URL takes the form `siteURL/ID`. Note that saving with an ID matching an existing page will overwrite it. The index page's ID cannot be changed. You can also use "/" within an ID. On a static site, any "/" in the ID is treated as a directory boundary; on a dynamic site, a pseudo directory structure is created the same way. For example, an ID of `news/2024` produces a URL like `siteURL/news/2024`.
+
+#### Output format
+
+Choose one output format: HTML, HTML + Markdown, Markdown, or a data format (JSON, XML, CSV, Text, JavaScript, CSS). The default is HTML. The URL the page will be published at (for example `https://example.com/news-list.json`) is shown right below. Fields the chosen format does not use are hidden (for Markdown, the design component and the page CSS and JS; for data formats, also the OGP image, description and keywords). Without a published URL, formats with Markdown cannot be chosen. See [Output Formats](#output-formats).
 
 #### Design Component
 
 Choose which page component to use for this page's layout. Any component with "Use as a Page Component" checked, on the Design screen, appears as an option here.
 
+#### Markdown version footer components
+
+Shown for HTML + Markdown and Markdown. Enter, comma-separated and in order, the IDs of the components to add to the end of the [Markdown version](#markdown-version). Leave it empty for none. Page components (wrappers) and AI instructions cannot be used.
+
+#### Expand tags
+
+Shown for data formats. Switches whether `{{ }}` tags in the body are expanded. On by default for JSON, XML, CSV and Text; off for JavaScript and CSS. Values are escaped for the format ([Data Formats](#data-formats)).
+
 #### Category (comma separated)
 
 Freely enter, comma-separated, the categories this page belongs to. Categories currently in use are shown below the field. A category listing page is not generated automatically; if you need one, create a page and place `{{NAV_LINKS:category}}` or `{{NAV_CARDS:category:componentID}}` in it.
+
+Categories that start with "_" (`_nav`, `_sample`, `_temp` and so on) are treated as structural markers for building the site. One character tells them apart from practical categories such as `coffee`, and a page can have any number of them. They work in explicit selections such as `{{NAV_LINKS:_nav}}`, but are not used by [`@same`](#navigation), `{{CATEGORY}}` or the `categories` of the [Markdown version](#markdown-version) (`{{CATEGORY:all}}` includes them). Category names that start with "@" are reserved, to keep them apart from selectors such as `@same`.
 
 #### Order
 
@@ -510,6 +532,8 @@ At the bottom of the edit screen, a quick reference for Markdown syntax and the 
 ## Visual Editing {#visual-edit}
 
 Open a page **exactly as it looks** and edit its body and page CSS right there. Your layout, CSS and images are shown as they are, so you can rewrite the Markdown while watching the result. It uses the same login as the admin screen; if you are not logged in, you are sent to the admin login. It is not available on public demo (demo mode) sites.
+
+Visual Editing works only on pages that publish HTML (output format HTML or HTML + Markdown). Markdown-only and data pages do not show the button.
 
 #### How to open it
 
@@ -635,6 +659,8 @@ Choose the format of the generated HTML files.
 
 Directory-based output can be published under the exact same URL as dynamic publishing, so switching between them never breaks links. File-name based output includes the extension in the URL and results in a simpler file layout.
 
+The URL style affects HTML only. Markdown versions and data pages are always written as `ID.extension`, such as `ID.md` or `ID.json`. A Markdown-only page is readable only at `/ID.md`. No `.htaccess` is written ([URL Rules](#output-urls)).
+
 The default is directory-based for "Generate static pages on this server" and file-name based for "Create an upload-ready folder." The last selected output structure is remembered separately for each build method.
 
 #### [auto_awesome]{.material-symbols-outlined} Save &amp; Build Static Site{.m-btn .m-btn-blue}
@@ -650,6 +676,8 @@ The build runs in place without leaving the screen, and the number of generated 
 `sitemap.xml`, `rss.xml`, and `podcast.xml` are normally generated fresh by PHP on every request (see [Sitemap, RSS &amp; API](#site-mapfeed) below). Because exported sitemap and RSS files require absolute URLs, SSG writes them when a published root URL is available. Server-side generation falls back to the current site URL when none is configured. Adding or changing pages after a build is not reflected until the static site is rebuilt.
 
 The 404 page (page ID `404`) is left out of both the sitemap and the RSS feed. It is an error response rather than content, so there is no reason to point search engines or readers at it. This applies to static and dynamic generation alike.
+
+[Data-format](#data-formats) pages are left out of the sitemap and RSS as well. Markdown-only pages are listed by their `/ID.md` URL. The sitemap always covers every "Public (Static)" page, also when only one page was built.
 
 ### Language {#site-lang}
 
@@ -684,6 +712,8 @@ Every tool carries annotations (`readOnlyHint`, `destructiveHint`, `idempotentHi
 Claude's custom connector screen supports authless or OAuth authentication. Its OAuth Client ID and OAuth Client Secret fields are not API-key fields. Until mikanBox implements OAuth, the administration MCP cannot be registered safely as a Claude custom connector. Do not paste the API key into the Client ID or Client Secret field. The authless public help MCP can be registered as a custom connector using only its URL.
 
 Treat the API key like a password. Never store it in a public repository or shared file. If several mikanBox sites are connected, AI calls `get_site_info` on first connection and before writes to confirm the target site.
+
+A page's [output format](#output-formats) is set through `output_format` (`html` / `html_md` / `md` / `json` / `xml` / `csv` / `txt` / `js` / `css`), `md_footer_comps` (an array of footer component IDs) and `expand_tags` (whether a data page expands tags; the format's default when omitted) in `create_page` and `update_page`. `get_page` and `list_pages` also return `output_format`. Updating a published page with `update_page` no longer changes its update date (`updated_at`); it becomes the current time only when a page goes from non-public to public, the same as on the admin screen (since 2.17.0).
 
 Starting with mikanBox 2.5.1, the MCP connection instructions tell AI to call `get_ai_context` on first connection. This tool returns every [AI Instructions]{.type-badge .badge-ai} component—such as `DESIGN.md`, `BRAND.md`, and `CONTENTS.md`—in a single response. AI treats the returned content as site-specific project instructions for content, design, and code changes. Updating an instruction component updates what AI receives the next time it loads the context.
 
@@ -1376,15 +1406,44 @@ Images, audio, and video can be embedded as `{{IMAGE:filename}}`, `{{AUDIO:filen
 `{{AUDIO:filename}}` → `<audio src="media/filename" controls></audio>`
 `{{VIDEO:filename}}` → `<video src="media/filename" controls></video>`
 
-### Navigation
+### Navigation {#navigation}
 
 A list of links: `{{NAV_LINKS:category}}` is output as a `<li>` list.
 
 To output image-bearing cards instead, use `{{NAV_CARDS:category:componentID}}`. The card's design can be defined via a component. If you omit the component ID, the standard design (the `_nav_card` component) is used.
 
-The order of the list or cards follows each page's "Order" setting. Pages with an order below 0 are excluded.
+The order of the list or cards follows each page's "Order" setting. Pages with an order below 0 and [data-format](#data-formats) pages are excluded.
 
 For both, setting the category to "all" outputs a list of every page, and leaving it empty outputs a list of pages with no category assigned. Since a page can have multiple categories, setting categories thoughtfully lets you build many different kinds of navigation.
+
+#### List options
+
+After the positional arguments (category, card component ID), add `name=value` options joined with `:`.
+
+```
+{{NAV_LINKS:news:limit=5}}
+{{NAV_CARDS:news:_nav_card:limit=5:sort=new}}
+{{NAV_CARDS:news:sort=old}}
+```
+
+|Option|Meaning|
+|---|---|
+|`sort=new`|Newest update date first (same date: display order)|
+|`sort=old`|Oldest update date first (same date: display order)|
+|`limit=N`|Up to N items from the top (per category with `@same`)|
+|`sep=text`|Inserted between items (mainly to build JSON arrays in data formats). The value runs to the next `:` or `}}` as written; only `\n` (newline) and `\t` (tab) are interpreted|
+
+The update date is set when a page is created, updated when the page goes from non-public to public, and kept when a published page is edited. It works as the publication date, which is what `sort=new` uses. There is no offset and no automatic pager: make a page listing everything and link to it, or build one from [catalog data and JavaScript](#catalog-pager).
+
+#### Related pages: `@same`
+
+`{{NAV_LINKS:@same}}` and `{{NAV_CARDS:@same:componentID}}` list the pages that share at least one category (other than those starting with "_") with the page being shown, excluding the page itself. If that page has no such category, nothing is output; with one, a flat list; with two or more, the list is grouped by category. A page in both categories appears in both groups, which shows why it is related. The order is the display order, or the `sort` option when given.
+
+Grouped HTML is a nested `<ul>` for `NAV_LINKS` (`li.nav-group` holding `span.nav-group-label` and a `ul` of links) and one `div.nav-group` per category for `NAV_CARDS` (`div.nav-group-label` and the cards). In Markdown versions it is a nested list.
+
+#### Showing categories: `{{CATEGORY}}`
+
+`{{CATEGORY}}` outputs the page's categories in the order written, except those starting with "_". In HTML each is wrapped in `<span class="category">coffee</span>`; in Markdown versions and data formats they are comma-separated (`coffee, tokyo`). `{{CATEGORY:all}}` includes the "_" categories. Inside a card component it outputs the categories of that card's page.
 
 ### Embedding Another Page
 
@@ -1418,6 +1477,9 @@ A component that lays out an entire page should include `{{CONTENT}}` to output 
 |`{{ KEYWORDS }}`|Page's keywords|
 |`{{ OGP_IMAGE }}`|Page thumbnail / OGP image URL|
 |`{{ PAGE_URL }}`|Page URL|
+|`{{ PAGE_URL:ID }}`|URL of the given page, with its output format's extension (data pages add `?v=`). [Details](#page-url-id)|
+|`{{ CATEGORY }}`|Page's categories (excluding those starting with "_")|
+|`{{ CATEGORY:all }}`|All of the page's categories|
 |`{{ SITE_URL }}`|Site URL. Also usable in Markdown link destinations (e.g. `[Details]({{SITE_URL}}/about)`)|
 |`{{ SITE_NAME }}`|Site title|
 |`{{ SITE_DESCRIPTION }}`|Site's common description|
@@ -1434,6 +1496,8 @@ A component that lays out an entire page should include `{{CONTENT}}` to output 
 |`{{ NAV_CARDS:category:componentID (optional) }}`|Shows pages in the given category as cards|
 |`{{ NAV_CARDS:all:componentID (optional) }}`|Shows every page as cards|
 |`{{ NAV_CARDS:(empty):componentID (optional) }}`|Shows pages with no category as cards|
+|`{{ NAV_LINKS:category:sort=new:limit=N }}`|A list with options: `sort=new`, `sort=old`, `limit=N`, `sep=text` (same for NAV_CARDS). [Details](#navigation)|
+|`{{ NAV_LINKS:@same }}`|Pages sharing a non-"_" category with the page being shown (same for NAV_CARDS)|
 |`{{ POST_MD:ID }}`|Embeds the given page as Markdown|
 |`{{ EXT_MD:url }}`|Embeds Markdown from the given URL (not available in Cloud)|
 |`{{DATA:key}}value{{/DATA}}`|Defines data (visible). Key (case-insensitive) may only use alphanumeric characters and underscores. Value can be in any language.|
@@ -1460,9 +1524,11 @@ The components bundled with a fresh install. You can view and edit these in the 
 |---|---|---|
 |`_layout`| [Page]{.type-badge .badge-page}|The standard shared layout. Combines `{{COMPONENT:_global_head}}`, `{{COMPONENT:_header}}`, `{{CONTENT}}`, `{{COMPONENT:_footer}}`, and `{{HEAD_CSS}}` into a basic structure. Regular Markdown pages should select this.|
 |`_global_head`|[Part]{.type-badge .badge-part}|A collection of shared tags to insert inside the HTML `<head>` section — things like Google Analytics or web font loading that are common across every page. By default, `{{HEAD_CSS}}` is already placed here to specify the CSS insertion point. CSS scoping is disabled (global).|
-|`_header`|[Part]{.type-badge .badge-part}|The site's shared header. A standard header component including the site name and navigation links.|
+|`_header`|[Part]{.type-badge .badge-part}|The site's shared header. A standard header component including the site name and navigation links. The navigation uses `{{NAV_LINKS:_nav}}` (pages in the structural category `_nav`).|
 |`_footer`|[Part]{.type-badge .badge-part}|The site's shared footer. A standard footer component including copyright and footer navigation.|
 |`_nav_card`|[Part]{.type-badge .badge-part}|The standard card design used for card-style navigation when a component ID is omitted. Outputs a card showing the thumbnail image, title, description, and date.|
+|`_md_footer`|[Part]{.type-badge .badge-part}|A sample footer component for [Markdown versions](#markdown-version). `{{NAV_LINKS:@same:limit=5}}` adds a list of related pages. Used only when chosen in "Markdown version footer components" in the page editor (not a default).|
+|`json_item`|[Part]{.type-badge .badge-part}|A sample entry for a JSON catalog, used as `{{NAV_CARDS:category:json_item:sep=,}}` ([Catalogs &amp; Page Lists](#catalog-pager)).|
 |`_ai_question`|[Part]{.type-badge .badge-part}|The public AI question box. Place it with `{{COMPONENT:_ai_question}}` to pass the question, current page, and official public manual reference to an external AI.|
 |`_search_box`|[Part]{.type-badge .badge-part}|The design for a search box. Its form includes `<input type="hidden" name="page" value="search">`, so submitting it takes you to the "search" page (which displays results using `_search_result_item`).|
 |`_search_result_item`|[Part]{.type-badge .badge-part}|The design for a single search result entry. Placed on the search results page as `{{SEARCH_RESULTS:_search_result_item}}`.|
@@ -1574,6 +1640,152 @@ This data can also be used inside card-style displays (record listings), making 
 |`{{POST_MD::#test:book}}`|Displays row data|
 |`{{IS_ACTIVE}}`|"active" if the current page, else empty|
 
+## Output Formats (Markdown Versions and Data) {#output-formats}
+
+Each page has one "Output format". The default is HTML, so existing pages do not change. mikanBox itself delivers plain data (Markdown versions, JSON and so on); how it is shown is left to JavaScript or an external renderer.
+
+|Output format|Output|Typical use|
+|---|---|---|
+|HTML|HTML only (as before)|Ordinary pages|
+|HTML + Markdown|HTML and a Markdown version|Pages meant for reading|
+|Markdown|Markdown version only|Documents for Markdown readers and AI; Markdown-only sites|
+|JSON, XML, CSV, Text, JavaScript, CSS|The body as it is|Catalogs, per-category RSS, data exports, `llms.txt`, the site's JS and CSS|
+
+### URL Rules {#output-urls}
+
+For a page at `/ID`, everything with an extension lives at `/ID.extension`.
+
+|Kind|Directory style|File-name style|
+|---|---|---|
+|HTML|`/ID/`|`/ID.html`|
+|Markdown version|`/ID.md`|`/ID.md`|
+|Data formats|`/ID.json` etc.|`/ID.json` etc.|
+
+- The URL style setting ([Output structure](#site-ssg)) affects HTML only. The top page's Markdown version is `/index.md`; for a nested ID such as `coffee/gallery` it is `/coffee/gallery.md`.
+- Page IDs cannot contain a dot (`.`). The extension comes from the output format. An existing page whose ID contains a dot keeps working and stays editable as long as its ID is not changed.
+- When served dynamically, a Markdown-only page also answers at `/ID` with its Markdown version, and `/ID.html` returns 404. A data page answers only at `/ID.extension`.
+- A static build writes `ID.md` beside the HTML, and `ID.extension` for data pages. A Markdown-only page has no file at `/ID/`, so it is readable only at `/ID.md` (links inside the site always point at `/ID.md` explicitly). No `.htaccess` is written, so an `.htaccess` you placed on the server is never overwritten.
+- `rss`, `sitemap` and `podcast` cannot use the XML format, because `/rss.xml` and the others are system files. The `404` page can only be HTML.
+
+### Markdown Versions {#markdown-version}
+
+Pages whose output format is "HTML + Markdown" or "Markdown" publish a Markdown version at `/ID.md` (`Content-Type: text/markdown; charset=utf-8`). Raw Markdown runs no JavaScript, and every link target and image source is visible to the reader.
+
+```
+---
+title: "Page title"
+date: 2026-11-08
+description: "Page summary"
+url: "https://example.com/page/"
+categories: "coffee, tokyo"
+---
+
+Body…
+
+(footer components)
+```
+
+- The front matter holds `title`, `date` (the update date), `description` (only when the page has its own summary), `url` (the HTML version's URL; omitted for Markdown-only pages) and `categories` (excluding those that start with "_"; omitted when there are none).
+- The wrapper (`_layout`, header, footer) is not used. The body is the saved Markdown as it is, not converted to HTML. HTML inside the body is output as text.
+- **A published URL is required**, because Markdown versions use absolute URLs throughout. When the upload folder uses relative links and the published root URL is empty, formats with Markdown cannot be chosen.
+- The HTML version of an HTML + Markdown page carries `<link rel="alternate" type="text/markdown" href="…/ID.md">`. Like RSS autodiscovery, tools and AI can find the Markdown version from the HTML page.
+
+#### How Tags Are Handled in Markdown Versions
+
+|Handling|Tags|
+|---|---|
+|Expanded|`NAV_LINKS`, `NAV_CARDS` (a `- [Title](URL)` list; cards become the same list; `@same` with two or more categories gives a nested list), `POST_MD` (all forms), `EXT_MD` (all forms), `{{DATA:key}}value{{/DATA}}` (the value only), `IMAGE` (`![](absolute URL)`), `AUDIO` and `VIDEO` (a `[filename](absolute URL)` link), `CATEGORY`, `PAGE_URL:ID`|
+|Replaced with text|`TITLE`, `FULL_TITLE`, `UPDATE_DATE` (all forms), `IS_NEW`, `DESCRIPTION`, `KEYWORDS`, `OGP_IMAGE`, `PAGE_URL`, `SITE_URL`, `SITE_NAME`, `SITE_DESCRIPTION`, `SITE_OGP_IMAGE` (no HTML escaping)|
+|Removed|`COMPONENT` (except the chosen footer components), `AI_QUESTION`, `SEARCH_RESULTS`, `CONTENT`, `HEAD_CSS`, `IS_ACTIVE`, `DATAROW` blocks, GHOST data|
+
+Code blocks, inline code and HTML comments are output exactly as written.
+
+#### Links and Images
+
+Every URL becomes absolute. `![](ogp.jpg)` and `media/…` become absolute media URLs. An internal link such as `[Details](about)` points at `/ID.md` when the target page publishes a Markdown version, and at its HTML URL otherwise. External links, `#`, `mailto:` and `tel:` stay as they are. Matching a link to a page is shared with the HTML version. After you change a target's output format, rebuild the static site and the Markdown versions that link to it get the new URL too.
+
+#### Footer Components
+
+Each page can add zero or more components to the end of its Markdown version, in order (none by default). Write them in Markdown; their tags follow the table above. A sample, `_md_footer`, is included.
+
+```
+## Related pages
+{{NAV_LINKS:@same:limit=5}}
+```
+
+### Data Formats {#data-formats}
+
+Pages whose output format is JSON, XML, CSV, Text, JavaScript or CSS publish the body as it is at `/ID.extension`: no wrapper, no HTML completion, no Markdown conversion.
+
+|Format|Extension|Content-Type|
+|---|---|---|
+|JSON|`.json`|`application/json; charset=utf-8`|
+|XML|`.xml`|`application/xml; charset=utf-8`|
+|CSV|`.csv`|`text/csv; charset=utf-8`|
+|Text|`.txt`|`text/plain; charset=utf-8`|
+|JavaScript|`.js`|`text/javascript; charset=utf-8`|
+|CSS|`.css`|`text/css; charset=utf-8`|
+
+Every format is sent with `X-Content-Type-Options: nosniff`.
+
+- **Tag expansion** can be switched per page. By default JSON, XML, CSV and Text expand tags, and JavaScript and CSS do not (so code that uses `{{ }}` is not broken). When tags are expanded, values are escaped for the format: as a string in JSON; `&` `<` `>` `"` `'` as entities in XML; values containing a separator, quote or newline wrapped in `"…"` in CSV; as they are in Text. Values inside a `NAV_CARDS` item component follow the same rule. `COMPONENT` inserts just the component's content, without CSS or a scope.
+- Write JavaScript and CSS in the body. The page CSS and JS fields, design component, OGP image, description and keywords are not used, so the editor hides them.
+- Data pages are parts of a site rather than content, so they never appear in `NAV_LINKS`, `NAV_CARDS` (including `all`), `@same`, `sitemap.xml`, `rss.xml` or search results. Publication works as for any page: drafts are not served, and a static build writes only "Public (Static)" pages.
+- The preview shows the raw text that is actually published. [Visual Editing](#visual-edit) works only on pages that publish HTML.
+- The existing "DB" publication (`/api/pageID` returning DATAROW data as JSON) is unchanged. Data formats extend that idea to any format.
+
+### Embedding a Page's URL: `{{PAGE_URL:ID}}` {#page-url-id}
+
+```html
+<link rel="stylesheet" href="{{PAGE_URL:site-style}}">
+<script src="{{PAGE_URL:site}}"></script>
+→ <script src="https://example.com/site.js?v=3f9a2c1b"></script>
+```
+
+Outputs the URL of the given page, with its output format's extension. Data pages get `?v=` with a hash of their content, so browsers pick up the new file whenever the content changes. A static build hashes the built output (so a catalog that changes because other pages changed gets a new value too); dynamic pages hash the body. HTML and Markdown pages get no `?v=`. `{{PAGE_URL}}` without an argument is, as before, the URL of the page being shown.
+
+Keep external libraries (files you do not edit yourself) in [Media](#media-mgmt), and write your own site code in JavaScript and CSS pages. The component JS field (`/component-js/ID.js`) works as before.
+
+---
+
+## Building Page Lists from Catalog Data and JavaScript {#catalog-pager}
+
+mikanBox has no built-in pager or catalog file. Combine a [data-format](#data-formats) page with a JavaScript page instead. Static builds write them as files, so this works on servers without PHP too. Samples are included (`sample_list`, `json_item`, `sample_pager`, `sample_list_page`).
+
+#### 1. The catalog page
+
+Create a page whose output format is JSON (for example ID `news-list` → `/news-list.json`).
+
+```
+[{{NAV_CARDS:news:json_item:sort=new:sep=,}}]
+```
+
+The item component `json_item` describes one entry:
+
+```
+{"title":"{{TITLE}}","url":"{{PAGE_URL}}","date":"{{UPDATE_DATE}}","categories":"{{CATEGORY:all}}"}
+```
+
+Values are escaped for JSON, and `sep=,` puts a comma between items, so the result is a valid JSON array.
+
+#### 2. The JavaScript page
+
+A page whose output format is JavaScript (for example ID `pager` → `/pager.js`) reads the catalog and shows 20 entries at a time with page navigation. The included `sample_pager` works as it is.
+
+#### 3. The page that shows the list
+
+```html
+<div class="mikan-pager" data-src="{{PAGE_URL:news-list}}" data-per-page="20"></div>
+<script src="{{PAGE_URL:pager}}"></script>
+```
+
+- You can make a catalog of every page (`all`), or, for a large site, lighter catalogs per category or with `limit`.
+- An HTML catalog (`<li data-date="…">` and so on) can also be read from JavaScript with `DOMParser`.
+- `rss.xml` holds only the 20 newest pages of the whole site, with no category choice, so it is not suited as the source of a list. Per-category RSS can be made with an XML page.
+- For the list options (`sort`, `limit`, `sep`), see [Navigation](#navigation).
+
+---
+
 ## Podcast Distribution {#podcast}
 
 Create a page with an audio file attached, set its category to "podcast," and an RSS feed containing only "podcast"-category pages is output at the URL below, letting you distribute a podcast.
@@ -1633,6 +1845,8 @@ The sitemap is output at the following URL.
 `https://yoursite.com/sitemap.xml`
 
 Example: [https://yoshihiko.com/mikanbox/demo/sitemap.xml](https://yoshihiko.com/mikanbox/demo/sitemap.xml)
+
+[Data-format](#data-formats) pages are left out of the sitemap, RSS and Podcast RSS. Markdown-only pages are listed by their `/ID.md` URL.
 
 ### RSS
 

@@ -1,6 +1,6 @@
 {
     "title": "検索結果",
-    "category": "system",
+    "category": "_system",
     "status": "public_dynamic",
     "description": "サイト内検索の結果ページです。",
     "keywords": "",

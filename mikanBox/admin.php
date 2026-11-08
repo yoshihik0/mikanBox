@@ -170,86 +170,7 @@ if ($view === 'design') $view = 'components'; // 'design' is an alias for 'compo
 // 🍊 Tag Guide Helper (Reusable)
 $renderTagGuide = function() {
     global $helpFile;
-    ?>
-    <details class="hint-accordion">
-        <summary><h3 class="accordion-title"><?= t('available_tags_content_css') ?> <span class="accordion-arrow">▼</span></h3></summary>
-        <div class="hint-accordion-body">
-            <div class="hint-grid hint-grid-tag">
-                <div>
-                    <strong><?= t('standard_info') ?></strong>
-                    <ul class="hint-list hint-list-sm">
-                        <li><code>{{TITLE}}</code> : <?= t('page_title') ?></li>
-                        <li><code>{{FULL_TITLE}}</code> : <?= t('page_title') ?> - <?= t('site_name') ?></li>
-                        <li><code>{{UPDATE_DATE}}</code> : <?= t('hint_update_date_ymd') ?></li>
-                        <li><code>{{UPDATE_DATE:JP}}</code> : <?= t('hint_update_date_jp') ?></li>
-                        <li><code>{{UPDATE_DATE:SLASH}}</code> : <?= t('hint_update_date_slash') ?></li>
-                        <li><code>{{IS_NEW:30}}</code> : <?= t('hint_is_new') ?></li>
-                        <li><code>{{DESCRIPTION}}</code> : <?= t('page_description') ?></li>
-                        <li><code>{{KEYWORDS}}</code> : <?= t('label_keywords') ?></li>
-                        <li><code>{{OGP_IMAGE}}</code> : <?= t('page_thumbnail_ogp_image') ?></li>
-                        <li><code>{{PAGE_URL}}</code> : <?= t('page_full_url') ?></li>
-                        <li><code>{{SITE_URL}}</code> : <?= t('site_root_url') ?></li>
-                        <li><code>{{SITE_NAME}}</code> : <?= t('site_title') ?></li>
-                        <li><code>{{SITE_DESCRIPTION}}</code> : <?= t('site_description') ?></li>
-                        <li><code>{{SITE_OGP_IMAGE}}</code> : <?= t('site_common_ogp_image') ?></li>
-                    </ul>
-                    <strong style="display:block;margin-top:12px"><?= t('special_wrapper_design') ?></strong>
-                    <ul class="hint-list hint-list-sm">
-                        <li><code>{{CONTENT}}</code> : <?= t('page_main_content') ?></li>
-                        <li><code>{{HEAD_CSS}}</code> : <?= t('combined_css_components') ?></li>
-                        <li><code>{{COMPONENT:_global_head}}</code> : <?= t('common_head_section') ?></li>
-                        <li><code>{{COMPONENT:_header}}</code> : <?= t('page_header') ?></li>
-                        <li><code>{{COMPONENT:_footer}}</code> : <?= t('page_footer') ?></li>
-
-                    </ul>
-                </div>
-                <div>
-                    <strong><?= t('navigation_components') ?></strong>
-                    <ul class="hint-list hint-list-sm">
-                        <li><code>{{COMPONENT:ID}}</code> : <?= t('embed_registered_component') ?></li>
-                        <li><code>{{IMAGE:<?= t('filename') ?>}}</code> : <?= t('display_static_image') ?></li>
-                        <li><code>{{AUDIO:<?= t('filename') ?>}}</code> : <?= t('insert_audio_module') ?></li>
-                        <li><code>{{VIDEO:<?= t('filename') ?>}}</code> : <?= t('display_video') ?></li>
-                        <li><code>{{POST_MD:pageID}}</code> : <?= t('hint_post_md') ?></li>
-                        <li><code>{{EXT_MD:url}}</code> : <?= t('hint_ext_md') ?></li>
-                        <li><code>{{NAV_LINKS:category}}</code> : <?= t('link_list') ?><span class="hint-desc"> — li.active</span></li>
-                        <li><code>{{NAV_CARDS:category:componentID}}</code> : <?= t('card_list') ?></li>
-                        <li class="hint-note"><?= t('nav_links_cards_hint') ?></li>
-                        <li style="margin-top:8px"><span class="hint-section-label"><?= t('nav_cards_template_vars') ?></span></li>
-                        <li><code>{{PAGE_URL}}</code> <code>{{TITLE}}</code> <code>{{DESCRIPTION}}</code> <code>{{OGP_IMAGE}}</code> <code>{{UPDATE_DATE}}</code> <code>{{IS_NEW:N}}</code> <code>{{POST_MD::key}}</code> <code>{{POST_MD::#rowID:key}}</code></li>
-                        <li><code>{{IS_ACTIVE}}</code> : <?= t('hint_is_active') ?></li>
-                    </ul>
-                </div>
-                <div>
-                    <strong><?= t('label_database') ?></strong>
-                    <ul class="hint-list hint-list-sm">
-                        <li>
-                            <span class="hint-section-label"><?= t('hint_datarow_def') ?></span><br>
-                            <code>{{DATA:key}}<?= t('hint_data_value') ?>{{/DATA}}</code> : <?= t('data_block_visible') ?><br>
-                            <code>{{DATA:key:GHOST}}<?= t('hint_data_value') ?>{{/DATA}}</code> : <?= t('data_block_hidden') ?><br>
-                            <span class="hint-desc"><?= t('hint_data_ascii_rule') ?></span>
-                        </li>
-                        <li style="margin-top:8px">
-                            <span class="hint-section-label"><?= t('hint_datarow_table_def') ?></span><br>
-                            <code>{{DATAROW:rowID}}</code><br>
-                            <code>{{DATA:key}}<?= t('hint_data_value') ?>{{/DATA}}</code><br>
-                            <code>{{/DATAROW}}</code>
-                        </li>
-                        <li style="margin-top:8px"><span class="hint-section-label"><?= t('hint_datarow_usage') ?></span></li>
-                        <li><code>{{POST_MD::key}}</code> : <?= t('data_from_self') ?></li>
-                        <li><code>{{POST_MD:pageID:key}}</code> : <?= t('data_from_page') ?></li>
-                        <li><code>{{EXT_MD:url:key}}</code> : <?= t('hint_ext_md_key') ?></li>
-                        <li style="margin-top:6px"><code>{{POST_MD::#rowID:key}}</code> : <?= t('hint_datarow_self_table') ?></li>
-                        <li><code>{{POST_MD:pageID#rowID:key}}</code> : <?= t('hint_datarow_page_table') ?></li>
-                        <li><code>{{EXT_MD:url#rowID:key}}</code> : <?= t('hint_datarow_ext_table') ?></li>
-                        <li style="margin-top:6px" class="hint-note"><?= t('hint_db_api_hidden') ?></li>
-                        <li class="hint-note"><?= t('hint_db_api_public') ?></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </details>
-    <?php
+    include __DIR__ . '/views/tag-guide.php';
 };
 
 // SSG Path Settings
@@ -368,6 +289,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         } // Duplicate slug check: warn if creating new page with existing ID
         elseif (empty($oldId) && loadData(POSTS_DIR, $id) !== null) {
             $message = t('err_slug_exists', $id);
+        } elseif (($formatError = mikanBoxValidatePageSave($id, (string)($oldId ?? ''), [
+            'category' => trim($_POST['category'] ?? ''),
+            'output_format' => (string)($_POST['output_format'] ?? 'html'),
+        ], $settings)) !== null) {
+            $message = $formatError;
         } else {
 
         $updatedAt = $_POST['updated_at'] ?? date('Y-m-d H:i:s');
@@ -400,7 +326,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             'exclude_tracking' => isset($_POST['tracking_option_present']) ? isset($_POST['exclude_tracking']) : !empty($existingPageData['exclude_tracking'] ?? false),
             'sort_order' => (int)($_POST['sort_order'] ?? 0),
             'updated_at' => $updatedAt
-        ];
+        ] + mikanBoxPageFormatFields([
+            'output_format' => (string)($_POST['output_format'] ?? 'html'),
+            'md_footer_comps' => (string)($_POST['md_footer_comps'] ?? ''),
+            'expand_tags' => isset($_POST['expand_tags_present']) ? isset($_POST['expand_tags']) : null,
+        ], $existingPageData ?: null);
+        $oldFormat = mikanBoxPageOutputFormat($existingPageData);
         
         // Save revision of current page state before saving new data
         $editorUsername = $_SESSION['admin_username'] ?? 'admin';
@@ -425,7 +356,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                 // Also delete old static files
                 require_once __DIR__ . '/lib/ssg.php';
                 $ssg = new MikanBoxSSG($renderer, $activeSsgAbsPath);
-                $ssg->deletePage($oldId);
+                $ssg->deletePage($oldId, $oldFormat);
+            } elseif ($oldFormat !== $data['output_format']) {
+                // The files the previous output format produced (/id.md, /id.json, ...) go away.
+                require_once __DIR__ . '/lib/ssg.php';
+                (new MikanBoxSSG($renderer, $activeSsgAbsPath))->deletePage($id, $oldFormat);
             }
 
             // --- Automatic SSG Build/Delete Check ---
@@ -1304,7 +1239,17 @@ if (isset($_POST['ajax_request'])) {
         $siteDir = dirname(dirname($_SERVER['SCRIPT_NAME']));
         if ($siteDir === '/' || $siteDir === '.') $siteDir = '';
         $siteBaseUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . $siteDir;
-        if ($editId === 'index') {
+        $savedPage = loadData(POSTS_DIR, $editId);
+        $savedExtension = mikanBoxFormatExtension(mikanBoxPageOutputFormat($savedPage));
+        if ($savedExtension !== null) {
+            // Markdown-only and data pages live at /id.<extension> in every URL style.
+            $ssgDirForUrl = $settings['ssg_dir'] ?? '';
+            $root = $savedStatus === 'public_static'
+                ? (!empty($settings['ssg_root_url']) ? rtrim($settings['ssg_root_url'], '/') : $siteBaseUrl . (($ssgDirForUrl !== '') ? '/' . trim($ssgDirForUrl, '/') : ''))
+                : $siteBaseUrl;
+            $responseData['preview_url'] = $root . '/' . $editId . '.' . $savedExtension
+                . ($savedStatus === 'pending' ? '?preview=' . getPreviewToken($editId) : '');
+        } elseif ($editId === 'index') {
             $responseData['preview_url'] = $siteBaseUrl . '/' . ($savedStatus === 'pending' ? '?preview=' . getPreviewToken($editId) : '');
         } elseif ($savedStatus === 'pending') {
             $responseData['preview_url'] = $siteBaseUrl . '/' . $editId . '?preview=' . getPreviewToken($editId);
@@ -1585,6 +1530,8 @@ function getIcon($name) {
         $allCategories[] = $selectedCat;
     }
     sort($allCategories);
+    // Structural "_" categories follow the ordinary ones and are shown dimmed.
+    usort($allCategories, fn($a, $b) => [mikanBoxIsStructuralCategory($a), $a] <=> [mikanBoxIsStructuralCategory($b), $b]);
     ?>
     <div class="category-cloud-wrap">
         <div class="category-cloud">
@@ -1594,7 +1541,7 @@ function getIcon($name) {
             </a>
             <?php foreach ($allCategories as $c): ?>
                 <span class="category-cloud-tag-wrap">
-                    <a href="?cat=<?= urlencode($c) ?>" class="category-cloud-tag <?= $selectedCat === $c ? 'active' : '' ?>">
+                    <a href="?cat=<?= urlencode($c) ?>" class="category-cloud-tag <?= $selectedCat === $c ? 'active' : '' ?><?= mikanBoxIsStructuralCategory($c) ? ' is-structural' : '' ?>"<?= mikanBoxIsStructuralCategory($c) ? ' title="' . htmlspecialchars(t('category_structural_hint')) . '"' : '' ?>>
                         <?= htmlspecialchars($c) ?>
                     </a>
                     <span class="category-delete-badge" data-category="<?= htmlspecialchars($c) ?>" title="<?= t('category_delete_confirm_title') ?>">&times;</span>
