@@ -655,9 +655,9 @@ function mikanBoxOutputFormats(): array {
 }
 
 /**
- * "mikanBox DB" (2.18.0): the page publishes the DATAROW data in its body as JSON at
- * /api/ID, and nothing at /ID. It replaces the former "DB" status; that URL is kept so
- * existing API users keep working.
+ * "mikanBox DB" (2.18.0): the page publishes the DATA/DATAROW data in its body as JSON at
+ * /api/ID.json (static builds write that file; dynamic serving also answers the older
+ * /api/ID), and nothing at /ID. It replaces the former "DB" status.
  */
 function mikanBoxIsApiFormat($format): bool {
     return $format === 'db';
@@ -890,7 +890,7 @@ function mikanBoxAdminPreviewUrl($pid, $data, array $settings, $staticRelPath): 
 
 /** Dynamic-site URL of a page for sitemap and RSS: Markdown-only pages point at /id.md. */
 function mikanBoxFeedPageUrl($siteUrl, $pageId, $data): string {
-    if (mikanBoxIsApiFormat(mikanBoxPageOutputFormat($data))) return $siteUrl . '/api/' . $pageId;
+    if (mikanBoxIsApiFormat(mikanBoxPageOutputFormat($data))) return $siteUrl . '/api/' . $pageId . '.json';
     if (mikanBoxPageOutputFormat($data) === 'md') return $siteUrl . '/' . $pageId . '.md';
     return $siteUrl . '/' . ($pageId === 'index' ? '' : $pageId);
 }

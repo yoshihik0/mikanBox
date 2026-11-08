@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.18.0</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.18.1</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -766,7 +766,7 @@ CSVファイルを選択します。エンコーディング（UTF-8 / Shift-JIS
 - フィールド名（1行目）は英数字で記述してください。
 - 価格の位取りカンマ（例: `1,000`）はExcelが自動的にクォートするため正しく読み込めます。
 - データ専用ページは**下書き**にしておくことを推奨します。訪問者には見えませんが、`{{POST_MD:pageID#rowID:FIELD}}` や `{{NAV_CARDS}}` からは参照できます。
-- 出力形式を**mikanBox DB**にして公開すると、ページとしては表示せず、`{{DATAROW}}`のデータを `サイトURL/api/ページID` のAPI（JSON）として読み取れるようになります（[mikanBox DB](#mikanbox-db)）。
+- 出力形式を**mikanBox DB**にして公開すると、ページとしては表示せず、`{{DATA}}`・`{{DATAROW}}`のデータを `サイトURL/api/ページID.json` のAPI（JSON）として読み取れるようになります（[mikanBox DB](#mikanbox-db)）。
 
 ### データ管理 [SQLite版のみ]{.type-badge .badge-sqlite} {#site-data-mgmt}
 
@@ -1622,7 +1622,7 @@ PHP版はサイト画面、Cloud版はデータ移行・インポート画面の
 
 `{{DATAROW}}`を埋め込んだページを、出力形式「[mikanBox DB](#mikanbox-db)」にして公開すると、外部からAPIで読み取ることができるようになります。
 
-`https://yoursite.com/api/pageID`
+`https://yoursite.com/api/pageID.json`（動的表示では `/api/pageID` でも読めます）
 
 例：[https://yoshihiko.com/mikanbox/demo/api/sample-DB](https://yoshihiko.com/mikanbox/demo/api/sample-DB)
 
@@ -1656,7 +1656,7 @@ PHP版はサイト画面、Cloud版はデータ移行・インポート画面の
 |HTML + Markdown|HTMLとMarkdown版|読み物のページ|
 |Markdown|Markdown版だけ|Markdownの読者・AI向けの文書、Markdownだけのサイト|
 |JSON・XML・CSV・テキスト・JavaScript・CSS|本文をそのまま|目録、カテゴリ別RSS、データの書き出し、`llms.txt`、サイトのJS・CSS|
-|mikanBox DB|本文の `{{DATAROW}}` のデータをJSONで（`/api/ID`）|ページに埋め込んだ表データを読ませるAPI|
+|mikanBox DB|本文の `{{DATA}}`・`{{DATAROW}}` のデータをJSONで（`/api/ID.json`）|ページに埋め込んだデータを読ませるAPI|
 
 ### URLの規則 {#output-urls}
 
@@ -1744,19 +1744,34 @@ categories: "coffee, tokyo"
 
 ### mikanBox DB {#mikanbox-db}
 
-出力形式を「mikanBox DB」にすると、本文の `{{DATAROW}}`・`{{DATA}}` のデータを、決まった形のJSONに変換して `/api/ID` で返します。ページとしての表示（HTML・Markdown版）は出しません。2.17まで公開設定にあった「DB」を、出力形式に移したものです。
+出力形式を「mikanBox DB」にすると、本文の `{{DATA}}`・`{{DATAROW}}` のデータを、決まった形のJSONにして `/api/ID.json` で返します。ページとしての表示（HTML・Markdown版）は出しません。2.17まで公開設定にあった「DB」を、出力形式に移したものです。
 
-- 公開設定は通常のページと同じです。「公開(動的)」「公開(静的)」でAPIが動き、「下書き」にするとAPIも止まります。`/api/ID` は動的表示で答えます（静的書き出しではファイルを出しません）。
-- APIのURLは従来どおり `/api/ID` です（`/ID.json` ではありません）。出力形式の下に表示されるURLも `/api/ID` です。編集画面のプレビューでは、APIが返すJSONを表示します。
+返すJSONの形は次のとおりです。`fields` は `{{DATAROW}}` の外にある `{{DATA:key}}`（GHOSTを含む）、`rows` は `{{DATAROW}}` の各行です。**見出しや地の文など、データの外にある本文はJSONに含まれません。**
+
+```json
+{
+    "id": "sample_data",
+    "title": "データサンプル",
+    "fields": { "BOOK_TITLE": "Macbeth", "AUTHOR": "Shakespeare" },
+    "rows": [
+        { "id": 1, "GOODS": "Apple", "PRICE": "300" },
+        { "id": 2, "GOODS": "Banana", "PRICE": "200" }
+    ]
+}
+```
+
+- 公開設定は通常のページと同じです。「公開(動的)」「公開(静的)」でAPIが動き、「下書き」にすると止まります。
+- 静的書き出しでは `api/ID.json` のファイルを書き出し、下書きにすると消します。動的表示では `/api/ID.json` に加えて、従来の `/api/ID` でも同じJSONを返します（静的書き出しでは `/api/ID.json` だけです）。
+- 出力形式の下に表示されるURLは `/api/ID.json` です。`{{PAGE_URL:ID}}` でこのページを指すと `/api/ID.json` になり、ほかのデータ形式と同じく `?v=` が付きます。編集画面のプレビューでは、APIが返すJSONを表示します。
 - 一覧・sitemap・RSS・検索には含まれません。`{{POST_MD:ID:key}}`・`{{POST_MD:ID#rowID:key}}` で、ほかのページから値を読むことはこれまでどおりできます。
-- 2.17までに公開設定「DB」で保存したページは、「出力形式 mikanBox DB＋公開(動的)」として読み、次に保存したときにその形で保存します。APIのURLは変わりません。MCPで `status` に `db` を渡したときも同じに扱います。
+- 2.17までに公開設定「DB」で保存したページは、「出力形式 mikanBox DB＋公開(動的)」として読み、次に保存したときにその形で保存します。`/api/ID` のURLはそのまま使えます。MCPで `status` に `db` を渡したときも同じに扱います。
 
 |形|出るもの|URL|
 |---|---|---|
-|mikanBox DB|本文の `{{DATAROW}}` のデータを、決まった形に変換したJSON|`/api/ID`|
+|mikanBox DB|本文の `{{DATA}}`・`{{DATAROW}}` のデータを、決まった形に変換したJSON|`/api/ID.json`|
 |データ形式（JSONなど）|本文そのもの（自分で書いた形。タグを展開できる）|`/ID.拡張子`|
 
-ページに埋め込んだ表データをそのままAPIで読ませるなら「mikanBox DB」、出すファイルの形を自分で書くなら「JSON」などのデータ形式を選びます。
+ページに埋め込んだデータをそのままAPIで読ませるなら「mikanBox DB」、出すファイルの形を自分で書くなら「JSON」などのデータ形式を選びます。
 
 ### ページのURLを埋め込む `{{PAGE_URL:ID}}` {#page-url-id}
 
@@ -1892,7 +1907,7 @@ mikanBox本体には、ページャー（ページ送り）や目録ファイル
 
 `{{DATAROW}}`を埋め込んだページを、出力形式「[mikanBox DB](#mikanbox-db)」にして公開すると、外部からAPIで読み取ることができるようになります。
 
-`https://yoursite.com/api/pageID`
+`https://yoursite.com/api/pageID.json`（動的表示では `/api/pageID` でも読めます）
 
 例：[https://yoshihiko.com/mikanbox/demo/api/sample-DB](https://yoshihiko.com/mikanbox/demo/api/sample-DB)
 

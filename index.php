@@ -156,11 +156,13 @@ if ($pageId === 'mcp') {
     exit;
 }
 
-// 3. API endpoint: /api/{pageId}
+// 3. API endpoint for mikanBox DB pages: /api/{pageId}.json, and the older alias /api/{pageId}.
 if (str_starts_with($pageId, 'api/')) {
     $targetId = substr($pageId, 4);
-    $targetData = mikanBoxNormalizeLegacyPage(loadData(POSTS_DIR, $targetId));
+    if (str_ends_with($targetId, '.json') && loadData(POSTS_DIR, $targetId) === null) $targetId = substr($targetId, 0, -5);
+    $targetData = loadData(POSTS_DIR, $targetId);
     header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
     header('Access-Control-Allow-Origin: *');
     if (!$targetData) {
         http_response_code(404);
@@ -168,16 +170,14 @@ if (str_starts_with($pageId, 'api/')) {
         echo json_encode(['error' => 'not found']); exit;
     }
     // Output format "mikanBox DB" and published (a draft stops the API like any other page).
-    if (!mikanBoxIsApiFormat(mikanBoxPageOutputFormat($targetData))
-        || !in_array($targetData['status'] ?? '', ['public_dynamic', 'public_static'], true)) {
+    $jsonOutput = (new MikanBoxRenderer($GLOBALS['mikanbox_settings']))->renderApi($targetId, $targetData);
+    if ($jsonOutput === null) {
         http_response_code(403);
         if (ob_get_length()) ob_clean();
         echo json_encode(['error' => 'forbidden']); exit;
     }
-    $renderer = new MikanBoxRenderer($GLOBALS['mikanbox_settings']);
-    $jsonOutput = json_encode($renderer->getPageDataBlocks($targetId, $targetData), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     if (ob_get_length()) ob_clean();
-    echo $jsonOutput;
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') echo $jsonOutput;
     exit;
 }
 

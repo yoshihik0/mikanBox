@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.18.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.18.1</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -764,7 +764,7 @@ Reads the first row as field names and converts every other row into a `{{DATARO
 - Write field names (the first row) using alphanumeric characters.
 - Thousands separators in prices (e.g. `1,000`) are read correctly, since Excel automatically quotes them.
 - We recommend keeping data-only pages set to **Draft**. Visitors won't see them, but they can still be referenced via `{{POST_MD:pageID#rowID:FIELD}}` or `{{NAV_CARDS}}`.
-- Publishing the page with the output format **mikanBox DB** shows nothing as a page, while its `{{DATAROW}}` data becomes readable as a JSON API at `siteURL/api/pageID` ([mikanBox DB](#mikanbox-db)).
+- Publishing the page with the output format **mikanBox DB** shows nothing as a page, while its `{{DATA}}` and `{{DATAROW}}` data becomes readable as a JSON API at `siteURL/api/pageID.json` ([mikanBox DB](#mikanbox-db)).
 
 ### Data Management [SQLite Edition only]{.type-badge .badge-sqlite} {#site-data-mgmt}
 
@@ -1617,7 +1617,7 @@ Reads the first row as field names and converts every other row into a `{{DATARO
 
 Publishing a page that embeds `{{DATAROW}}` with the output format "[mikanBox DB](#mikanbox-db)" makes it readable externally as an API.
 
-`https://yoursite.com/api/pageID`
+`https://yoursite.com/api/pageID.json` (when served dynamically, `/api/pageID` works too)
 
 Example: [https://yoshihiko.com/mikanbox/demo/api/sample-DB](https://yoshihiko.com/mikanbox/demo/api/sample-DB)
 
@@ -1650,7 +1650,7 @@ Each page has one "Output format". The default is HTML, so existing pages do not
 |HTML + Markdown|HTML and a Markdown version|Pages meant for reading|
 |Markdown|Markdown version only|Documents for Markdown readers and AI; Markdown-only sites|
 |JSON, XML, CSV, Text, JavaScript, CSS|The body as it is|Catalogs, per-category RSS, data exports, `llms.txt`, the site's JS and CSS|
-|mikanBox DB|The `{{DATAROW}}` data in the body, as JSON (`/api/ID`)|An API for table data embedded in a page|
+|mikanBox DB|The `{{DATA}}` and `{{DATAROW}}` data in the body, as JSON (`/api/ID.json`)|An API for data embedded in a page|
 
 ### URL Rules {#output-urls}
 
@@ -1738,19 +1738,34 @@ Every format is sent with `X-Content-Type-Options: nosniff`.
 
 ### mikanBox DB {#mikanbox-db}
 
-With the output format "mikanBox DB", the `{{DATAROW}}` and `{{DATA}}` data in the body is converted to JSON of a fixed shape and returned at `/api/ID`. Nothing is shown as a page (no HTML, no Markdown version). This is the former "DB" status (up to 2.17), moved to the output format.
+With the output format "mikanBox DB", the `{{DATA}}` and `{{DATAROW}}` data in the body is turned into JSON of a fixed shape and returned at `/api/ID.json`. Nothing is shown as a page (no HTML, no Markdown version). This is the former "DB" status (up to 2.17), moved to the output format.
 
-- The status works as for any page: Public (Dynamic) and Public (Static) serve the API, and Draft stops it. `/api/ID` is answered when served dynamically (a static build writes no file for it).
-- The API URL is still `/api/ID` (not `/ID.json`). The URL shown under the output format is `/api/ID` too, and the editor preview shows the JSON the API returns.
+The JSON looks like this. `fields` holds the `{{DATA:key}}` values outside `{{DATAROW}}` (GHOST included), and `rows` holds each `{{DATAROW}}`. **Headings, prose and anything else outside the data are not included.**
+
+```json
+{
+    "id": "sample_data",
+    "title": "Data sample",
+    "fields": { "BOOK_TITLE": "Macbeth", "AUTHOR": "Shakespeare" },
+    "rows": [
+        { "id": 1, "GOODS": "Apple", "PRICE": "300" },
+        { "id": 2, "GOODS": "Banana", "PRICE": "200" }
+    ]
+}
+```
+
+- The status works as for any page: Public (Dynamic) and Public (Static) serve the API, and Draft stops it.
+- A static build writes the file `api/ID.json`, and removes it when the page becomes a draft. When served dynamically, the same JSON is also returned at the older `/api/ID` (a static build has only `/api/ID.json`).
+- The URL shown under the output format is `/api/ID.json`. `{{PAGE_URL:ID}}` pointing at such a page gives `/api/ID.json` with `?v=`, like other data formats. The editor preview shows the JSON the API returns.
 - These pages are not included in lists, sitemap, RSS or search. Other pages can still read their values with `{{POST_MD:ID:key}}` and `{{POST_MD:ID#rowID:key}}`.
-- Pages saved with the "DB" status up to 2.17 are read as "output format mikanBox DB + Public (Dynamic)" and saved that way the next time they are saved. Their API URL does not change. `status: db` over MCP is treated the same way.
+- Pages saved with the "DB" status up to 2.17 are read as "output format mikanBox DB + Public (Dynamic)" and saved that way the next time they are saved. Their `/api/ID` URL keeps working. `status: db` over MCP is treated the same way.
 
 |Kind|What is served|URL|
 |---|---|---|
-|mikanBox DB|The `{{DATAROW}}` data in the body, converted to a fixed JSON shape|`/api/ID`|
+|mikanBox DB|The `{{DATA}}` and `{{DATAROW}}` data in the body, converted to a fixed JSON shape|`/api/ID.json`|
 |Data formats (JSON etc.)|The body itself, in the shape you write (tags can be expanded)|`/ID.extension`|
 
-Choose "mikanBox DB" to serve table data embedded in a page as an API; choose a data format such as JSON to write the file's shape yourself.
+Choose "mikanBox DB" to serve data embedded in a page as an API; choose a data format such as JSON to write the file's shape yourself.
 
 ### Embedding a Page's URL: `{{PAGE_URL:ID}}` {#page-url-id}
 
@@ -1886,7 +1901,7 @@ Example: [https://yoshihiko.com/mikanbox/demo/podcast.xml](https://yoshihiko.com
 
 Publishing a page that embeds `{{DATAROW}}` with the output format "[mikanBox DB](#mikanbox-db)" makes it readable externally as an API.
 
-`https://yoursite.com/api/pageID`
+`https://yoursite.com/api/pageID.json` (when served dynamically, `/api/pageID` works too)
 
 Example: [https://yoshihiko.com/mikanbox/demo/api/sample-DB](https://yoshihiko.com/mikanbox/demo/api/sample-DB)
 

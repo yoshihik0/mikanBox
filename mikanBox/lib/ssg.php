@@ -79,9 +79,11 @@ class MikanBoxSSG {
         // Data pages first: HTML pages embed a hash of their built output in {{PAGE_URL:ID}}.
         $dataPages = [];
         $otherPages = [];
+        $apiPages = [];
         foreach ($pagesToBuild as $pageId) {
             $format = mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId));
             if (mikanBoxIsDataFormat($format)) $dataPages[] = $pageId;
+            elseif (mikanBoxIsApiFormat($format)) $apiPages[] = $pageId;
             else $otherPages[] = $pageId;
         }
         $dataHashes = [];
@@ -93,6 +95,14 @@ class MikanBoxSSG {
             if ($output === null) continue;
             $dataHashes[$pageId] = MikanBoxRenderer::dataHash($output);
             $results[] = $this->writeOutputFile($this->outputDir . '/' . $pageId . '.' . $format, $output);
+            $this->deleteHtmlFiles($pageId);
+        }
+        // mikanBox DB: the API JSON as a file, /api/ID.json (the same as Cloud's split setup).
+        foreach ($apiPages as $pageId) {
+            $output = $this->renderer->renderApi($pageId);
+            if ($output === null) continue;
+            $dataHashes[$pageId] = MikanBoxRenderer::dataHash($output);
+            $results[] = $this->writeOutputFile($this->outputDir . '/api/' . $pageId . '.json', $output);
             $this->deleteHtmlFiles($pageId);
         }
         $this->renderer->setDataHashes($dataHashes);
@@ -390,6 +400,11 @@ class MikanBoxSSG {
         if (empty($pageId)) return 0;
         $count = 0;
         $format = $format ?? mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId));
+        if (mikanBoxIsApiFormat($format)) {
+            $apiFile = $this->outputDir . '/api/' . $pageId . '.json';
+            if (is_file($apiFile) && unlink($apiFile)) $count++;
+            if (is_dir(dirname($apiFile))) $this->cleanEmptyParents(dirname($apiFile));
+        }
         $extensions = [];
         if (mikanBoxFormatHasMarkdown($format)) $extensions[] = 'md';
         if (mikanBoxIsDataFormat($format)) $extensions[] = $format;

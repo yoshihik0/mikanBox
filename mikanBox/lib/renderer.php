@@ -1358,7 +1358,8 @@ class MikanBoxRenderer {
         $target = $this->loadPage($targetId);
         if (!$target) return '';
         $url = $this->buildPageUrl($targetId);
-        if (mikanBoxIsDataFormat(mikanBoxPageOutputFormat($target))) {
+        $targetFormat = mikanBoxPageOutputFormat($target);
+        if (mikanBoxIsDataFormat($targetFormat) || mikanBoxIsApiFormat($targetFormat)) {
             $url .= '?v=' . $this->dataVersion($targetId, $target);
         }
         return $url;
@@ -1374,12 +1375,23 @@ class MikanBoxRenderer {
             $builder = new self($this->siteSettings);
             $builder->setStaticMode(true, substr_count($pageId, '/'), $this->ssgStructure, $this->ssgLinkMode);
             $builder->setDataHashes($this->dataHashes);
-            $output = $builder->renderData($pageId);
+            $output = mikanBoxIsApiFormat(mikanBoxPageOutputFormat($pageData)) ? $builder->renderApi($pageId) : $builder->renderData($pageId);
         } finally {
             array_pop(self::$hashStack);
         }
         $this->dataHashes[$pageId] = substr(hash('sha256', (string)$output), 0, 8);
         return $this->dataHashes[$pageId];
+    }
+
+    /**
+     * mikanBox DB: the DATA/DATAROW data of a published page as JSON, the body of
+     * /api/ID.json (and its alias /api/ID). Returns null for other formats and drafts.
+     */
+    public function renderApi($pageId, $previewData = null) {
+        $pageData = mikanBoxNormalizeLegacyPage($previewData ?? loadData(POSTS_DIR, $pageId));
+        if (!$pageData || !mikanBoxIsApiFormat(mikanBoxPageOutputFormat($pageData))) return null;
+        if (!in_array($pageData['status'] ?? '', ['public_dynamic', 'public_static'], true)) return null;
+        return (string)json_encode($this->getPageDataBlocks($pageId, $pageData), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 
     public function setDataHashes(array $hashes) {
@@ -1715,8 +1727,8 @@ class MikanBoxRenderer {
     public function renderPreview($pageId, array $pageData) {
         $format = mikanBoxPageOutputFormat($pageData);
         if (mikanBoxIsApiFormat($format)) {
-            // The JSON that /api/ID returns.
-            return ['type' => 'text/plain; charset=utf-8', 'body' => (string)json_encode($this->getPageDataBlocks($pageId, $pageData), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)];
+            // The JSON that /api/ID.json returns (drafts included, for the editor).
+            return ['type' => 'text/plain; charset=utf-8', 'body' => (string)$this->renderApi($pageId, array_merge($pageData, ['status' => 'public_dynamic']))];
         }
         if (mikanBoxIsDataFormat($format)) {
             return ['type' => 'text/plain; charset=utf-8', 'body' => (string)$this->renderData($pageId, array_merge($pageData, ['status' => 'public_dynamic']))];
@@ -1740,8 +1752,8 @@ class MikanBoxRenderer {
         $extension = mikanBoxFormatExtension($format);
         if ($extension === null && $format === 'html_md' && $this->linkToMarkdown) $extension = 'md';
         if (mikanBoxIsApiFormat($format)) {
-            // mikanBox DB pages answer only at /api/ID.
-            $path = 'api/' . $this->encodePageIdPath($postId);
+            // mikanBox DB pages: /api/ID.json (dynamic serving also answers the alias /api/ID).
+            $path = 'api/' . $this->encodePageIdPath($postId) . '.json';
             if ($this->isRelativeStaticMode()) return $this->getStaticRootPrefix() . $path;
             return $root . $path;
         }

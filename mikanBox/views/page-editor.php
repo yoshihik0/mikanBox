@@ -153,7 +153,7 @@
                                     <?php foreach (mikanBoxDataFormats() as $_fmt): ?>
                                     <option value="<?= $_fmt ?>" data-expand="<?= mikanBoxExpandTagsDefault($_fmt) ? '1' : '0' ?>" <?= $currentFormat === $_fmt ? 'selected' : '' ?> <?= $isErrorPage ? 'disabled' : '' ?>><?= t('output_format_' . $_fmt) ?> (.<?= $_fmt ?>)</option>
                                     <?php endforeach; ?>
-                                    <option value="db" <?= $currentFormat === 'db' ? 'selected' : '' ?> <?= $isErrorPage ? 'disabled' : '' ?>><?= t('output_format_db') ?> (/api/)</option>
+                                    <option value="db" <?= $currentFormat === 'db' ? 'selected' : '' ?> <?= $isErrorPage ? 'disabled' : '' ?>><?= t('output_format_db') ?> (/api/*.json)</option>
                                 </optgroup>
                             </select>
                             <small class="sub-text sub-text-block output-url-line"><?= t('output_url_label') ?>: <code id="output-format-url"></code></small>
@@ -362,7 +362,7 @@
         const id = (idInput && idInput.value.trim()) || 'page';
         const isStatic = statusValue() === 'public_static';
         const base = isStatic ? select.dataset.staticBase : select.dataset.dynamicBase;
-        if (format === 'db') return select.dataset.dynamicBase + '/api/' + id;  // mikanBox DB answers at /api/ID (dynamic only)
+        if (format === 'db') return base + '/api/' + id + '.json';  // mikanBox DB: /api/ID.json
         const ext = format === 'md' ? 'md' : (['html', 'html_md'].includes(format) ? '' : format);
         if (ext) return base + '/' + id + '.' + ext;
         if (id === 'index') return base + '/';
