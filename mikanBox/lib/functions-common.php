@@ -677,6 +677,25 @@ function mikanBoxNormalizeLegacyPage($data) {
 }
 
 /**
+ * End of an admin action (2.19.0). An ajax_request gets JSON (the message goes to the
+ * bottom-right toast and the screen is not reloaded); a plain form post is redirected as before.
+ * $message null = use the message the handler left in the session.
+ */
+function mikanBoxAdminDone(string $location, ?string $message = null, array $extra = [], bool $success = true): void {
+    if (isset($_POST['ajax_request'])) {
+        $text = $message ?? (string)($_SESSION['admin_message'] ?? '');
+        unset($_SESSION['admin_message']);
+        if (ob_get_length()) ob_clean();
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(array_merge(['success' => $success, 'message' => $text], $extra), JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if ($message !== null) $_SESSION['admin_message'] = $message;
+    header('Location: ' . $location);
+    exit;
+}
+
+/**
  * Browser title of the admin screens: "🍊" + site name (the orange already says it is
  * mikanBox). The sign-in screen adds what it is. Returned HTML-escaped.
  */

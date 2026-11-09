@@ -128,11 +128,33 @@
       tgRedo.title = T('visual_js_redo_title') + (x.j.redo ? T('visual_js_times_left', x.j.redo) : '');
     }).catch(function () {});
   }
+  // 確認は、ブラウザ標準のダイアログではなく、画面の中で
+  function askConfirm(message) {
+    return new Promise(function (resolve) {
+      var back = el('div', 'fv-confirm-back fv-ui'), box = el('div', 'fv-confirm-box');
+      var msg = el('div', 'fv-confirm-msg', message), row = el('div', 'fv-confirm-row');
+      var no = el('button', 'fv-confirm-btn', T('btn_cancel')), yes = el('button', 'fv-confirm-btn fv-confirm-ok', T('btn_ok'));
+      no.type = yes.type = 'button';
+      function done(v) { document.removeEventListener('keydown', onKey, true); back.remove(); resolve(v); }
+      function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(false); } }
+      no.addEventListener('click', function () { done(false); }); yes.addEventListener('click', function () { done(true); });
+      back.addEventListener('click', function (e) { if (e.target === back) done(false); });
+      document.addEventListener('keydown', onKey, true);
+      row.append(no, yes); box.append(msg, row); back.append(box); document.body.appendChild(back); yes.focus();
+    });
+  }
+  // 保存していない入力があるときだけ確認してから go() を実行する
+  function guard(message, go) {
+    if (active && active.dirty()) askConfirm(message).then(function (yes) { if (yes) go(); });
+    else go();
+  }
   function history(kind) {
-    if (active && active.dirty() && !confirm(T(kind === 'undo' ? 'visual_js_confirm_undo' : 'visual_js_confirm_redo'))) return;
-    post(API(kind), { id: PAGE }).then(function (x) {
-      if (!x.ok) { toast(x.j.error || T('visual_js_failed')); return; }
-      sessionStorage.setItem('fv-scroll', String(window.scrollY)); location.reload();
+    guard(T(kind === 'undo' ? 'visual_js_confirm_undo' : 'visual_js_confirm_redo'), function () {
+      post(API(kind), { id: PAGE }).then(function (x) {
+        if (!x.ok) { toast(x.j.error || T('visual_js_failed')); return; }
+        // 描画したページそのものが変わるので、ここは再読み込み（例外）
+        sessionStorage.setItem('fv-scroll', String(window.scrollY)); location.reload();
+      });
     });
   }
   tgUndo.addEventListener('click', function () { history('undo'); });
@@ -162,11 +184,14 @@
         var r = el('a', 'fv-drawer-row'); r.href = '#'; r.append(el('span', 't', p.at));
         r.addEventListener('click', function (e) {
           e.preventDefault();
-          if (active && active.dirty() && !confirm(T('visual_js_confirm_undo'))) return;
-          if (!confirm(T('visual_js_point_confirm', p.at))) return;
-          post(API('restore'), { id: PAGE, point: p.id }).then(function (y) {
-            if (!y.ok) { toast(y.j.error || T('visual_js_failed')); return; }
-            sessionStorage.setItem('fv-scroll', String(window.scrollY)); location.reload();
+          guard(T('visual_js_confirm_undo'), function () {
+            askConfirm(T('visual_js_point_confirm', p.at)).then(function (yes) {
+              if (!yes) return;
+              post(API('restore'), { id: PAGE, point: p.id }).then(function (y) {
+                if (!y.ok) { toast(y.j.error || T('visual_js_failed')); return; }
+                sessionStorage.setItem('fv-scroll', String(window.scrollY)); location.reload();   // 描画したページが変わる（例外）
+              });
+            });
           });
         });
         list.append(r);
@@ -178,8 +203,7 @@
   var gPending = false, gTimer = null;
   function goUrl(url) {
     if (!url) return;
-    if (active && active.dirty() && !confirm(T('visual_js_confirm_leave'))) return;
-    location.href = url;
+    guard(T('visual_js_confirm_leave'), function () { location.href = url; });
   }
   document.addEventListener('keydown', function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -199,8 +223,7 @@
   function closeDrawer() { if (drawer) { drawer.remove(); drawer = null; } tgPages.classList.remove('active'); }
   function goPage(id) {
     if (id === PAGE) { closeDrawer(); return; }      // いま開いているページを選んだら、閉じるだけ
-    if (active && active.dirty() && !confirm(T('visual_js_confirm_leave'))) return;
-    location.href = ADMIN.view + id.split('/').map(encodeURIComponent).join('/');
+    guard(T('visual_js_confirm_leave'), function () { location.href = ADMIN.view + id.split('/').map(encodeURIComponent).join('/'); });
   }
   function suggestId(base) {
     var have = {}; PAGES.forEach(function (p) { have[p.id] = 1; });
@@ -536,9 +559,13 @@
       live: function (text) { if (localBody(text)) { markTarget(); return Promise.resolve(true); } return post(API('render'), { id: PAGE, text: text }).then(function (x) { if (!x.ok) return false; var neu = new DOMParser().parseFromString(x.j.html, 'text/html').querySelector('.mikan-content-scope'); if (!neu) return false; liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; swapScope(sc, neu); applyLn(sc); if (d === document) rewriteLinks(sc); }); markTarget(); domText = text; return true; }).catch(function () { return false; }); }
     }
   };
-  function closePanel(force) {
+  function closePanel(force, then) {
     if (!active) return true;
-    if (!force && active.dirty() && !confirm(T('visual_js_confirm_close'))) return false;
+    if (!force && active.dirty()) {
+      // 確認は画面の中で。「はい」と答えたら、確認なしでもう一度閉じる
+      askConfirm(T('visual_js_confirm_close')).then(function (yes) { if (yes) { closePanel(true); if (then) then(); } });
+      return false;
+    }
     var was = active.dirty();
     if (active.kind === 'md') { tgt = null; tbar = null; clearMarks(); } else cssbar = null;
     active.node.remove(); active.btn.classList.remove('active'); active = null;
@@ -548,7 +575,7 @@
   }
   function openPanel(kind, after) {
     if (active && active.kind === kind) return;
-    if (active && !closePanel(false)) return;
+    if (active && !closePanel(false, function () { openPanel(kind, after); })) return;
     var K = KINDS[kind];
     sessionStorage.setItem('fv-panel', kind); K.btn.classList.add('active'); root.classList.add('fv-panel-open');
     K.load().then(function (old) {

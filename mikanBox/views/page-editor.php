@@ -263,12 +263,8 @@
                     <div class="flex-row flex-between mt-10">
                         <div class="flex-row">
                             <button type="submit" form="page-form" name="save_action" value="save_page" class="btn btn-blue"><?= getIcon('save') ?> <?= t('btn_save') ?></button>
-                            <?php if ($editId): ?>
-                            <a id="editor-preview-link" href="<?= htmlspecialchars(mikanBoxAdminPreviewUrl($editId, $editData ?? [], $settings, $lastSsgRelPath ?? '../')) ?>" target="_blank" rel="noopener" class="btn btn-blue" title="<?= htmlspecialchars(t('preview_saved_hint')) ?>"><?= getIcon('view') ?> <?= t('btn_preview') ?></a>
-                            <small class="sub-text preview-saved-note"><?= t('preview_saved_hint') ?></small>
-                            <?php else: ?>
-                            <span id="editor-preview-link" class="btn btn-gray btn-disabled" aria-disabled="true" title="<?= htmlspecialchars(t('preview_saved_hint')) ?>"><?= getIcon('view') ?> <?= t('btn_preview') ?></span>
-                            <?php endif; ?>
+                            <button type="button" id="editor-preview-btn" class="btn btn-blue" data-editor-preview title="<?= htmlspecialchars(t('preview_editing_hint')) ?>" data-error="<?= htmlspecialchars(t('err_network_error_detail')) ?>"><?= getIcon('view') ?> <?= t('btn_preview') ?></button>
+                            <small class="sub-text preview-saved-note"><?= t('preview_editing_hint') ?></small>
                             <a href="admin.php#pages" class="btn btn-gray"><?= getIcon('arrow_back') ?> <?= t('btn_back_to_list') ?></a>
                         </div>
                         <?php if ($editId): ?>

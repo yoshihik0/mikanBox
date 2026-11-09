@@ -168,7 +168,7 @@ if ($isInitialSetup || !$isLoggedIn) {
 if (isset($_GET['page_preview']) && is_string($_GET['page_preview'])) {
     require_once __DIR__ . '/lib/editor-preview.php';
     if (ob_get_length()) ob_clean();
-    mikanBoxRenderSavedPreview($settings, $_GET['page_preview']);
+    mikanBoxRenderSavedPreview($settings, $_GET['page_preview'], is_string($_GET['stash'] ?? null) ? $_GET['stash'] : '');
     exit;
 }
 $site_name = $settings['site_name'] ?? SITE_NAME;
@@ -255,6 +255,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     // Initialize common renderer for actions
     require_once __DIR__ . '/lib/renderer.php';
     $renderer = new MikanBoxRenderer($settings);
+
+    if ($_POST['save_action'] === 'preview_stash') {
+        if (!$isLoggedIn) { http_response_code(403); exit; }
+        require_once __DIR__ . '/lib/editor-preview.php';
+        if (ob_get_length()) ob_clean();
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['token' => mikanBoxPreviewStashStore($_POST)]);
+        exit;
+    }
 
     if ($_POST['save_action'] === 'preview_page') {
         if (!$isLoggedIn) { http_response_code(403); exit; }
@@ -423,9 +432,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             } else {
                 $ssg->deletePage($id);
             }
-            $_SESSION['admin_message'] = t('msg_page_saved', $id);
-            header("Location: admin.php?view=pages#pages");
-            exit;
+            mikanBoxAdminDone('admin.php?view=pages#pages', t('msg_page_saved', $id));
         }
     }
     elseif ($_POST['save_action'] === 'delete_page') {
@@ -436,10 +443,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         if (deleteData(POSTS_DIR, $id)) {
             if (function_exists('mbv_hist_forget')) mbv_hist_forget($id);   // ビジュアル編集の履歴
             deleteRevisionsOfPost($id); // Clean up revisions
-            $_SESSION['admin_message'] = t('msg_page_deleted', $id);
-            header("Location: admin.php?view=pages");
-            exit;
+            mikanBoxAdminDone('admin.php?view=pages', t('msg_page_deleted', $id), ['deleted' => $id]);
         } else {
+            mikanBoxAdminDone('admin.php?view=pages', t('err_page_delete'), [], false);
             $message = t('err_page_delete');
         }
     }
@@ -482,10 +488,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     elseif ($_POST['save_action'] === 'delete_comp') {
         $id = $_POST['id'];
         if (deleteData(COMPONENTS_DIR, $id)) {
-            $_SESSION['admin_message'] = t('msg_comp_deleted', $id);
-            header("Location: admin.php?view=components#design");
-            exit;
+            mikanBoxAdminDone('admin.php?view=components#design', t('msg_comp_deleted', $id), ['deleted' => $id]);
         } else {
+            mikanBoxAdminDone('admin.php?view=components#design', t('err_comp_delete'), [], false);
             $message = t('err_comp_delete');
         }
     }
@@ -1024,8 +1029,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     }
     elseif ($_POST['save_action'] === 'set_mcp_enabled') {
         $saved = mikanBoxMcpSetEnabled(($_POST['mcp_enabled'] ?? '') === '1');
-        $_SESSION['admin_message'] = $saved ? t('msg_update_success') : t('err_save_failed');
-        header('Location: ' . basename(__FILE__) . '#mcp-api-key'); exit;
+        mikanBoxAdminDone(basename(__FILE__) . '#mcp-api-key', $saved ? t('msg_update_success') : t('err_save_failed'), [], (bool)$saved);
     }
     elseif ($_POST['save_action'] === 'generate_mcp_key') {
         $newKey = bin2hex(random_bytes(24));
@@ -1179,14 +1183,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                 $message = t('err_account_update_failed');
             }
         }
-        $_SESSION['admin_message'] = $message;
-        header("Location: admin.php?view=site#users-mgmt");
-        exit;
+        mikanBoxAdminDone('admin.php?view=site#users-mgmt', $message, [], $message === t('msg_account_updated'));
     }
     elseif ($_POST['save_action'] === 'device_notice_dismiss') {
         unset($_SESSION['device_adopted_notice']);
-        header('Location: admin.php?view=site#users-mgmt');
-        exit;
+        mikanBoxAdminDone('admin.php?view=site#users-mgmt', '');
     }
     elseif (in_array($_POST['save_action'], ['device_code_create', 'device_code_cancel', 'device_revoke', 'device_expiry'], true)) {
         $action = $_POST['save_action'];
@@ -1198,15 +1199,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             try {
                 mikanBoxDeviceRevoke($currentDevice, $currentDevice['id']);
             } catch (RuntimeException $error) {
-                $_SESSION['admin_message'] = t('err_save_failed');
-                header('Location: admin.php?view=site#users-mgmt');
-                exit;
+                mikanBoxAdminDone('admin.php?view=site#users-mgmt', t('err_save_failed'), [], false);
             }
             mikanBoxDeviceClearCookie();
             mikanBoxClearAuthentication();
             mikanBoxRenewAuthentication();
-            header('Location: ' . basename(__FILE__));
-            exit;
+            // Signing this browser out changes what the screen is: the one place that must reload.
+            mikanBoxAdminDone(basename(__FILE__), '', ['redirect' => basename(__FILE__)]);
         } else {
             try {
                 if ($action === 'device_code_create') {
@@ -1226,9 +1225,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                 $message = $e->getMessage();
             }
         }
-        $_SESSION['admin_message'] = $message;
-        header("Location: admin.php?view=site#users-mgmt");
-        exit;
+        mikanBoxAdminDone('admin.php?view=site#users-mgmt', $message, [], !in_array($message, [t('err_session_error'), t('err_save_failed')], true));
     }
 }
 skip_post_actions:
@@ -1245,8 +1242,6 @@ if (isset($_POST['ajax_request'])) {
     }
     // Compute preview URL for page saves so JS can inject/update the preview button
     if (($_POST['save_action'] ?? '') === 'save_page' && !empty($editId)) {
-        // Where the editor's preview button opens the saved page (same as the page list).
-        $responseData['preview_href'] = mikanBoxAdminPreviewUrl($editId, loadData(POSTS_DIR, $editId) ?: [], $settings, $lastSsgRelPath);
         $savedStatus = $_POST['status'] ?? 'draft';
         $ssgStruct = $settings['ssg_structure'] ?? 'directory';
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -1585,6 +1580,8 @@ function getIcon($name) {
 
 
 
+    <script>window.__MIKAN_UI = <?= json_encode(['confirmTitle' => t('btn_delete'), 'confirmOk' => t('btn_delete_confirm'), 'cancel' => t('btn_cancel'), 'saveFailed' => t('err_save_failed'), 'done' => t('msg_update_success'), 'networkError' => t('err_network_error')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;</script>
+    <script src="admin-ui.js?v=<?= htmlspecialchars(rawurlencode((string)@filemtime(__DIR__ . '/admin-ui.js'))) ?>"></script>
     <script>
     // ブラウザのスクロール復元を無効にして競合させない
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -1938,6 +1935,50 @@ function getIcon($name) {
 
     // Keep the viewport stable while a refreshed list replaces its old DOM.
     let listRefreshCount = 0, savedOverflowAnchor = '';
+
+    // ---- Navigation scrolling (open/close editors) -------------------------------
+    // A smooth scroll can be cut short by a list refresh that restores the old position,
+    // by images or fonts changing the layout, or by the browser skipping the animation.
+    // settleScroll() scrolls, then checks where the target ended up and corrects it.
+    let navigationScrollPending = 0;
+    // Scroll to an element by its measured position (window.scrollTo), not scrollIntoView:
+    // the result is the same in every browser and can be checked afterwards.
+    function viewportHeight() { return window.innerHeight || document.documentElement.clientHeight || 800; }
+    function scrollToElement(el, block, behavior) {
+        const rect = el.getBoundingClientRect();
+        let top = rect.top + window.scrollY;
+        if (block === 'center' && rect.height < viewportHeight()) top -= (viewportHeight() - rect.height) / 2;
+        window.scrollTo({ top: Math.max(0, Math.round(top)), behavior });
+    }
+    function settleScroll(getTarget) {
+        const first = getTarget();
+        if (!first || !first.el) return Promise.resolve();
+        navigationScrollPending++;
+        return new Promise(resolve => {
+            let finished = false;
+            const finish = () => {
+                if (finished) return;
+                finished = true;
+                window.removeEventListener('scrollend', onEnd);
+                const target = getTarget();
+                if (target && target.el) {
+                    const rect = target.el.getBoundingClientRect();
+                    const inView = target.block === 'center'
+                        ? rect.top >= 0 && rect.bottom <= viewportHeight()
+                        : Math.abs(rect.top) <= 40;
+                    if (!inView) scrollToElement(target.el, target.block || 'start', 'instant');
+                }
+                navigationScrollPending--;
+                resolve();
+            };
+            let endTimer;
+            const onEnd = () => { clearTimeout(endTimer); endTimer = setTimeout(finish, 80); };
+            window.addEventListener('scrollend', onEnd);
+            scrollToElement(first.el, first.block || 'start', 'smooth');
+            setTimeout(finish, 1200); // also when no scroll was needed or scrollend is unsupported
+        });
+    }
+
     function replaceListPreservingScroll(oldList, newList) {
         if (!oldList || !newList) return;
         const y = window.scrollY;
@@ -1949,10 +1990,15 @@ function getIcon($name) {
         // Reserve the old height until the replacement has been laid out.
         newList.style.minHeight = oldList.getBoundingClientRect().height + 'px';
         oldList.replaceWith(newList);
-        window.scrollTo({top: y, behavior: 'instant'});
+        // While an editor is being opened or closed, its own scroll decides the position.
+        const keepPosition = navigationScrollPending === 0;
+        const replacedAt = performance.now();
+        if (keepPosition) window.scrollTo({top: y, behavior: 'instant'});
         requestAnimationFrame(() => {
             newList.style.minHeight = '';
-            window.scrollTo({top: y, behavior: 'instant'});
+            // Only right after the replacement: a frame delayed in a background tab must not
+            // pull the page back long after something else has scrolled it.
+            if (keepPosition && navigationScrollPending === 0 && performance.now() - replacedAt < 200) window.scrollTo({top: y, behavior: 'instant'});
             requestAnimationFrame(() => {
                 if (--listRefreshCount === 0) root.style.overflowAnchor = savedOverflowAnchor;
             });
@@ -2184,7 +2230,7 @@ function getIcon($name) {
     async function copyToClipboard(text) {
         try {
             await navigator.clipboard.writeText(text);
-            alert('<?= t('msg_copied') ?>');
+            showToast('<?= t('msg_copied') ?>');
         } catch (err) {
             // Fallback for older browsers or non-secure contexts
             const textArea = document.createElement("textarea");
@@ -2193,9 +2239,9 @@ function getIcon($name) {
             textArea.select();
             try {
                 document.execCommand('copy');
-                alert('<?= t('msg_copied') ?>');
+                showToast('<?= t('msg_copied') ?>');
             } catch (err) {
-                alert('<?= t('msg_copy_failed') ?>');
+                showToast('<?= t('msg_copy_failed') ?>', true);
             }
             document.body.removeChild(textArea);
         }
@@ -2203,7 +2249,7 @@ function getIcon($name) {
     async function csvConvertAndCopy() {
         const fileInput = document.getElementById('csv-file-input');
         const btn = document.getElementById('csv-copy-btn');
-        if (!fileInput.files[0]) { alert('<?= t('csv_no_file') ?>'); return; }
+        if (!fileInput.files[0]) { showToast('<?= t('csv_no_file') ?>', true); return; }
         const buffer = await fileInput.files[0].arrayBuffer();
         const bytes = new Uint8Array(buffer);
         let encoding = 'UTF-8';
@@ -2537,14 +2583,9 @@ function getIcon($name) {
         }
         _spaEditorAbortController = new AbortController();
 
-        // 同じtypeのエディタが既に開いていれば閉じる（別typeは維持）
-        const existing = document.getElementById(editorId);
-        if (existing) {
-            const slot = document.getElementById(slotId);
-            if (slot) slot.innerHTML = '';
-        }
-        const oldNav = document.querySelector(`.side-nav .nav-edit[data-editor-type="${type}"]`);
-        if (oldNav) oldNav.remove();
+        // 同じtypeのエディタが既に開いているときは、新しい内容が届くまでそのまま見せ、同じ場所で入れ替える
+        // （空にしてから読み込むと、画面が一瞬縮んで位置が飛ぶ）
+        const replacing = !!document.getElementById(editorId);
 
         fetch(url, { signal: _spaEditorAbortController.signal })
             .then(r => r.text())
@@ -2569,7 +2610,9 @@ function getIcon($name) {
                     scriptEl.remove();
                 });
 
-                // nav-editボタンを追加
+                // nav-editボタンを追加（入れ替えのときは古いものを外してから）
+                const oldNav = document.querySelector(`.side-nav .nav-edit[data-editor-type="${type}"]`);
+                if (oldNav) oldNav.remove();
                 const navBtn = createNavEditButton(type);
                 const anchor = getNavEditAnchor(type);
                 if (anchor) anchor.parentNode.insertBefore(navBtn, anchor);
@@ -2590,17 +2633,10 @@ function getIcon($name) {
                     acquireLockFrontend(type, editId);
                 }
 
-                // レイアウト確定を待ってからスクロール→アニメーション開始
-                requestAnimationFrame(() => {
-                    editor.scrollIntoView({ behavior: 'smooth' });
-                    // スクロール開始後にフェードインアニメーション
-                    requestAnimationFrame(() => {
-                        editor.classList.add('spa-entering');
-                        editor.addEventListener('animationend', () => {
-                            editor.classList.remove('spa-entering');
-                        }, { once: true });
-                    });
-                });
+                // 開くときも、どのエディタも同じ動き: 先頭へスクロールしながら、新しく開くときだけ育つように現れる
+                // (タイマーで始める: 裏のタブではアニメーションのフレームが止まるため)
+                setTimeout(() => settleScroll(() => ({ el: document.getElementById(editorId), block: 'start' })), 0);
+                if (!replacing) MikanUI.expand(editor);
             })
             .catch(err => {
                 if (err.name === 'AbortError') return; // ダブルクリックによるキャンセルは無視
@@ -2625,6 +2661,13 @@ function getIcon($name) {
         const sectionId = type === 'page' ? 'pages' : 'design';
         const editor = document.getElementById(editorId);
         const navEdit = document.querySelector(`.side-nav .nav-edit[data-editor-type="${type}"]`);
+        // The row to come back to: the page (or component) that was being edited.
+        const editedId = editor ? ((editor.querySelector('input[name="old_id"]') || {}).value || (editor.querySelector('input[name="id"]') || {}).value || '') : '';
+        const editedRow = () => {
+            if (!editedId) return null;
+            const selector = type === 'page' ? '#pages-table-wrap tr[data-page-id]' : '#comps-table-wrap tr[data-component-id]';
+            return [...document.querySelectorAll(selector)].find(row => (row.dataset.pageId ?? row.dataset.componentId) === editedId) || null;
+        };
 
         isNavigating = true;
         document.querySelectorAll('.side-nav a').forEach(a => a.style.transition = 'none');
@@ -2632,76 +2675,49 @@ function getIcon($name) {
         // nav-editの閉じるアニメーション
         if (navEdit) navEdit.classList.add('closing');
 
-        if (editor) {
-            // Phase 1: フェードアウト (opacity + transform)
-            editor.classList.add('spa-leaving');
+        // 閉じ先セクションの色とナビ状態を、先に明示的にセット
+        const sectionColors = { pages: '#e0f2fe', design: '#fffbeb', media: '#f0fdf4' };
+        const sectionNavs = { pages: 'nav-pages', design: 'nav-design', media: 'nav-media' };
+        document.body.style.backgroundColor = sectionColors[sectionId] || '#ffffff';
+        const targetNav = sectionNavs[sectionId];
+        if (targetNav) {
+            document.querySelectorAll('.side-nav a:not(.nav-edit)').forEach(btn => {
+                btn.classList.toggle('active', btn.classList.contains(targetNav));
+            });
+        }
+        // URLは先に戻す: 一覧の更新は今のURL（cat・fmt・q）で絞り込むので、閉じても絞り込みとボタンの表示が一致する
+        history.pushState({ spaEditor: false }, '', 'admin.php?' + listUrlParams(type === 'page' ? 'pages' : 'design').toString() + '#' + sectionId);
+        window.isDirty = false;
 
-            // Phase 2: フェード完了後、高さをスムーズに収縮
-            const fadeDuration = 350;
-            setTimeout(() => {
-                const h = editor.offsetHeight;
-                // アニメーションをリセットし、高さを固定してからtransitionで収縮
-                editor.style.animation = 'none';
-                editor.style.opacity = '0';
-                editor.style.height = h + 'px';
-                editor.style.overflow = 'hidden';
-                editor.style.padding = '0';
-                editor.style.margin = '0';
-                // reflow
-                editor.offsetHeight;
-                editor.style.transition = 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-                editor.style.height = '0';
-            }, fadeDuration);
-
-            // Phase 3: 収縮完了後にDOM除去
-            const totalDuration = fadeDuration + 320;
-            setTimeout(() => {
+        // どのエディタも同じ動き: 一覧を最新にして → 編集していた行へ戻りながら、エディタを畳む
+        (async () => {
+            try {
+                const before = editor ? editor.getBoundingClientRect().top : 0;
+                navigationScrollPending++;
+                try { await (type === 'page' ? refreshPageList() : refreshCompList()); }
+                catch (err) { /* the list keeps what it had */ }
+                finally { navigationScrollPending--; }
+                // 一覧の高さが変わっても、見えているエディタは動かさない
+                if (editor) {
+                    const shift = editor.getBoundingClientRect().top - before;
+                    if (shift) window.scrollBy({ top: shift, behavior: 'instant' });
+                }
+                const scrolled = settleScroll(() => {
+                    const row = editedRow();
+                    return row ? { el: row, block: 'center' } : { el: document.getElementById(sectionId), block: 'start' };
+                });
+                await Promise.all([editor ? MikanUI.collapse(editor) : Promise.resolve(), scrolled]);
+            } finally {
                 const slot = document.getElementById(slotId);
                 if (slot) slot.innerHTML = '';
                 if (navEdit) navEdit.remove();
-
-                // URL更新を先に: 一覧の更新は今のURL（cat・fmt・q）で絞り込むので、
-                // 閉じても絞り込みとボタンの表示が一致する
-                history.pushState({ spaEditor: false }, '', 'admin.php?' + listUrlParams(type === 'page' ? 'pages' : 'design').toString() + '#' + sectionId);
-
-                // Refresh the list to reflect any changes made in the editor
-                if (type === 'page') refreshPageList();
-                else refreshCompList();
-
-                // URL更新
-
-                // 閉じ先セクションの色とナビ状態を明示的にセット
-                const sectionColors = { pages: '#e0f2fe', design: '#fffbeb', media: '#f0fdf4' };
-                const sectionNavs = { pages: 'nav-pages', design: 'nav-design', media: 'nav-media' };
-                document.body.style.backgroundColor = sectionColors[sectionId] || '#ffffff';
-                const targetNav = sectionNavs[sectionId];
-                if (targetNav) {
-                    document.querySelectorAll('.side-nav a:not(.nav-edit)').forEach(btn => {
-                        btn.classList.toggle('active', btn.classList.contains(targetNav));
-                    });
-                }
-
-                // セクションへスムーズスクロール
-                const section = document.getElementById(sectionId);
-                if (section) section.scrollIntoView({ behavior: 'smooth' });
-
-                window.isDirty = false;
-
-                // スクロール完了を待ってからナビゲーション状態を解除
                 setTimeout(() => {
                     isNavigating = false;
                     document.querySelectorAll('.side-nav a').forEach(a => a.style.transition = '');
-                }, 400);
-            }, totalDuration);
-        } else {
-            // エディタがない場合（フォールバック）
-            if (navEdit) navEdit.remove();
-            history.pushState({ spaEditor: false }, '', 'admin.php?' + listUrlParams(type === 'page' ? 'pages' : 'design').toString() + '#' + sectionId);
-            window.isDirty = false;
-            isNavigating = false;
-            document.querySelectorAll('.side-nav a').forEach(a => a.style.transition = '');
-            updateScrollPos();
-        }
+                    updateScrollPos();
+                }, 200);
+            }
+        })();
     }
 
     function getEditorTypeFromUrl(url) {
@@ -2994,22 +3010,6 @@ function getIcon($name) {
                             oldIdInput.value = idInput.value;
                         }
 
-                        // The editor's preview button follows the saved page (new page, ID or format change).
-                        if (action === 'save_page' && json.preview_href) {
-                            const previewLink = document.getElementById('editor-preview-link');
-                            if (previewLink) {
-                                const link = document.createElement('a');
-                                link.id = 'editor-preview-link';
-                                link.className = 'btn btn-blue';
-                                link.target = '_blank';
-                                link.rel = 'noopener';
-                                link.href = json.preview_href;
-                                link.title = previewLink.title;
-                                link.innerHTML = previewLink.innerHTML;
-                                previewLink.replaceWith(link);
-                            }
-                        }
-
                         // Refresh page/comp list in background after save
                         if (action === 'save_page') {
                             refreshPageList();
@@ -3136,54 +3136,7 @@ function getIcon($name) {
     })();
 <?php endif; ?>
 
-    function showToast(msg, isErr=false) {
-        let t = document.getElementById('ajax-toast');
-        if (!t) {
-            t = document.createElement('div');
-            t.id = 'ajax-toast';
-            t.style.cssText = 'position:fixed; bottom:30px; right:30px; background:rgba(0,0,0,0.8); color:white; padding:12px 24px; border-radius:8px; z-index:10000; transition:opacity 0.3s; opacity:0; pointer-events:none;';
-            document.body.appendChild(t);
-        }
-        t.style.background = isErr ? 'rgba(220,53,69,0.9)' : 'rgba(0,0,0,0.8)';
-        t.textContent = msg;
-        t.style.opacity = '1';
-        setTimeout(() => t.style.opacity = '0', 3000);
-    }
 
-    window.showConfirmDialog = function(message, title = '', okText = '', okClass = 'btn-red') {
-        return new Promise((resolve) => {
-            const dialog = document.getElementById('global-confirm-dialog');
-            const titleEl = document.getElementById('global-confirm-title');
-            const msgEl = document.getElementById('global-confirm-message');
-            const btnCancel = document.getElementById('btn-global-confirm-cancel');
-            const btnOk = document.getElementById('btn-global-confirm-ok');
-            
-            if (!dialog || !msgEl || !btnCancel || !btnOk) {
-                resolve(confirm(message));
-                return;
-            }
-            
-            if (titleEl) titleEl.textContent = title || '<?= t('btn_delete') ?>';
-            msgEl.textContent = message;
-            btnOk.textContent = okText || '<?= t('btn_delete_confirm') ?>';
-            
-            btnOk.className = 'btn btn-small ' + okClass;
-            
-            dialog.showModal();
-            
-            const onCancel = () => { dialog.close(); resolve(false); };
-            const onOk = () => { dialog.close(); resolve(true); };
-            
-            btnCancel.addEventListener('click', onCancel, { once: true });
-            btnOk.addEventListener('click', onOk, { once: true });
-            
-            dialog.addEventListener('close', () => {
-                btnCancel.removeEventListener('click', onCancel);
-                btnOk.removeEventListener('click', onOk);
-                resolve(false);
-            }, { once: true });
-        });
-    };
 
     // Global submit event listener to intercept native delete operations
     document.addEventListener('submit', async function(e) {
@@ -3211,21 +3164,21 @@ function getIcon($name) {
             
             let msg = '<?= t('hint_confirm_delete') ?>';
             if (action === 'delete_user') {
-                const dispName = form.dataset.displayName || '';
-                msg = <?= json_encode(t('confirm_delete_user')) ?>.replace('%s', dispName);
+                msg = <?= json_encode(t('confirm_delete_user', '%s'), JSON_UNESCAPED_UNICODE) ?>.replace('%s', form.dataset.displayName || '');
             }
             
             const confirmed = await window.showConfirmDialog(msg, '<?= t('btn_delete') ?>', '<?= t('btn_delete_confirm') ?>', 'btn-red');
-            if (confirmed) {
-                form.dataset.confirmed = '1';
-                if (submitter && submitter.name && submitter.value) {
-                    const hidden = document.createElement('input');
-                    hidden.type = 'hidden';
-                    hidden.name = submitter.name;
-                    hidden.value = submitter.value;
-                    form.appendChild(hidden);
-                }
-                form.submit();
+            if (!confirmed) return;
+            // Deleting runs in place: no page reload, the message goes to the toast.
+            try {
+                const { ok, json } = await MikanUI.post(form, submitter);
+                showToast(json.message || '<?= t('msg_update_success') ?>', !ok);
+                if (!ok) return;
+                window.isDirty = false;
+                if (action === 'delete_user') await MikanUI.refresh('#users-mgmt');
+                else spaCloseEditor(submitter.value === 'delete_page' ? 'page' : 'design');
+            } catch (err) {
+                showToast('<?= t('err_network_error') ?>', true);
             }
         }
     });
@@ -3337,17 +3290,6 @@ function getIcon($name) {
     </div>
 </dialog>
 
-<!-- Native Dialog for global confirmation -->
-<dialog id="global-confirm-dialog" class="custom-dialog">
-    <h3 style="margin-top:0; margin-bottom:12px; font-size:1.05rem; display:flex; align-items:center; gap:8px; color:var(--text);">
-        <span class="material-symbols-outlined" style="color: #ef4444;">warning</span> <span id="global-confirm-title"><?= t('btn_delete') ?></span>
-    </h3>
-    <p id="global-confirm-message" style="font-size:0.9rem; line-height:1.5; margin-bottom:20px; color:#475569;"></p>
-    <div class="dialog-buttons" style="display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;">
-        <button id="btn-global-confirm-cancel" class="btn btn-small" style="background:#f1f5f9; color:#1e293b; border: 1px solid #cbd5e1;"><?= t('btn_cancel') ?></button>
-        <button id="btn-global-confirm-ok" class="btn btn-small btn-red"><?= t('btn_delete_confirm') ?></button>
-    </div>
-</dialog>
 
 
 <div id="unsaved-modal" class="unsaved-modal-overlay" style="display: none;">

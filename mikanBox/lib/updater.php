@@ -99,7 +99,7 @@ function mikanBoxUpdateProgramFiles(string $packageRoot): array {
     foreach (['index.php'] as $relative) {
         if (is_file($packageRoot . '/' . $relative)) $relativeFiles[] = $relative;
     }
-    foreach (['.htaccess', 'admin.php', 'admin.css', 'ai-question.js', 'build.php', 'config.php', 'convert.php', 'mcp.php', 'public-mcp.php', 'visual.php'] as $filename) {
+    foreach (['.htaccess', 'admin.php', 'admin.css', 'ai-question.js', 'admin-ui.js', 'preview-editor.js', 'build.php', 'config.php', 'convert.php', 'mcp.php', 'public-mcp.php', 'visual.php'] as $filename) {
         $relative = 'mikanBox/' . $filename;
         if (is_file($packageRoot . '/' . $relative)) $relativeFiles[] = $relative;
     }

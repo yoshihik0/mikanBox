@@ -51,7 +51,7 @@
             <div style="display:inline-flex; gap:8px; align-items:center;">
                 <?= t('version_latest') ?>: <?= $latestVersion ? htmlspecialchars($latestVersion) : t('version_check_failed') ?>
                 <?php if ($isOutdated): ?>
-                    <form method="post" style="display:inline;" onsubmit="if (!confirm(<?= htmlspecialchars(json_encode(t('confirm_system_update', $latestVersion), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)) return false; const button = this.querySelector('button[type=submit]'); button.disabled = true; button.textContent = <?= htmlspecialchars(json_encode(t('msg_system_updating'), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>; this.setAttribute('aria-busy', 'true'); return true;">
+                    <form method="post" style="display:inline;" data-confirm="<?= htmlspecialchars(t('confirm_system_update', $latestVersion), ENT_QUOTES) ?>" data-confirm-ok="<?= htmlspecialchars(t('btn_ok'), ENT_QUOTES) ?>" data-confirm-title="<?= htmlspecialchars(t('nav_settings'), ENT_QUOTES) ?>" data-busy-text="<?= htmlspecialchars(t('msg_system_updating'), ENT_QUOTES) ?>">
                         <?= csrfField() ?>
                         <input type="hidden" name="save_action" value="system_update">
                         <input type="hidden" name="target_version" value="<?= htmlspecialchars($latestVersion, ENT_QUOTES) ?>">
@@ -63,7 +63,7 @@
                     <?php // Reinstalling the current version is the recovery path when an update
                           // left a program file in a bad state; otherwise the only way out would
                           // be to wait for the next release. ?>
-                    <form method="post" style="display:inline;" onsubmit="if (!confirm(<?= htmlspecialchars(json_encode(t('confirm_system_reinstall', $latestVersion), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)) return false; const button = this.querySelector('button[type=submit]'); button.disabled = true; button.textContent = <?= htmlspecialchars(json_encode(t('msg_system_updating'), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>; this.setAttribute('aria-busy', 'true'); return true;">
+                    <form method="post" style="display:inline;" data-confirm="<?= htmlspecialchars(t('confirm_system_reinstall', $latestVersion), ENT_QUOTES) ?>" data-confirm-ok="<?= htmlspecialchars(t('btn_ok'), ENT_QUOTES) ?>" data-confirm-title="<?= htmlspecialchars(t('nav_settings'), ENT_QUOTES) ?>" data-busy-text="<?= htmlspecialchars(t('msg_system_updating'), ENT_QUOTES) ?>">
                         <?= csrfField() ?>
                         <input type="hidden" name="save_action" value="system_update">
                         <input type="hidden" name="target_version" value="<?= htmlspecialchars($latestVersion, ENT_QUOTES) ?>">
@@ -78,7 +78,7 @@
             <?php if ($updateBackup): ?>
                 <div style="display:inline-flex; gap:8px; align-items:center;">
                     <?= t('version_restore_available') ?>: <?= htmlspecialchars($updateBackup['from_version']) ?>
-                    <form method="post" style="display:inline;" onsubmit="if (!confirm(<?= htmlspecialchars(json_encode(t('confirm_system_restore', $updateBackup['from_version']), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)) return false; const button = this.querySelector('button[type=submit]'); button.disabled = true; button.textContent = <?= htmlspecialchars(json_encode(t('msg_system_restoring'), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>; this.setAttribute('aria-busy', 'true'); return true;">
+                    <form method="post" style="display:inline;" data-confirm="<?= htmlspecialchars(t('confirm_system_restore', $updateBackup['from_version']), ENT_QUOTES) ?>" data-confirm-ok="<?= htmlspecialchars(t('btn_ok'), ENT_QUOTES) ?>" data-confirm-title="<?= htmlspecialchars(t('nav_settings'), ENT_QUOTES) ?>" data-busy-text="<?= htmlspecialchars(t('msg_system_updating'), ENT_QUOTES) ?>">
                         <?= csrfField() ?>
                         <input type="hidden" name="save_action" value="system_restore">
                         <button type="submit" style="font:inherit; color:inherit; background:none; border:0; padding:0; text-decoration:underline; cursor:pointer;"><?= t('btn_system_restore') ?></button>

@@ -75,7 +75,7 @@ function mbv_js_strings(): array {
     $all = json_decode((string)file_get_contents($file), true) ?: [];
     $out = [];
     foreach ($all as $k => $v) { if (strpos($k, 'visual_') === 0) $out[$k] = $v; }
-    foreach (['btn_close', 'btn_cancel', 'btn_copy', 'label_title', 'btn_visual_edit'] as $k) { if (isset($all[$k])) $out[$k] = $all[$k]; }
+    foreach (['btn_close', 'btn_cancel', 'btn_ok', 'btn_copy', 'label_title', 'btn_visual_edit'] as $k) { if (isset($all[$k])) $out[$k] = $all[$k]; }
     return $out;
 }
 function mbv_site_base(): string {

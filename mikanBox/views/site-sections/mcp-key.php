@@ -11,7 +11,7 @@ $mcpDisplayKey = (string)($settings['mcp_api_key'] ?? '');
                 </summary>
                 <div class="editor-container editor-container-sub">
                     <small class="sub-text sub-text-intro"><?= t('mcp_key_hint') ?></small>
-                    <form method="post" class="mt-10">
+                    <form method="post" class="mt-10" data-ajax>
                         <?= csrfField() ?><input type="hidden" name="save_action" value="set_mcp_enabled">
                         <label><input type="checkbox" name="mcp_enabled" value="1" <?= mikanBoxMcpEnabled() ? 'checked' : '' ?>> <?= t('mcp_enable_label') ?></label>
                         <button type="submit" class="btn btn-gray btn-small"><?= t('btn_save') ?></button>

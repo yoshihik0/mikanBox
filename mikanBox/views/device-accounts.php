@@ -85,7 +85,7 @@ $boxBodyStyle = 'padding: 15px; border-top: 1px solid #e2e8f0; background: #fff;
                                                         <td><?= $e($when($d['expires_at'])) ?></td>
                                                         <td class="account-actions">
                                                             <?php if ($isMe || !$probation): ?>
-                                                                <form method="post" class="inline" onsubmit="return confirm(<?= $e(json_encode($isMe ? t('device_confirm_stop_self') : t('device_confirm_stop_other'))) ?>)">
+                                                                <form method="post" class="inline" data-ajax data-refresh="#users-mgmt" data-confirm="<?= $e($isMe ? t('device_confirm_stop_self') : t('device_confirm_stop_other')) ?>" data-confirm-ok="<?= $e(t('btn_ok')) ?>">
                                                                     <?= csrfField() ?>
                                                                     <input type="hidden" name="save_action" value="device_revoke">
                                                                     <input type="hidden" name="device_id" value="<?= $e($d['id']) ?>">
@@ -102,7 +102,7 @@ $boxBodyStyle = 'padding: 15px; border-top: 1px solid #e2e8f0; background: #fff;
                                     <p class="account-user-empty"><?= $e(t('device_no_devices')) ?></p>
                                 <?php endif; ?>
                                 <?php if ($isSelf): ?>
-                                    <form method="post" class="account-name-form">
+                                    <form method="post" class="account-name-form" data-ajax data-refresh="#users-mgmt">
                                         <?= csrfField() ?>
                                         <input type="hidden" name="save_action" value="update_my_account">
                                         <label for="my-display-name"><?= $e(t('device_display_name_label')) ?></label>
@@ -124,14 +124,14 @@ $boxBodyStyle = 'padding: 15px; border-top: 1px solid #e2e8f0; background: #fff;
                         </summary>
                         <div style="<?= $boxBodyStyle ?>">
                             <p class="sub-text"><?= $e(t('device_add_intro')) ?></p>
-                            <form method="post">
+                            <form method="post" data-ajax data-refresh="#users-mgmt">
                                 <?= csrfField() ?>
                                 <input type="hidden" name="save_action" value="device_code_create">
                                 <button type="submit" class="btn btn-blue btn-small"><?= getIcon('add') ?> <?= $e(t('device_btn_issue_code')) ?></button>
                             </form>
                             <h4 style="margin: 20px 0 10px; font-size: 0.9rem;"><?= $e(t('device_invite_title')) ?></h4>
                             <p class="sub-text"><?= $e(t('device_invite_admin_intro')) ?></p>
-                            <form method="post">
+                            <form method="post" data-ajax data-refresh="#users-mgmt">
                                 <?= csrfField() ?>
                                 <input type="hidden" name="save_action" value="device_code_create">
                                 <input type="hidden" name="invite" value="1">
@@ -159,7 +159,7 @@ $boxBodyStyle = 'padding: 15px; border-top: 1px solid #e2e8f0; background: #fff;
                                             <td><?= $e($deviceNames[$c['created_by']] ?? '—') ?></td>
                                             <td><?= $e($when($c['expires_at'])) ?></td>
                                             <td class="account-actions">
-                                                <form method="post" class="inline">
+                                                <form method="post" class="inline" data-ajax data-refresh="#users-mgmt">
                                                     <?= csrfField() ?>
                                                     <input type="hidden" name="save_action" value="device_code_cancel">
                                                     <input type="hidden" name="code_hash" value="<?= $e($c['code_hash']) ?>">
@@ -173,7 +173,7 @@ $boxBodyStyle = 'padding: 15px; border-top: 1px solid #e2e8f0; background: #fff;
                         </div>
                     <?php endif; ?>
 
-                    <form method="post" class="device-expiry-form">
+                    <form method="post" class="device-expiry-form" data-ajax data-refresh="#users-mgmt">
                         <?= csrfField() ?>
                         <input type="hidden" name="save_action" value="device_expiry">
                         <label><?= $e(t('device_expiry_label')) ?>

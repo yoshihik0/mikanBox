@@ -816,10 +816,11 @@
     "label_content_md": "Content (Markdown)",
     "label_content_data": "Content (%s)",
     "output_format_db_hint": "Returns the DATA and DATAROW data as JSON.",
-    "preview_saved_hint": "Shows the saved content.",
     "output_format_db": "mikanBox DB",
     "msg_htaccess_charset_manual": "The charset settings could not be added to the site-root .htaccess. To keep static .md, .txt, .csv, .js, .css and .json files from looking garbled, add \"AddCharset utf-8 .md .txt .csv .js .css .json\" and \"AddType text/markdown .md\" to the end of .htaccess (see \"URL Rules\" in the manual).",
     "page_format_filter_all": "All output formats",
     "btn_open_public_page": "Open the public page",
-    "msg_not_public_yet": "Not published (draft or pending)"
+    "msg_not_public_yet": "Not published (draft or pending)",
+    "btn_ok": "OK",
+    "preview_editing_hint": "Shows what you are editing (nothing is saved)."
 }

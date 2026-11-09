@@ -1,7 +1,38 @@
 <?php
 if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) { http_response_code(403); exit; } // direct request guard
-/** Preview a saved page in the output it publishes (admin.php?page_preview=ID). */
-function mikanBoxRenderSavedPreview(array $settings, string $id): void {
+/**
+ * The editor's preview shows what is being edited, saved or not (2.19.0). The editor posts its
+ * current fields to admin.php (preview_stash); they wait in the session under a random token and
+ * the new tab reads them with a plain GET (admin.php?page_preview=_&stash=TOKEN). Nothing is saved.
+ */
+function mikanBoxPreviewStashStore(array $input): string {
+    $keep = [];
+    foreach ($input as $key => $value) {
+        if (is_string($value) && !in_array($key, ['csrf_token', 'save_action', 'ajax_request'], true)) $keep[$key] = $value;
+    }
+    $stash = is_array($_SESSION['mikanbox_preview_stash'] ?? null) ? $_SESSION['mikanbox_preview_stash'] : [];
+    $now = time();
+    foreach ($stash as $token => $entry) if (($entry['at'] ?? 0) < $now - 1800) unset($stash[$token]);
+    while (count($stash) >= 4) array_shift($stash);
+    $token = bin2hex(random_bytes(12));
+    $stash[$token] = ['at' => $now, 'input' => $keep];
+    $_SESSION['mikanbox_preview_stash'] = $stash;
+    return $token;
+}
+
+function mikanBoxPreviewStashFetch(string $token): ?array {
+    $entry = $_SESSION['mikanbox_preview_stash'][$token] ?? null;
+    return is_array($entry) && is_array($entry['input'] ?? null) ? $entry['input'] : null;
+}
+
+/** Preview a saved page in the output it publishes (admin.php?page_preview=ID); with a stash token, the editor's unsaved fields. */
+function mikanBoxRenderSavedPreview(array $settings, string $id, string $stash = ''): void {
+    if ($stash !== '') {
+        $input = preg_match('/\A[0-9a-f]{24}\z/', $stash) ? mikanBoxPreviewStashFetch($stash) : null;
+        if ($input === null) { http_response_code(404); header('Content-Type: text/plain; charset=utf-8'); echo 'Preview expired. Press Preview again.'; return; }
+        mikanBoxRenderEditorPreview($settings, $input);
+        return;
+    }
     $data = $id !== '' && strlen($id) <= 200 ? loadData(POSTS_DIR, $id) : null;
     if (!$data) { http_response_code(404); header('Content-Type: text/plain; charset=utf-8'); echo 'Not Found'; return; }
     $base = dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/mikanBox/admin.php'));

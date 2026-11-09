@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.18.2</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.19.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -300,6 +300,10 @@ Opens the site's top page (in a new tab).
 
 The browser tab shows "🍊site name" (the sign-in screen shows "🍊site name - Sign in").
 
+#### How actions work (no full-page reloads)
+
+Admin actions run without reloading the whole screen, and the result appears as a message at the bottom right. Confirmations (such as deleting) are shown inside the screen, never in the browser's own dialog. Opening and closing editors always looks the same: opening scrolls to the top of the editor, and closing returns to the row you were editing, keeping the filters, search and list page. The screen reloads only when what the screen is changes: system update and restore, switching the language, signing in and out, first setup, and stopping this device (which signs you out). Visual Editing's Undo and Redo reload because the rendered page itself changes.
+
 #### Logout
 
 Logs you out of the system.
@@ -374,11 +378,11 @@ The page editor preview and this globe work as follows.
 
 |Status|Page editor preview (shown through the admin screen)|Globe in the page list (the real site address)|
 |---|---|---|
-|Draft|The saved content|None|
-|Pending (SQLite)|The saved content|None (the review link is in the editor)|
-|Public (Dynamic)|The saved content|The real site (shows the saved content)|
-|Public (Static), before a build|The saved content|The real site (the previous content until you build, or nothing yet)|
-|Public (Static), after a build|The saved content|The real site (the same as the preview)|
+|Draft|What you are editing|None (greyed out)|
+|Pending (SQLite)|What you are editing|None (greyed out; the review link is in the editor)|
+|Public (Dynamic)|What you are editing (check it before saving)|The real site (shows the saved content)|
+|Public (Static), before a build|What you are editing|The real site (the previous content until you build, or nothing yet)|
+|Public (Static), after a build|What you are editing|The real site (the same as the saved content)|
 
 - For a page with "Pending approval" status, this instead opens a preview share URL (with a preview token). [SQLite Edition only]{.type-badge .badge-sqlite}
 
@@ -530,11 +534,11 @@ Saves everything about the page.
 
 #### [open_in_new]{.material-symbols-outlined} Preview{.m-btn .m-btn-blue}
 
-Shows the saved content through the admin screen in a new tab ("Shows the saved content." appears next to the button). It works for every output format and status: pages that publish HTML show as pages; Markdown-only, data and mikanBox DB pages show the text or JSON they publish, in UTF-8. Save first to check your changes. For a new page, the button becomes available after the first save. To open the real site address, use the globe in the page list (see the table under [Pages](#page-mgmt)).
+Shows what you are editing in a new tab, without saving ("Shows what you are editing (nothing is saved)." appears next to the button). It works for every output format and status, and for new pages. A Public (Dynamic) page goes live the moment you save, so use this preview to check it first. Pages that publish HTML show as pages; Markdown-only, data and mikanBox DB pages show the text or JSON they publish, in UTF-8. The preview is shown cut off from the admin screen (its scripts run, but cannot touch the admin screen). To open the real site address, use the globe in the page list (see the table under [Pages](#page-mgmt)).
 
 #### [arrow_back]{.material-symbols-outlined} Back to List{.m-btn .m-btn-gray}
 
-Returns to the page list. Note that unsaved changes will be lost.
+Returns to the page list, scrolled to the row of the page you were editing, with the category and output-format filters, the search and the list page kept (opening the editor scrolls to its top). Note that unsaved changes will be lost.
 
 #### [delete]{.material-symbols-outlined} Delete{.m-btn .m-btn-red}
 
@@ -727,6 +731,8 @@ Claude's custom connector screen supports authless or OAuth authentication. Its 
 Treat the API key like a password. Never store it in a public repository or shared file. If several mikanBox sites are connected, AI calls `get_site_info` on first connection and before writes to confirm the target site.
 
 A page's [output format](#output-formats) is set through `output_format` (`html` / `html_md` / `md` / `json` / `xml` / `csv` / `txt` / `js` / `css` / `db`), `md_footer_comps` (an array of footer component IDs) and `expand_tags` (whether a data page expands tags; the format's default when omitted) in `create_page` and `update_page`. `get_page` and `list_pages` also return `output_format`. Updating a published page with `update_page` no longer changes its update date (`updated_at`); it becomes the current time only when a page goes from non-public to public, the same as on the admin screen (since 2.17.0). `status` is `draft`, `public_dynamic` or `public_static`; the former `db` is accepted and saved as `output_format` `db` with Public (Dynamic).
+
+`preview_page` returns the result in the page's output format without saving and regardless of status (with only an `id` it shows the saved content; pass the body and other fields to render them unsaved; a new `id` works too), which is how to check tag expansion. `get_site_info` now returns `version` (the mikanBox version; when it differs from the last connection, read the tool list and `get_ai_context` again). The project rules in `get_ai_context` (`documents`) also include an entry that points at output formats (`mikanbox-output-formats`).
 
 Starting with mikanBox 2.5.1, the MCP connection instructions tell AI to call `get_ai_context` on first connection. This tool returns every [AI Instructions]{.type-badge .badge-ai} component—such as `DESIGN.md`, `BRAND.md`, and `CONTENTS.md`—in a single response. AI treats the returned content as site-specific project instructions for content, design, and code changes. Updating an instruction component updates what AI receives the next time it loads the context.
 

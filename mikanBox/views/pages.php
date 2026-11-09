@@ -127,7 +127,7 @@
                     $hasHtml = file_exists($htmlPath);
                     $htmlIcon = $hasHtml ? ' <span class="html-indicator" title="HTML Built">○</span>' : '';
             ?>
-            <tr>
+            <tr data-page-id="<?= htmlspecialchars($pid, ENT_QUOTES) ?>">
                 <td class="td-narrow">
                     <div class="flex-center" style="gap: 5px;">
                          <a href="?view=pages&edit=<?= $pid ?><?= ($searchQuery !== '') ? '&q=' . urlencode($searchQuery) : '' ?>#page-editor" class="btn btn-sm btn-blue" title="<?= t('btn_edit') ?>"><?= getIcon('edit') ?></a>
@@ -201,7 +201,7 @@
         <?php endif; ?>
 
         <div class="flex-row ssg-build-row <?= ($view === 'pages' && ($editId !== null || isset($_GET['new']))) ? 'has-editor' : 'no-editor' ?>">
-            <form method="post">
+            <form method="post" data-ajax>
                 <input type="hidden" name="save_action" value="ssg_build">
                 <?= csrfField() ?>
                 <button type="submit" class="btn btn-blue"><?= getIcon('sparkles') ?> <?= t('btn_ssg_build') ?></button>

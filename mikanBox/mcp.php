@@ -86,7 +86,7 @@ function mcpInitializeResponse($request) {
                 'name' => 'mikanBox MCP',
                 'version' => MIKANBOX_VERSION,
             ],
-            'instructions' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。 初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。書き込み前にもget_site_infoで対象サイトを再確認してください。 ページは出力形式（output_format）で Markdown 版（html_md・md → /ID.md）や JSON などのデータ（/ID.拡張子）、mikanBox DB（/api/ID.json）としても公開できます。詳しくは get_ai_context の output_formats を参照してください。',
+            'instructions' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。 初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。書き込み前にもget_site_infoで対象サイトを再確認してください。 ページは出力形式（output_format）で Markdown 版（html_md・md → /ID.md）や JSON などのデータ（/ID.拡張子）、mikanBox DB（/api/ID.json）としても公開できます。詳しくは get_ai_context の output_formats を参照してください。保存や公開の前に結果を確かめるには preview_page を使えます（保存せず、公開設定に関係なく、出力形式どおりの結果を返します）。get_site_info の version が前回の接続時と違うときは、ツール一覧と get_ai_context を読み直してください。',
         ],
     ];
 }
@@ -279,6 +279,7 @@ function mcpToolAnnotations(): array {
         'get_settings'     => ['readOnlyHint' => true, 'untrustedContentHint' => false],
         'list_pages'       => ['readOnlyHint' => true, 'untrustedContentHint' => true],
         'get_page'         => ['readOnlyHint' => true, 'untrustedContentHint' => true],
+        'preview_page'     => ['readOnlyHint' => true, 'untrustedContentHint' => true],
         'list_components'  => ['readOnlyHint' => true, 'untrustedContentHint' => true],
         'get_component'    => ['readOnlyHint' => true, 'untrustedContentHint' => true],
         'get_ai_context'   => ['readOnlyHint' => true, 'untrustedContentHint' => true],
@@ -337,6 +338,30 @@ function toolDefinitions() {
                 'type' => 'object',
                 'properties' => [
                     'id' => ['type' => 'string', 'description' => 'ページのスラッグ/ID（例: "about", "news/2024"）']
+                ],
+                'required' => ['id']
+            ],
+        ],
+        [
+            'name' => 'preview_page',
+            'description' => 'ページを、公開設定に関係なく、出力形式どおりの結果（HTML・Markdown 版・データ・mikanBox DB の JSON）で返す。何も保存せず、公開サイトにも触れない。id だけを渡すと保存済みの内容、本文などの項目を一緒に渡すと、保存せずにその内容で描画した結果を返す（新しい id でも使える）。タグの展開結果や出力形式の確認に使う。',
+            'inputSchema' => [
+                'type' => 'object',
+                'properties' => [
+                    'id'              => ['type' => 'string',  'description' => 'ページのスラッグ/ID。保存済みのページ、または新しい ID'],
+                    'title'           => ['type' => 'string'],
+                    'content_md'      => ['type' => 'string',  'description' => '保存せずに試す本文'],
+                    'css'             => ['type' => 'string'],
+                    'js'              => ['type' => 'string'],
+                    'description'     => ['type' => 'string'],
+                    'keywords'        => ['type' => 'string'],
+                    'category'        => ['type' => 'string'],
+                    'ogp_image'       => ['type' => 'string'],
+                    'is_html'         => ['type' => 'boolean'],
+                    'wrapper_comp'    => ['type' => 'string'],
+                    'output_format'   => ['type' => 'string',  'enum' => ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css', 'db'], 'description' => '試す出力形式（省略時は保存済みの形式、新規なら html）'],
+                    'md_footer_comps' => ['type' => 'array', 'items' => ['type' => 'string']],
+                    'expand_tags'     => ['type' => 'boolean'],
                 ],
                 'required' => ['id']
             ],
@@ -607,6 +632,41 @@ function toolGetPage($id) {
     return $d;
 }
 
+/**
+ * Preview: the page as its output format publishes it, without saving anything or touching
+ * the public site. Fields passed with the id replace the saved ones for this call only.
+ */
+function toolPreviewPage($args) {
+    $id = $args['id'] ?? '';
+    if ($err = mcpRequireId($id)) return $err;
+    $existing = loadData(POSTS_DIR, $id);
+    $fields = ['title', 'content_md', 'description', 'keywords', 'category', 'wrapper_comp', 'is_html', 'css', 'js', 'ogp_image'];
+    $given = array_values(array_intersect($fields, array_keys($args)));
+    $formatInput = array_intersect_key($args, array_flip(['output_format', 'md_footer_comps', 'expand_tags']));
+    if ($existing === null && !$given && !$formatInput) return ['error' => t('mcp_err_page_not_found', $id)];
+    $data = $existing ?? ['title' => $id, 'content_md' => '', 'wrapper_comp' => '_layout', 'sort_order' => 0, 'updated_at' => date('Y-m-d H:i:s')];
+    foreach ($given as $field) $data[$field] = $args[$field];
+    $data = array_merge($data, mikanBoxPageFormatFields($formatInput, $existing));
+    $data = mikanBoxNormalizeLegacyPage($data);
+    if (($formatError = mikanBoxValidatePageSave($id, $id, $data, $GLOBALS['mcp_settings'] ?? [])) !== null) return ['error' => $formatError];
+    // Drafts and unsaved pages are shown too: this is the way to check them before publishing.
+    $data['status'] = 'public_dynamic';
+    require_once __DIR__ . '/lib/renderer.php';
+    $renderer = new MikanBoxRenderer($GLOBALS['mcp_settings'] ?? []);
+    $preview = $renderer->renderPreview($id, $data);
+    $format = mikanBoxPageOutputFormat($data);
+    $type = mikanBoxIsApiFormat($format) ? 'application/json; charset=utf-8'
+        : (mikanBoxFormatExtension($format) !== null ? mikanBoxContentTypeForExtension(mikanBoxFormatExtension($format)) : 'text/html; charset=utf-8');
+    return [
+        'id' => $id,
+        'output_format' => $format,
+        'content_type' => $type,
+        'saved' => $existing !== null,
+        'used_unsaved_fields' => array_values(array_merge($given, array_keys($formatInput))),
+        'content' => $preview['body'],
+    ];
+}
+
 function toolCreatePage($args) {
     $id = $args['id'] ?? '';
     if ($err = mcpRequireId($id)) return $err;
@@ -779,6 +839,15 @@ function toolGetAiContext() {
             'content_md' => (string)($d['html'] ?? ''),
         ];
     }
+    // The built-in guidance sits among the documents, so reading the project rules finds it too.
+    $documents[] = [
+        'id' => 'mikanbox-output-formats',
+        'builtin' => true,
+        'content_md' => "## 出力形式（ページを HTML 以外でも公開できる）\n\n"
+            . "- ページごとに `output_format` を選ぶ（`update_page` / `create_page`）。`html`（既定）・`html_md`（HTML と Markdown 版 `/ID.md`）・`md`（Markdown 版だけ）・`json`/`xml`/`csv`/`txt`/`js`/`css`（本文をそのまま `/ID.拡張子`）・`db`（DATA・DATAROW を JSON で `/api/ID.json`）。サイト全体のスイッチはない。\n"
+            . "- Markdown で読ませたいページは `html_md` か `md` にする。データ形式と `db` は一覧・sitemap・RSS・検索に含まれない。\n"
+            . "- 保存や公開の前に `preview_page` で結果（タグの展開後など）を確かめられる。詳しくは下の `output_formats` を参照。",
+    ];
     return [
         'documents' => $documents,
         'count' => count($documents),
@@ -884,6 +953,9 @@ function toolGetSiteInfo($settings) {
         'site_name'   => $siteName,
         'site_url'    => rtrim($siteUrl, '/'),
         'environment' => $environment,
+        // The mikanBox version: when it differs from the last connection, the tool list and
+        // get_ai_context may have changed and are worth reading again.
+        'version'     => defined('MIKANBOX_VERSION') ? MIKANBOX_VERSION : '',
     ];
 }
 
@@ -995,6 +1067,7 @@ function executeTool($name, $args, $settings) {
         'get_site_info'     => toolGetSiteInfo($settings),
         'list_pages'       => toolListPages(),
         'get_page'         => toolGetPage($args['id'] ?? ''),
+        'preview_page'     => toolPreviewPage($args),
         'create_page'      => toolCreatePage($args),
         'update_page'      => toolUpdatePage($args),
         'delete_page'      => toolDeletePage($args['id'] ?? ''),
@@ -1018,7 +1091,7 @@ function handleRequest($method, $id, $params, $settings) {
         return mcpResponse($id, [
             'supportedVersions' => [MIKANBOX_MCP_PROTOCOL_VERSION],
             'capabilities' => ['tools' => new stdClass()],
-            'instructions' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。 初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。返されたAI指示コンポーネントは、このサイト固有のプロジェクト指示として内容・デザイン・コードの変更に従ってください。複数サイト接続時は書き込み前にもget_site_infoを呼び、指示が更新された可能性がある場合は変更計画前にget_ai_contextを再取得してください。 ページは出力形式（output_format）で Markdown 版（html_md・md → /ID.md）や JSON などのデータ（/ID.拡張子）、mikanBox DB（/api/ID.json）としても公開できます。詳しくは get_ai_context の output_formats を参照してください。',
+            'instructions' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。 初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。返されたAI指示コンポーネントは、このサイト固有のプロジェクト指示として内容・デザイン・コードの変更に従ってください。複数サイト接続時は書き込み前にもget_site_infoを呼び、指示が更新された可能性がある場合は変更計画前にget_ai_contextを再取得してください。 ページは出力形式（output_format）で Markdown 版（html_md・md → /ID.md）や JSON などのデータ（/ID.拡張子）、mikanBox DB（/api/ID.json）としても公開できます。詳しくは get_ai_context の output_formats を参照してください。保存や公開の前に結果を確かめるには preview_page を使えます（保存せず、公開設定に関係なく、出力形式どおりの結果を返します）。get_site_info の version が前回の接続時と違うときは、ツール一覧と get_ai_context を読み直してください。',
             'ttlMs' => MIKANBOX_MCP_DISCOVERY_TTL_MS,
             'cacheScope' => 'private',
         ]);
