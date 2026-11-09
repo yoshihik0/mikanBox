@@ -3,7 +3,7 @@ if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVE
 // ==========================================
 // mikanBox Basic Settings
 // ==========================================
-define('MIKANBOX_VERSION', '2.18.1');
+define('MIKANBOX_VERSION', '2.18.2');
 if (!defined('CORE_DIR')) define('CORE_DIR', __DIR__);
 
 // Site-specific options survive self-updates because local-config.php is not
@@ -71,6 +71,11 @@ function secureMediaDirectory($dirPath) {
 </FilesMatch>
 HTACCESS;
         @file_put_contents($htaccessPath, $existing . $rules . "\n");
+    }
+    // Uploaded JS/CSS opened directly in a browser: declare UTF-8 (2.18.2, appended once).
+    $existing = @file_get_contents($htaccessPath);
+    if ($existing !== false && !str_contains($existing, '# mikanBox code charset')) {
+        @file_put_contents($htaccessPath, rtrim($existing, "\n") . "\n\n# mikanBox code charset\n<IfModule mod_mime.c>\n    AddCharset utf-8 .js .css\n</IfModule>\n");
     }
 }
 secureMediaDirectory(MEDIA_DIR);

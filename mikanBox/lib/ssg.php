@@ -69,6 +69,16 @@ class MikanBoxSSG {
         }
 
         $results = [];
+        // A full build also removes what earlier builds left for pages that are no longer
+        // "Public (Static)" (changed to dynamic or draft elsewhere), so nothing stale shadows
+        // a dynamic page or keeps a draft public. Only each page's own files are touched.
+        if (empty($this->options['selected_pages'])) {
+            foreach ($allPosts as $staleId) {
+                $staleData = loadData(POSTS_DIR, $staleId);
+                if (!$staleData || ($staleData['status'] ?? '') === 'public_static') continue;
+                if ($this->deletePage($staleId) > 0) $results[] = "Removed stale static files: $staleId";
+            }
+        }
         $settings = $GLOBALS['mikanbox_settings'] ?? [];
         $markdownAvailable = mikanBoxMarkdownAvailable(array_merge($settings, [
             'ssg_mode' => $this->options['output_mode'] ?? 'server',
@@ -315,6 +325,12 @@ class MikanBoxSSG {
     }
 
     private function writeOutputFile($targetFile, $content) {
+        // Static .md/.txt/.csv start with a UTF-8 BOM: servers that send them without a
+        // charset (nginx by default) otherwise make browsers guess the encoding wrongly.
+        // fetch()/TextDecoder drop the BOM; JSON, XML, JS and CSS get none.
+        if (preg_match('/\.(md|txt|csv)$/i', $targetFile) && strncmp((string)$content, "\xEF\xBB\xBF", 3) !== 0) {
+            $content = "\xEF\xBB\xBF" . $content;
+        }
         $dirPath = dirname($targetFile);
         if (!is_dir($dirPath)) mkdir($dirPath, 0777, true);
         return file_put_contents($targetFile, $content) !== false

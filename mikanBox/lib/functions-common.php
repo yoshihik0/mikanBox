@@ -676,6 +676,16 @@ function mikanBoxNormalizeLegacyPage($data) {
     return $data;
 }
 
+/**
+ * Browser title of the admin screens: "🍊" + site name (the orange already says it is
+ * mikanBox). The sign-in screen adds what it is. Returned HTML-escaped.
+ */
+function mikanBoxAdminTitle(array $settings, string $suffix = ''): string {
+    // A site name that already starts with the orange (the default "🍊mikanBox") keeps one orange.
+    $name = trim((string)preg_replace('/^\x{1F34A}\s*/u', '', trim((string)($settings['site_name'] ?? '')))) ?: 'mikanBox';
+    return htmlspecialchars('🍊' . $name . ($suffix !== '' ? ' - ' . $suffix : ''), ENT_QUOTES, 'UTF-8');
+}
+
 /** Site base path (e.g. /mikanbox/), shared by the renderer and admin screens. */
 function mikanBoxSiteBasePath(array $settings): string {
     // 1. Computed by index.php (the most reliable value when serving dynamically)
@@ -868,24 +878,32 @@ function mikanBoxPageFormatFields(array $input, ?array $existing = null): array 
 }
 
 /**
- * Where the admin preview buttons (page list and page editor) open a page, relative
- * to admin.php. HTML pages open at their public URL. Markdown-only and data pages open
- * through admin.php?page_preview=ID, which always answers with charset=utf-8: a static
- * .md/.txt file served by the web server may come without a charset and look garbled.
+ * The page editor's preview (relative to admin.php): the saved content as it is
+ * published, for every format and status, through admin.php?page_preview=ID
+ * (always UTF-8, drafts included).
  */
 function mikanBoxAdminPreviewUrl($pid, $data, array $settings, $staticRelPath): string {
+    return 'admin.php?page_preview=' . rawurlencode($pid);
+}
+
+/**
+ * The page list's globe (relative to admin.php): the real public URL, only while the
+ * page is published. Drafts and pages awaiting approval have none (null).
+ * Static pages point at the built files; everything with an extension is /id.<extension>.
+ */
+function mikanBoxPublicPageUrl($pid, $data, array $settings, $staticRelPath): ?string {
     $status = $data['status'] ?? 'draft';
+    if (!in_array($status, ['public_dynamic', 'public_static'], true)) return null;
+    $root = $status === 'public_static' ? $staticRelPath : '../';
     $format = mikanBoxPageOutputFormat($data);
-    if (mikanBoxFormatExtension($format) !== null || mikanBoxIsApiFormat($format)) {
-        return 'admin.php?page_preview=' . rawurlencode($pid);
-    }
-    $pending = function_exists('getPreviewToken') && $status === 'pending';
-    if ($pid === 'index') return '../' . ($pending ? '?preview=' . getPreviewToken($pid) : '');
-    if ($pending) return '../' . $pid . '?preview=' . getPreviewToken($pid);
+    if (mikanBoxIsApiFormat($format)) return $root . 'api/' . $pid . '.json';
+    $extension = mikanBoxFormatExtension($format);
+    if ($extension !== null) return $root . $pid . '.' . $extension;
+    if ($pid === 'index') return $root;
     if ($status === 'public_static') {
-        return $staticRelPath . $pid . (($settings['ssg_structure'] ?? 'directory') === 'directory' ? '/index.html' : '.html');
+        return $root . $pid . (($settings['ssg_structure'] ?? 'directory') === 'directory' ? '/' : '.html');
     }
-    return '../' . $pid;
+    return $root . $pid;
 }
 
 /** Dynamic-site URL of a page for sitemap and RSS: Markdown-only pages point at /id.md. */

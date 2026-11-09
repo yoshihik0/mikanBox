@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.18.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.18.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -298,6 +298,8 @@ Manages image, video, and audio files. You can quickly upload, browse the list, 
 
 Opens the site's top page (in a new tab).
 
+The browser tab shows "🍊site name" (the sign-in screen shows "🍊site name - Sign in").
+
 #### Logout
 
 Logs you out of the system.
@@ -356,17 +358,28 @@ Categories that start with "_" (`_nav`, `_sample` and so on) are structural mark
 
 #### Search box
 
-Search titles, body content, and more using a keyword. SQLite updates the list while typing; press Enter to search in flat and Cloud. Use the [[close]{.material-symbols-outlined}]{.m-btn .m-btn-gray} button to the right of the field to clear the search.
+Search titles, body content, and more with the field at the right of the heading row. The list updates as you type. The × in the field clears the search.
 
 ### Page List
 
 #### Edit / Preview
 
-Preview buttons are blue in all three editions.
+The select to the right of "Ask AI" in the heading filters the list by output format (HTML, HTML + Markdown, Markdown, data, mikanBox DB), in the same place and style as the type filter on the Design screen. It combines with the category filter and the search, and stays when you open and close the page editor.
 
 - [[edit]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — The pencil button. Opens the edit screen for that page.
 - [[edit_square]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — Opens the page in [Visual Editing](#visual-edit).
-- [[open_in_new]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — Opens the page in a new tab, at the URL matching its current status.
+- [[language]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — The globe button. Opens a published page at its real site address in a new tab (Markdown-only and data pages at `/ID.extension`, mikanBox DB at `/api/ID.json`, Public (Static) at the built file). Drafts and pending pages show it greyed out.
+
+The page editor preview and this globe work as follows.
+
+|Status|Page editor preview (shown through the admin screen)|Globe in the page list (the real site address)|
+|---|---|---|
+|Draft|The saved content|None|
+|Pending (SQLite)|The saved content|None (the review link is in the editor)|
+|Public (Dynamic)|The saved content|The real site (shows the saved content)|
+|Public (Static), before a build|The saved content|The real site (the previous content until you build, or nothing yet)|
+|Public (Static), after a build|The saved content|The real site (the same as the preview)|
+
 - For a page with "Pending approval" status, this instead opens a preview share URL (with a preview token). [SQLite Edition only]{.type-badge .badge-sqlite}
 
 #### Status
@@ -402,7 +415,7 @@ Shows the categories assigned to the page. Used for filtering via things like `{
 
 #### Output format labels
 
-Pages whose output format is not HTML show a small label beside the title: `+MD` for HTML + Markdown, `MD` for Markdown, and `JSON`, `JS` and so on for data formats. For Markdown-only and data pages, the preview button opens the published text through the admin screen (a static file served without a charset could otherwise look garbled). The Visual Editing button is greyed out and cannot be pressed on pages that do not publish HTML.
+Pages whose output format is not HTML show a small label beside the title: `+MD` for HTML + Markdown, `MD` for Markdown, and `JSON`, `JS` and so on for data formats. The globe button opens published pages at their real site address. The Visual Editing button is greyed out and cannot be pressed on pages that do not publish HTML.
 
 ### Static Site Build Button
 
@@ -517,7 +530,7 @@ Saves everything about the page.
 
 #### [open_in_new]{.material-symbols-outlined} Preview{.m-btn .m-btn-blue}
 
-Opens the saved content in a new tab, the same as the preview button in the page list. Pages that publish HTML (HTML, HTML + Markdown) open at the URL matching their status; Markdown-only and data pages show the text that is published as it is (through the admin screen, in UTF-8, so it never looks garbled). Save first to check your changes. For a new page, the button becomes available after the first save.
+Shows the saved content through the admin screen in a new tab ("Shows the saved content." appears next to the button). It works for every output format and status: pages that publish HTML show as pages; Markdown-only, data and mikanBox DB pages show the text or JSON they publish, in UTF-8. Save first to check your changes. For a new page, the button becomes available after the first save. To open the real site address, use the globe in the page list (see the table under [Pages](#page-mgmt)).
 
 #### [arrow_back]{.material-symbols-outlined} Back to List{.m-btn .m-btn-gray}
 
@@ -1145,7 +1158,7 @@ Uploads require a trusted administrator or MCP API key, just like code editing. 
 
 #### Choose File
 
-Click "Choose File" to select the file to upload. Dragging and dropping a file onto this window uploads it as soon as it's dropped.
+Click "Choose File" to select the file to upload. Dropping a file onto the Media section uploads it as soon as it's dropped. Other sections (except the import file fields) do not accept drops.
 
 #### [upload]{.material-symbols-outlined} Upload{.m-btn .m-btn-blue}
 
@@ -1153,7 +1166,7 @@ Uploads the selected file.
 
 #### Upload Options...
 
-Click "Upload Options..." to expand it. These choices apply only at upload time and are remembered by your browser, so the same settings are reused next time. They apply to drag-and-drop uploads as well.
+Click "Upload Options..." to expand it. The supported formats and the JS/CSS conditions (UTF-8, up to 10 MB; upload only files you trust) are shown here too. These choices apply only at upload time and are remembered by your browser, so the same settings are reused next time. They apply to drag-and-drop uploads as well.
 
 - **Limit long edge to N px** — When an image's long edge exceeds the given value, it is scaled down on upload while keeping its aspect ratio. The default is 2000px. Photos straight from a phone or camera are often several thousand pixels wide, which badly hurts page speed; this setting prevents that.
 - **Convert to WebP (jpg / png only)** — Re-encodes the image as WebP, typically 25-35% smaller. The extension becomes `.webp`, so the filename changes. jpg is converted lossily (quality 82) and png losslessly, so text and thin lines in screenshots and diagrams are not smeared.
@@ -1667,7 +1680,12 @@ For a page at `/ID`, everything with an extension lives at `/ID.extension`.
 - When served dynamically, a Markdown-only page also answers at `/ID` with its Markdown version, and `/ID.html` returns 404. A data page answers only at `/ID.extension`.
 - A static build writes `ID.md` beside the HTML, and `ID.extension` for data pages. A Markdown-only page has no file at `/ID/`, so it is readable only at `/ID.md` (links inside the site always point at `/ID.md` explicitly). No `.htaccess` is written, so an `.htaccess` you placed on the server is never overwritten.
 - `rss`, `sitemap` and `podcast` cannot use the XML format, because `/rss.xml` and the others are system files. The `404` page can only be HTML.
-- So that static `.md`, `.txt` and `.csv` files never look garbled, the site-root `.htaccess` that mikanBox writes at first setup sets their charset (`AddCharset utf-8 .md .txt .csv` and `AddType text/markdown .md`). A system update appends these lines to the end when they are missing (existing lines are not changed; if the file cannot be written, the message after the update says so). When you put a static build on another server, add the same two lines to that server's `.htaccess` or equivalent. `.json` is UTF-8 by definition and `.xml` declares its encoding inside the file, so they need nothing.
+- **Garbled text and reading from other sites (static files)** — Markdown versions and data pages served dynamically by mikanBox carry `charset=utf-8` and `Access-Control-Allow-Origin: *` (so Markdown viewers and other sites can read them from the browser). Static files are sent by the web server as they are, so the server configuration handles them:
+  - **Apache** — The site-root `.htaccess` written at first setup contains, between marker comments, `AddCharset utf-8 .md .txt .csv .js .css .json`, `AddType text/markdown .md`, and `Access-Control-Allow-Origin: *` for `.md`, `.txt`, `.csv`, `.json` and `.xml` (each part wrapped in `IfModule`, so a missing module causes no error). A system update appends this block when it is missing and brings an older mikanBox block up to date, changing nothing else (if the file cannot be written, the message after the update says so). Uploaded `.js` and `.css` in Media get a charset too.
+  - **nginx** — `.htaccess` has no effect. Add to the server configuration, for example, `charset utf-8; charset_types text/markdown text/plain text/csv text/css application/javascript application/json;`, a `types` entry that maps `.md` to `text/markdown`, and `location ~ \.(md|txt|csv|json|xml)$ { add_header Access-Control-Allow-Origin *; }` (ask your hosting provider if you cannot change it).
+  - Static `.md`, `.txt` and `.csv` files start with a UTF-8 BOM (an encoding marker), so browsers show them correctly even when the server sends no charset. Browser `fetch` removes the BOM. Some tools that do not understand a BOM will see an invisible character before the front matter. `.json`, `.xml`, `.js` and `.css` get no BOM (`.json` is UTF-8 by definition, and `.xml` declares its encoding inside the file).
+  - When you put a static build on another server, configure that server the same way.
+- Files built earlier for a page that is no longer Public (Static) (changed to dynamic or draft) are removed when that page is saved or its status changes (MCP included), or by a full static build, so a static file never hides a dynamic page or keeps a draft public.
 
 ### Markdown Versions {#markdown-version}
 

@@ -491,30 +491,58 @@ function mikanBoxInstallUpdateLocked(
     return ['success' => true, 'version' => $newVersion, 'htaccess' => mikanBoxEnsureSiteHtaccessCharset($siteRoot)];
 }
 
-/** The block that makes static .md/.txt/.csv files come with charset=utf-8 (2.18.0). */
+/** Extensions whose static files should come with charset=utf-8. */
+function mikanBoxHtaccessCharsetExtensions(): array {
+    return ['md', 'txt', 'csv', 'js', 'css', 'json'];
+}
+
+/**
+ * The block for static text files (2.18.0; .js .css .json and CORS since 2.18.2):
+ * charset=utf-8, and Access-Control-Allow-Origin so Markdown readers and other sites
+ * can fetch the public files from the browser. Each part is skipped when its module
+ * is missing, so the block never causes a server error.
+ */
 function mikanBoxHtaccessCharsetBlock(): string {
-    return "# BEGIN mikanBox charset (static .md/.txt/.csv as UTF-8)\n"
+    return "# BEGIN mikanBox charset (static text files as UTF-8, readable from other sites)\n"
         . "<IfModule mod_mime.c>\n"
-        . "    AddCharset utf-8 .md .txt .csv\n"
+        . "    AddCharset utf-8 ." . implode(' .', mikanBoxHtaccessCharsetExtensions()) . "\n"
         . "    AddType text/markdown .md\n"
+        . "</IfModule>\n"
+        . "<IfModule mod_headers.c>\n"
+        . "    <FilesMatch \"\\.(md|txt|csv|json|xml)$\">\n"
+        . "        Header set Access-Control-Allow-Origin \"*\"\n"
+        . "    </FilesMatch>\n"
         . "</IfModule>\n"
         . "# END mikanBox charset\n";
 }
 
 /**
- * Append the charset block to the site-root .htaccess when it is not there yet.
- * Existing lines are never changed. Returns 'added', 'present', 'missing' (no
- * .htaccess, nothing done) or 'failed' (could not write; the update still succeeds).
+ * Make the site-root .htaccess declare UTF-8 for static text files.
+ * Lines written by the site owner are never changed: when mikanBox's own marked
+ * block is there it is brought up to date in place; otherwise the block is appended
+ * once, unless the owner's AddCharset lines already cover every extension.
+ * Returns 'added', 'updated', 'present', 'missing' (no .htaccess, nothing done) or
+ * 'failed' (could not write; the update still succeeds).
  */
 function mikanBoxEnsureSiteHtaccessCharset(string $siteRoot): string {
     $file = rtrim($siteRoot, '/\\') . '/.htaccess';
     if (!is_file($file)) return 'missing';
     $current = @file_get_contents($file);
     if ($current === false) return 'failed';
-    if (strpos($current, '# BEGIN mikanBox charset') !== false
-        || preg_match('/^\s*AddCharset\s+utf-8\b[^\n]*\.md\b/mi', $current)) return 'present';
+    $block = mikanBoxHtaccessCharsetBlock();
+    if (preg_match('/# BEGIN mikanBox charset[^\n]*\n.*?# END mikanBox charset\n?/s', $current, $own)) {
+        if ($own[0] === $block) return 'present';
+        $updated = str_replace($own[0], $block, $current);
+        if (!is_writable($file) || @file_put_contents($file, $updated, LOCK_EX) === false) return 'failed';
+        return 'updated';
+    }
+    $covered = [];
+    if (preg_match_all('/^\s*AddCharset\s+utf-8\s+([^\n#]+)/mi', $current, $lines)) {
+        foreach ($lines[1] as $line) foreach (preg_split('/\s+/', trim($line)) as $ext) $covered[] = strtolower(ltrim($ext, '.'));
+    }
+    if (!array_diff(mikanBoxHtaccessCharsetExtensions(), $covered)) return 'present';
     $prefix = ($current === '' || substr($current, -1) === "\n") ? "\n" : "\n\n";
-    if (!is_writable($file) || @file_put_contents($file, $prefix . mikanBoxHtaccessCharsetBlock(), FILE_APPEND | LOCK_EX) === false) return 'failed';
+    if (!is_writable($file) || @file_put_contents($file, $prefix . $block, FILE_APPEND | LOCK_EX) === false) return 'failed';
     return 'added';
 }
 

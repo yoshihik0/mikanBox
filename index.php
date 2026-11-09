@@ -230,6 +230,8 @@ if ($serve === 'md' || $serve === 'data') {
     if ($body !== null) {
         header('Content-Type: ' . mikanBoxContentTypeForExtension($serve === 'md' ? 'md' : $pageFormat));
         header('X-Content-Type-Options: nosniff');
+        // Public content: Markdown readers and other sites may fetch it from the browser.
+        header('Access-Control-Allow-Origin: *');
         if (ob_get_length()) ob_clean();
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') echo $body;
         exit;

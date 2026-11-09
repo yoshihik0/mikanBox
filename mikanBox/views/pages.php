@@ -9,19 +9,19 @@
                 <a href="?view=pages&new=1<?= ($selectedCat ?? '') !== '' ? '&cat=' . urlencode($selectedCat) : '' ?>#page-editor" class="btn btn-sm btn-blue" style="margin-left: 15px; display: inline-flex; align-items: center; gap: 5px; font-size: 0.85rem; padding: 4px 10px; vertical-align: middle;">
                     <?= getIcon('add') ?> <?= t('btn_create_new') ?>
                 </a>
-                <a href="<?= $helpFile ?>#page-mgmt" target="_blank" class="manual-link"><?= t('admin_help') ?></a>
+                <a href="<?= $helpFile ?>#page-mgmt" target="_blank" class="manual-link"><?= t('admin_help') ?></a><?php
+                $pageFormatFilter = (string)($_GET['fmt'] ?? '');
+                if (!in_array($pageFormatFilter, ['', 'html', 'html_md', 'md', 'data', 'db'], true)) $pageFormatFilter = '';
+                ?><span class="component-filter-control"><select class="select-auto list-filter-select" id="page-format-filter" aria-label="<?= t('label_output_format') ?>"><?php foreach (['' => t('page_format_filter_all'), 'html' => t('output_format_html'), 'html_md' => t('output_format_html_md'), 'md' => t('output_format_md'), 'data' => t('output_format_data_group'), 'db' => t('output_format_db')] as $_fmtValue => $_fmtLabel): ?><option value="<?= $_fmtValue ?>" <?= $pageFormatFilter === $_fmtValue ? 'selected' : '' ?>><?= htmlspecialchars($_fmtLabel) ?></option><?php endforeach; ?></select></span>
             </h1>
 
             <?php if (function_exists('searchPosts')): ?>
-            <!-- Admin Page Search Bar (Same height, client-side AJAX driven) -->
-            <form method="get" action="admin.php#pages" class="search-bar-wrap" style="display: flex; align-items: center;">
-                <input type="hidden" name="view" value="pages"><input type="hidden" name="cat" value="<?= htmlspecialchars($selectedCat ?? '') ?>">
-                <div style="position: relative; display: flex; align-items: center;">
-                    <input type="text" name="q" id="admin-page-search" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>" placeholder="<?= t('search_placeholder') ?>" style="padding: 6px 32px 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; width: 220px; box-sizing: border-box; outline: none; transition: border-color 0.2s;">
-                    <span id="admin-page-search-icon" style="position: absolute; right: 10px; color: var(--text-sub); display: <?= empty($_GET['q']) ? 'flex' : 'none' ?>; align-items: center; pointer-events: none;">
-                        <?= getIcon('search') ?>
-                    </span>
-                    <a id="admin-page-search-clear" class="search-clear" href="admin.php?view=pages&amp;cat=<?= urlencode($selectedCat ?? '') ?>#pages" title="<?= t('btn_clear_search') ?>" aria-label="<?= t('btn_clear_search') ?>" style="position:absolute;right:10px;color:var(--text-sub);display:<?= (string)($_GET['q'] ?? '') !== '' ? 'flex' : 'none' ?>;align-items:center"><?= getIcon('close') ?></a>
+            <!-- Admin page search: live (AJAX), the browser's own clear button only -->
+            <form method="get" action="admin.php#pages" class="search-bar-wrap" role="search">
+                <input type="hidden" name="view" value="pages"><input type="hidden" name="cat" value="<?= htmlspecialchars($selectedCat ?? '') ?>"><input type="hidden" name="fmt" value="<?= htmlspecialchars($pageFormatFilter) ?>">
+                <div class="admin-search">
+                    <input type="search" name="q" id="admin-page-search" class="admin-search-input" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>" placeholder="<?= t('search_placeholder') ?>" aria-label="<?= t('search_placeholder') ?>">
+                    <span id="admin-page-search-icon" class="admin-search-icon"><?= getIcon('search') ?></span>
                 </div>
             </form>
             <?php endif; ?>
@@ -88,6 +88,14 @@
                 });
             }
 
+            // Output format filtering ("data" = every data format)
+            if ($pageFormatFilter !== '') {
+                $pageDataAll = array_filter($pageDataAll, function($p) use ($pageFormatFilter) {
+                    $format = mikanBoxPageOutputFormat($p['data']);
+                    return $pageFormatFilter === 'data' ? mikanBoxIsDataFormat($format) : $format === $pageFormatFilter;
+                });
+            }
+
             // Category Filtering
             $selectedCat = $_GET['cat'] ?? '';
             if ($selectedCat !== '') {
@@ -131,8 +139,12 @@
                          <span class="btn btn-sm btn-gray btn-disabled" aria-disabled="true" title="<?= htmlspecialchars(t('visual_err_not_html')) ?>"><?= getIcon('visual') ?></span>
                          <?php endif; ?>
                          <?php endif; ?>
-                          <?php $previewUrl = mikanBoxAdminPreviewUrl($pid, $d, $settings, $lastSsgRelPath); ?>
-                          <a href="<?= htmlspecialchars($previewUrl) ?>" target="_blank" class="btn btn-sm btn-blue" title="<?= t('btn_preview') ?>"><?php echo getIcon('open_in_new'); ?></a>
+                          <?php $publicUrl = mikanBoxPublicPageUrl($pid, $d, $settings, $lastSsgRelPath); ?>
+                          <?php if ($publicUrl !== null): ?>
+                          <a href="<?= htmlspecialchars($publicUrl) ?>" target="_blank" rel="noopener" class="btn btn-sm btn-blue" title="<?= t('btn_open_public_page') ?>"><?= getIcon('globe') ?></a>
+                          <?php else: ?>
+                          <span class="btn btn-sm btn-gray btn-disabled" aria-disabled="true" title="<?= t('msg_not_public_yet') ?>"><?= getIcon('globe') ?></span>
+                          <?php endif; ?>
                      </div>
                  </td>
                  <td class="td-narrow">
@@ -183,7 +195,7 @@
         <?php if ($totalPages > 1): ?>
         <div class="pagination">
             <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                <a href="?view=pages&p_pages=<?= $i ?><?= $selectedCat !== '' ? '&cat=' . urlencode($selectedCat) : '' ?>#pages" class="pagination-link <?= $i === $currentPage ? 'active' : '' ?>"><?= $i ?></a>
+                <a href="?view=pages&p_pages=<?= $i ?><?= $selectedCat !== '' ? '&cat=' . urlencode($selectedCat) : '' ?><?= $pageFormatFilter !== '' ? '&fmt=' . urlencode($pageFormatFilter) : '' ?><?= (string)($_GET['q'] ?? '') !== '' ? '&q=' . urlencode((string)$_GET['q']) : '' ?>#pages" class="pagination-link <?= $i === $currentPage ? 'active' : '' ?>"><?= $i ?></a>
             <?php endfor; ?>
         </div>
         <?php endif; ?>
@@ -205,5 +217,19 @@
     </div>
 
 <script>
-(function(){const input=document.getElementById('admin-page-search'),clear=document.getElementById('admin-page-search-clear'),icon=document.getElementById('admin-page-search-icon');if(!input||!clear)return;input.addEventListener('input',function(){clear.style.display=input.value?'flex':'none';if(icon)icon.style.display=input.value?'none':'flex';});})();
+(function () {
+    // Output format filter: same control as the Design screen's filter; kept in the URL (fmt) like cat and q.
+    const filter = document.getElementById('page-format-filter');
+    if (!filter) return;
+    filter.addEventListener('change', function () {
+        const url = new URL(window.location.href);
+        if (filter.value) url.searchParams.set('fmt', filter.value); else url.searchParams.delete('fmt');
+        url.searchParams.delete('p_pages');
+        url.searchParams.set('view', 'pages');
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+        const hidden = document.querySelector('#pages form[role="search"] input[name="fmt"]');
+        if (hidden) hidden.value = filter.value;
+        if (typeof refreshPageList === 'function') refreshPageList(); else window.location.assign(url.href);
+    });
+})();
 </script>

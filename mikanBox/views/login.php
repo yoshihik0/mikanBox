@@ -48,7 +48,7 @@ $guide = static function () use ($e, $setupState) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
-    <title>🍊mikanBox - <?= t('admin_login') ?></title>
+    <title><?= mikanBoxAdminTitle($GLOBALS['mikanbox_settings'] ?? [], t('admin_login')) ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet">
     <link rel="stylesheet" href="admin.css?v=<?= $installedVersion ?>">
 </head>

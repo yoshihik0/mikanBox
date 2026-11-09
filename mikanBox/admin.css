@@ -2012,3 +2012,38 @@ input[type="datetime-local"], input:not([type]) {
 .editor-header-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
 .editor-visual-btn { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .btn.btn-disabled { opacity: 0.55; cursor: not-allowed; pointer-events: none; }
+
+/* List filters and searches (2.18.2): pages, design and media use the same controls. */
+select.list-filter-select { width: auto; max-width: 100%; font-size: .82rem; font-weight: normal; }
+.search-bar-wrap { display: flex; align-items: center; }
+.admin-search { position: relative; display: flex; align-items: center; }
+.admin-search-input {
+    padding: 6px 32px 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    width: 220px;
+    max-width: 100%;
+    box-sizing: border-box;
+    outline: none;
+    background: #fff;
+    font-family: inherit;
+}
+.admin-search-input:focus { border-color: var(--primary, #4a6cf7); }
+/* One clear button only: the browser's own (shown while typing). The magnifier steps aside. */
+.admin-search-input:not(:placeholder-shown) { padding-right: 10px; }
+.admin-search-icon { position: absolute; right: 10px; color: var(--text-sub); display: flex; align-items: center; pointer-events: none; }
+.admin-search-input:not(:placeholder-shown) + .admin-search-icon { display: none !important; }
+
+/* Selects: the same breathing room right of the arrow as date and number inputs. */
+select:not([multiple]):not([size]) {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%2364748b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px 12px;
+    padding-right: 32px;
+}
+select.status-select-inline:not([multiple]):not([size]) { padding-right: 22px; background-position: right 6px center; background-size: 10px 10px; }
+.preview-saved-note { align-self: center; color: var(--text-sub); font-size: 0.8rem; }

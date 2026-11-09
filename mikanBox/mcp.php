@@ -86,7 +86,7 @@ function mcpInitializeResponse($request) {
                 'name' => 'mikanBox MCP',
                 'version' => MIKANBOX_VERSION,
             ],
-            'instructions' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。 初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。書き込み前にもget_site_infoで対象サイトを再確認してください。',
+            'instructions' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。 初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。書き込み前にもget_site_infoで対象サイトを再確認してください。 ページは出力形式（output_format）で Markdown 版（html_md・md → /ID.md）や JSON などのデータ（/ID.拡張子）、mikanBox DB（/api/ID.json）としても公開できます。詳しくは get_ai_context の output_formats を参照してください。',
         ],
     ];
 }
@@ -360,7 +360,7 @@ function toolDefinitions() {
                     'exclude_tracking' => ['type' => 'boolean', 'description' => 'サイト設定の計測コンポーネントをこのページでは読み込まない'],
                     'wrapper_comp' => ['type' => 'string',  'description' => 'レイアウトコンポーネントID（省略時: _layout、なし: __none）。{{CONTENT}} タグを含むコンポーネントを指定する'],
                     'sort_order'   => ['type' => 'integer', 'description' => '表示順（数値が小さいほど上位）'],
-                    'output_format' => ['type' => 'string', 'description' => '出力形式: html（既定）/ html_md（HTML と Markdown 版 /id.md）/ md（Markdown 版だけ）/ json / xml / csv / txt / js / css（データ形式。本文をそのまま /id.拡張子 で出す）/ db（mikanBox DB。本文の DATAROW のデータを /api/id で JSON として返す）。データ形式と db は一覧・sitemap・RSS・検索に含まれない', 'enum' => ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css', 'db']],
+                    'output_format' => ['type' => 'string', 'description' => '出力形式: html（既定）/ html_md（HTML と Markdown 版 /id.md）/ md（Markdown 版だけ）/ json / xml / csv / txt / js / css（データ形式。本文をそのまま /id.拡張子 で出す）/ db（mikanBox DB。本文の DATA・DATAROW のデータを JSON として /api/id.json で返す。動的表示では /api/id でも読める）。データ形式と db は一覧・sitemap・RSS・検索に含まれない', 'enum' => ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css', 'db']],
                     'md_footer_comps' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Markdown 版の最後に順番どおり付けるコンポーネントIDの配列（既定なし。ラッパーと AI 指示は使えない）'],
                     'expand_tags' => ['type' => 'boolean', 'description' => 'データ形式でタグを展開するか（省略時: json/xml/csv/txt は展開する、js/css は展開しない）'],
                 ],
@@ -387,7 +387,7 @@ function toolDefinitions() {
                     'css'          => ['type' => 'string'],
                     'js'           => ['type' => 'string', 'description' => 'ページ専用JavaScript（scriptタグ不要。本文末尾へ自動挿入）'],
                     'ogp_image'    => ['type' => 'string'],
-                    'output_format' => ['type' => 'string', 'description' => '出力形式: html（既定）/ html_md（HTML と Markdown 版 /id.md）/ md（Markdown 版だけ）/ json / xml / csv / txt / js / css（データ形式。本文をそのまま /id.拡張子 で出す）/ db（mikanBox DB。本文の DATAROW のデータを /api/id で JSON として返す）。データ形式と db は一覧・sitemap・RSS・検索に含まれない', 'enum' => ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css', 'db']],
+                    'output_format' => ['type' => 'string', 'description' => '出力形式: html（既定）/ html_md（HTML と Markdown 版 /id.md）/ md（Markdown 版だけ）/ json / xml / csv / txt / js / css（データ形式。本文をそのまま /id.拡張子 で出す）/ db（mikanBox DB。本文の DATA・DATAROW のデータを JSON として /api/id.json で返す。動的表示では /api/id でも読める）。データ形式と db は一覧・sitemap・RSS・検索に含まれない', 'enum' => ['html', 'html_md', 'md', 'json', 'xml', 'csv', 'txt', 'js', 'css', 'db']],
                     'md_footer_comps' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Markdown 版の最後に順番どおり付けるコンポーネントIDの配列（既定なし。ラッパーと AI 指示は使えない）'],
                     'expand_tags' => ['type' => 'boolean', 'description' => 'データ形式でタグを展開するか（省略時: json/xml/csv/txt は展開する、js/css は展開しない）'],
                 ],
@@ -663,7 +663,10 @@ function toolUpdatePage($args) {
 
     if (saveData(POSTS_DIR, $id, $existing)) {
         $oldFormat = mikanBoxPageOutputFormat($before);
-        if ($oldFormat !== $existing['output_format'] && ($before['status'] ?? '') === 'public_static') {
+        $wasStatic = ($before['status'] ?? '') === 'public_static';
+        // Leaving "Public (Static)" or changing the format removes the files the old state built,
+        // so a stale static file never shadows (or keeps publishing) the page.
+        if ($wasStatic && ($oldFormat !== $existing['output_format'] || ($existing['status'] ?? '') !== 'public_static')) {
             mcpDeleteStaticPageFiles($id, $oldFormat);
         }
         return ['success' => true, 'id' => $id, 'message' => t('mcp_success_page_updated', $id)];
@@ -673,7 +676,9 @@ function toolUpdatePage($args) {
 
 function toolDeletePage($id) {
     if ($err = mcpRequireId($id)) return $err;
-    if (loadData(POSTS_DIR, $id) === null) return ['error' => t('mcp_err_page_not_found', $id)];
+    $deleting = loadData(POSTS_DIR, $id);
+    if ($deleting === null) return ['error' => t('mcp_err_page_not_found', $id)];
+    if (($deleting['status'] ?? '') === 'public_static') mcpDeleteStaticPageFiles($id, mikanBoxPageOutputFormat($deleting));
 
     if (deleteData(POSTS_DIR, $id)) {
         return ['success' => true, 'message' => t('mcp_success_page_deleted', $id)];
@@ -778,7 +783,7 @@ function toolGetAiContext() {
         'documents' => $documents,
         'count' => count($documents),
         'component_naming' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。',
-        'output_formats' => 'ページの output_format は html（既定）/ html_md / md / json / xml / csv / txt / js / css / db（mikanBox DB: 本文の DATAROW を /api/ID で JSON として返す。公開設定の「DB」は廃止）。拡張子のあるものはすべて /id.拡張子（Markdown 版は /id.md、データは /id.json など）。ページIDにドットは使わない。データ形式は本文をそのまま出し、一覧・sitemap・RSS・検索に出ない。サイトのJS・CSSは js・css 形式のページに書き、{{PAGE_URL:ID}} で読み込む（データ形式には ?v= が自動で付く）。一覧は {{NAV_LINKS:カテゴリ:sort=new:limit=5}}、関連ページは {{NAV_LINKS:@same}}。_ で始まるカテゴリは構造用（@same と {{CATEGORY}} で使わない）。ページャー付き一覧は、目録の JSON ページ（[{{NAV_CARDS:カテゴリ:項目用コンポーネント:sort=new:sep=,}}]）と JS ページで作る。',
+        'output_formats' => 'mikanBox はページを HTML 以外の形でも公開できる。Markdown で読ませたいページは update_page で output_format を html_md（HTML と /ID.md の両方）か md（/ID.md だけ）にする（サイト全体のスイッチはない。ページごとに選ぶ）。ページの output_format は html（既定）/ html_md / md / json / xml / csv / txt / js / css / db（mikanBox DB: 本文の DATA・DATAROW を JSON として /api/ID.json で返す。動的表示では /api/ID も別名として使える。公開設定の「DB」は廃止）。拡張子のあるものはすべて /id.拡張子（Markdown 版は /id.md、データは /id.json など）。ページIDにドットは使わない。データ形式は本文をそのまま出し、一覧・sitemap・RSS・検索に出ない。サイトのJS・CSSは js・css 形式のページに書き、{{PAGE_URL:ID}} で読み込む（データ形式には ?v= が自動で付く）。一覧は {{NAV_LINKS:カテゴリ:sort=new:limit=5}}、関連ページは {{NAV_LINKS:@same}}。_ で始まるカテゴリは構造用（@same と {{CATEGORY}} で使わない）。ページャー付き一覧は、目録の JSON ページ（[{{NAV_CARDS:カテゴリ:項目用コンポーネント:sort=new:sep=,}}]）と JS ページで作る。',
     ];
 }
 
@@ -1013,7 +1018,7 @@ function handleRequest($method, $id, $params, $settings) {
         return mcpResponse($id, [
             'supportedVersions' => [MIKANBOX_MCP_PROTOCOL_VERSION],
             'capabilities' => ['tools' => new stdClass()],
-            'instructions' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。 初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。返されたAI指示コンポーネントは、このサイト固有のプロジェクト指示として内容・デザイン・コードの変更に従ってください。複数サイト接続時は書き込み前にもget_site_infoを呼び、指示が更新された可能性がある場合は変更計画前にget_ai_contextを再取得してください。',
+            'instructions' => '先頭の _ は標準コンポーネントの目印です。通常の新規作成・複製では付けず、ユーザーが標準扱いを意図した場合だけ付けてください。既存の標準コンポーネントのIDは維持してください。 初期接続時にget_site_infoで対象サイトを確認し、続けてget_ai_contextを呼んでください。返されたAI指示コンポーネントは、このサイト固有のプロジェクト指示として内容・デザイン・コードの変更に従ってください。複数サイト接続時は書き込み前にもget_site_infoを呼び、指示が更新された可能性がある場合は変更計画前にget_ai_contextを再取得してください。 ページは出力形式（output_format）で Markdown 版（html_md・md → /ID.md）や JSON などのデータ（/ID.拡張子）、mikanBox DB（/api/ID.json）としても公開できます。詳しくは get_ai_context の output_formats を参照してください。',
             'ttlMs' => MIKANBOX_MCP_DISCOVERY_TTL_MS,
             'cacheScope' => 'private',
         ]);

@@ -594,5 +594,13 @@ components/
             <span style="font-size: 0.8rem; color: var(--text-sub);">&copy; 2026 mikanBox Utility</span>
         </div>
     </div>
+<script>
+// Only the file fields take dropped files; anywhere else a drop does nothing (instead of opening the file).
+(() => {
+    const isFileInput = (target) => target instanceof Element && target.matches('input[type="file"]');
+    window.addEventListener('dragover', (e) => { if (isFileInput(e.target)) return; e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'none'; });
+    window.addEventListener('drop', (e) => { if (!isFileInput(e.target)) e.preventDefault(); });
+})();
+</script>
 </body>
 </html>

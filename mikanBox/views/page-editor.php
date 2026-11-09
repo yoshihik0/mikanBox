@@ -25,7 +25,7 @@
                                         <span style="font-size: 0.85rem; color: var(--text-sub); font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
                                             <?= getIcon('history') ?> <?= t('label_revisions') ?>:
                                         </span>
-                                        <select id="revision-select" onchange="spaChangeRevision(this);" style="padding: 6px 12px; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 6px; background-color: #fff; cursor: pointer; min-width: 180px; max-width: 280px;">
+                                        <select id="revision-select" onchange="spaChangeRevision(this);" style="padding: 6px 32px 6px 12px; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 6px; background-color: #fff; cursor: pointer; min-width: 180px; max-width: 280px;">
                                             <option value="?view=pages&edit=<?= $editId ?>#page-editor"><?= t('select_revision') ?></option>
                                             <?php foreach ($revisions as $rev): ?>
                                                 <option value="?view=pages&edit=<?= $editId ?>&rev=<?= $rev['id'] ?>#page-editor" <?= ($selectedRevId == $rev['id']) ? 'selected' : '' ?>>
@@ -265,6 +265,7 @@
                             <button type="submit" form="page-form" name="save_action" value="save_page" class="btn btn-blue"><?= getIcon('save') ?> <?= t('btn_save') ?></button>
                             <?php if ($editId): ?>
                             <a id="editor-preview-link" href="<?= htmlspecialchars(mikanBoxAdminPreviewUrl($editId, $editData ?? [], $settings, $lastSsgRelPath ?? '../')) ?>" target="_blank" rel="noopener" class="btn btn-blue" title="<?= htmlspecialchars(t('preview_saved_hint')) ?>"><?= getIcon('view') ?> <?= t('btn_preview') ?></a>
+                            <small class="sub-text preview-saved-note"><?= t('preview_saved_hint') ?></small>
                             <?php else: ?>
                             <span id="editor-preview-link" class="btn btn-gray btn-disabled" aria-disabled="true" title="<?= htmlspecialchars(t('preview_saved_hint')) ?>"><?= getIcon('view') ?> <?= t('btn_preview') ?></span>
                             <?php endif; ?>

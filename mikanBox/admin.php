@@ -1406,7 +1406,7 @@ if (ob_get_length()) ob_clean();
 <html lang="<?= getSystemLanguage() ?>">
 <head>
     <meta charset="UTF-8">
-    <title>🍊mikanBox - <?= t('admin_site_title') ?></title>
+    <title><?= mikanBoxAdminTitle($settings) ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet">
     <link rel="stylesheet" href="admin.css?v=<?= $installedVersion ?>">
 </head>
@@ -1831,9 +1831,18 @@ function getIcon($name) {
     const fileInput = document.getElementById('file-input');
     const uploadForm = document.getElementById('upload-form');
 
+    // Files can be dropped only on the Media section (they are uploaded there). Elsewhere the
+    // page shows "no drop" instead of silently uploading, and file inputs (such as the import
+    // forms) keep the browser's own behaviour of taking the dropped file.
+    const isFileInput = (target) => target instanceof Element && target.matches('input[type="file"]');
+    const inMediaSection = (target) => target instanceof Element && !!target.closest('#media, #drop-zone');
+
     window.addEventListener('dragover', (e) => {
+        if (isFileInput(e.target)) return;
         e.preventDefault();
-        if (dropZone) dropZone.classList.add('active');
+        const allowed = inMediaSection(e.target) && !!uploadForm;
+        if (e.dataTransfer) e.dataTransfer.dropEffect = allowed ? 'copy' : 'none';
+        if (dropZone) dropZone.classList.toggle('active', allowed);
     });
 
     window.addEventListener('dragleave', (e) => {
@@ -1843,8 +1852,10 @@ function getIcon($name) {
     });
 
     window.addEventListener('drop', async (e) => {
+        if (isFileInput(e.target)) return;
         e.preventDefault();
         if (dropZone) dropZone.classList.remove('active');
+        if (!inMediaSection(e.target)) return;
         const files = e.dataTransfer.files;
         if (files.length > 0 && uploadForm) {
             // Build from the form itself rather than by hand, so every field it
@@ -2567,8 +2578,12 @@ function getIcon($name) {
                 bindDirtyTrackers(editor);
                 window.isDirty = false;
 
-                // URLを更新 (q/revパラメータを保持)
-                const newUrl = 'admin.php?view=' + view + '&' + param + revParam + qParam + '#' + editorId;
+                // URLを更新（一覧の絞り込み cat・fmt・q と rev を保つ）
+                const editorParams = listUrlParams(view);
+                if (editId) editorParams.set('edit', editId); else editorParams.set('new', '1');
+                if (revId) editorParams.set('rev', revId);
+                if (qVal) editorParams.set('q', qVal);
+                const newUrl = 'admin.php?' + editorParams.toString() + '#' + editorId;
                 history.pushState({ spaEditor: true, type, editId, revId }, '', newUrl);
 
                 if (editId) {
@@ -2592,6 +2607,14 @@ function getIcon($name) {
                 showToast(<?= json_encode(t('err_editor_load_failed')) ?>, true);
                 console.error(err);
             });
+    }
+
+    // The list's own parameters (cat, fmt, q, ...) without the editor's.
+    function listUrlParams(view) {
+        const params = new URLSearchParams(window.location.search);
+        ['edit', 'new', 'rev', 'ajax_editor', 'ajax_pages', 'ajax_media', 'ajax_comps', 'ajax_request'].forEach(key => params.delete(key));
+        params.set('view', view);
+        return params;
     }
 
     function spaCloseEditor(type) {
@@ -2637,12 +2660,15 @@ function getIcon($name) {
                 if (slot) slot.innerHTML = '';
                 if (navEdit) navEdit.remove();
 
+                // URL更新を先に: 一覧の更新は今のURL（cat・fmt・q）で絞り込むので、
+                // 閉じても絞り込みとボタンの表示が一致する
+                history.pushState({ spaEditor: false }, '', 'admin.php?' + listUrlParams(type === 'page' ? 'pages' : 'design').toString() + '#' + sectionId);
+
                 // Refresh the list to reflect any changes made in the editor
                 if (type === 'page') refreshPageList();
                 else refreshCompList();
 
                 // URL更新
-                history.pushState({ spaEditor: false }, '', 'admin.php#' + sectionId);
 
                 // 閉じ先セクションの色とナビ状態を明示的にセット
                 const sectionColors = { pages: '#e0f2fe', design: '#fffbeb', media: '#f0fdf4' };
@@ -2670,7 +2696,7 @@ function getIcon($name) {
         } else {
             // エディタがない場合（フォールバック）
             if (navEdit) navEdit.remove();
-            history.pushState({ spaEditor: false }, '', 'admin.php#' + sectionId);
+            history.pushState({ spaEditor: false }, '', 'admin.php?' + listUrlParams(type === 'page' ? 'pages' : 'design').toString() + '#' + sectionId);
             window.isDirty = false;
             isNavigating = false;
             document.querySelectorAll('.side-nav a').forEach(a => a.style.transition = '');
@@ -3050,7 +3076,7 @@ function getIcon($name) {
                                 html += '<span style="font-size: 0.85rem; color: var(--text-sub); font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">';
                                 html += '<span class="material-symbols-outlined icon">history</span> ' + <?= json_encode(t('label_revisions')) ?> + ':';
                                 html += '</span>';
-                                html += '<select id="revision-select" onchange="spaChangeRevision(this);" style="padding: 6px 12px; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 6px; background-color: #fff; cursor: pointer; min-width: 180px; max-width: 280px;">';
+                                html += '<select id="revision-select" onchange="spaChangeRevision(this);" style="padding: 6px 32px 6px 12px; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 6px; background-color: #fff; cursor: pointer; min-width: 180px; max-width: 280px;">';
                                 html += '<option value="?view=pages&edit=' + encodeURIComponent(json.editId) + '#page-editor">' + <?= json_encode(t('select_revision')) ?> + '</option>';
                                 json.revisions.forEach(rev => {
                                     const escCreatedAt = rev.created_at.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
@@ -3215,30 +3241,19 @@ function getIcon($name) {
     function initAdminPageSearch() {
         const searchInput = document.getElementById('admin-page-search');
         if (!searchInput) return;
-
-        const searchIcon = document.getElementById('admin-page-search-icon');
-        const clearBtn = document.getElementById('admin-page-search-clear');
+        // The magnifier hides itself while typing (CSS); the browser's own clear
+        // button empties the field and fires "input", which searches again.
         let debounceTimer;
-
         searchInput.addEventListener('input', function() {
-            const hasText = !!searchInput.value;
-            if (clearBtn) clearBtn.style.display = hasText ? 'flex' : 'none';
-            if (searchIcon) searchIcon.style.display = hasText ? 'none' : 'flex';
-            
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
                 triggerAdminSearch(searchInput.value);
             }, 250);
         });
-
-        if (clearBtn) {
-            clearBtn.addEventListener('click', function() {
-                searchInput.value = '';
-                clearBtn.style.display = 'none';
-                if (searchIcon) searchIcon.style.display = 'flex';
-                triggerAdminSearch('');
-            });
-        }
+        searchInput.form?.addEventListener('submit', function(event) {
+            event.preventDefault();
+            triggerAdminSearch(searchInput.value);
+        });
     }
 
     function triggerAdminSearch(keyword) {

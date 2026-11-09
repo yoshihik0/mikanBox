@@ -2,8 +2,23 @@
 
     <div id="media" class="section-anchor">
         <div class="section-container section-large-bottom">
+            <?php
+            $selectedCat = $_GET['cat'] ?? '';
+            $mediaQuery = trim((string)($_GET['q_media'] ?? ''));
+            $mediaType = $_GET['media_type'] ?? '';
+            if (!in_array($mediaType, ['', 'image', 'audio', 'video', 'js', 'css'], true)) $mediaType = '';
+            $ignoreMediaCat = isset($_GET['media_all']) && $_GET['media_all'] === '1';
+            ?>
             <div class="header">
-            <h1><?= getIcon('media') ?> <?= t('nav_media') ?><a href="<?= $helpFile ?>#media-mgmt" target="_blank" class="manual-link"><?= t('admin_help') ?></a></h1>
+            <h1><?= getIcon('media') ?> <?= t('nav_media') ?><a href="<?= $helpFile ?>#media-mgmt" target="_blank" class="manual-link"><?= t('admin_help') ?></a><span class="component-filter-control"><select class="select-auto list-filter-select" id="media-type-filter" aria-label="<?= t('media_type_filter') ?>"><?php foreach (['' => t('media_type_all'), 'image' => t('media_type_image'), 'audio' => t('media_type_audio'), 'video' => t('media_type_video'), 'js' => 'JS', 'css' => 'CSS'] as $type => $label): ?><option value="<?= $type ?>" <?= $mediaType === $type ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></span></h1>
+            <!-- Media search: the same control and behaviour as the page search -->
+            <form method="get" action="admin.php#media" class="search-bar-wrap" role="search">
+                <input type="hidden" name="view" value="media"><input type="hidden" name="cat" value="<?= htmlspecialchars($selectedCat) ?>"><input type="hidden" name="media_all" value="<?= $ignoreMediaCat ? '1' : '0' ?>"><input type="hidden" name="media_type" value="<?= htmlspecialchars($mediaType) ?>">
+                <div class="admin-search">
+                    <input type="search" name="q_media" id="admin-media-search" class="admin-search-input" value="<?= htmlspecialchars($mediaQuery) ?>" placeholder="<?= t('media_search_placeholder') ?>" aria-label="<?= t('media_search_placeholder') ?>">
+                    <span class="admin-search-icon"><?= getIcon('search') ?></span>
+                </div>
+            </form>
         </div>
         
         <div class="editor-container" id="media-upload-area">
@@ -15,12 +30,16 @@
                         <input type="file" name="image" id="file-input" accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.mp3,.m4a,.mp4,.js,.css" required>
                         <button type="submit" class="btn btn-blue" id="upload-btn"><?= getIcon('upload') ?> <?= t('btn_upload') ?></button>
                     </div>
-                    <?php if (function_exists('imagecreatefromjpeg')): ?>
                     <details class="resize-details upload-options" id="upload-options">
                         <summary class="resize-summary">
                             <?= t('upload_options') ?><span class="resize-arrow">▼</span>
                         </summary>
                         <div class="upload-options-body">
+                            <div class="upload-info upload-info-types">
+                                <?= t('media_support_types') ?>: jpg, png, gif, webp, svg, mp3, m4a, mp4, js, css<br>
+                                <?= t('media_code_hint') ?>
+                            </div>
+                            <?php if (function_exists('imagecreatefromjpeg')): ?>
                             <label class="upload-option">
                                 <input type="checkbox" name="opt_resize" value="1" id="opt-resize" checked>
                                 <?= t('upload_opt_resize') ?>
@@ -32,13 +51,10 @@
                                 <?= t('upload_opt_webp') ?>
                             </label>
                             <?php endif; ?>
+                            <?php endif; ?>
                         </div>
                     </details>
-                    <?php endif; ?>
                     <div class="upload-info">
-                        <?= t('media_support_types') ?>: jpg, png, gif, webp, svg, mp3, m4a, mp4, js, css<br>
-                        <?= t('media_code_hint') ?><br>
-                        <br>
                         <?= t('hint_media_display') ?><br>
                         <?= t('hint_media_resize') ?>
                     </div>
@@ -47,13 +63,6 @@
         </div>
 
         <div id="media-list-wrap">
-        <?php
-        $selectedCat = $_GET['cat'] ?? '';
-        $mediaQuery = trim((string)($_GET['q_media'] ?? ''));
-        $mediaType = $_GET['media_type'] ?? '';
-        if (!in_array($mediaType, ['', 'image', 'audio', 'video', 'js', 'css'], true)) $mediaType = '';
-        $ignoreMediaCat = isset($_GET['media_all']) && $_GET['media_all'] === '1';
-        ?>
 
         <?php if ($selectedCat !== ''): ?>
             <div class="media-filter-status" style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px; justify-content: space-between; background: var(--bg-card); padding: 10px 15px; border-radius: 6px; border: 1px solid var(--border-color);">
@@ -78,17 +87,6 @@
             </div>
         <?php endif; ?>
 
-        <form method="get" action="admin.php#media" class="flex-row media-search-form">
-            <input type="hidden" name="view" value="media"><input type="hidden" name="cat" value="<?= htmlspecialchars($selectedCat) ?>"><input type="hidden" name="media_all" value="<?= $ignoreMediaCat ? '1' : '0' ?>">
-            <select name="media_type" aria-label="<?= t('media_type_filter') ?>">
-                <?php foreach (['' => t('media_type_all'), 'image' => t('media_type_image'), 'audio' => t('media_type_audio'), 'video' => t('media_type_video'), 'js' => 'JS', 'css' => 'CSS'] as $type => $label): ?>
-                <option value="<?= $type ?>" <?= $mediaType === $type ? 'selected' : '' ?>><?= $label ?></option>
-                <?php endforeach; ?>
-            </select>
-            <input type="text" name="q_media" value="<?= htmlspecialchars($mediaQuery) ?>" placeholder="<?= t('media_search_placeholder') ?>" aria-label="<?= t('media_search_placeholder') ?>">
-            <button class="btn btn-gray btn-small"><?= t('btn_search') ?></button>
-            <?php if ($mediaQuery !== ''): ?><a class="btn btn-gray btn-small" href="admin.php?view=media&amp;cat=<?= urlencode($selectedCat) ?>&amp;media_all=<?= $ignoreMediaCat ? '1' : '0' ?>&amp;media_type=<?= urlencode($mediaType) ?>#media"><?= t('btn_clear_search') ?></a><?php endif; ?>
-        </form>
         <div class="media-grid">
             <?php
             $files = glob(MEDIA_DIR . '/*.{jpg,jpeg,png,gif,webp,svg,mp3,m4a,mp4,js,css}', GLOB_BRACE) ?: [];
@@ -235,3 +233,27 @@
         </div> <!-- /#media-list-wrap -->
     </div> <!-- /.section-container -->
     </div> <!-- /#media -->
+
+<script>
+(function () {
+    // Media type filter and live search: kept in the URL like the page list (media_type, q_media).
+    const filter = document.getElementById('media-type-filter');
+    const search = document.getElementById('admin-media-search');
+    function apply(name, value) {
+        const url = new URL(window.location.href);
+        if (value) url.searchParams.set(name, value); else url.searchParams.delete(name);
+        url.searchParams.delete('p_media');
+        url.searchParams.set('view', 'media');
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+        const hidden = document.querySelector('#media form[role="search"] input[name="' + name + '"]');
+        if (hidden) hidden.value = value;
+        if (typeof refreshMediaGrid === 'function') refreshMediaGrid(); else window.location.assign(url.href);
+    }
+    if (filter) filter.addEventListener('change', () => apply('media_type', filter.value));
+    if (search) {
+        let timer;
+        search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => apply('q_media', search.value.trim()), 250); });
+        search.form.addEventListener('submit', (event) => { event.preventDefault(); apply('q_media', search.value.trim()); });
+    }
+})();
+</script>

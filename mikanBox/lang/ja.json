@@ -816,7 +816,10 @@
     "label_content_md": "本文 (Markdown)",
     "label_content_data": "本文 (%s)",
     "output_format_db_hint": "DATA・DATAROW のデータを JSON として返します。",
-    "preview_saved_hint": "保存済みの内容を新しいタブで開きます。",
+    "preview_saved_hint": "保存した内容を表示します。",
     "output_format_db": "mikanBox DB",
-    "msg_htaccess_charset_manual": "サイト直下の .htaccess に文字コードの設定を追記できませんでした。静的に置いた .md・.txt・.csv を文字化けさせないため、.htaccess の末尾に「AddCharset utf-8 .md .txt .csv」と「AddType text/markdown .md」を書き足してください（マニュアルの「URLの規則」を参照）。"
+    "msg_htaccess_charset_manual": "サイト直下の .htaccess に文字コードの設定を追記できませんでした。静的に置いた .md・.txt・.csv・.js・.css・.json を文字化けさせないため、.htaccess の末尾に「AddCharset utf-8 .md .txt .csv .js .css .json」と「AddType text/markdown .md」を書き足してください（マニュアルの「URLの規則」を参照）。",
+    "page_format_filter_all": "すべての出力形式",
+    "btn_open_public_page": "公開ページを開く",
+    "msg_not_public_yet": "公開されていません（下書き・承認待ち）"
 }

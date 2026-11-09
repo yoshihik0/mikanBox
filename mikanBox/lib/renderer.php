@@ -75,7 +75,7 @@ class MikanBoxRenderer {
         return [
             'id'     => $pageId,
             'title'  => $postData['title'] ?? '',
-            'fields' => $fields,
+            'fields' => (object)$fields, // always a JSON object, also when empty
             'rows'   => $rowList,
         ];
     }
