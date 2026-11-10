@@ -115,7 +115,7 @@
                         <form method="post"><?= csrfField() ?><input type="hidden" name="save_action" value="download_backup_sqlite"><button type="submit" class="btn btn-gray btn-small"><?= getIcon('download') ?> <?= t('backup_data_sqlite') ?></button></form>
                         <form method="post"><?= csrfField() ?><input type="hidden" name="save_action" value="download_backup_json"><button type="submit" class="btn btn-gray btn-small"><?= getIcon('download') ?> <?= t('backup_data_json') ?></button></form>
                         <form method="post"><?= csrfField() ?><input type="hidden" name="save_action" value="download_backup_media"><button type="submit" class="btn btn-gray btn-small"><?= getIcon('download') ?> <?= t('backup_media') ?></button></form>
-                        <a href="convert.php" class="btn btn-orange btn-small" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;"><?= getIcon('settings_backup_restore') ?> <?= t('btn_data_tool') ?></a>
+                        <a href="admin.php?view=import" data-open-data-tool class="btn btn-orange btn-small" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;"><?= getIcon('settings_backup_restore') ?> <?= t('btn_data_tool') ?></a>
                     </div>
                 </div>
             </details>

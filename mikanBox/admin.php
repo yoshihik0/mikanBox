@@ -173,6 +173,12 @@ if (isset($_GET['page_preview']) && is_string($_GET['page_preview'])) {
 }
 $site_name = $settings['site_name'] ?? SITE_NAME;
 $view = $_GET['view'] ?? 'pages';
+if ($view === 'import') {
+    // Data migration and import tool (inside the admin screen; the overlay loads it with embed=1).
+    define('MIKANBOX_DATA_TOOL', true);
+    require __DIR__ . '/convert.php';
+    exit;
+}
 if ($view === 'design') $view = 'components'; // 'design' is an alias for 'components'
 
 // 🍊 Tag Guide Helper (Reusable)
@@ -2112,6 +2118,56 @@ function getIcon($name) {
         await refreshMediaGrid();
     });
 
+
+    // Data migration and import tool: opens over the admin screen (same window, no reload).
+    (function () {
+        let overlay = null;
+        const load = async (url, options) => {
+            const response = await fetch(url, Object.assign({ credentials: 'same-origin' }, options || {}));
+            return response.text();
+        };
+        const close = () => {
+            if (!overlay) return;
+            overlay.remove(); overlay = null;
+            document.body.classList.remove('data-tool-open');
+            if (typeof refreshPageList === 'function') refreshPageList();
+        };
+        const show = (html) => {
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'data-tool-overlay';
+                overlay.setAttribute('role', 'dialog');
+                overlay.setAttribute('aria-modal', 'true');
+                document.body.appendChild(overlay);
+                document.body.classList.add('data-tool-open');
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay || e.target.closest('[data-data-tool-close]')) { e.preventDefault(); close(); }
+                });
+                overlay.addEventListener('submit', async (e) => {
+                    const form = e.target.closest('form[data-data-tool-form]');
+                    if (!form) return;
+                    e.preventDefault();
+                    const data = new FormData(form);
+                    data.set('embed', '1');
+                    const buttons = [...form.querySelectorAll('button')];
+                    buttons.forEach(b => { b.disabled = true; });
+                    try { show(await load(form.getAttribute('action'), { method: 'POST', body: data })); }
+                    catch (err) { showToast(<?= json_encode(t('err_network_error')) ?>, true); buttons.forEach(b => { b.disabled = false; }); }
+                });
+            }
+            overlay.innerHTML = html;
+            overlay.scrollTop = 0;
+        };
+        document.addEventListener('click', async (e) => {
+            const link = e.target.closest('[data-open-data-tool]');
+            if (!link) return;
+            e.preventDefault();
+            try { show(await load('admin.php?view=import&embed=1')); }
+            catch (err) { window.location.href = link.href; }
+        });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay && !document.querySelector('dialog[open]')) close(); });
+    })();
+
     // Modeless AJAX Pagination click handler
     document.addEventListener('click', async function(e) {
         const link = e.target.closest('.pagination-link');
@@ -2702,16 +2758,15 @@ function getIcon($name) {
                     const shift = editor.getBoundingClientRect().top - before;
                     if (shift) window.scrollBy({ top: shift, behavior: 'instant' });
                 }
-                // Fold the editor first: the row's final position is only known once the editor's
-                // height is gone, and a scroll started toward the old position gets cancelled by the
-                // layout shrinking. Then scroll to the measured row.
-                if (editor) await MikanUI.collapse(editor);
+                // One motion: first bring the top of the editor (= the top of the list) into view,
+                // so the shrinking is seen from its top edge rather than from far below it; then
+                // fold the editor (shorter than opening it) and the list slides up under it.
+                const sectionTop = () => ({ el: document.getElementById(sectionId), block: 'start' });
+                await settleScroll(sectionTop);
+                if (editor) await MikanUI.collapse(editor, 260);
                 const slot0 = document.getElementById(slotId);
                 if (slot0) slot0.innerHTML = '';
-                await settleScroll(() => {
-                    const row = editedRow();
-                    return row ? { el: row, block: 'center' } : { el: document.getElementById(sectionId), block: 'start' };
-                });
+                { const t = sectionTop().el; if (t && Math.abs(t.getBoundingClientRect().top) > 40) scrollToElement(t, 'start', 'instant'); }
             } finally {
                 const slot = document.getElementById(slotId);
                 if (slot) slot.innerHTML = '';

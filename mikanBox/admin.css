@@ -2047,3 +2047,8 @@ select:not([multiple]):not([size]) {
 }
 select.status-select-inline:not([multiple]):not([size]) { padding-right: 22px; background-position: right 6px center; background-size: 10px 10px; }
 .preview-saved-note { align-self: center; color: var(--text-sub); font-size: 0.8rem; }
+
+/* Data migration/import tool opened over the admin screen (SQLite edition). */
+.data-tool-overlay { position: fixed; inset: 0; z-index: 9000; background: rgba(15, 23, 42, .55); overflow-y: auto; padding: 20px 16px; }
+.data-tool-overlay .data-tool { margin: 20px auto; }
+body.data-tool-open { overflow: hidden; }

@@ -4,6 +4,13 @@
 // ==========================================
 require_once __DIR__ . '/config.php';
 
+// This tool lives inside the admin screen (admin.php?view=import). Opening convert.php
+// directly (old bookmarks) leads there; POSTs keep working for compatibility.
+if (!defined('MIKANBOX_DATA_TOOL') && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+    header('Location: admin.php?view=import');
+    exit;
+}
+
 // CSRF check
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -365,176 +372,53 @@ function wp_html_to_markdown($html) {
     return trim($markdown);
 }
 ?>
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>🍊mikanBox データ相互変換ユーティリティ</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #f97316;
-            --primary-hover: #ea580c;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text: #1e293b;
-            --text-sub: #64748b;
-            --border: #e2e8f0;
-            --success: #10b981;
-            --error: #ef4444;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Outfit', 'Noto Sans JP', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            padding: 40px 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .container {
-            width: 100%;
-            max-width: 800px;
-            background: var(--card-bg);
-            border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
-            border: 1px solid var(--border);
-            overflow: hidden;
-        }
-        .header {
-            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-            padding: 30px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .header-logo { font-size: 2.5rem; }
-        .header-title h1 { font-size: 1.5rem; font-weight: 700; color: #ea580c; margin-bottom: 4px; }
-        .header-title p { font-size: 0.88rem; color: var(--text-sub); }
-        .content { padding: 30px; }
-        
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
-        .card {
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            background: #fafafa;
-        }
-        .card h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; color: var(--text); display: flex; align-items: center; gap: 8px; }
-        .card ul { list-style: none; }
-        .card li { font-size: 0.88rem; color: var(--text-sub); margin-bottom: 8px; display: flex; justify-content: space-between; }
-        .card li strong { color: var(--text); }
-        
-        .badge { padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
-        .badge-green { background: #d1fae5; color: #065f46; }
-        .badge-gray { background: #e2e8f0; color: #475569; }
-
-        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
-        .btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 14px 20px;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s;
-            text-decoration: none;
-            color: white;
-            text-align: center;
-        }
-        .btn-orange { background: var(--primary); }
-        .btn-orange:hover { background: var(--primary-hover); }
-        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
-        .btn-outline:hover { background: #fff7ed; }
-        .btn-secondary { background: #64748b; }
-        .btn-secondary:hover { background: #475569; }
-        
-        .log-area {
-            background: #0f172a;
-            color: #e2e8f0;
-            padding: 20px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 0.85rem;
-            max-height: 250px;
-            overflow-y: auto;
-            border: 1px solid #1e293b;
-        }
-        .log-line { margin-bottom: 5px; line-height: 1.4; }
-        .log-success { color: #4ade80; }
-        .log-error { color: #f87171; }
-        .log-info { color: #38bdf8; }
-
-        .footer {
-            padding: 20px 30px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #fafafa;
-        }
-        .footer a { color: var(--primary); text-decoration: none; font-size: 0.88rem; font-weight: 500; display: flex; align-items: center; gap: 4px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="header-logo">🍊</div>
-            <div class="header-title">
+<?php
+$embed = isset($_GET['embed']) || isset($_POST['embed']);
+$importAction = 'admin.php?view=import';
+$csrfValue = htmlspecialchars($_SESSION['csrf_token']);
+ob_start();
+?>
+<div id="data-import" class="section-anchor">
+    <main class="data-tool">
+        <header class="data-tool-header">
+            <div class="data-tool-logo">🍊</div>
+            <div>
                 <h1>データ移行・インポートツール</h1>
                 <p>mikanBox SQLite版のデータベース状態・メディア状態の確認、および外部データからのインポートを行います。</p>
             </div>
-        </div>
-        
-        <div class="content">
-            <div class="grid">
-                <!-- SQLite Status -->
-                <div class="card">
-                    <h2><span class="material-symbols-outlined" style="color: var(--primary);">database</span>SQLiteデータベース状態</h2>
-                    <ul>
+        </header>
+        <div class="data-tool-content">
+            <div class="data-tool-grid">
+                <section class="data-tool-card">
+                    <h2><span class="material-symbols-outlined">database</span> SQLiteデータベース状態</h2>
+                    <ul class="import-status-list">
                         <li>存在ステータス: <strong><?= $stats['sqlite_exists'] ? '作成済み' : '未作成' ?></strong></li>
-                        <li>ファイルサイズ: <strong><?= $stats['sqlite_size'] ?></strong></li>
-                        <li>登録ページ数: <strong><?= $stats['sqlite_posts'] ?> 件</strong></li>
-                        <li>登録コンポーネント数: <strong><?= $stats['sqlite_comps'] ?> 件</strong></li>
-                        <li>登録ユーザー（編集者）数: <strong><?= $stats['sqlite_users'] ?> 人</strong></li>
+                        <li>ファイルサイズ: <strong><?= htmlspecialchars((string)$stats['sqlite_size']) ?></strong></li>
+                        <li>登録ページ数: <strong><?= (int)$stats['sqlite_posts'] ?> 件</strong></li>
+                        <li>登録コンポーネント数: <strong><?= (int)$stats['sqlite_comps'] ?> 件</strong></li>
+                        <li>登録ユーザー（編集者）数: <strong><?= (int)$stats['sqlite_users'] ?> 人</strong></li>
                     </ul>
-                </div>
-                
-                <!-- Media Status -->
-                <div class="card">
-                    <h2><span class="material-symbols-outlined" style="color: var(--primary);">image</span>メディアファイル状態</h2>
-                    <ul>
+                </section>
+                <section class="data-tool-card">
+                    <h2><span class="material-symbols-outlined">image</span> メディアファイル状態</h2>
+                    <ul class="import-status-list">
                         <li>保存ディレクトリ: <strong>media/</strong></li>
-                        <li>登録メディアファイル数: <strong><?= $stats['media_count'] ?> 件</strong></li>
-                        <li>総メディア容量: <strong><?= $stats['media_size'] ?></strong></li>
+                        <li>登録メディアファイル数: <strong><?= (int)$stats['media_count'] ?> 件</strong></li>
+                        <li>総メディア容量: <strong><?= htmlspecialchars((string)$stats['media_size']) ?></strong></li>
                     </ul>
-                </div>
+                </section>
             </div>
-            
-            <!-- ZIP Package Import Form -->
-            <div id="zip-import" class="card" style="margin-top: 30px;">
-                <h2><span class="material-symbols-outlined" style="color: var(--primary);">upload_file</span>コンテンツパッケージ (ZIP) インポート</h2>
-                <form method="post" enctype="multipart/form-data" action="convert.php">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+
+            <section id="zip-import" class="data-tool-card">
+                <h2><span class="material-symbols-outlined">upload_file</span> コンテンツパッケージ (ZIP) インポート</h2>
+                <p>テーマや初期データを含むZIPパッケージ（<code>settings.json</code>, <code>posts/</code>, <code>components/</code> フォルダなどを含むアーカイブ）をアップロードして、現在のSQLiteデータベースにインポートします。<br>
+                    ※インポートされたファイル群は、<code>mikanData/private-import/</code> フォルダ配下に <code>{フォルダ名}_imported</code> として展開されます。</p>
+                <form method="post" enctype="multipart/form-data" action="<?= $importAction ?>" data-data-tool-form>
+                    <input type="hidden" name="csrf_token" value="<?= $csrfValue ?>">
                     <input type="hidden" name="action" value="upload_import">
-                    <p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 12px; line-height: 1.5;">
-                        テーマや初期データを含むZIPパッケージ（<code>settings.json</code>, <code>posts/</code>, <code>components/</code> フォルダなどを含むアーカイブ）をアップロードして、現在のSQLiteデータベースにインポートします。<br>
-                        ※インポートされたファイル群は、<code>mikanData/private-import/</code> フォルダ配下に <code>{フォルダ名}_imported</code> として展開されます。
-                    </p>
-                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <input type="file" name="package_zip" accept=".zip" required style="font-size: 0.9rem; padding: 6px; border: 1px solid var(--border); border-radius: 6px; flex-grow: 1; background: #fafafa;">
-                        <button type="submit" class="btn btn-orange" style="white-space: nowrap; height: 38px; display: inline-flex; align-items: center; gap: 4px; margin-top: 0;">
-                            <span class="material-symbols-outlined" style="font-size: 1.15rem;">publish</span>
-                            アップロード & インポート
-                        </button>
+                    <div class="flex-row flex-row-wrap items-center">
+                        <input type="file" name="package_zip" accept=".zip" required>
+                        <button type="submit" class="btn btn-orange btn-small"><span class="material-symbols-outlined icon">publish</span> アップロード &amp; インポート</button>
                     </div>
                 </form>
                 <details class="package-layout-guide">
@@ -548,52 +432,67 @@ components/
   coffee_layout.json</pre>
                     <p><?= t('package_layout_notes') ?></p>
                 </details>
-            </div>
+            </section>
 
-            <!-- WordPress XML Import Form -->
-            <div id="wp-import" class="card" style="margin-top: 30px;">
-                <h2><span class="material-symbols-outlined" style="color: var(--primary);">description</span>WordPress データ移行 (XML インポート)</h2>
-                <form method="post" enctype="multipart/form-data" action="convert.php">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+            <section id="wp-import" class="data-tool-card">
+                <h2><span class="material-symbols-outlined">description</span> WordPress データ移行 (XML インポート)</h2>
+                <p>WordPress の「ツール ＞ エクスポート」から書き出した XML ファイル（WXR 形式）をアップロードし、投稿や固定ページを mikanBox のページデータとして一括インポートします。<br>
+                    ※インポートされたページのステータスは WordPress での公開状態（公開/下書き）が維持されます。本文の HTML は自動的に簡易的な Markdown 形式に変換されます。</p>
+                <form method="post" enctype="multipart/form-data" action="<?= $importAction ?>" data-data-tool-form>
+                    <input type="hidden" name="csrf_token" value="<?= $csrfValue ?>">
                     <input type="hidden" name="action" value="wordpress_import">
-                    <p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 12px; line-height: 1.5;">
-                        WordPress の「ツール ＞ エクスポート」から書き出した XML ファイル（WXR 形式）をアップロードし、投稿や固定ページを mikanBox のページデータとして一括インポートします。<br>
-                        ※インポートされたページのステータスは WordPress での公開状態（公開/下書き）が維持されます。本文の HTML は自動的に簡易的な Markdown 形式に変換されます。
-                    </p>
-                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <input type="file" name="wp_xml" accept=".xml" required style="font-size: 0.9rem; padding: 6px; border: 1px solid var(--border); border-radius: 6px; flex-grow: 1; background: #fafafa;">
-                        <button type="submit" class="btn btn-orange" style="white-space: nowrap; height: 38px; display: inline-flex; align-items: center; gap: 4px; margin-top: 0;">
-                            <span class="material-symbols-outlined" style="font-size: 1.15rem;">publish</span>
-                            XML を解析してインポート
-                        </button>
+                    <div class="flex-row flex-row-wrap items-center">
+                        <input type="file" name="wp_xml" accept=".xml" required>
+                        <button type="submit" class="btn btn-orange btn-small"><span class="material-symbols-outlined icon">publish</span> XML を解析してインポート</button>
                     </div>
                 </form>
-            </div>
+            </section>
 
-            <!-- Output Log -->
             <?php if (!empty($log)): ?>
-                <h3 style="font-size: 0.95rem; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;"><span class="material-symbols-outlined">receipt_long</span>実行ログ</h3>
-                <div class="log-area">
-                    <?php foreach ($log as $line): ?>
-                        <?php
-                        $class = 'log-info';
-                        if (strpos($line, '[SUCCESS]') !== false) $class = 'log-success';
-                        elseif (strpos($line, '[ERROR]') !== false) $class = 'log-error';
-                        ?>
-                        <div class="log-line <?= $class ?>"><?= htmlspecialchars($line) ?></div>
-                    <?php endforeach; ?>
-                </div>
+                <section id="import-log" class="data-tool-card">
+                    <h2><span class="material-symbols-outlined">receipt_long</span> 実行ログ</h2>
+                    <div class="data-tool-log" aria-live="polite">
+                        <?php foreach ($log as $line): ?>
+                            <?php
+                            $class = 'import-log-info';
+                            if (strpos($line, '[SUCCESS]') !== false) $class = 'import-log-success';
+                            elseif (strpos($line, '[ERROR]') !== false) $class = 'import-log-error';
+                            ?>
+                            <div class="<?= $class ?>"><?= htmlspecialchars($line) ?></div>
+                        <?php endforeach; ?>
+                    </div>
+                </section>
             <?php endif; ?>
         </div>
-
-        <div class="footer">
-            <a href="admin.php">
-                <span class="material-symbols-outlined" style="font-size: 1.1rem;">arrow_back</span>
-                管理画面へ戻る
-            </a>
-            <span style="font-size: 0.8rem; color: var(--text-sub);">&copy; 2026 mikanBox Utility</span>
-        </div>
-    </div>
+        <footer class="data-tool-footer">
+            <?php if ($embed): ?>
+                <a href="admin.php" data-data-tool-close><span class="material-symbols-outlined icon">arrow_back</span> 管理画面へ戻る</a>
+            <?php else: ?>
+                <a href="admin.php"><span class="material-symbols-outlined icon">arrow_back</span> 管理画面へ戻る</a>
+            <?php endif; ?>
+            <span>&copy; <?= date('Y') ?> mikanBox</span>
+        </footer>
+    </main>
+</div>
+<?php
+$fragment = ob_get_clean();
+if ($embed) {
+    header('Content-Type: text/html; charset=utf-8');
+    echo $fragment;
+    exit;
+}
+header('Content-Type: text/html; charset=utf-8');
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title><?= mikanBoxAdminTitle(loadSettings(), 'データ移行・インポート') ?></title>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet">
+    <link rel="stylesheet" href="admin.css?v=<?= MIKANBOX_VERSION ?>">
+</head>
+<body>
+<?= $fragment ?>
 <script>
 // Only the file fields take dropped files; anywhere else a drop does nothing (instead of opening the file).
 (() => {

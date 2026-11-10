@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.19.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.19.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -302,7 +302,7 @@ The browser tab shows "🍊site name" (the sign-in screen shows "🍊site name -
 
 #### How actions work (no full-page reloads)
 
-Admin actions run without reloading the whole screen, and the result appears as a message at the bottom right. Confirmations (such as deleting) are shown inside the screen, never in the browser's own dialog. Opening and closing editors always looks the same: opening scrolls to the top of the editor, and closing returns to the row you were editing, keeping the filters, search and list page. The screen reloads only when what the screen is changes: system update and restore, switching the language, signing in and out, first setup, and stopping this device (which signs you out). Visual Editing's Undo and Redo reload because the rendered page itself changes.
+Admin actions run without reloading the whole screen, and the result appears as a message at the bottom right. Confirmations (such as deleting) are shown inside the screen, never in the browser's own dialog. Opening and closing editors always looks the same: opening scrolls to the top of the editor, and closing shrinks the editor smoothly and returns to the top of the list, keeping the filters, search and list page. The screen reloads only when what the screen is changes: system update and restore, switching the language, signing in and out, first setup, and stopping this device (which signs you out). Visual Editing's Undo and Redo reload because the rendered page itself changes.
 
 #### Logout
 
@@ -803,7 +803,7 @@ Bundles every uploaded file (images, etc.) into a single ZIP and downloads it.
 
 #### [settings_backup_restore]{.material-symbols-outlined} Data Import &amp; Migration Tool{.m-btn .m-btn-blue}
 
-Opens the [Data Migration &amp; Import Tool](#data-migration) (`convert.php`) in a new tab.
+Opens the [Data Migration &amp; Import Tool](#data-migration) over the admin panel (in the same window).
 
 ### Backup [flat Edition only]{.type-badge .badge-flat} {#site-backup}
 
@@ -919,7 +919,7 @@ Changes and saves the password.
 
 ## Data Migration &amp; Import Tool {#data-migration}
 
-A separate, standalone tool (`convert.php`) from the admin panel (`admin.php`). Access `mikanBox/convert.php` directly in your browser to use it. You can check the current state of the database and media, and bulk-import external data.
+In the SQLite edition, the "Data Migration & Import Tool" button in Site Settings opens the tool over the admin panel (in the same window; closing it returns you to the admin panel). You can also open `admin.php?view=import` directly, and the old `mikanBox/convert.php` address leads to the same screen. You can check the current state of the database and media, and bulk-import external data.
 
 ### Current State
 
