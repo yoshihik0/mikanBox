@@ -1581,8 +1581,7 @@ function getIcon($name) {
 
 
     <script>window.__MIKAN_UI = <?= json_encode(['confirmTitle' => t('btn_delete'), 'confirmOk' => t('btn_delete_confirm'), 'cancel' => t('btn_cancel'), 'saveFailed' => t('err_save_failed'), 'done' => t('msg_update_success'), 'networkError' => t('err_network_error')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;</script>
-    <script src="admin-ui.js?v=<?= htmlspecialchars(rawurlencode((string)@filemtime(__DIR__ . '/admin-ui.js'))) ?>"></script>
-    <script>
+    <?= mikanBoxInlineAdminScript('admin-ui.js') ?>    <script>
     // ブラウザのスクロール復元を無効にして競合させない
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     let restoredReloadPosition = false;
@@ -2126,18 +2125,19 @@ function getIcon($name) {
         // Update browser URL without reload
         history.pushState(null, '', url.pathname + url.search + url.hash);
 
-        if (pPages) {
-            await refreshPageList();
-        } else if (pMedia) {
-            await refreshMediaGrid();
-        }
-
-        // Smoothly scroll to the top of the section (e.g. #pages or #media)
-        if (url.hash) {
-            const target = document.querySelector(url.hash);
-            if (target) {
-                target.scrollIntoView({ behavior: 'smooth' });
+        // The refreshed list must not pull the page back to the old position: the section
+        // top is where the page ends up (measured scroll, checked after it settles).
+        navigationScrollPending++;
+        try {
+            if (pPages) {
+                await refreshPageList();
+            } else if (pMedia) {
+                await refreshMediaGrid();
             }
+        } finally { navigationScrollPending--; }
+
+        if (url.hash && document.querySelector(url.hash)) {
+            await settleScroll(() => ({ el: document.querySelector(url.hash), block: 'start' }));
         }
     });
 
@@ -2702,11 +2702,16 @@ function getIcon($name) {
                     const shift = editor.getBoundingClientRect().top - before;
                     if (shift) window.scrollBy({ top: shift, behavior: 'instant' });
                 }
-                const scrolled = settleScroll(() => {
+                // Fold the editor first: the row's final position is only known once the editor's
+                // height is gone, and a scroll started toward the old position gets cancelled by the
+                // layout shrinking. Then scroll to the measured row.
+                if (editor) await MikanUI.collapse(editor);
+                const slot0 = document.getElementById(slotId);
+                if (slot0) slot0.innerHTML = '';
+                await settleScroll(() => {
                     const row = editedRow();
                     return row ? { el: row, block: 'center' } : { el: document.getElementById(sectionId), block: 'start' };
                 });
-                await Promise.all([editor ? MikanUI.collapse(editor) : Promise.resolve(), scrolled]);
             } finally {
                 const slot = document.getElementById(slotId);
                 if (slot) slot.innerHTML = '';
@@ -3304,6 +3309,6 @@ function getIcon($name) {
     </div>
 </div>
 
-<script src="preview-editor.js?v=<?= htmlspecialchars($installedVersion) ?>" defer></script>
+<?= mikanBoxInlineAdminScript('preview-editor.js') ?>
 </body>
 </html>

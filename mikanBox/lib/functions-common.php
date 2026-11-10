@@ -677,6 +677,17 @@ function mikanBoxNormalizeLegacyPage($data) {
 }
 
 /**
+ * A script of the admin screens, written into the page (2.19.1). They live in lib/ because every
+ * updater copies lib/; a separate top-level file would be missing after an update made by an older
+ * updater, and every action that needs it would silently stop working.
+ */
+function mikanBoxInlineAdminScript(string $name): string {
+    $file = __DIR__ . '/' . basename($name);
+    $code = is_file($file) ? (string)file_get_contents($file) : '';
+    return '<script>' . str_ireplace('</script', '<\\/script', $code) . "</script>\n";
+}
+
+/**
  * End of an admin action (2.19.0). An ajax_request gets JSON (the message goes to the
  * bottom-right toast and the screen is not reloaded); a plain form post is redirected as before.
  * $message null = use the message the handler left in the session.

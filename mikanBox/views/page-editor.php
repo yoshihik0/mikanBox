@@ -268,7 +268,7 @@
                             <a href="admin.php#pages" class="btn btn-gray"><?= getIcon('arrow_back') ?> <?= t('btn_back_to_list') ?></a>
                         </div>
                         <?php if ($editId): ?>
-                            <button type="submit" form="page-form" name="save_action" value="delete_page" class="btn btn-red"><?= getIcon('delete') ?> <?= t('btn_delete') ?></button>
+                            <button type="submit" form="page-form" formnovalidate name="save_action" value="delete_page" class="btn btn-red"><?= getIcon('delete') ?> <?= t('btn_delete') ?></button>
                         <?php endif; ?>
                     </div>
                 </form>

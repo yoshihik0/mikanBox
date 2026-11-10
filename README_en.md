@@ -30,6 +30,7 @@ If you run it on your own computer and just upload a static site, flat or this e
 - **Modeless UI** — No page transitions; nearly all work completed on a single screen for a snappy experience
 - **Visual editing** — Open a page exactly as it looks and click to edit it; page CSS applies as you type
 - **Markdown Support** — Easy to edit content, and also well-suited as a content archive
+- **Publish as Markdown and data** — Besides HTML, a page can be published as Markdown (`/ID.md`), JSON, XML, CSV, text, JS, CSS or a mikanBox DB (`/api/ID.json`), ready for AI and other systems
 - **Filter by Category** — Narrow down pages and images by category; use categories as workspaces
 - **Images Shown by Filename Alone** — Place images without thinking about file paths
 - **Component Structure** — Page templates and parts you can combine and reuse

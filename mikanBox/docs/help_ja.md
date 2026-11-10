@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.19.0</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.19.1</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -1693,7 +1693,7 @@ PHP版はサイト画面、Cloud版はデータ移行・インポート画面の
 - `rss`・`sitemap`・`podcast` をXML形式にすると、システムのファイル（`/rss.xml` など）と重なるため保存できません。`404` ページの出力形式はHTMLだけです。
 - **文字化けとほかのサイトからの読み込み（静的ファイル）** — mikanBoxが動的に返すMarkdown版・データ形式には、`charset=utf-8` と `Access-Control-Allow-Origin: *`（ほかのサイトのMarkdownビューアなどがブラウザから読めるようにする指定）を付けます。静的に書き出したファイルはWebサーバーがそのまま返すため、サーバーの設定で次のように扱います。
   - **Apache** — 初回設定で作るサイト直下の `.htaccess` に、`AddCharset utf-8 .md .txt .csv .js .css .json`、`AddType text/markdown .md`、`.md`・`.txt`・`.csv`・`.json`・`.xml` への `Access-Control-Allow-Origin: *` を、目印のコメントで囲んで入れています（モジュールがない環境でもエラーにならないよう `IfModule` で囲みます）。システム更新のときに、この設定がなければ末尾に追記し、古いmikanBoxの設定があればその部分だけを新しくします（ほかの行は変えません。書き込めないときは、更新後のメッセージで案内します）。メディアの `.js`・`.css` にも文字コードを指定します。
-  - **nginx** — `.htaccess` は効きません。サーバーの設定に、たとえば `charset utf-8; charset_types text/markdown text/plain text/csv text/css application/javascript application/json;` と、`.md` を `text/markdown` にする `types` の指定、`location ~ \.(md|txt|csv|json|xml)$ { add_header Access-Control-Allow-Origin *; }` を加えます（設定できない場合はサーバー会社に依頼します）。
+  - **nginx** — `.htaccess` は効きません。サーバーの設定に、たとえば `charset utf-8; charset_types text/markdown text/plain text/csv text/css application/javascript application/json;` と、`.md` を `text/markdown` にする `types` の指定、`location ~ \.(md|txt|csv|json|xml)$ { add_header Access-Control-Allow-Origin *; }` を加えます（設定できない場合はサーバー会社に依頼します）。静的ビルドを「フォルダ」構造で同じサイトのフォルダへ出すと、ページごとに `ページ名/index.html` ができます。nginxの `index` に `index.html` が入っていないと、そのフォルダを開いたときに403になります（404ページなど）。`index index.php index.html;` のように `index.html` を加えてください。
   - 静的に書き出す `.md`・`.txt`・`.csv` の先頭には、UTF-8のBOM（文字コードの目印）を付けます。サーバーが文字コードを送らない場合でも、ブラウザが正しく表示できます。ブラウザの `fetch` はBOMを取り除いて読みます。BOMを解釈しない一部の道具では、frontmatterの前に見えない1文字が入るので注意してください。`.json`・`.xml`・`.js`・`.css` にはBOMを付けません（`.json` はUTF-8が決まり、`.xml` はファイル内で文字コードを宣言できるため）。
   - 静的書き出しを別のサーバーに置くときも、そのサーバーで同じ設定をしてください。
 - 「公開(静的)」でなくなったページ（動的・下書きに変えたページ）のために以前書き出したファイルは、そのページの保存・公開設定の変更（MCPを含む）のとき、またはすべてのページの静的ビルドのときに消します。静的ファイルが動的なページを覆い隠したり、下書きにしたページが公開されたまま残ったりしないためです。

@@ -88,7 +88,7 @@
                         <a href="admin.php#design" class="btn btn-gray"><?= getIcon('arrow_back') ?> <?= t('btn_back_to_list') ?></a>
                     </div>
                     <?php if ($editId): ?>
-                        <button type="submit" form="comp-form" name="save_action" value="delete_comp" class="btn btn-red"><?= getIcon('delete') ?> <?= t('btn_delete') ?></button>
+                        <button type="submit" form="comp-form" formnovalidate name="save_action" value="delete_comp" class="btn btn-red"><?= getIcon('delete') ?> <?= t('btn_delete') ?></button>
                     <?php endif; ?>
                 </div>
             </form>
