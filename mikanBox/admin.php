@@ -2758,15 +2758,17 @@ function getIcon($name) {
                     const shift = editor.getBoundingClientRect().top - before;
                     if (shift) window.scrollBy({ top: shift, behavior: 'instant' });
                 }
-                // One motion: first bring the top of the editor (= the top of the list) into view,
-                // so the shrinking is seen from its top edge rather than from far below it; then
-                // fold the editor (shorter than opening it) and the list slides up under it.
-                const sectionTop = () => ({ el: document.getElementById(sectionId), block: 'start' });
-                await settleScroll(sectionTop);
-                if (editor) await MikanUI.collapse(editor, 260);
+                // One motion, in the order a person reads the page: (1) the editor fades out where it
+                // is (its height stays, so nothing moves), (2) the view glides up to the top of the
+                // list (the page keeps its length meanwhile, so the position cannot jump), (3) only
+                // then is the editor's space removed, out of sight. Reduced motion: close at once.
+                const sectionTop = () => document.getElementById(sectionId);
+                const topY = () => { const t = sectionTop(); return t ? t.getBoundingClientRect().top + window.scrollY : 0; };
+                if (editor) await MikanUI.fadeOut(editor, 200);
+                await MikanUI.scrollToY(topY());
                 const slot0 = document.getElementById(slotId);
                 if (slot0) slot0.innerHTML = '';
-                { const t = sectionTop().el; if (t && Math.abs(t.getBoundingClientRect().top) > 40) scrollToElement(t, 'start', 'instant'); }
+                { const t = sectionTop(); if (t && Math.abs(t.getBoundingClientRect().top) > 4) window.scrollTo({ top: Math.max(0, Math.round(topY())), behavior: 'instant' }); }
             } finally {
                 const slot = document.getElementById(slotId);
                 if (slot) slot.innerHTML = '';

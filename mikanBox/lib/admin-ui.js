@@ -188,7 +188,37 @@
     return run(el, [{ height: h + 'px', opacity: 1 }, { height: '0px', opacity: 0, ...FLAT }], ms, 'forwards').then(() => {});
   }
 
-  window.MikanUI = { toast, confirm: confirmDialog, post, refresh, expand, collapse };
+  // fadeOut(): fades in place (opacity only, the height stays), so something visibly goes away.
+  function fadeOut(el, ms = 200) {
+    if (!el || !el.animate || reduced()) return Promise.resolve();
+    return run(el, [{ opacity: 1 }, { opacity: 0 }], ms, 'forwards').then(() => {});
+  }
+  // scrollToY(): a smooth scroll whose length depends on the distance (300ms to 600ms). Done
+  // with timers and frames of our own, so it can be checked and always ends at the exact
+  // position, also in a background tab where frames do not run.
+  function scrollToY(top, minMs = 300, maxMs = 600) {
+    const target = Math.max(0, Math.round(top));
+    const from = window.scrollY;
+    const distance = Math.abs(target - from);
+    if (reduced() || distance < 2) { window.scrollTo({ top: target, behavior: 'instant' }); return Promise.resolve(); }
+    const ms = Math.min(maxMs, Math.max(minMs, 250 + distance * 0.08));
+    return new Promise((resolve) => {
+      const start = performance.now();
+      let finished = false;
+      const end = () => { if (finished) return; finished = true; clearTimeout(timer); window.scrollTo({ top: target, behavior: 'instant' }); resolve(); };
+      const timer = setTimeout(end, ms + 150);
+      const step = (now) => {
+        if (finished) return;
+        const t = Math.min(1, (now - start) / ms);
+        const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        window.scrollTo({ top: from + (target - from) * eased, behavior: 'instant' });
+        if (t < 1) requestAnimationFrame(step); else end();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  window.MikanUI = { toast, confirm: confirmDialog, post, refresh, expand, collapse, fadeOut, scrollToY };
   window.showToast = toast;
   window.showConfirmDialog = confirmDialog;
 })();
