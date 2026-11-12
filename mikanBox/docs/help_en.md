@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.19.3</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.20.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -370,6 +370,8 @@ Search titles, body content, and more with the field at the right of the heading
 
 The select to the right of "Ask AI" in the heading filters the list by output format (HTML, HTML + Markdown, Markdown, data, mikanBox DB), in the same place and style as the type filter on the Design screen. It combines with the category filter and the search, and stays when you open and close the page editor.
 
+To the right of the output-format select there is a sort-order select (Display order, Newest update first, Oldest update first, By ID, By title). The default, "Display order", matches the lists on the public side (`{{NAV_LINKS}}`, `{{NAV_CARDS}}`): smaller display-order numbers first, then the newest update first, then by ID (the SQLite edition shows pending pages first). Whichever order you choose, `index` always stays first. The Updated date is set when a page is created and renewed when it changes from private to public (editing a public page does not change it). The chosen order is kept like the category, output-format filter, search and list page, and sorting happens before paging, so page 2 onward follow the same order.
+
 - [[edit]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — The pencil button. Opens the edit screen for that page.
 - [[edit_square]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — Opens the page in [Visual Editing](#visual-edit).
 - [[language]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — The globe button. Opens a published page at its real site address in a new tab (Markdown-only and data pages at `/ID.extension`, mikanBox DB at `/api/ID.json`, Public (Static) at the built file). Drafts and pending pages show it greyed out.
@@ -538,7 +540,7 @@ Shows what you are editing in a new tab, without saving ("Shows what you are edi
 
 #### [arrow_back]{.material-symbols-outlined} Back to List{.m-btn .m-btn-gray}
 
-Returns to the page list, scrolled to the row of the page you were editing, with the category and output-format filters, the search and the list page kept (opening the editor scrolls to its top). Note that unsaved changes will be lost.
+Returns to the page list (the editor fades out in place and the view moves to the top of the list), with the category and output-format filters, the sort order, the search and the list page kept (opening the editor scrolls to its top). Note that unsaved changes will be lost.
 
 #### [delete]{.material-symbols-outlined} Delete{.m-btn .m-btn-red}
 

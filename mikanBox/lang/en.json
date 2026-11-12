@@ -822,5 +822,12 @@
     "btn_open_public_page": "Open the public page",
     "msg_not_public_yet": "Not published (draft or pending)",
     "btn_ok": "OK",
-    "preview_editing_hint": "Shows what you are editing (nothing is saved)."
+    "preview_editing_hint": "Shows what you are editing (nothing is saved).",
+    "page_sort_label": "Sort order",
+    "page_sort_display": "Display order",
+    "page_sort_updated_desc": "Newest update first",
+    "page_sort_updated_asc": "Oldest update first",
+    "page_sort_id": "By ID",
+    "page_sort_title": "By title",
+    "page_sort_hint": "\"Display order\" matches the lists on the public side (display order, then newest update first). The Updated date is set when a page is created and renewed when it changes from private to public (editing a public page does not change it). index always stays first."
 }

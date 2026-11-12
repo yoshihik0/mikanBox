@@ -822,5 +822,12 @@
     "btn_open_public_page": "公開ページを開く",
     "msg_not_public_yet": "公開されていません（下書き・承認待ち）",
     "btn_ok": "OK",
-    "preview_editing_hint": "編集中の内容を表示します（保存はされません）。"
+    "preview_editing_hint": "編集中の内容を表示します（保存はされません）。",
+    "page_sort_label": "並び順",
+    "page_sort_display": "表示順",
+    "page_sort_updated_desc": "更新が新しい順",
+    "page_sort_updated_asc": "更新が古い順",
+    "page_sort_id": "ID順",
+    "page_sort_title": "タイトル順",
+    "page_sort_hint": "「表示順」は公開側の一覧と同じ並び（表示順、同じなら更新日の新しい順）です。「更新」の日付は、作成時に設定され、非公開から公開に切り替えた時点で更新されます（公開後の編集では変わりません）。index は常に先頭です。"
 }
