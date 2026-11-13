@@ -3,17 +3,6 @@ if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVE
 require_once __DIR__ . "/security.php";
 require_once __DIR__ . "/external-markdown.php";
 /**
- * Public JS assets use design component IDs only, never paths or AI documents.
- * Null means not found; an existing component with no JS returns an empty file.
- */
-function mikanBoxComponentJavaScript($id): ?string {
-    if (!is_string($id) || !preg_match('/\A[A-Za-z0-9_-]+\z/', $id)) return null;
-    $component = loadData(COMPONENTS_DIR, $id);
-    if (!$component || !empty($component['is_ai_doc'])) return null;
-    return (string)($component['js'] ?? '');
-}
-
-/**
  * Tracking tags from site settings: direct code wins over an ID, and an ID builds the
  * standard Google snippets. Null means neither is set (the legacy tracking component, if any, applies).
  */

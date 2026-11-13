@@ -901,30 +901,7 @@ class MikanBoxRenderer {
     private function applyPathCompletion($html) {
         $allPosts = getSortedPostIds();
 
-        // Component asset paths are site-relative even on nested pages. Portable
-        // exports contain these files too, so use the export root in static mode.
-        $html = preg_replace_callback('~(<script\b[^>]*\bsrc\s*=\s*)(["\'])([^"\']+)\2~i', function($m) {
-            $src = $m[3];
-            $basePath = trim($this->getSiteBasePath(), '/');
-            $path = ltrim($src, '/');
-            if (str_starts_with($src, '/') && $basePath !== '' && str_starts_with($path, $basePath . '/')) {
-                $path = substr($path, strlen($basePath) + 1);
-            }
-            $path = preg_replace('~^\./~', '', $path);
-            // Like media filenames, a saved component's JS filename needs no
-            // directory. Leave other script assets and absolute URLs untouched.
-            if (!str_starts_with($src, '/') && preg_match('~\A([A-Za-z0-9_-]+)\.js(?:[?#].*)?\z~', $path, $asset)
-                && mikanBoxComponentJavaScript($asset[1]) !== null) {
-                $path = 'component-js/' . $path;
-            }
-            if (!preg_match('~\Acomponent-js/[A-Za-z0-9_-]+\.js(?:[?#].*)?\z~', $path)) return $m[0];
-            $root = $this->isRelativeStaticMode()
-                ? $this->getStaticRootPrefix()
-                : ($this->staticMode ? rtrim($this->getSiteUrl(), '/') . '/' : $this->getSiteBasePath());
-            return $m[1] . $m[2] . $root . $path . $m[2];
-        }, $html);
-        
-        // Uploaded code assets use explicit media/ URLs, avoiding component ID ambiguity.
+        // Uploaded code assets use explicit media/ URLs.
         $html = preg_replace_callback('~(<(?:script|link)\b[^>]*\b(?:src|href)\s*=\s*)(["\'])(?:\./)?media/([A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:js|css)(?:[?#][^"\']*)?)\2~i', function($m) {
             $root = $this->isRelativeStaticMode() ? $this->getStaticRootPrefix() : rtrim($this->getSiteUrl(), '/') . '/';
             return $m[1] . $m[2] . $root . 'media/' . $m[3] . $m[2];

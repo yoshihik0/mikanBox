@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.20.0</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.20.1</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -1111,17 +1111,7 @@ CSS欄と同じ太字の見出しを持つ、折りたたみ式の専用欄に�
 
 JavaScript欄は他の開閉欄と同じ「JavaScript ▼」の表示で、見出し行全体をクリックして開閉できます。
 
-2.7.0以降は、JSだけを読み込む際にファイル名だけで記述でき、編集画面にもHTMLの記述例を表示します。
-
-保存済みのコンポーネントのJavaScript欄には、JSだけを読み込むための記述例、その下にパスの自動補完の説明と完全なJavaScript専用URLが表示されます。ページとコンポーネントのJavaScript欄の説明・表示順は全版共通です。`component-js/ID.js` ではHTML・CSSの有無に関係なく、JS欄の内容だけを取得できます。IDの大文字・小文字は保存したものと一致させてください。例えば `Test` のJSだけを読み込むには、本文や部品のHTMLに次のように書きます。JavaScript欄には書きません。
-
-```html
-<script src="Test.js" defer></script>
-```
-
-保存済みの通常コンポーネントに対応する `ID.js`（`./ID.js` も可）は、画像のファイル名と同じように、設置先とページ階層に合わせて専用URLへ自動補完されます。`component-js/Test.js` と書く方法も使えます。該当する部品がないファイル名や外部URLは補完しません。静的サイトの書き出しでは `component-js/` にJSファイルが同梱され、相対URLモードでは出力ページの階層に合わせて参照が補完されます。URL書き換えを使わない環境では `index.php?component_js=Test` でも取得できます（このクエリ形式はPHPサーバー用です）。存在しないID・不正なID・AI指示は404、JS欄が空の通常コンポーネントは空のJavaScriptを返します。
-
-通常の `{{COMPONENT:Test}}` 埋め込みではJSも自動で出力されるため、上記のscriptタグは不要です。ページ内に同じコンポーネントを複数配置しても、JavaScriptの初期実行は一度だけです。クリックなどのイベント処理は、その都度実行されます。また、CSSのスコープ設定はJavaScriptには適用されません。JS欄のコードは、独自タグを展開せずそのまま使います。外部URLでの読み込みと通常のコンポーネント埋め込みを併用した場合も、自動で実行回数を調整しません。例えば同じ部品のボタンを3個置く場合、コードの初期実行は一度だけなので、`document.querySelectorAll()` で3個すべてを取得し、一つずつクリック処理を設定します。`document.querySelector()` は最初の一つだけを取得します。読み込み順はコード側で設計してください。MCPの `create_page`・`update_page`・`create_component`・`update_component` でも `js` フィールドで設定できます。
+`{{COMPONENT:Test}}` を使うと、JS欄のコードもページのHTMLに出力されます。独立したJSファイルを読み込む場合は、[メディア](#media-mgmt)に置いて `media/ファイル名.js` を指定します。ページ内に同じコンポーネントを複数配置しても、JavaScriptの初期実行は一度だけです。クリックなどのイベント処理は、その都度実行されます。また、CSSのスコープ設定はJavaScriptには適用されません。JS欄のコードは、独自タグを展開せずそのまま使います。例えば同じ部品のボタンを3個置く場合、コードの初期実行は一度だけなので、`document.querySelectorAll()` で3個すべてを取得し、一つずつクリック処理を設定します。`document.querySelector()` は最初の一つだけを取得します。読み込み順はコード側で設計してください。MCPの `create_page`・`update_page`・`create_component`・`update_component` でも `js` フィールドで設定できます。
 
 #### [save]{.material-symbols-outlined} 保存{.m-btn .m-btn-blue}
 
@@ -1808,7 +1798,7 @@ categories: "coffee, tokyo"
 
 指定したIDのページのURLを、その出力形式の拡張子付きで出します。データ形式のページには `?v=` に中身のハッシュが付くので、中身が変わるとブラウザのキャッシュが自動で切り替わります。静的書き出しでは書き出した中身から（目録のように、ほかのページの変更で中身が変わるページも正しく変わります）、動的表示では本文から計算します。HTML・Markdownのページには `?v=` を付けません。引数なしの `{{PAGE_URL}}` は、これまでどおり表示中のページのURLです。
 
-外部ライブラリ（自分では編集しないファイル）は[メディア](#media-mgmt)に置き、自分のサイトのコードはJavaScript・CSS形式のページに書く、という使い分けをおすすめします。コンポーネントのJS欄（`/component-js/ID.js`）も、これまでどおり使えます。
+外部ライブラリ（自分では編集しないファイル）は[メディア](#media-mgmt)に置き、自分のサイトのコードはJavaScript・CSS形式のページに書く、という使い分けをおすすめします。コンポーネントのJS欄は、その部品を使用するページのHTMLに埋め込まれます。
 
 ---
 

@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.20.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.20.1</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -1110,19 +1110,7 @@ Write code without `<script>` tags in the collapsible field, whose heading uses 
 
 The JavaScript field uses the same “JavaScript ▼” heading as other collapsible sections. Click anywhere on its heading row to expand or collapse it.
 
-Since 2.7.0, you can load only the JS by filename, and the editor shows an HTML snippet for this purpose.
-
-The component JavaScript field shows the JavaScript-only embed example first, followed by the automatic path completion explanation and full JavaScript-only URL. Page and component JavaScript field explanations and display order are aligned across editions.
-
-Saved design components show a JavaScript-only URL and a snippet to paste into HTML. `component-js/ID.js` returns only the JS field, regardless of whether the component contains HTML or CSS. Use the exact case of the saved ID. To load only the JS of `Test`, write this in page or component HTML, rather than in the JavaScript field:
-
-```html
-<script src="Test.js" defer></script>
-```
-
-Like image filenames, `ID.js` (or `./ID.js`) for a saved normal component is completed to its dedicated URL using the installation path and page depth. `component-js/Test.js` also works. Filenames without a matching component and external URLs are left unchanged. Static-site upload packages include JS files under `component-js/`; relative-URL mode adjusts references for the output page depth. Servers without clean-URL rewriting can also use `index.php?component_js=Test` (this query form requires PHP). Missing or invalid IDs and AI Instructions return 404; a normal component with an empty JS field returns empty JavaScript.
-
-A normal `{{COMPONENT:Test}}` inclusion outputs its JS automatically, so it does not need the script tag above. Even when the same component appears multiple times on a page, its JavaScript is initially executed only once. Event handlers run each time the event occurs. Also, CSS scoping does not apply to JavaScript. JS-field code is used without custom-tag expansion. Combining a normal inclusion and an external script URL does not automatically adjust execution counts. For example, when a component has three buttons, the code is initially executed only once: use `document.querySelectorAll()` to find all three and attach a click handler to each. `document.querySelector()` finds only the first one. Design any required loading order in your code. The MCP tools `create_page`, `update_page`, `create_component`, and `update_component` also accept the `js` field.
+Including `{{COMPONENT:Test}}` embeds its JavaScript in the page HTML. To load a standalone script, upload it to [Media](#media-mgmt) and reference `media/filename.js`. Even when the same component appears multiple times on a page, its JavaScript is initially executed only once. Event handlers run each time the event occurs. Also, CSS scoping does not apply to JavaScript. JS-field code is used without custom-tag expansion. For example, when a component has three buttons, the code is initially executed only once: use `document.querySelectorAll()` to find all three and attach a click handler to each. `document.querySelector()` finds only the first one. Design any required loading order in your code. The MCP tools `create_page`, `update_page`, `create_component`, and `update_component` also accept the `js` field.
 
 #### [save]{.material-symbols-outlined} Save{.m-btn .m-btn-blue}
 
@@ -1803,7 +1791,7 @@ Choose "mikanBox DB" to serve data embedded in a page as an API; choose a data f
 
 Outputs the URL of the given page, with its output format's extension. Data pages get `?v=` with a hash of their content, so browsers pick up the new file whenever the content changes. A static build hashes the built output (so a catalog that changes because other pages changed gets a new value too); dynamic pages hash the body. HTML and Markdown pages get no `?v=`. `{{PAGE_URL}}` without an argument is, as before, the URL of the page being shown.
 
-Keep external libraries (files you do not edit yourself) in [Media](#media-mgmt), and write your own site code in JavaScript and CSS pages. The component JS field (`/component-js/ID.js`) works as before.
+Keep external libraries (files you do not edit yourself) in [Media](#media-mgmt), and write your own site code in JavaScript and CSS pages. Code in a component’s JavaScript field is embedded in the HTML of pages that use the component.
 
 ---
 
