@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.20.2</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.21.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -259,6 +259,10 @@ Updating to v2.9.0 deletes passwords and security answers, so you can no longer 
 ### Signing In to Multiple Installations {#multi-site-login}
 
 Starting with v2.8.6, login state, logout and CSRF tokens are separate for each installation, even on the same domain or when flat and SQLite editions are mixed. Logging into one site does not log you into another. Moving the installation directory on the server also requires a new login. Different URLs pointing to the same real directory are treated as the same installation.
+
+From v2.21.0, a sign-in lasts until 24 hours pass without activity. Closing the browser signs you out. Sign-ins are stored in the data folder's `sessions/` (blocked from the Web and left out of backups). Because the storage location changes, everyone signs in once more after updating to v2.21.0 (in the SQLite edition, a registered device signs in automatically). When updating directly from 2.8.x or earlier to 2.21.0 or later, automatic first-device registration from the previous sign-in is not available; register with the setup token.
+
+If your sign-in expires while you are editing, pressing Save or a similar button shows "Your sign-in has expired" and nothing is sent. What you typed stays on the screen. Sign in to the admin screen in another tab, then save again on the original screen. The screen no longer switches to the login page and loses your input, and an action that did not run is no longer reported as done.
 
 [SQLite Edition]{.type-badge .badge-sqlite}: the name of the device-key cookie also differs per installation, and the key's hash exists only in that installation's database. A key from another site does not work.
 

@@ -513,6 +513,7 @@
     "mcp_err_invalid_extension": "許可されていない拡張子です: '%s'",
     "err_rate_limited": "試行回数が多すぎます。%d分後に再度お試しください。",
     "err_session_error": "セッションエラーが発生しました。最初からやり直してください。",
+    "err_session_expired": "ログインの有効期限が切れました。別のタブで管理画面にログインしてから、もう一度実行してください。入力内容はこの画面に残っています。",
     "err_security_qa_required": "秘密の質問と回答を入力してください。",
     "err_username_or_password_invalid": "ユーザー名またはパスワードが正しくありません。",
     "msg_editor_conflict_warning": "<strong>複数編集者の衝突警告:</strong> 現在、他の編集者（<strong>%s</strong>）がこの項目を編集しています。保存すると変更が上書きされる可能性があります。",

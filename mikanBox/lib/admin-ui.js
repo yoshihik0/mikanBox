@@ -7,7 +7,7 @@
 
   // ---- Toast (bottom right) -----------------------------------------------------
   let toastTimer;
-  function toast(message, isError = false) {
+  function toast(message, isError = false, ms = 0) {
     if (!message) return;
     let el = document.getElementById('ajax-toast');
     if (!el) {
@@ -21,7 +21,7 @@
     el.textContent = message;
     el.style.opacity = '1';
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.style.opacity = '0'; }, isError ? 5000 : 3000);
+    toastTimer = setTimeout(() => { el.style.opacity = '0'; }, ms || (isError ? 5000 : 3000));
   }
 
   // ---- Confirmation (in the screen, never the browser's dialog) ---------------------
@@ -75,19 +75,53 @@
     });
   }
 
+  // ---- Is this browser still signed in? -----------------------------------------------
+  // The sign-in lapses after a day without activity, and signing in again (here or in another
+  // tab) issues a new CSRF token. admin.php?action=session_check answers {logged_in, csrf_token}
+  // for this site's own pages only. null means "could not tell" (network, or an edition without
+  // the endpoint): callers then carry on as before and never block the user.
+  async function sessionState() {
+    try {
+      const response = await fetch('admin.php?action=session_check', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
+      if (!response.ok) return null;
+      const json = await response.json();
+      return json && typeof json.logged_in === 'boolean' ? json : null;
+    } catch (_) { return null; }
+  }
+  function setCsrfToken(token) {
+    if (typeof token !== 'string' || !token) return;
+    document.querySelectorAll('input[name="csrf_token"]').forEach((input) => { input.value = token; });
+  }
+  function expiredMessage() { return S().sessionExpired || S().saveFailed || ''; }
+  // true: go ahead (the form now carries the current token). false: signed out; the message
+  // has been shown and the form is left exactly as it is.
+  async function ensureSession() {
+    const state = await sessionState();
+    if (state && state.logged_in === false) { toast(expiredMessage(), true, 9000); return false; }
+    if (state && state.csrf_token) setCsrfToken(state.csrf_token);
+    return true;
+  }
+
   // ---- Running an action without reloading --------------------------------------------
   // POST a form (and the button that sent it) as ajax_request; the server answers JSON
-  // {success, message, ...}. The message goes to the toast.
+  // {success, message, ...}. The message goes to the toast. Anything else (a login page, an
+  // error page, a non-2xx status, JSON without success:true) is a failure, never a silent success.
   async function post(form, submitter, extra = {}) {
+    const state = await sessionState();
+    if (state && state.logged_in === false) return { ok: false, json: { success: false, message: expiredMessage(), session_expired: true } };
+    if (state && state.csrf_token) setCsrfToken(state.csrf_token);
     const data = new FormData(form);
     if (submitter && submitter.name) data.set(submitter.name, submitter.value);
     for (const [key, value] of Object.entries(extra)) data.set(key, value);
     data.set('ajax_request', '1');
     const response = await fetch(window.location.href, { method: 'POST', body: data, credentials: 'same-origin' });
-    let json = {};
+    let json = null;
     try { json = await response.json(); } catch (_) { /* not JSON */ }
-    if (!response.ok && !json.message) json.message = S().saveFailed || '';
-    return { ok: response.ok && json.success !== false, json };
+    if (!json || typeof json !== 'object') json = {};
+    const ok = response.ok && json.success === true;
+    if (!ok && (response.status === 401 || json.session_expired)) { json.session_expired = true; json.message = json.message || expiredMessage(); }
+    if (!ok && !json.message) json.message = S().saveFailed || '';
+    return { ok, json };
   }
 
   // Replace the listed elements with their fresh versions from the server, keeping which
@@ -115,6 +149,21 @@
   document.addEventListener('submit', async (event) => {
     const form = event.target;
     if (!(form instanceof HTMLFormElement) || form.dataset.uiHandled === '1') return;
+    // A normal form POST: look at the sign-in first, refresh the form's CSRF token, and only
+    // then let the submit go on (this listener is the first on the document, so the other
+    // submit handlers, confirmations and in-place saves included, see only the re-sent event).
+    // Signed out: nothing is sent, the form keeps what was typed. data-ajax forms check inside post().
+    if (form.dataset.sessionChecked === '1') { delete form.dataset.sessionChecked; return; }
+    if (!event.defaultPrevented && form.method === 'post' && form.dataset.ajax === undefined
+        && form.querySelector('input[name="csrf_token"]') && typeof form.requestSubmit === 'function') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const sender = event.submitter || null;
+      if (!await ensureSession()) return;
+      form.dataset.sessionChecked = '1';
+      try { sender ? form.requestSubmit(sender) : form.requestSubmit(); } finally { delete form.dataset.sessionChecked; }
+      return;
+    }
     const wantsConfirm = form.dataset.confirm !== undefined || (event.submitter && event.submitter.dataset.confirm !== undefined);
     const ajax = form.dataset.ajax !== undefined;
     if (!wantsConfirm && !ajax) return;
@@ -218,7 +267,7 @@
     });
   }
 
-  window.MikanUI = { toast, confirm: confirmDialog, post, refresh, expand, collapse, fadeOut, scrollToY };
+  window.MikanUI = { toast, confirm: confirmDialog, post, ensureSession, refresh, expand, collapse, fadeOut, scrollToY };
   window.showToast = toast;
   window.showConfirmDialog = confirmDialog;
 })();

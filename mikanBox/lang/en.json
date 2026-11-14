@@ -513,6 +513,7 @@
     "mcp_err_invalid_extension": "File extension not allowed: '%s'",
     "err_rate_limited": "Too many attempts. Please try again in %d minute(s).",
     "err_session_error": "A session error occurred. Please start over.",
+    "err_session_expired": "Your sign-in has expired. Sign in to the admin screen in another tab, then try again. What you typed is still on this screen.",
     "err_security_qa_required": "Please enter a security question and answer.",
     "err_username_or_password_invalid": "Username or password is incorrect.",
     "msg_editor_conflict_warning": "<strong>Multiple editors warning:</strong> Another editor (<strong>%s</strong>) is currently editing this item. Saving may overwrite their changes.",
