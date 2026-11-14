@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.20.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.20.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -172,6 +172,23 @@ The `mikanData` and `media` folders are created on first access, exactly as they
 
 Open this folder in an AI coding tool and the agent can read and write your pages' Markdown and JSON directly. The admin MCP server works against the same site. Because the content is plain files, you can open them afterwards and check what the agent wrote.
 
+For local use, the flat edition is recommended. Content is stored as JSON files that an AI can read and write directly, the whole folder is easy to copy as a backup, and fewer PHP extensions are needed.
+
+The admin MCP can also connect locally over stdio, without an API key. The stdio connection works in both the flat and SQLite editions: the AI tool launches `php /path/to/site/mikanBox/mcp.php`. In Claude Code's `.mcp.json`, write:
+
+```json
+{
+  "mcpServers": {
+    "mikanbox-local": {
+      "command": "php",
+      "args": ["/path/to/site/mikanBox/mcp.php"]
+    }
+  }
+}
+```
+
+Replace `/path/to/site` with your actual site folder. This connection also follows the "Enable MCP" setting. We recommend not auto-approving destructive tools such as `delete_page` in your AI tool, so that each call asks for confirmation.
+
 To publish, upload the folder that static generation produces. In this style there is no PHP, no data and no admin panel on the public side, so there is nothing to tamper with.
 
 ### Initial Setup and Sign-in {#first-setup}
@@ -191,7 +208,7 @@ On a server, a setup token is required so that nobody else can set the password 
 
 If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the setup screen is not shown. The token is needed only when setting the first password; it is not needed on a site that is already set up.
 
-When you run mikanBox on your own computer (`localhost`), no token is needed; a password is enough. This applies only when the connection comes from your own computer and the address is `localhost`. A connection through a tunnel or reverse proxy that exposes it to the Internet needs the token.
+When you run mikanBox on your own computer with PHP's built-in server (`php -S localhost:8000`, see "Running it locally") and open it as `localhost` from that same computer, no token is needed; a password is enough. The exemption applies only in that case. If mikanBox runs behind a web server such as Apache or nginx, a reverse proxy, or a tunnel that exposes it to the Internet, the token is required, even on your own machine.
 
 [SQLite Edition]{.type-badge .badge-sqlite} (v2.9.0 and later) has no passwords. Only registered devices (browsers) can open the admin screen. A device's key (a random token) lives in that browser's cookie, and the server stores only its hash. A leaked database cannot reveal the key, and there is no password to reuse or leak. Even if someone guesses the admin URL, they get no further than the sign-in screen without a key.
 
@@ -205,7 +222,7 @@ When you run mikanBox on your own computer (`localhost`), no token is needed; a 
 4. Open `mikanBox/admin.php`, enter the token you kept, a username, a display name and a name for this device (for example, "Work laptop"), then press "Register this device".
 5. When registration succeeds, this browser stores the device's key and you are taken straight into the admin screen. A token works only once.
 
-If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the registration screen is not shown. Only a notice reading "The installation method has changed. Please see this page." appears. Nobody becomes the admin just by visiting first. When you run mikanBox on your own computer (`localhost`), no token is needed to register the first device: enter a username and a display name (leaving the device name empty makes it "This computer"). A connection through a tunnel or reverse proxy that exposes it to the Internet needs the token. Recovery after every device is lost needs the token even locally.
+If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the registration screen is not shown. Only a notice reading "The installation method has changed. Please see this page." appears. Nobody becomes the admin just by visiting first. When you run mikanBox with PHP's built-in server (`php -S localhost:8000`) and open it as `localhost` from the same computer, no token is needed to register the first device: enter a username and a display name (leaving the device name empty makes it "This computer"). If mikanBox runs behind a web server such as Apache or nginx, a reverse proxy, or a tunnel that exposes it to the Internet, the token is required, even on your own machine. Recovery after every device is lost needs the token even locally.
 
 After you clear cookies, or when you sign in from another browser or computer, that device is unregistered. Add it as follows.
 

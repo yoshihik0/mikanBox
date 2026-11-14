@@ -3,11 +3,17 @@ if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVE
 const MIKANBOX_SECURITY_GUARD = "<?php http_response_code(404); exit; ?>\n";
 
 /**
- * True only when the request comes from this computer itself: the connection is a loopback
- * address AND the browser addressed it as localhost. Tunnels and local reverse proxies also
- * connect from loopback but carry the public host name or forwarding headers, so they are not local.
+ * True only when PHP is running its built-in development server (`php -S`) AND the request comes
+ * from this computer itself: the connection is a loopback address AND the browser addressed it as
+ * localhost. The SAPI condition matters because a reverse proxy (for example nginx with a plain
+ * `proxy_pass http://127.0.0.1:8000;`) also connects from loopback, sends a localhost-looking Host
+ * and may add no forwarding headers, so an Internet visitor would look local. Production web SAPIs
+ * (apache2handler, fpm-fcgi, cgi-fcgi, litespeed) never report `cli-server`, so behind any real
+ * web server the setup token is always required. Tunnels also carry the public host name or
+ * forwarding headers and are rejected by the header and Host checks.
  */
 function mikanBoxIsLocalRequest(): bool {
+    if (PHP_SAPI !== 'cli-server') return false;
     if (!in_array((string)($_SERVER['REMOTE_ADDR'] ?? ''), ['127.0.0.1', '::1', '::ffff:127.0.0.1'], true)) return false;
     foreach (['HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED_HOST', 'HTTP_FORWARDED', 'HTTP_X_REAL_IP', 'HTTP_CLIENT_IP', 'HTTP_CF_CONNECTING_IP'] as $header) {
         if (!empty($_SERVER[$header])) return false;
