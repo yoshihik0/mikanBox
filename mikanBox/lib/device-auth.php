@@ -24,7 +24,6 @@ const MIKANBOX_DEVICE_RENEW_SECONDS = 3600;
 const MIKANBOX_DEVICE_COOKIE_DAYS = 400;
 const MIKANBOX_SETUP_TOKEN_MIN_LENGTH = 20;
 const MIKANBOX_SETUP_TOKEN_MIN_DISTINCT = 8;
-const MIKANBOX_ADOPT_WINDOW_SECONDS = 7200;
 const MIKANBOX_DEVICE_CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
 // ---- Schema and small key/value store (kept out of the settings table so that
@@ -81,18 +80,16 @@ function mikanBoxDeviceEnsureSchema(SQLite3 $db): void {
     // One-time switch from passwords: drop every password and security answer.
     // From here on the only way in is a registered device.
     if (mikanBoxAuthMetaGet($db, 'device_auth_v1') === null) {
-        $upgrading = false;
         try {
-            $upgrading = (int)$db->querySingle('SELECT COUNT(*) FROM users') > 0;
             $db->exec("UPDATE users SET password_hash = NULL, security_question = NULL, security_answer_hash = NULL");
             $db->exec("DELETE FROM settings WHERE key = 'password_hash'");
         } catch (Exception $e) {}
-        // The browser that is signed in at the moment of the upgrade (typically the one that
-        // ran the system update) may become the first device, for two hours, so an update
-        // from the admin screen does not lock its owner out. Later, the setup token is the way in.
-        if ($upgrading) mikanBoxAuthMetaSet($db, 'adopt_until', (string)(time() + MIKANBOX_ADOPT_WINDOW_SECONDS));
+        // (Until 2.21.0 the browser signed in at the upgrade could become the first device for two hours.
+        // That never worked after the session store moved, and is gone: the setup token is the way in.)
         mikanBoxAuthMetaSet($db, 'device_auth_v1', '1');
     }
+    // Leftover of the removed upgrade-adoption window.
+    if (mikanBoxAuthMetaGet($db, 'adopt_until') !== null) $db->exec("DELETE FROM auth_meta WHERE key = 'adopt_until'");
     // Salt for preview tokens; created once, never replaced.
     mikanBoxAuthMetaInit($db, 'site_secret', bin2hex(random_bytes(32)));
     mikanBoxAccountsResetIfRequested($db);
@@ -223,59 +220,23 @@ function mikanBoxDeviceLogin(): ?array {
     mikanBoxSetupTokenEnsureFolder();
     $device = mikanBoxCurrentDevice();
     if ($device === null) {
-        mikanBoxDeviceRememberAdoptable();
-        if (defined('MIKANBOX_ADMIN_REQUEST') && mikanBoxDeviceAdoptSession()) $device = mikanBoxCurrentDevice(true);
-    }
-    if ($device === null) {
         mikanBoxClearAuthentication();
         return null;
     }
+    // A valid device cookie is a sign-in: only now does this browser need a session file
+    // (an invalid or revoked cookie leaves none). Without one (headers already sent) the sign-in
+    // still holds for this request.
+    mikanBoxEnsureSession();
     $_SESSION['admin_logged_in'] = true;
     $_SESSION['admin_username'] = $device['username'];
     $_SESSION['admin_display_name'] = $device['display_name'] ?? $device['username'];
     return $device;
 }
 
-/** True while the upgrade window is open and no device exists yet. */
-function mikanBoxDeviceAdoptWindowOpen(): bool {
-    return time() < (int)(mikanBoxAuthMetaGet(getDb(), 'adopt_until') ?? 0) && mikanBoxDeviceActiveCount() === 0;
-}
-
-/**
- * Upgrade from passwords. A session that was signed in before the upgrade is
- * noted here, because a public-page request would otherwise sign it out before
- * the owner reaches the admin screen. Only the note, never the sign-in, survives.
- */
-function mikanBoxDeviceRememberAdoptable(): void {
-    if (($_SESSION['admin_logged_in'] ?? false) === true && mikanBoxDeviceAdoptWindowOpen()) {
-        $_SESSION['device_adoptable_user'] = (string)($_SESSION['admin_username'] ?? '');
-    } elseif (!mikanBoxDeviceAdoptWindowOpen()) {
-        unset($_SESSION['device_adoptable_user']);
-    }
-}
-
-/**
- * While the two-hour window is open and no device exists yet, a browser whose
- * session was signed in before the upgrade becomes the first device when it
- * reaches the admin screen. Returns true when it did.
- */
-function mikanBoxDeviceAdoptSession(): bool {
-    $username = (string)($_SESSION['device_adoptable_user'] ?? '');
-    if ($username === '' || !mikanBoxDeviceAdoptWindowOpen()) return false;
-    $db = getDb();
-    $stmt = $db->prepare('SELECT username FROM users WHERE username = :u');
-    $stmt->bindValue(':u', $username, SQLITE3_TEXT);
-    $user = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
-    if (!$user) return false;
-    mikanBoxDeviceCreate($user['username'], t('device_adopted_name'), 'setup');
-    mikanBoxAuthMetaSet($db, 'adopt_until', '0');
-    unset($_SESSION['device_adoptable_user']);
-    $_SESSION['device_adopted_notice'] = true; // shown as a banner until dismissed (see admin.php)
-    return true;
-}
-
 /** Register this browser and sign the session in (call right after mikanBoxDeviceCreate). */
 function mikanBoxDeviceSignIn(string $username, string $displayName): void {
+    // The first session file of this browser is created here, after the registration succeeded.
+    if (!mikanBoxEnsureSession()) throw new RuntimeException('Unable to start mikanBox session');
     mikanBoxRenewAuthentication();
     $_SESSION['admin_logged_in'] = true;
     $_SESSION['admin_username'] = $username;

@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.21.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.21.1</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -249,10 +249,8 @@ Recovery stops every registered device and clears unused codes, edit locks and t
 
 Updating to v2.9.0 deletes passwords and security answers, so you can no longer sign in with a password. Usernames and display names are kept. The MCP API key does not change.
 
-- If the browser you were signed in with before the update is still signed in, it becomes the first device automatically, whichever way you updated ("System Update" or overwriting files over FTP), provided it opens the admin screen within 2 hours of the first visit to the new version and no device exists yet. Opening a public page first does not matter. If the sign-in has lapsed (for example, the browser was closed), nothing is registered.
-- If you use a different browser, the sign-in has lapsed, or more than 2 hours have passed, register with a token. Visiting the new site creates the `setup-token` folder automatically (if it does not, upload the `setup-token` folder from the package). Write a token as in steps 1 and 2 above, then enter the token, your existing username and a device name on `admin.php` (no display name is needed). If you update over FTP, preparing the `setup-token` folder and token beforehand is the safe way.
-- The automatically registered browser shows a notice at the top of the screen, "Passwords are gone. …", until you press "Dismiss".
-- A browser or user that was not registered sees the reason on the sign-in screen: "This site no longer uses passwords (device authentication). You cannot sign in with a password; …".
+- Register the first device with a token. Visiting the new site creates the `setup-token` folder automatically (if it does not, upload the `setup-token` folder from the package). Write a token as in steps 1 and 2 above, then enter the token, your existing username and a device name on `admin.php` (no display name is needed). If you update over FTP, preparing the `setup-token` folder and token beforehand is the safe way.
+- After the update, the sign-in screen explains the change: "This site no longer uses passwords (device authentication). You cannot sign in with a password; …".
 - Other users ask a registered device to issue an add code.
 - Preview URLs of pending-approval pages stop working after the update because the signing secret changes.
 
@@ -260,7 +258,7 @@ Updating to v2.9.0 deletes passwords and security answers, so you can no longer 
 
 Starting with v2.8.6, login state, logout and CSRF tokens are separate for each installation, even on the same domain or when flat and SQLite editions are mixed. Logging into one site does not log you into another. Moving the installation directory on the server also requires a new login. Different URLs pointing to the same real directory are treated as the same installation.
 
-From v2.21.0, a sign-in lasts until 24 hours pass without activity. Closing the browser signs you out. Sign-ins are stored in the data folder's `sessions/` (blocked from the Web and left out of backups). Because the storage location changes, everyone signs in once more after updating to v2.21.0 (in the SQLite edition, a registered device signs in automatically). When updating directly from 2.8.x or earlier to 2.21.0 or later, automatic first-device registration from the previous sign-in is not available; register with the setup token.
+From v2.21.0, a sign-in lasts until 24 hours pass without activity. Closing the browser signs you out. Sign-ins are stored in the data folder's `sessions/` (blocked from the Web and left out of backups). Because the storage location changes, everyone signs in once more after updating to v2.21.0 (in the SQLite edition, a registered device signs in automatically). From v2.21.1, opening the sign-in, initial setup, or device registration and add screens creates no sign-in record; one is created only when a sign-in succeeds. The forms on these screens cannot be sent more than 2 hours after they were opened; reload the screen.
 
 If your sign-in expires while you are editing, pressing Save or a similar button shows "Your sign-in has expired" and nothing is sent. What you typed stays on the screen. Sign in to the admin screen in another tab, then save again on the original screen. The screen no longer switches to the login page and loses your input, and an action that did not run is no longer reported as done.
 

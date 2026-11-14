@@ -19,31 +19,55 @@ function mikanBoxSessionDirectory(): ?string {
 }
 
 /**
- * Anonymous visitors of public pages need no session: nothing public reads or writes one
- * (the renderer only asks "is an admin signed in?"). A session is started for the screens that
- * sign in or work with the session (admin, visual, build, convert), for the command line, and
- * for any browser that already holds this installation's session cookie or (SQLite edition) its
- * device cookie, so a signed-in admin still sees drafts and the toolbar on public pages.
+ * A session is only worth a file once someone is (or is becoming) signed in. It is started up
+ * front for the command line and for any browser that already holds this installation's session
+ * cookie, so a signed-in admin keeps working and still sees drafts and the toolbar on public
+ * pages. Everyone else (anonymous public visitors, and unauthenticated visits of the sign-in
+ * screens, session_check, visual.php and the like) gets none: the sign-in code calls
+ * mikanBoxEnsureSession() when authentication actually succeeds (or, in the SQLite edition,
+ * once the device cookie proves valid). The sign-in screens use stateless CSRF tokens
+ * (see mikanBoxStatelessCsrfIssue in security.php), so they need no session either.
  */
 function mikanBoxSessionWanted(string $sessionName, string $site): bool {
     if (PHP_SAPI === 'cli') return true;
-    if (in_array(basename((string)($_SERVER['SCRIPT_FILENAME'] ?? '')), ['admin.php', 'visual.php', 'build.php', 'convert.php'], true)) return true;
-    return isset($_COOKIE[$sessionName]) || isset($_COOKIE['mikanBoxDevice' . substr($site, 0, 32)]);
+    return isset($_COOKIE[$sessionName]);
+}
+
+function mikanBoxSessionName(): string {
+    return 'mikanBox' . substr(hash('sha256', realpath(CORE_DIR) ?: CORE_DIR), 0, 32);
 }
 
 // Authentication belongs to one installation, never to the whole hostname.
 function mikanBoxStartSession(): void {
     $site = hash('sha256', realpath(CORE_DIR) ?: CORE_DIR);
-    $name = 'mikanBox' . substr($site, 0, 32);
+    $name = mikanBoxSessionName();
     if (session_status() === PHP_SESSION_ACTIVE && session_name() !== $name) {
         // Do not import or destroy another application's (or legacy) session.
         session_write_close();
         $_SESSION = [];
     }
     if (session_status() === PHP_SESSION_NONE && !mikanBoxSessionWanted($name, $site)) {
-        $_SESSION = [];   // anonymous public request: no session file, no cookie
+        $_SESSION = [];   // no session file and no cookie until somebody signs in
         return;
     }
+    mikanBoxOpenSession($name, $site);
+}
+
+/**
+ * Start the session on demand, with the same settings as mikanBoxStartSession(). Call it at the
+ * moment a sign-in succeeds, before writing anything to $_SESSION. Returns false when the
+ * session cannot be started (headers already sent), so the caller can refuse instead of
+ * pretending the user is signed in.
+ */
+function mikanBoxEnsureSession(): bool {
+    if (session_status() === PHP_SESSION_ACTIVE) return session_name() === mikanBoxSessionName();
+    if (headers_sent()) return false;
+    $site = hash('sha256', realpath(CORE_DIR) ?: CORE_DIR);
+    mikanBoxOpenSession(mikanBoxSessionName(), $site);
+    return session_status() === PHP_SESSION_ACTIVE;
+}
+
+function mikanBoxOpenSession(string $name, string $site): void {
     if (session_status() === PHP_SESSION_NONE) {
         session_name($name);
         $cookieId = $_COOKIE[$name] ?? '';
@@ -66,6 +90,7 @@ function mikanBoxStartSession(): void {
             'secure' => $secure, 'httponly' => true, 'samesite' => 'Lax',
         ]);
         if (!session_start()) throw new RuntimeException('Unable to start mikanBox session');
+        mikanBoxDiscardIdleSessionAtShutdown();
     }
     // PHP's file storage is keyed by ID, not cookie name. A copied ID must not
     // authenticate another installation even when both use the same save_path.
@@ -80,6 +105,23 @@ function mikanBoxStartSession(): void {
         }
         $_SESSION['mikanbox_session_site'] = $site;
     }
+}
+
+/**
+ * A browser that sends a stale or forged session cookie gets a fresh, empty session from PHP's
+ * strict mode. If nobody signed in during the request and nothing was stored (only this
+ * installation's binding and the pre-created CSRF token), delete that file again so such requests never pile up.
+ */
+function mikanBoxDiscardIdleSessionAtShutdown(): void {
+    static $registered = false;
+    if ($registered || PHP_SAPI === 'cli') return;
+    $registered = true;
+    register_shutdown_function(static function (): void {
+        if (session_status() !== PHP_SESSION_ACTIVE) return;
+        // Only the binding (and the CSRF token admin.php pre-creates) and nobody signed in: nothing worth keeping.
+        // A session the sign-in form relies on (mikanbox_form_session) is kept.
+        if (empty($_SESSION['admin_logged_in']) && !array_diff(array_keys($_SESSION), ['mikanbox_session_site', 'csrf_token'])) @session_destroy();
+    });
 }
 
 function mikanBoxClearAuthentication(): void {

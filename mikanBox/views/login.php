@@ -18,7 +18,7 @@ $deviceField = static function () use ($e, $inputStyle, $localInitial) {
 $setupForm = static function (bool $withDisplayName, string $button) use ($e, $inputStyle, $buttonStyle, $deviceField, $localInitial) {
     ?>
     <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
-        <?= csrfField() ?>
+        <?= mikanBoxPreAuthCsrfField() ?>
         <input type="hidden" name="login_action" value="setup">
         <?php if (!$localInitial): ?>
         <input type="password" name="setup_token" autocomplete="off" required placeholder="<?= $e(t('device_label_setup_token')) ?>" style="<?= $inputStyle ?>">
@@ -70,7 +70,7 @@ $guide = static function () use ($e, $setupState) {
         <?php if (!$isInitialSetup && $inviteStep !== null): ?>
             <p><strong><?= $e(t('device_invite_intro')) ?></strong></p>
             <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
-                <?= csrfField() ?>
+                <?= mikanBoxPreAuthCsrfField() ?>
                 <input type="hidden" name="login_action" value="claim">
                 <input type="hidden" name="code" value="<?= $e($inviteStep['code']) ?>">
                 <input type="hidden" name="device_name" value="<?= $e($inviteStep['device_name']) ?>">
@@ -96,7 +96,7 @@ $guide = static function () use ($e, $setupState) {
         <?php else: ?>
             <p><?= $e(t('device_unregistered_intro')) ?></p>
             <form method="post" style="display: flex; flex-direction: column; gap: 10px;">
-                <?= csrfField() ?>
+                <?= mikanBoxPreAuthCsrfField() ?>
                 <input type="hidden" name="login_action" value="claim">
                 <input type="text" name="code" autocomplete="off" required autofocus placeholder="XXXXX-XXXXX" style="<?= $inputStyle ?>">
                 <?php $deviceField(); ?>

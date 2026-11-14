@@ -57,6 +57,73 @@ function mikanBoxSecurityWriteState(string $dir, array $state): bool {
     if (!$ok) @unlink($temp);
     return $ok;
 }
+// ---- Stateless CSRF tokens for the screens shown before anybody has signed in ----
+// A session file per visit of the sign-in screen would let a crawler fill the host's disk, so
+// the forms there carry <issued-at>.<nonce>.<HMAC-SHA256(purpose|issued-at|nonce)> instead. The key is
+// a random per-installation secret kept in the protected security folder (never in settings,
+// backups or exports). Without a usable secret the callers fall back to the session token.
+const MIKANBOX_STATELESS_CSRF_SECONDS = 7200;
+function mikanBoxCsrfSecret(): ?string {
+    static $cache = null;
+    if ($cache !== null) return $cache === '' ? null : $cache;
+    $secret = mikanBoxSecurityLocked(function($dir) {
+        $path = $dir . '/csrf-secret.php';
+        $read = static function() use ($path): ?string {
+            if (!is_file($path)) return null;
+            $raw = (string)@file_get_contents($path);
+            if (!str_starts_with($raw, MIKANBOX_SECURITY_GUARD)) return null;
+            $hex = trim(substr($raw, strlen(MIKANBOX_SECURITY_GUARD)));
+            return preg_match('/\A[0-9a-f]{64}\z/', $hex) ? $hex : null;
+        };
+        $current = $read();
+        if ($current !== null) return $current;
+        $hex = bin2hex(random_bytes(32));
+        $temp = tempnam($dir, '.csrf-');
+        if ($temp === false) return null;
+        if (!@rename($temp, $temp . '.php')) { @unlink($temp); return null; }
+        $temp .= '.php';
+        @chmod($temp, 0600);
+        if (@file_put_contents($temp, MIKANBOX_SECURITY_GUARD . $hex . "\n") === false || !@rename($temp, $path)) { @unlink($temp); return null; }
+        return $hex;
+    });
+    $cache = is_string($secret) ? $secret : '';
+    return $cache === '' ? null : $cache;
+}
+function mikanBoxStatelessCsrfMac(string $secretHex, string $purpose, int $issuedAt, string $nonce): string {
+    return hash_hmac('sha256', $purpose . '|' . $issuedAt . '|' . $nonce, (string)hex2bin($secretHex));
+}
+function mikanBoxStatelessCsrfIssue(string $purpose = 'login', ?int $now = null): ?string {
+    $secret = mikanBoxCsrfSecret();
+    if ($secret === null) return null;
+    $now ??= time();
+    $nonce = bin2hex(random_bytes(8));
+    return $now . '.' . $nonce . '.' . mikanBoxStatelessCsrfMac($secret, $purpose, $now, $nonce);
+}
+function mikanBoxStatelessCsrfVerify($token, string $purpose = 'login', ?int $now = null): bool {
+    if (!is_string($token) || !preg_match('/\A(\d{1,12})\.([0-9a-f]{16})\.([0-9a-f]{64})\z/', $token, $m)) return false;
+    $secret = mikanBoxCsrfSecret();
+    if ($secret === null) return false;
+    $now ??= time();
+    $issued = (int)$m[1];
+    if ($issued > $now + 60 || $now - $issued > MIKANBOX_STATELESS_CSRF_SECONDS) return false;
+    return hash_equals(mikanBoxStatelessCsrfMac($secret, $purpose, $issued, $m[2]), $m[3]);
+}
+/** Token for a pre-sign-in form: stateless, or (no secret storage) the session's, which starts the session. */
+function mikanBoxPreAuthCsrfToken(): string {
+    $token = mikanBoxStatelessCsrfIssue('login');
+    if ($token !== null) return $token;
+    mikanBoxEnsureSession();
+    $_SESSION['mikanbox_form_session'] = true;   // this session carries the sign-in form's token: keep it
+    return generateCsrfToken();
+}
+function mikanBoxPreAuthCsrfField(): string {
+    return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(mikanBoxPreAuthCsrfToken(), ENT_QUOTES, 'UTF-8') . '">';
+}
+function mikanBoxPreAuthCsrfVerify($token): bool {
+    if (!is_string($token) || $token === '') return false;
+    if (mikanBoxStatelessCsrfVerify($token, 'login')) return true;
+    return session_status() === PHP_SESSION_ACTIVE && verifyCsrfToken($token);   // forms issued by the session fallback
+}
 function mikanBoxMcpEnabled(): bool {
     return mikanBoxSecurityLocked(function($dir) {
         $state = mikanBoxSecurityReadState($dir);

@@ -4,8 +4,6 @@ ob_start();
 // mikanBox Admin Panel (admin.php)
 // ==========================================
 
-// Only the admin screen may turn an upgraded sign-in into the first device (see lib/device-auth.php).
-define('MIKANBOX_ADMIN_REQUEST', true);
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/lib/functions.php';
 if (is_file(__DIR__ . '/lib/visual-history.php')) require_once __DIR__ . '/lib/visual-history.php';
@@ -14,8 +12,9 @@ define('MIKANBOX', true);
 require_once __DIR__ . '/lib/updater.php';
 $installedVersion = mikanBoxUpdateReadVersion(CORE_DIR . '/config.php') ?: MIKANBOX_VERSION;
 
-// CSRF token generation (initial or on session timeout)
-if (empty($_SESSION['csrf_token'])) {
+// CSRF token generation (initial or on session timeout). Without a session (nobody signed in yet)
+// there is nothing to keep it in: the sign-in screens use stateless tokens instead.
+if (session_status() === PHP_SESSION_ACTIVE && empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
@@ -65,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
     if ($localInitialSetup && $loginAction === 'setup' && $deviceName === '') $deviceName = t('device_default_name');
     if (!in_array($loginAction, ['setup', 'claim'], true)) {
         // Unknown action: show the sign-in screen again.
-    } elseif (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+    } elseif (!mikanBoxPreAuthCsrfVerify($_POST['csrf_token'] ?? '')) {
         $loginError = t('err_csrf');
     } elseif ($lockedRemain > 0) {
         $loginError = t('err_rate_limited', (int)ceil($lockedRemain / 60));
@@ -1224,10 +1223,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         }
         mikanBoxAdminDone('admin.php?view=site#users-mgmt', $message, [], $message === t('msg_account_updated'));
     }
-    elseif ($_POST['save_action'] === 'device_notice_dismiss') {
-        unset($_SESSION['device_adopted_notice']);
-        mikanBoxAdminDone('admin.php?view=site#users-mgmt', '');
-    }
     elseif (in_array($_POST['save_action'], ['device_code_create', 'device_code_cancel', 'device_revoke', 'device_expiry'], true)) {
         $action = $_POST['save_action'];
         $currentDevice = mikanBoxCurrentDevice();
@@ -1537,16 +1532,6 @@ function getIcon($name) {
          ============================================== -->
     <?php if (!empty($deviceNotice)): ?>
     <div class="error" role="alert" style="margin: 0 0 16px;"><?= htmlspecialchars($deviceNotice, ENT_QUOTES, 'UTF-8') ?></div>
-    <?php endif; ?>
-    <?php if (!empty($_SESSION['device_adopted_notice'])): ?>
-    <div class="error" role="alert" style="margin: 0 0 16px;">
-        <?= htmlspecialchars(t('msg_device_adopted'), ENT_QUOTES, 'UTF-8') ?>
-        <form method="post" style="display:inline; margin-left: 8px;">
-            <?= csrfField() ?>
-            <input type="hidden" name="save_action" value="device_notice_dismiss">
-            <button type="submit" class="btn btn-gray btn-small"><?= htmlspecialchars(t('device_notice_dismiss'), ENT_QUOTES, 'UTF-8') ?></button>
-        </form>
-    </div>
     <?php endif; ?>
     <div class="page-top-links">
         <a href="<?= $lastSsgRelPath ?>" target="_blank"><?= t('admin_view_site') ?></a>
@@ -2390,11 +2375,15 @@ function getIcon($name) {
     }
 
     async function changePageStatus(id, newStatus) {
+        // Same path as every other save: still signed in? (shows the expired message if not) and the
+        // current token, which the page keeps in its forms. Never a value baked in at page load.
+        if (!(await MikanUI.ensureSession())) return;
+        const tokenInput = document.querySelector('input[name="csrf_token"]');
         const formData = new FormData();
         formData.append('save_action', 'save_page_status');
         formData.append('id', id);
         formData.append('status', newStatus);
-        formData.append('csrf_token', '<?= $_SESSION['csrf_token'] ?? '' ?>');
+        formData.append('csrf_token', tokenInput ? tokenInput.value : '');
         formData.append('ajax_request', '1');
         try {
             const res = await fetch(window.location.href, { method: 'POST', body: formData });
@@ -2518,7 +2507,11 @@ function getIcon($name) {
     // ==========================================
     // SPA Editor Open / Close
     // ==========================================
-    const csrfToken = '<?= $_SESSION['csrf_token'] ?? '' ?>';
+    // The current token lives in the page's forms (MikanUI.ensureSession keeps them up to date).
+    function currentCsrfToken() {
+        const input = document.querySelector('input[name="csrf_token"]');
+        return input ? input.value : '';
+    }
     let pageLockInterval = null;
     let designLockInterval = null;
     let pageLockedId = null;
@@ -2542,7 +2535,7 @@ function getIcon($name) {
         data.append('save_action', action);
         data.append('type', type);
         data.append('id', id);
-        data.append('csrf_token', csrfToken);
+        data.append('csrf_token', currentCsrfToken());
         if (includeAjaxFlag) data.append('ajax_request', '1');
         return data;
     }
@@ -2560,6 +2553,7 @@ function getIcon($name) {
             designLockedId = id;
         }
 
+        if (!(await MikanUI.ensureSession())) return;   // signed out: message shown, no lock
         const formData = buildLockFormData('acquire_lock', type, id);
 
         try {
@@ -2583,6 +2577,7 @@ function getIcon($name) {
                     }
                 } else if (json.success) {
                     const intervalId = setInterval(async () => {
+                        if (!(await MikanUI.ensureSession())) { clearInterval(intervalId); return; }
                         const hbData = buildLockFormData('acquire_lock', type, id);
                         await fetch(window.location.href, { method: 'POST', body: hbData }).catch(() => {});
                     }, 20000);
