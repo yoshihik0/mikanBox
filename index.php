@@ -96,6 +96,23 @@ if ($pageId === '' || $pageId === 'index.php') {
     $documentRoot = rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? ''), '/\\');
     $requestedFile = $documentRoot . '/' . ltrim((string)$reqUri, '/');
     if ($documentRoot !== '' && is_file($requestedFile)) {
+        // Uploaded SVG images run no scripts: the same Content-Security-Policy: sandbox that
+        // media/.htaccess gives them on Apache, here for servers that hand files to index.php
+        // (PHP's built-in server with this file as the router).
+        $svgFile = preg_match('/\.svgz?\z/i', $requestedFile) ? realpath($requestedFile) : false;
+        $svgMedia = $svgFile !== false ? realpath(MEDIA_DIR) : false;
+        if ($svgFile !== false && $svgMedia !== false && stripos($svgFile, $svgMedia . DIRECTORY_SEPARATOR) === 0) {
+            if (ob_get_length()) ob_clean();
+            header_remove('Cache-Control');
+            header_remove('Pragma');
+            header('Content-Type: image/svg+xml');
+            if (preg_match('/\.svgz\z/i', $svgFile)) header('Content-Encoding: gzip');
+            header('Content-Security-Policy: sandbox');
+            header('X-Content-Type-Options: nosniff');
+            header('Content-Length: ' . filesize($svgFile));
+            if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') readfile($svgFile);
+            exit;
+        }
         return false;
     }
 

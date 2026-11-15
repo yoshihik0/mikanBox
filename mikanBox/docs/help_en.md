@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.21.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.21.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -154,6 +154,8 @@ Site-specific data is created on first access in a `mikanData` folder beside `in
 
 To change the data directory name, create `local-config.php` inside the admin/core directory; this file is excluded from self-updates. Add `define('MIKANBOX_DATA_DIR_NAME', 'your-folder-name');`. The value must be one directory name containing only letters, numbers, hyphens, and underscores. If data already exists, move the physical directory to the same name before changing this setting.
 
+From v2.21.2, opening the admin screen (`admin.php`) or visual editing with `http://` moves to the same address on `https://` (only when a page is opened, never in the middle of a submission). PHP's built-in server (`php -S`) and addresses opened as `localhost`, `127.0.0.1` or `[::1]` are not moved. Where a front server (proxy) handles HTTPS without telling PHP, the move happens only once, so you are never locked out (the address ends with `https=1`). On a server without HTTPS, add `?https=1` to the address to open the screen as before, or write `define('MIKANBOX_HTTPS_REDIRECT', false);` in `local-config.php` to turn the move off.
+
 Right after installation (before any page or component data exists), the first visit will automatically load sample content matching the visitor's browser language (Japanese or English).
 
 #### Running it locally
@@ -208,6 +210,8 @@ On a server, a setup token is required so that nobody else can set the password 
 
 If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the setup screen is not shown. The token is needed only when setting the first password; it is not needed on a site that is already set up.
 
+Save `setup-token.txt` as UTF-8 text without a BOM (byte order mark). From v2.21.2, a file that starts with a BOM or contains control characters is not read (it counts as holding no token).
+
 When you run mikanBox on your own computer with PHP's built-in server (`php -S localhost:8000`, see "Running it locally") and open it as `localhost` from that same computer, no token is needed; a password is enough. The exemption applies only in that case. If mikanBox runs behind a web server such as Apache or nginx, a reverse proxy, or a tunnel that exposes it to the Internet, the token is required, even on your own machine.
 
 [SQLite Edition]{.type-badge .badge-sqlite} (v2.9.0 and later) has no passwords. Only registered devices (browsers) can open the admin screen. A device's key (a random token) lives in that browser's cookie, and the server stores only its hash. A leaked database cannot reveal the key, and there is no password to reuse or leak. Even if someone guesses the admin URL, they get no further than the sign-in screen without a key.
@@ -223,6 +227,8 @@ When you run mikanBox on your own computer with PHP's built-in server (`php -S l
 5. When registration succeeds, this browser stores the device's key and you are taken straight into the admin screen. A token works only once.
 
 If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the registration screen is not shown. Only a notice reading "The installation method has changed. Please see this page." appears. Nobody becomes the admin just by visiting first. When you run mikanBox with PHP's built-in server (`php -S localhost:8000`) and open it as `localhost` from the same computer, no token is needed to register the first device: enter a username and a display name (leaving the device name empty makes it "This computer"). If mikanBox runs behind a web server such as Apache or nginx, a reverse proxy, or a tunnel that exposes it to the Internet, the token is required, even on your own machine. Recovery after every device is lost needs the token even locally.
+
+Save `setup-token.txt` as UTF-8 text without a BOM (byte order mark). From v2.21.2, a file that starts with a BOM or contains control characters is not read (it counts as holding no token).
 
 After you clear cookies, or when you sign in from another browser or computer, that device is unregistered. Add it as follows.
 
@@ -278,7 +284,7 @@ This separation prevents accidental shared authentication. It does not provide c
 
 If you deliver a site to someone else — including your own custom design and content — the steps for letting them set up a new admin account on their own environment differ by edition.
 
-- [SQLite Edition]{.type-badge .badge-sqlite}: Create an empty file named `mikanData/reset-accounts.txt` on the server. On the next visit, all registered users, devices and unused codes are deleted and the initial setup screen appears. This file is deleted automatically afterward, so there's no risk of accidentally leaving it in place. The recipient then follows [Registering the First Device](#device-setup) with a token of their own.
+- [SQLite Edition]{.type-badge .badge-sqlite}: Create an empty file named `mikanData/reset-accounts.txt` on the server (0 bytes: no content and no BOM; from v2.21.2 a file with content is ignored). On the next visit, all registered users, devices and unused codes are deleted and the initial setup screen appears. This file is deleted automatically afterward, so there's no risk of accidentally leaving it in place. The recipient then follows [Registering the First Device](#device-setup) with a token of their own.
 - [flat Edition]{.type-badge .badge-flat}: Clear the value of `"password_hash"` inside the `mikanData/settings.json` file.
 
 #### Security
@@ -491,7 +497,7 @@ A private note visible only to admins. Free-form space for anything you want to 
 
 #### ID
 
-The identifying slug that becomes part of the page's URL. Alphanumeric characters and hyphens are allowed. A dot (`.`) is not allowed; the extension comes from the [output format](#output-formats). The page's URL takes the form `siteURL/ID`. Note that saving with an ID matching an existing page will overwrite it. The index page's ID cannot be changed. You can also use "/" within an ID. On a static site, any "/" in the ID is treated as a directory boundary; on a dynamic site, a pseudo directory structure is created the same way. For example, an ID of `news/2024` produces a URL like `siteURL/news/2024`.
+The identifying slug that becomes part of the page's URL. Letters, digits, hyphens and underscores are allowed. A dot (`.`) is not allowed; the extension comes from the [output format](#output-formats). Other characters and a leading, trailing or doubled "/" are not allowed either (from v2.21.2 the save is refused instead of silently removing them). IDs starting with the admin folder, the data folder, `media`, `api`, `setup-token` or `tests` (in any letter case) overlap system locations and cannot be used. Saved pages stay viewable, editable and deletable as long as their ID is not changed. The page's URL takes the form `siteURL/ID`. Note that saving with an ID matching an existing page will overwrite it. The index page's ID cannot be changed. You can also use "/" within an ID. On a static site, any "/" in the ID is treated as a directory boundary; on a dynamic site, a pseudo directory structure is created the same way. For example, an ID of `news/2024` produces a URL like `siteURL/news/2024`.
 
 #### Output format
 
@@ -657,11 +663,15 @@ When you are already on the latest version, [Reinstall] is offered instead. It i
 
 Only program files are replaced. Pages, settings, media, the database, and generated static files are left untouched. One generation of the previous program files is stored in a protected area on the server. A failed update attempts automatic rollback. If rollback also fails, an error is displayed and the backup is retained under `update-backups/.pending-*` in protected storage; keep it for recovery by the server administrator. After a successful update you can use the [Restore] button to return to the immediately preceding version.
 
+After updating to v2.21.2, issue a new key under [MCP API Key](#site-mcp-key) as a precaution and switch your AI clients to it. Also check that the data folder and the `setup-token` folder contain no files you do not recognize.
+
 After you confirm an update, the button changes to [Updating…] and remains disabled until the operation finishes. When the update completes, the admin screen reloads automatically and shows the newly installed version number and a completion message without a manual reload. The restore operation similarly displays [Restoring…] while it is running.
 
 ### Static Site Generation (SSG) {#site-ssg}
 
 mikanBox doesn't just render pages dynamically with PHP — it also has a feature (SSG: Static Site Generation) to export the entire site as "static HTML files," and the two can be mixed freely.
+
+Static site generation never writes into, or deletes files from, the admin folder, the data folder, `media`, `setup-token` or `tests`. From v2.21.2, every file it writes or removes is checked (following symbolic links and ignoring letter case); a page that would land in such a place is not written, and the build result shows it as an error.
 
 #### Benefits of SSG
 
@@ -959,6 +969,8 @@ Upload a ZIP package (a theme or a starter set of content) containing `posts/`, 
 A package may have an outer folder containing `posts/` or `components/`. That outer folder is not part of the resulting IDs. Open “How to arrange files in the ZIP” on the import screen for an example. macOS metadata such as `__MACOSX` and `._` files is ignored.
 
 Each page ID comes from its path under `posts/` without the `.json` extension: for example, `posts/coffee/menu.json` becomes `coffee/menu`. Component IDs come from their paths under `components/`. Titles inside the files do not determine IDs. Anything matching an existing ID is skipped; nothing is ever overwritten. If you want to bring in a page or component in a way that overwrites an existing one, either delete the existing item in the admin panel first, or rename the JSON file to your intended ID before including it in the ZIP.
+
+From v2.21.2, items whose ID could not be used for a new page or component (a page ID with a dot, an ID starting with a reserved folder name, and so on) are not imported; the run log shows how many and which. The WordPress import does the same.
 
 ZIP extraction accepts JSON only (10 MB per file, 50 MB total, 10,000 entries). Once import finishes, the extracted folder is renamed to `{folder name}-{identifier}_imported` inside the protected `mikanData/private-import/` folder and left in place (it is not deleted).
 
@@ -1999,3 +2011,5 @@ SQLite JSON migration and ZIP imports retain source data under the protected dat
 Management notes, including site notes, are available to authenticated management MCP clients as working context. They are excluded from public pages, public APIs and public-help MCP. Reading a note is not permission to publish it.
 
 SVG files are selected and uploaded by trusted administrators and may contain code. Upload processing does not guarantee complete sanitization. Check their source and contents.
+
+From v2.21.2, the PHP editions serve SVG files under `media/` with a header that stops scripts (`Content-Security-Policy: sandbox`) when they are opened directly. On Apache this needs `mod_headers`. An existing `media/.htaccess` gets the setting appended on the first visit after updating (lines you added yourself stay). SVGs shown with `<img>` look the same as before.

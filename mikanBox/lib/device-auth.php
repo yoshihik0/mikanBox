@@ -96,13 +96,17 @@ function mikanBoxDeviceEnsureSchema(SQLite3 $db): void {
 }
 
 /**
- * Hand over a site: an empty DATA_DIR/reset-accounts.txt removes every user,
+ * Hand over a site: an empty DATA_DIR/reset-accounts.txt (no content, no BOM) removes every user,
  * device and code on the next request, so the new owner starts from the setup
  * screen with a setup token of their own. The file deletes itself.
  */
 function mikanBoxAccountsResetIfRequested(SQLite3 $db): void {
     $file = DATA_DIR . '/reset-accounts.txt';
     if (!is_file($file)) return;
+    // Only the documented empty file counts (blank lines allowed). Content of any kind, a UTF-8
+    // BOM included (static .txt output starts with one), is ignored and the file is left alone.
+    $content = @file_get_contents($file);
+    if ($content === false || trim($content, " \t\r\n") !== '') return;
     foreach (['DELETE FROM users', 'DELETE FROM device_sessions', 'DELETE FROM device_codes'] as $sql) {
         $db->exec($sql);
     }
@@ -472,8 +476,13 @@ function mikanBoxSetupTokenEnsureFolder(): void {
 function mikanBoxSetupToken(): string {
     $file = mikanBoxSetupTokenFile();
     if (!is_file($file) || !is_readable($file)) return '';
+    $content = (string)file_get_contents($file);
+    // A file the owner writes by hand is plain text. One that starts with a UTF-8 BOM (as files
+    // written by the static site generator do) or holds other control characters is not used:
+    // the token must never come from a path the web side can write.
+    if (strncmp($content, "\xEF\xBB\xBF", 3) === 0 || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $content)) return '';
     // Not \R: without the /u flag it also splits on the byte 0x85, which sits inside many Japanese characters.
-    foreach (preg_split('/\r\n|\n|\r/', (string)file_get_contents($file)) ?: [] as $line) {
+    foreach (preg_split('/\r\n|\n|\r/', $content) ?: [] as $line) {
         $line = trim($line);
         if ($line !== '' && $line[0] !== '#') return $line;
     }

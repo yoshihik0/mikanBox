@@ -133,6 +133,23 @@ function resolveSafeDataPath($baseDir, $id, $suffix = '.json', $createParent = f
     $candidate = $baseDir . '/' . $id . $suffix;
     $parentDir = dirname($candidate);
     if ($createParent && !is_dir($parentDir)) {
+        // Create folders only when they would stay inside $baseDir: the nearest existing
+        // folder must resolve inside it and the folders still to be made may not be "." or "..".
+        $existing = $parentDir;
+        $toCreate = [];
+        while (!is_dir($existing)) {
+            $toCreate[] = basename($existing);
+            $next = dirname($existing);
+            if ($next === $existing) return false;
+            $existing = $next;
+        }
+        foreach ($toCreate as $part) {
+            if ($part === '' || $part === '.' || $part === '..') return false;
+        }
+        $realExisting = realpath($existing);
+        if ($realExisting === false || ($realExisting !== $realBase && strpos($realExisting . DIRECTORY_SEPARATOR, $realBase . DIRECTORY_SEPARATOR) !== 0)) {
+            return false;
+        }
         @mkdir($parentDir, 0777, true);
     }
     $realParent = realpath($parentDir);
@@ -144,6 +161,63 @@ function resolveSafeDataPath($baseDir, $id, $suffix = '.json', $createParent = f
     }
 
     return $realParent . '/' . basename($candidate);
+}
+
+/**
+ * Visitor input (a search word, a requested path, the Host header) shown in an HTML page:
+ * HTML-escaped, and "{" "}" turned into character references so the value can never form a
+ * {{TAG}} that a later step would expand (the same idea as mikanBoxExternalMarkdownText).
+ */
+function mikanBoxNeutralizeTags(string $html): string {
+    return str_replace(['{', '}'], ['&#123;', '&#125;'], $html);
+}
+
+function mikanBoxVisitorText(string $text): string {
+    return mikanBoxNeutralizeTags(htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+}
+
+/**
+ * Folder names a page ID may not start with (compared case-insensitively): the program
+ * folder, the data folder (also its default name), media, api, setup-token and tests.
+ * Static files of such a page would land in a system folder.
+ */
+function mikanBoxReservedIdNames(): array {
+    $names = ['mikanData', 'media', 'api', 'setup-token', 'tests'];
+    if (defined('CORE_DIR')) $names[] = basename(rtrim(CORE_DIR, '/\\'));
+    if (defined('MIKANBOX_DATA_DIR_BASENAME')) $names[] = (string)MIKANBOX_DATA_DIR_BASENAME;
+    if (defined('DATA_DIR') && defined('CORE_DIR') && dirname(rtrim(DATA_DIR, '/\\')) === dirname(CORE_DIR)) {
+        $names[] = basename(rtrim(DATA_DIR, '/\\'));
+    }
+    return array_values(array_unique(array_filter(array_map('strtolower', $names), fn($n) => $n !== '')));
+}
+
+/** True when the first part of $id is a reserved folder name (any letter case). */
+function mikanBoxIdIsReserved(string $id): bool {
+    $first = strtolower(explode('/', ltrim($id, '/\\'), 2)[0]);
+    return in_array($first, mikanBoxReservedIdNames(), true);
+}
+
+/**
+ * The one check for an ID that is about to be created or given to a page or component by a
+ * rename (admin screen, visual editing, MCP, imports). Returns null when the ID may be used,
+ * or the message to show. Characters outside the rule are refused, never silently removed:
+ * - parts of letters, digits, "-" and "_", separated by single "/" (no leading, trailing or
+ *   doubled "/"); a part never starts with "." so "." and ".." cannot appear;
+ * - pages: no dot at all (the extension comes from the output format) and no reserved first part;
+ * - components: dots are allowed inside a part (AI documents end in ".md").
+ * IDs that are already saved are not passed here, so existing pages stay readable and editable.
+ */
+function mikanBoxValidateNewId($id, string $kind = 'page'): ?string {
+    $id = is_string($id) ? $id : '';
+    $isPage = $kind !== 'component';
+    if ($id === '' || strlen($id) > 200) return t($isPage ? 'err_page_id_invalid' : 'err_comp_id_invalid', $id);
+    if ($isPage && strpos($id, '.') !== false) return t('err_page_id_dot', $id);
+    $part = $isPage ? '[A-Za-z0-9_-]+' : '[A-Za-z0-9_-][A-Za-z0-9_.-]*';
+    if (!preg_match('~\A' . $part . '(?:/' . $part . ')*\z~', $id)) {
+        return t($isPage ? 'err_page_id_invalid' : 'err_comp_id_invalid', $id);
+    }
+    if ($isPage && mikanBoxIdIsReserved($id)) return t('err_slug_reserved', $id);
+    return null;
 }
 
 /**
@@ -730,7 +804,9 @@ function mikanBoxSiteBasePath(array $settings): string {
 /** The site URL as it is being served right now (scheme, host and base path, no trailing slash). */
 function mikanBoxDynamicSiteUrl(array $settings): string {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    // The Host header comes from the visitor. A real host name has no character that escaping
+    // changes; anything else is shown as text and can never form a {{TAG}}.
+    $host = mikanBoxVisitorText((string)($_SERVER['HTTP_HOST'] ?? 'localhost'));
     return $scheme . '://' . $host . rtrim(mikanBoxSiteBasePath($settings), '/');
 }
 

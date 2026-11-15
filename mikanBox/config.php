@@ -3,7 +3,7 @@ if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVE
 // ==========================================
 // mikanBox Basic Settings
 // ==========================================
-define('MIKANBOX_VERSION', '2.21.1');
+define('MIKANBOX_VERSION', '2.21.2');
 if (!defined('CORE_DIR')) define('CORE_DIR', __DIR__);
 
 // Site-specific options survive self-updates because local-config.php is not
@@ -76,6 +76,11 @@ HTACCESS;
     $existing = @file_get_contents($htaccessPath);
     if ($existing !== false && !str_contains($existing, '# mikanBox code charset')) {
         @file_put_contents($htaccessPath, rtrim($existing, "\n") . "\n\n# mikanBox code charset\n<IfModule mod_mime.c>\n    AddCharset utf-8 .js .css\n</IfModule>\n");
+    }
+    // SVG images opened directly run no scripts (2.21.2, appended once; lines added by hand stay).
+    $existing = @file_get_contents($htaccessPath);
+    if ($existing !== false && !str_contains($existing, '# mikanBox svg sandbox')) {
+        @file_put_contents($htaccessPath, rtrim($existing, "\n") . "\n\n# mikanBox svg sandbox\n<FilesMatch \"(?i)\\.svgz?$\">\n    <IfModule mod_headers.c>\n        Header set Content-Security-Policy \"sandbox\"\n        Header set X-Content-Type-Options \"nosniff\"\n    </IfModule>\n</FilesMatch>\n");
     }
 }
 secureMediaDirectory(MEDIA_DIR);

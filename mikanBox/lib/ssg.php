@@ -7,6 +7,8 @@ class MikanBoxSSG {
     private $renderer;
     private $outputDir;
     private $options;
+    /** Paths refused by permitted() during the current operation, as "Error: ..." lines. */
+    private $refused = [];
 
     public function __construct($renderer, $outputDir = 'dist', $options = []) {
         $this->renderer = $renderer;
@@ -27,6 +29,7 @@ class MikanBoxSSG {
     }
 
     public function build() {
+        $this->refused = [];
         // Safety: Do not write into core/data directories or their subdirectories.
         $realOut  = realpath($this->outputDir) ?: $this->outputDir;
         $realCore = realpath(CORE_DIR) ?: CORE_DIR;
@@ -55,7 +58,9 @@ class MikanBoxSSG {
             mkdir($this->outputDir, 0777, true);
         }
         if (($this->options['output_mode'] ?? 'server') === 'export') {
-            file_put_contents($this->outputDir . '/.mikanbox-export', "mikanBox upload package\n");
+            $marker = $this->outputDir . '/.mikanbox-export';
+            if ($this->permitted($marker)) file_put_contents($marker, "mikanBox upload package\n");
+            else $this->refuse($marker);
         }
 
         $allPosts = getSortedPostIds();
@@ -174,12 +179,11 @@ class MikanBoxSSG {
             $results = array_merge($results, $this->buildRss($siteUrl));
         } elseif (($this->options['output_mode'] ?? 'server') === 'export') {
             foreach (['sitemap.xml', 'rss.xml'] as $feedFile) {
-                $feedPath = $this->outputDir . '/' . $feedFile;
-                if (is_file($feedPath)) unlink($feedPath);
+                $this->removeFile($this->outputDir . '/' . $feedFile);
             }
         }
 
-        return $results;
+        return array_merge($results, $this->refused);
     }
 
     private function normalizePath($path) {
@@ -250,13 +254,16 @@ class MikanBoxSSG {
         if ($source === $destination) {
             return ['Error: Media source and export destination are the same directory.'];
         }
+        if (!$this->permitted($this->outputDir . '/media/.mikanbox-check')) {
+            return ['Error: Refused to write a protected location: media'];
+        }
         if (is_link($destination)) {
             unlink($destination);
         } elseif (is_dir($destination)) {
             $this->clearDirectoryContents($destination);
         }
         if (!is_dir($destination) && !mkdir($destination, 0777, true)) {
-            return ["Error: Could not create media export directory: $destination"];
+            return ['Error: Could not create media export directory: media'];
         }
 
         $results = [];
@@ -287,7 +294,7 @@ class MikanBoxSSG {
             }
         }
         if (empty($results)) {
-            $results[] = "Copied media: $destination";
+            $results[] = 'Copied media: media';
         }
         return $results;
     }
@@ -317,11 +324,133 @@ class MikanBoxSSG {
         if (preg_match('/\.(md|txt|csv)$/i', $targetFile) && strncmp((string)$content, "\xEF\xBB\xBF", 3) !== 0) {
             $content = "\xEF\xBB\xBF" . $content;
         }
+        $shown = $this->displayPath($targetFile);
+        if (!$this->permitted($targetFile)) return 'Error: Refused to write a protected location: ' . $shown;
         $dirPath = dirname($targetFile);
-        if (!is_dir($dirPath)) mkdir($dirPath, 0777, true);
-        return file_put_contents($targetFile, $content) !== false
-            ? "Generated: $targetFile"
-            : "Error: Could not write $targetFile";
+        if (!is_dir($dirPath)) @mkdir($dirPath, 0777, true);
+        // Checked again once the folders exist, so a link created in the meantime is caught too.
+        if (!$this->permitted($targetFile)) return 'Error: Refused to write a protected location: ' . $shown;
+        return @file_put_contents($targetFile, $content) !== false
+            ? "Generated: $shown"
+            : "Error: Could not write $shown";
+    }
+
+    // ------------------------------------------------------------------
+    // Where the generator may write and delete (2.21.2)
+    // ------------------------------------------------------------------
+
+    private static function lowerPath($path) {
+        return strtolower(rtrim(str_replace('\\', '/', (string)$path), '/'));
+    }
+
+    /**
+     * Folders the generator never writes into or removes from, whatever a page ID says:
+     * the program folder, the data folder, media, setup-token and tests. Lower-cased, so
+     * MIKANBOX/x cannot reach mikanBox/ on case-insensitive file systems (macOS, Windows).
+     */
+    private function protectedRoots() {
+        static $cache = [];
+        $siteRoot = dirname(CORE_DIR);
+        $paths = [CORE_DIR, $siteRoot . '/media', $siteRoot . '/setup-token', $siteRoot . '/tests'];
+        if (defined('DATA_DIR')) $paths[] = DATA_DIR;
+        if (defined('MEDIA_DIR')) $paths[] = MEDIA_DIR;
+        if (function_exists('mikanBoxSetupTokenDir')) $paths[] = mikanBoxSetupTokenDir();
+        $key = implode("\0", $paths);
+        if (isset($cache[$key])) return $cache[$key];
+        $roots = [];
+        foreach ($paths as $path) {
+            $roots[] = self::lowerPath($path);
+            $real = realpath($path);
+            if ($real !== false) $roots[] = self::lowerPath($real);
+        }
+        return $cache[$key] = array_values(array_unique(array_filter($roots, fn($r) => $r !== '')));
+    }
+
+    private function insideProtected($lowerPath) {
+        foreach ($this->protectedRoots() as $root) {
+            if ($lowerPath === $root || strpos($lowerPath, $root . '/') === 0) return true;
+        }
+        return false;
+    }
+
+    /**
+     * True when $file may be written or removed: it lies below the output folder (also after
+     * resolving its parent folder with realpath, so symbolic links cannot lead elsewhere), its
+     * path below the output folder has no "." or ".." parts, it is not itself a link, and it is
+     * not inside a protected folder. Every write and delete of the generator passes here.
+     */
+    private function permitted($file) {
+        $file = str_replace('\\', '/', (string)$file);
+        $out = rtrim(str_replace('\\', '/', $this->outputDir), '/');
+        if ($out === '' || strpos($file, $out . '/') !== 0) return false;
+        foreach (explode('/', substr($file, strlen($out) + 1)) as $part) {
+            if ($part === '' || $part === '.' || $part === '..') return false;
+        }
+        $outReal = realpath($this->outputDir);
+        if ($outReal === false) return false;
+        if (is_link($file)) return false;
+        // The nearest existing folder, resolved; the folders still to be created are plain names.
+        $parent = dirname($file);
+        $missing = [];
+        while (!is_dir($parent)) {
+            if (file_exists($parent) || is_link($parent)) return false;
+            $missing[] = basename($parent);
+            $next = dirname($parent);
+            if ($next === $parent) return false;
+            $parent = $next;
+        }
+        $realParent = realpath($parent);
+        if ($realParent === false) return false;
+        $resolved = self::lowerPath($realParent . ($missing ? '/' . implode('/', array_reverse($missing)) : '') . '/' . basename($file));
+        $lowerOut = self::lowerPath($outReal);
+        if (strpos($resolved, $lowerOut . '/') !== 0) return false;
+        if ($this->insideProtected($resolved) || $this->insideProtected(self::lowerPath($file))) return false;
+        return true;
+    }
+
+    /** A folder below the output folder that cleanEmptyParents() may remove. */
+    private function permittedDirectory($dir) {
+        $real = realpath($dir);
+        $outReal = realpath($this->outputDir);
+        if ($real === false || $outReal === false || is_link($dir)) return false;
+        $lowerReal = self::lowerPath($real);
+        $lowerOut = self::lowerPath($outReal);
+        if (strpos($lowerReal, $lowerOut . '/') !== 0) return false;
+        return !$this->insideProtected($lowerReal) && !$this->insideProtected(self::lowerPath($dir));
+    }
+
+    private function refuse($file) {
+        $line = 'Error: Refused to touch a protected location: ' . $this->displayPath($file);
+        if (!in_array($line, $this->refused, true)) $this->refused[] = $line;
+    }
+
+    /** Remove one generated file if it may be removed; a refused existing file is reported. */
+    private function removeFile($file) {
+        if (!is_file($file) && !is_link($file)) return false;
+        if (!$this->permitted($file)) {
+            $this->refuse($file);
+            return false;
+        }
+        return @unlink($file);
+    }
+
+    /** Lines refused during the last operation (build() already includes them in its result). */
+    public function refusals() {
+        return $this->refused;
+    }
+
+    /** A path for messages: relative to the site root or the output folder, never the server's absolute path. */
+    private function displayPath($path) {
+        $path = str_replace('\\', '/', (string)$path);
+        $bases = [rtrim(str_replace('\\', '/', $this->outputDir), '/'), str_replace('\\', '/', dirname(CORE_DIR))];
+        foreach ([realpath($this->outputDir), realpath(dirname(CORE_DIR))] as $real) {
+            if ($real !== false) $bases[] = str_replace('\\', '/', $real);
+        }
+        usort($bases, fn($a, $b) => strlen($a) - strlen($b));
+        foreach ($bases as $base) {
+            if ($base !== '' && stripos($path, rtrim($base, '/') . '/') === 0) return substr($path, strlen(rtrim($base, '/')) + 1);
+        }
+        return basename($path);
     }
 
     private function pageUrl($pageId, $siteUrl) {
@@ -343,9 +472,7 @@ class MikanBoxSSG {
             $xml .= "  <url>\n    <loc>{$loc}</loc>\n    <lastmod>{$lastmod}</lastmod>\n  </url>\n";
         }
         $xml .= "</urlset>\n";
-        $file = $this->outputDir . '/sitemap.xml';
-        file_put_contents($file, $xml);
-        return ["Generated: $file"];
+        return [$this->writeOutputFile($this->outputDir . '/sitemap.xml', $xml)];
     }
 
     private function buildRss($siteUrl) {
@@ -387,9 +514,7 @@ class MikanBoxSSG {
             $xml .= "  </item>\n";
         }
         $xml .= "</channel>\n</rss>\n";
-        $file = $this->outputDir . '/rss.xml';
-        file_put_contents($file, $xml);
-        return ["Generated: $file"];
+        return [$this->writeOutputFile($this->outputDir . '/rss.xml', $xml)];
     }
 
 
@@ -404,7 +529,7 @@ class MikanBoxSSG {
         $format = $format ?? mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId));
         if (mikanBoxIsApiFormat($format)) {
             $apiFile = $this->outputDir . '/api/' . $pageId . '.json';
-            if (is_file($apiFile) && unlink($apiFile)) $count++;
+            if ($this->removeFile($apiFile)) $count++;
             if (is_dir(dirname($apiFile))) $this->cleanEmptyParents(dirname($apiFile));
         }
         $extensions = [];
@@ -413,7 +538,7 @@ class MikanBoxSSG {
         foreach ($extensions as $extension) {
             if (in_array(strtolower($pageId . '.' . $extension), ['sitemap.xml', 'rss.xml', 'podcast.xml'], true)) continue;
             $file = $this->outputDir . '/' . $pageId . '.' . $extension;
-            if (is_file($file) && unlink($file)) $count++;
+            if ($this->removeFile($file)) $count++;
         }
         $count += $this->deleteHtmlFiles($pageId);
         if ($pageId !== 'index') {
@@ -430,15 +555,11 @@ class MikanBoxSSG {
         // 1. Delete directory-style: dist/path/to/slug/index.html
         $dirPath = $this->outputDir . '/' . $pageId;
         $indexPath = ($pageId === 'index') ? $this->outputDir . '/index.html' : $dirPath . '/index.html';
-        if (is_file($indexPath)) {
-            if (unlink($indexPath)) $count++;
-        }
+        if ($this->removeFile($indexPath)) $count++;
         
         // 2. Delete file-style: dist/path/to/slug.html
         $filePath = $this->outputDir . '/' . $pageId . '.html';
-        if ($pageId !== 'index' && is_file($filePath)) {
-            if (unlink($filePath)) $count++;
-        }
+        if ($pageId !== 'index' && $this->removeFile($filePath)) $count++;
         
         // 3. Recursive cleanup of empty parent directories
         if ($pageId !== 'index') {
@@ -458,8 +579,9 @@ class MikanBoxSSG {
         
         while ($currentDir && is_dir($currentDir)) {
             $realCurrent = realpath($currentDir);
-            // Safety: Stop if we are outside the output directory or at the root itself
-            if (!$realCurrent || !$realRoot || strpos($realCurrent, $realRoot) !== 0 || $realCurrent === $realRoot) {
+            // Safety: Stop if we are outside the output directory, at the root itself, or at a
+            // protected folder (program, data, media, setup-token, tests).
+            if (!$realCurrent || !$realRoot || $realCurrent === $realRoot || !$this->permittedDirectory($currentDir)) {
                 break;
             }
             
@@ -490,6 +612,7 @@ class MikanBoxSSG {
             }
         }
         
+        $this->refused = [];
         $realOutput = realpath($this->outputDir);
         $realCore = realpath(CORE_DIR);
         if ($realOutput === $realCore) return "Error: Cannot clear the core directory.";
@@ -501,6 +624,6 @@ class MikanBoxSSG {
             $count += $this->deletePage($pid);
         }
         
-        return "$count files removed.";
+        return "$count files removed." . ($this->refused ? ' / ' . implode(', ', $this->refused) : '');
     }
 }

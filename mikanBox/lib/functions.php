@@ -177,8 +177,13 @@ function moveDirectory($src, $dst) {
  * @param bool $importSettings settings.jsonを取り込むかどうか。既存サイトへのZIPインポート等、
  *   意図せず現在のsettings（パスワードハッシュ・APIキー含む）を上書きしてしまうのを防ぐため、
  *   既定ではfalse（無視する）。flat→sqlite移行（自分自身の既存設定の引き継ぎ）の時だけtrueにする。
+ * @param bool $validateIds 外から持ち込むパッケージ（ZIPインポート）では true。新規作成と同じ共通の
+ *   ID検証（mikanBoxValidateNewId）を通らないページ・部品は取り込まず、戻り値の skipped に入れる。
+ *   自分自身のデータの移行と初期データでは false（既存のIDをそのまま引き継ぐ）。
+ * @return array{skipped: string[]}
  */
-function importFolderToSqlite($db, $folderPath, $importSettings = false) {
+function importFolderToSqlite($db, $folderPath, $importSettings = false, $validateIds = false) {
+    $skipped = [];
     // 1. Settings import（$importSettings=trueの時のみ）
     if ($importSettings) {
         $settingsFile = $folderPath . '/settings.json';
@@ -200,6 +205,7 @@ function importFolderToSqlite($db, $folderPath, $importSettings = false) {
     // 既存IDと重複する場合はスキップする（上書きしない）。上書きしたい場合は
     // 先に該当コンポーネントを削除してからインポートすること。
     $componentsDir = $folderPath . '/components';
+    $dirKind = 'component';
     if (is_dir($componentsDir)) {
         $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($componentsDir, RecursiveDirectoryIterator::SKIP_DOTS));
         $checkStmt = $db->prepare("SELECT 1 FROM components WHERE id = :id");
@@ -211,6 +217,7 @@ function importFolderToSqlite($db, $folderPath, $importSettings = false) {
                 $id = substr($relPath, 0, -5); // remove .json
                 // Use forward slashes for IDs on Windows
                 $id = str_replace('\\', '/', $id);
+                if ($validateIds && mikanBoxValidateNewId($id, $dirKind) !== null) { $skipped[] = $id; continue; }
 
                 $checkStmt->bindValue(':id', $id, SQLITE3_TEXT);
                 $exists = $checkStmt->execute()->fetchArray(SQLITE3_ASSOC);
@@ -229,6 +236,7 @@ function importFolderToSqlite($db, $folderPath, $importSettings = false) {
     // 既存IDと重複する場合はスキップする（上書きしない）。上書きしたい場合は
     // 先に該当ページを削除してからインポートすること（index も削除可能なため同じ扱い）。
     $postsDir = $folderPath . '/posts';
+    $dirKind = 'page';
     if (is_dir($postsDir)) {
         $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($postsDir, RecursiveDirectoryIterator::SKIP_DOTS));
         $checkStmt = $db->prepare("SELECT 1 FROM posts WHERE id = :id");
@@ -240,6 +248,7 @@ function importFolderToSqlite($db, $folderPath, $importSettings = false) {
                 $id = substr($relPath, 0, -5); // remove .json
                 // Use forward slashes for IDs on Windows
                 $id = str_replace('\\', '/', $id);
+                if ($validateIds && mikanBoxValidateNewId($id, $dirKind) !== null) { $skipped[] = $id; continue; }
 
                 $checkStmt->bindValue(':id', $id, SQLITE3_TEXT);
                 $exists = $checkStmt->execute()->fetchArray(SQLITE3_ASSOC);
@@ -267,6 +276,7 @@ function importFolderToSqlite($db, $folderPath, $importSettings = false) {
             }
         }
     }
+    return ['skipped' => $skipped];
 }
 
 /**

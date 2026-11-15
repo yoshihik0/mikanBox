@@ -372,7 +372,7 @@ function toolDefinitions() {
             'inputSchema' => [
                 'type' => 'object',
                 'properties' => [
-                    'id'           => ['type' => 'string',  'description' => 'スラッグ/ID（英数字・ハイフン・アンダースコア・スラッシュ）。スラッシュでサブディレクトリ構造になる（例: "news/2024"）'],
+                    'id'           => ['type' => 'string',  'description' => 'スラッグ/ID（英数字・ハイフン・アンダースコア・スラッシュ）。スラッシュでサブディレクトリ構造になる（例: "news/2024"）。先頭・末尾・連続のスラッシュ、ドット、ほかの文字は使えない。システムのフォルダ名（管理フォルダ・データフォルダ・media・api・setup-token・tests）で始まるIDは大文字小文字を問わず使えない'],
                     'title'        => ['type' => 'string',  'description' => 'ページタイトル'],
                     'content_md'   => ['type' => 'string',  'description' => 'ページ本文（MarkdownまたはHTML）'],
                     'css'          => ['type' => 'string',  'description' => 'ページ専用CSS'],
@@ -676,12 +676,8 @@ function toolCreatePage($args) {
         return ['error' => t('mcp_err_page_already_exists', $id)];
     }
 
-    $coreDirName = basename(CORE_DIR);
-    foreach ([$coreDirName, 'media', 'api'] as $reserved) {
-        if (strpos($id . '/', $reserved . '/') === 0 || $id === $reserved) {
-            return ['error' => t('mcp_err_slug_reserved', $id)];
-        }
-    }
+    // Same rule as the admin screen and visual editing: refused, never silently rewritten.
+    if (($idError = mikanBoxValidateNewId($id, 'page')) !== null) return ['error' => $idError];
 
     $data = buildPageData($args);
     if (($formatError = mikanBoxValidatePageSave($id, '', $data, $GLOBALS['mcp_settings'] ?? [])) !== null) {
@@ -779,6 +775,7 @@ function toolCreateComponent($args) {
     if (loadData(COMPONENTS_DIR, $id) !== null) {
         return ['error' => t('mcp_err_component_already_exists', $id)];
     }
+    if (($idError = mikanBoxValidateNewId($id, 'component')) !== null) return ['error' => $idError];
 
     $data = [
         'html'       => $args['html']       ?? '',
@@ -877,6 +874,7 @@ function toolUpdateAiDoc($args) {
     $existing = loadData(COMPONENTS_DIR, $id);
     if ($existing === null) {
         // 新規作成
+        if (($idError = mikanBoxValidateNewId($id, 'component')) !== null) return ['error' => $idError];
         $data = [
             'html'       => $args['html'] ?? '',
             'css'        => $args['css']  ?? '',

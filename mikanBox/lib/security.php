@@ -22,6 +22,68 @@ function mikanBoxIsLocalRequest(): bool {
     $host = preg_match('/^\[([^\]]+)\](?::\d+)?$/', $host, $m) ? $m[1] : (string)preg_replace('/:\d+$/', '', $host);
     return $host === 'localhost' || $host === '127.0.0.1' || $host === '::1' || str_ends_with($host, '.localhost');
 }
+/** True when a request reached the site over HTTPS (directly, on port 443, or through a proxy that says so). */
+function mikanBoxRequestIsHttps(?array $server = null): bool {
+    $server ??= $_SERVER;
+    $https = strtolower((string)($server['HTTPS'] ?? ''));
+    if ($https !== '' && $https !== 'off') return true;
+    if ((string)($server['SERVER_PORT'] ?? '') === '443') return true;
+    if (strtolower((string)($server['REQUEST_SCHEME'] ?? '')) === 'https') return true;
+    $forwarded = strtolower(trim(explode(',', (string)($server['HTTP_X_FORWARDED_PROTO'] ?? ''))[0]));
+    return $forwarded === 'https';
+}
+
+/** The browser addressed this computer itself (localhost, 127.0.0.1, [::1] or *.localhost). */
+function mikanBoxRequestHostIsLocal(?array $server = null): bool {
+    $server ??= $_SERVER;
+    $host = strtolower(trim((string)($server['HTTP_HOST'] ?? '')));
+    $host = preg_match('/^\[([^\]]+)\](?::\d+)?$/', $host, $m) ? $m[1] : (string)preg_replace('/:\d+$/', '', $host);
+    return $host === 'localhost' || $host === '127.0.0.1' || $host === '::1' || str_ends_with($host, '.localhost');
+}
+
+/**
+ * Where a plain-HTTP request to a sign-in screen should go instead, or null to show it as it is.
+ * Not redirected:
+ * - PHP's built-in server (`php -S`) and requests addressed to localhost / 127.0.0.1 / [::1];
+ * - anything but GET and HEAD (a POST is never redirected or refused);
+ * - a request that already carries the marker ?https=1 yet still looks like HTTP. A proxy that
+ *   ends TLS without telling PHP (no X-Forwarded-Proto) makes every request look like HTTP;
+ *   the marker stops the redirect after one round, so the screen opens as before, never a loop;
+ * - a Host with a port other than 80 (the HTTPS port is unknown) or with unexpected characters;
+ * - sites that set define('MIKANBOX_HTTPS_REDIRECT', false); in local-config.php (servers
+ *   without HTTPS).
+ */
+function mikanBoxHttpsRedirectTarget(array $server, array $get, string $sapi, bool $enabled = true): ?string {
+    if (!$enabled || $sapi === 'cli' || $sapi === 'cli-server') return null;
+    $method = strtoupper((string)($server['REQUEST_METHOD'] ?? 'GET'));
+    if ($method !== 'GET' && $method !== 'HEAD') return null;
+    if (mikanBoxRequestIsHttps($server) || mikanBoxRequestHostIsLocal($server)) return null;
+    if (array_key_exists('https', $get)) return null;
+    $host = (string)($server['HTTP_HOST'] ?? '');
+    if (!preg_match('/\A(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\[[0-9A-Fa-f:.]+\])(?::(\d+))?\z/', $host, $m)) return null;
+    if (isset($m[1]) && $m[1] !== '' && $m[1] !== '80') return null;
+    $host = (string)preg_replace('/:80\z/', '', $host);
+    $uri = (string)($server['REQUEST_URI'] ?? '/');
+    if ($uri === '' || $uri[0] !== '/' || str_starts_with($uri, '//') || preg_match('/[\x00-\x20\x7f\\\\]/', $uri)) return null;
+    return 'https://' . $host . $uri . (str_contains($uri, '?') ? '&' : '?') . 'https=1';
+}
+
+/**
+ * Screens that sign in or carry the sign-in cookie (admin.php, visual.php) are not used over
+ * plain HTTP: a GET or HEAD request goes to the same address on https:// (302); see
+ * mikanBoxHttpsRedirectTarget() for what stays as it is. No HSTS header is sent: it would also
+ * bind other sites on the same host name.
+ */
+function mikanBoxRedirectToHttpsIfNeeded(): void {
+    $enabled = !(defined('MIKANBOX_HTTPS_REDIRECT') && MIKANBOX_HTTPS_REDIRECT === false);
+    $target = mikanBoxHttpsRedirectTarget($_SERVER, $_GET, PHP_SAPI, $enabled);
+    if ($target === null || headers_sent()) return;
+    while (ob_get_level() > 0) ob_end_clean();
+    header('Cache-Control: no-store');
+    header('Location: ' . $target, true, 302);
+    exit;
+}
+
 // Security metadata is kept apart from settings so usage updates cannot restore an old key.
 function mikanBoxSecurityDirectory(): ?string {
     $dir = DATA_DIR . '/security';

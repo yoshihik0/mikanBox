@@ -148,8 +148,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($action)) {
             $log[] = "[INFO] パッケージのルートディレクトリを特定しました: " . basename($packageRoot);
             
             // Import into SQLite
-            importFolderToSqlite($db, $packageRoot);
+            // A package from elsewhere passes the same ID check as a new page or component.
+            $importResult = importFolderToSqlite($db, $packageRoot, false, true);
             $log[] = "[SUCCESS] パッケージのデータをSQLiteデータベースにインポートしました。";
+            if (!empty($importResult['skipped'])) {
+                $log[] = '[WARNING] ' . t('msg_import_skipped_invalid_ids', count($importResult['skipped']), implode(', ', array_slice($importResult['skipped'], 0, 20)) . (count($importResult['skipped']) > 20 ? ', …' : ''));
+            }
             
             // Rename to _imported
             $finalPath = $extractTo . '_imported';
@@ -193,6 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($action)) {
             $postsImported = 0;
             
             // Loop through items
+            $wpSkipped = [];
             foreach ($xml->channel->item as $item) {
                 $wp = $item->children($namespaces['wp']);
                 $post_type = (string)$wp->post_type;
@@ -211,6 +216,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($action)) {
                 $id = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $post_name);
                 if (empty($id)) {
                     $id = 'post_' . $post_id;
+                }
+                if (mikanBoxValidateNewId($id, 'page') !== null) {
+                    $wpSkipped[] = $id;
+                    continue;
                 }
                 
                 // HTML to Markdown Conversion
@@ -275,6 +284,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($action)) {
             }
             
             $log[] = "[SUCCESS] WordPress XML からのインポートが完了しました。（合計 {$postsImported} 件）";
+            if (!empty($wpSkipped)) {
+                $log[] = '[WARNING] ' . t('msg_import_skipped_invalid_ids', count($wpSkipped), implode(', ', array_slice($wpSkipped, 0, 20)) . (count($wpSkipped) > 20 ? ', …' : ''));
+            }
             
         } catch (Exception $e) {
             $log[] = "[ERROR] WordPress インポート中にエラーが発生しました: " . $e->getMessage();

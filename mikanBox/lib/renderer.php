@@ -9,6 +9,8 @@ class MikanBoxRenderer {
     private $markdown;
     private $staticMode = false;
     private $currentPageId = '';
+    /** The page being rendered was not found: currentPageId is the visitor's requested path. */
+    private $notFound = false;
     private $globalCssBuffer = [];
     private $javascriptBuffer = [];
     private $javascriptComponentIds = [];
@@ -117,6 +119,7 @@ class MikanBoxRenderer {
 
         // Determine directories
         $pageData = $previewData ?? loadData(POSTS_DIR, $pageId);
+        $this->notFound = !$pageData;
         if (!$pageData) {
             http_response_code(404);
             $pageData = loadData(POSTS_DIR, '404') ?: [
@@ -583,7 +586,11 @@ class MikanBoxRenderer {
             $rootLink = $this->getPageLink($id, '');
             $pageFullUrl = $this->buildFullUrl($siteUrl, $rootLink);
         }
-        $replacements['PAGE_URL'] = $url($pageFullUrl);
+        // On a 404 the ID is the requested path, written by the visitor: escape it as text in
+        // HTML (quotes, angle brackets and "{" "}"), as no saved page vouches for it.
+        $replacements['PAGE_URL'] = ($this->notFound && $this->outputMode === 'html')
+            ? mikanBoxVisitorText($pageFullUrl)
+            : $url($pageFullUrl);
 
         $text = preg_replace_callback('/\{\{\s*(' . implode('|', array_keys($replacements)) . ')\s*\}\}/', fn($m) => $replacements[$m[1]], $text);
 
@@ -971,7 +978,9 @@ class MikanBoxRenderer {
         $results = searchPosts($keyword, false);
         
         if (empty($results)) {
-            return '<p class="search-no-results">' . t('search_no_results', htmlspecialchars($keyword)) . '</p>';
+            // The visitor's words are text only: "{" "}" become character references, so a
+            // search for {{POST_MD:id}} or {{EXT_MD:url}} is never expanded by a later step.
+            return '<p class="search-no-results">' . mikanBoxNeutralizeTags(t('search_no_results', mikanBoxVisitorText($keyword))) . '</p>';
         }
         
         $effectiveCompId = $compId ?: 'search_result_item';
@@ -1010,9 +1019,10 @@ class MikanBoxRenderer {
             
             $updateDate = substr($item['updated_at'] !== '' ? $item['updated_at'] : date('Y-m-d H:i:s'), 0, 10);
             
+            // Values built from the visitor's words and page text never carry "{" "}" into the template.
             $itemHtml = str_replace(
                 ['{{RESULT_TITLE}}', '{{RESULT_SNIPPET}}', '{{RESULT_URL}}', '{{RESULT_DATE}}'],
-                [$title, $snippet, $linkWithFragment, $updateDate],
+                array_map('mikanBoxNeutralizeTags', [$title, $snippet, $linkWithFragment, $updateDate]),
                 $customTemplate
             );
             
@@ -1773,8 +1783,9 @@ class MikanBoxRenderer {
         }
         
         // Dynamic mode
-        // For clean URLs, we return the path from the base.
-        $id = ($postId === 'index') ? '' : $postId;
+        // For clean URLs, we return the path from the base. Each part is URL-encoded like the
+        // static links above (saved IDs only use characters that stay as they are).
+        $id = ($postId === 'index') ? '' : $this->encodePageIdPath($postId);
         
         if ($isDirStyle) {
             // In directory style, we prefer trailing slashes for consistency with SSG

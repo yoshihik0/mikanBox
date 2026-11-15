@@ -13,6 +13,7 @@ require_once __DIR__ . '/lib/functions.php';
 require_once __DIR__ . '/lib/renderer.php';
 require_once __DIR__ . '/lib/visual-blocks.php';
 require_once __DIR__ . '/lib/visual-history.php';
+mikanBoxRedirectToHttpsIfNeeded();                  // 管理画面と同じ: http の GET は https の同じアドレスへ（security.php）
 
 // ---------------------------------------------------------------- 共通の部品
 function mbv_nonce(): string { static $n = null; return $n ??= rtrim(strtr(base64_encode(random_bytes(16)), '+/', '-_'), '='); }
@@ -52,16 +53,8 @@ function mbv_same_origin(): bool {
 function mbv_nl(string $s): string { return str_replace("\r\n", "\n", $s); }
 function mbv_body(): array { return json_decode((string)file_get_contents('php://input'), true) ?: []; }
 function mbv_valid_id(string $id): bool { return (bool)preg_match('~\A[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\z~', $id); }
-/** 管理画面と同じ決まり: 本体・データ・media・api などと重なるIDは使えない */
-function mbv_reserved_id(string $id): bool {
-    $names = [basename(CORE_DIR), 'media', 'api'];
-    if (defined('MIKANBOX_DATA_DIR_BASENAME')) $names[] = MIKANBOX_DATA_DIR_BASENAME;
-    if (defined('DATA_DIR') && dirname(rtrim(DATA_DIR, '/\\')) === dirname(CORE_DIR)) $names[] = basename(DATA_DIR);
-    foreach (array_unique(array_filter($names)) as $r) {
-        if (strcasecmp($id, $r) === 0 || stripos($id, $r . '/') === 0) return true;
-    }
-    return false;
-}
+/** 管理画面・MCP と同じ決まり（mikanBoxIdIsReserved）: 本体・データ・media・api・setup-token・tests と重なるIDは使えない */
+function mbv_reserved_id(string $id): bool { return mikanBoxIdIsReserved($id); }
 /** ページのステータスの表示名（管理画面と同じ言語キー） */
 function mbv_status_label(string $s): string {
     $keys = ['draft' => 'page_status_draft', 'pending' => 'page_status_pending', 'public_dynamic' => 'page_status_public_dynamic', 'public_static' => 'page_status_public_static', 'db' => 'page_status_db'];
@@ -197,6 +190,7 @@ if ($isApi) {
             if ($id === '') $id = 'page_' . time();
             if (!mbv_valid_id($id)) mbv_json(['error' => t('visual_err_id_chars')], 400);
             if (mbv_reserved_id($id)) mbv_json(['error' => t('visual_err_id_reserved')], 400);
+            if (($idError = mikanBoxValidateNewId($id, 'page')) !== null) mbv_json(['error' => $idError], 400);   // 全経路で共通の決まり
             if (loadData(POSTS_DIR, $id) !== null) mbv_json(['error' => t('visual_err_id_exists')], 409);
             if ($from !== '') {
                 $data = mbv_valid_id($from) ? loadData(POSTS_DIR, $from) : null;

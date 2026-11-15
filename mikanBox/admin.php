@@ -9,6 +9,8 @@ require_once __DIR__ . '/lib/functions.php';
 if (is_file(__DIR__ . '/lib/visual-history.php')) require_once __DIR__ . '/lib/visual-history.php';
 require_once __DIR__ . '/lib/renderer.php';
 define('MIKANBOX', true);
+// Signing in over plain HTTP is avoided: GET/HEAD go to the same address on https:// (see security.php).
+mikanBoxRedirectToHttpsIfNeeded();
 require_once __DIR__ . '/lib/updater.php';
 $installedVersion = mikanBoxUpdateReadVersion(CORE_DIR . '/config.php') ?: MIKANBOX_VERSION;
 
@@ -316,32 +318,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $status = $_POST['status'] ?? 'draft';
         $oldId = $_POST['old_id'] ?? null;
 
-        // Reserved slug check: block system directory names
-        $coreDirName = basename(CORE_DIR); // e.g. "mikanBox"
-        $dataDirName = defined('MIKANBOX_DATA_DIR_BASENAME')
-            ? MIKANBOX_DATA_DIR_BASENAME
-            : 'mikanData';
-        $activeRootDataDirName = defined('DATA_DIR')
-            && dirname(rtrim(DATA_DIR, '/\\')) === dirname(CORE_DIR)
-                ? basename(DATA_DIR)
-                : null;
-        $reservedPrefixes = array_values(array_unique(array_filter([
-            $coreDirName, $dataDirName, $activeRootDataDirName, 'media', 'api'
-        ])));
-        $isReserved = false;
-        foreach ($reservedPrefixes as $r) {
-            if (strcasecmp($id, $r) === 0 || stripos($id, $r . '/') === 0) {
-                $isReserved = true; break;
-            }
-        }
-        // A legacy page that prevented automatic directory migration remains
-        // editable as long as its ID is not changed.
-        $isUnchangedLegacyReservedId = $isReserved
-            && !empty($oldId)
-            && strcasecmp((string)$oldId, (string)$id) === 0
-            && loadData(POSTS_DIR, $oldId) !== null;
-        if ($isReserved && !$isUnchangedLegacyReservedId) {
-            $message = t('err_slug_reserved', $id);
+        // A new ID (a new page or a renamed one) passes the one shared check: characters,
+        // "/" structure and reserved folder names (case-insensitive). An existing page whose ID is
+        // not changed stays editable even if it was saved under older, looser rules.
+        $isUnchangedId = !empty($oldId) && (string)$oldId === (string)$id && loadData(POSTS_DIR, $oldId) !== null;
+        $idError = $isUnchangedId ? null : mikanBoxValidateNewId((string)$id, 'page');
+        if ($idError !== null) {
+            $message = $idError;
         } // Duplicate slug check: warn if creating new page with existing ID
         elseif (empty($oldId) && loadData(POSTS_DIR, $id) !== null) {
             $message = t('err_slug_exists', $id);
@@ -499,7 +482,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $oldId = $_POST['old_id'] ?? null;
 
         // Duplicate slug check: warn if creating new component with existing ID
-        if (empty($oldId) && loadData(COMPONENTS_DIR, $id) !== null) {
+        $compIdError = (!empty($oldId) && (string)$oldId === (string)$id) ? null : mikanBoxValidateNewId((string)$id, 'component');
+        if ($compIdError !== null) {
+            $message = $compIdError;
+        } elseif (empty($oldId) && loadData(COMPONENTS_DIR, $id) !== null) {
             $message = t('err_slug_exists', $id);
         } else {
         $data = [
