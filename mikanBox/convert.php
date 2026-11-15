@@ -3,6 +3,7 @@
 // mikanBox Data Converter (JSON <=> SQLite)
 // ==========================================
 require_once __DIR__ . '/config.php';
+if (function_exists('mikanBoxSendAdminHeaders')) mikanBoxSendAdminHeaders();
 
 // This tool lives inside the admin screen (admin.php?view=import). Opening convert.php
 // directly (old bookmarks) leads there; POSTs keep working for compatibility.

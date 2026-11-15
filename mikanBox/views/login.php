@@ -1,4 +1,5 @@
 <?php
+defined('MIKANBOX') or die();
 // Sign-in screen (SQLite edition). Included by admin.php for visitors whose
 // browser is not a registered device. Expects: $loginError, $installedVersion,
 // $isInitialSetup.

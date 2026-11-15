@@ -312,7 +312,9 @@ function publicHelpHandleRequest(string $method, $id, array $params, bool $inclu
 
 function publicHelpEndpointUrl(): string {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    // Only a well-formed host name is echoed back (no markup, no paths); anything else becomes localhost.
+    $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+    if (!preg_match('/\A(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*|\[[0-9A-Fa-f:.]+\])(?::\d{1,5})?\z/', $host)) $host = 'localhost';
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/public-mcp.php', PHP_URL_PATH) ?: '/public-mcp.php';
     return $scheme . '://' . $host . $path;
 }
@@ -322,6 +324,7 @@ function publicHelpJsonResponse($data, int $status = 200): void {
     header('Content-Type: application/json; charset=utf-8');
     header('X-Content-Type-Options: nosniff');
     header('Cache-Control: public, max-age=300');
+    header('Vary: Host');   // the manifest names this host: shared caches must keep one copy per host
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 }
 

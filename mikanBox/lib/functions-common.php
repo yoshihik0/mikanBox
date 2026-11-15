@@ -178,11 +178,11 @@ function mikanBoxVisitorText(string $text): string {
 
 /**
  * Folder names a page ID may not start with (compared case-insensitively): the program
- * folder, the data folder (also its default name), media, api, setup-token and tests.
+ * folder, the data folder (also its default name), media, api and setup-token.
  * Static files of such a page would land in a system folder.
  */
 function mikanBoxReservedIdNames(): array {
-    $names = ['mikanData', 'media', 'api', 'setup-token', 'tests'];
+    $names = ['mikanData', 'media', 'api', 'setup-token'];
     if (defined('CORE_DIR')) $names[] = basename(rtrim(CORE_DIR, '/\\'));
     if (defined('MIKANBOX_DATA_DIR_BASENAME')) $names[] = (string)MIKANBOX_DATA_DIR_BASENAME;
     if (defined('DATA_DIR') && defined('CORE_DIR') && dirname(rtrim(DATA_DIR, '/\\')) === dirname(CORE_DIR)) {
@@ -1120,13 +1120,13 @@ function generatePodcastXml($settings) {
         $xml .= "    <description>{$desc}</description>\n    <pubDate>{$pubDate}</pubDate>\n";
         $xml .= "    <guid>{$link}</guid>\n";
         $xml .= "    <enclosure url=\"" . htmlspecialchars($audioFile) . "\" length=\"{$fileSize}\" type=\"{$mime}\"/>\n";
-        if (!empty($duration))    $xml .= "    <itunes:duration>{$duration}</itunes:duration>\n";
+        if (!empty($duration))    $xml .= "    <itunes:duration>" . htmlspecialchars($duration) . "</itunes:duration>\n";
         if (!empty($subtitle))    $xml .= "    <itunes:subtitle>" . htmlspecialchars($subtitle) . "</itunes:subtitle>\n";
-        if (!empty($episodeNum))  $xml .= "    <itunes:episode>{$episodeNum}</itunes:episode>\n";
-        if (!empty($season))      $xml .= "    <itunes:season>{$season}</itunes:season>\n";
+        if (!empty($episodeNum))  $xml .= "    <itunes:episode>" . htmlspecialchars($episodeNum) . "</itunes:episode>\n";
+        if (!empty($season))      $xml .= "    <itunes:season>" . htmlspecialchars($season) . "</itunes:season>\n";
         if (!empty($epImage))     $xml .= "    <itunes:image href=\"" . htmlspecialchars($epImage) . "\"/>\n";
-        $xml .= "    <itunes:episodeType>{$episodeType}</itunes:episodeType>\n";
-        $xml .= "    <itunes:explicit>{$explicit}</itunes:explicit>\n";
+        $xml .= "    <itunes:episodeType>" . htmlspecialchars($episodeType) . "</itunes:episodeType>\n";
+        $xml .= "    <itunes:explicit>" . htmlspecialchars($explicit) . "</itunes:explicit>\n";
         $xml .= "    <itunes:summary>{$desc}</itunes:summary>\n  </item>\n";
     }
     $xml .= "</channel>\n</rss>\n";
@@ -1570,6 +1570,7 @@ function mediaImgAttrs($url) {
 const LOGIN_MAX_ATTEMPTS       = 10;   // この回数失敗するとロック
 const LOGIN_LOCKOUT_SECONDS    = 900;  // ロック時間（15分）
 const LOGIN_ATTEMPT_WINDOW_SEC = 1800; // この時間失敗がなければカウントをリセット（30分）
+const LOGIN_ATTEMPTS_MAX_ENTRIES = 2000; // 記録の上限（古いものから消す）
 
 function loginAttemptsFilePath() {
     return DATA_DIR . '/login_attempts.json';
@@ -1584,75 +1585,101 @@ function readLoginAttempts() {
     $data = json_decode(stream_get_contents($fp), true) ?: [];
     flock($fp, LOCK_UN);
     fclose($fp);
-    return $data;
-}
-
-function writeLoginAttempts(array $data) {
-    $file = loginAttemptsFilePath();
-    $fp = @fopen($file, 'c+');
-    if (!$fp) return;
-    flock($fp, LOCK_EX);
-    ftruncate($fp, 0);
-    rewind($fp);
-    fwrite($fp, json_encode($data, JSON_PRETTY_PRINT));
-    flock($fp, LOCK_UN);
-    fclose($fp);
+    return is_array($data) ? $data : [];
 }
 
 /**
- * ロック中なら残り秒数を返す。ロックされていなければ 0。
- * $identifier は用途ごとに分ける（例: IP + "|login" / IP + "|reset"）。
+ * Read, change and write the attempt records under one exclusive lock, so that parallel requests
+ * can neither slip past the check nor overwrite each other's counts. Old entries are dropped and
+ * the file is capped, so many addresses cannot make it grow without bound.
  */
+function mikanBoxLoginAttemptsUpdate(callable $change) {
+    $fp = @fopen(loginAttemptsFilePath(), 'c+');
+    if (!$fp) return null;
+    try {
+        if (!flock($fp, LOCK_EX)) return null;
+        $data = json_decode(stream_get_contents($fp), true);
+        if (!is_array($data)) $data = [];
+        $result = $change($data);
+        $now = time();
+        foreach ($data as $key => $entry) {
+            $locked = (int)($entry['locked_at'] ?? 0);
+            $first = (int)($entry['first_at'] ?? 0);
+            if (!is_array($entry) || ($locked && $now > $locked + LOGIN_LOCKOUT_SECONDS) || (!$locked && $now - $first > LOGIN_ATTEMPT_WINDOW_SEC)) unset($data[$key]);
+        }
+        if (count($data) > LOGIN_ATTEMPTS_MAX_ENTRIES) {
+            uasort($data, fn($a, $b) => max((int)($b['locked_at'] ?? 0), (int)($b['first_at'] ?? 0)) <=> max((int)($a['locked_at'] ?? 0), (int)($a['first_at'] ?? 0)));
+            $data = array_slice($data, 0, LOGIN_ATTEMPTS_MAX_ENTRIES, true);
+        }
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, json_encode($data, JSON_PRETTY_PRINT));
+        fflush($fp);
+        return $result;
+    } finally {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+    }
+}
+
+/** Records are kept under a hash of the identifier, never the raw address. */
+function mikanBoxLoginAttemptKey($identifier): string {
+    return substr(hash('sha256', (string)$identifier), 0, 32);
+}
+
+/** Seconds left while the identifier is locked, otherwise 0 (reads only; used to show the message early). */
 function checkLoginRateLimit($identifier) {
-    $data  = readLoginAttempts();
-    $entry = $data[$identifier] ?? null;
-    if ($entry && !empty($entry['locked_at'])) {
-        $remain = ($entry['locked_at'] + LOGIN_LOCKOUT_SECONDS) - time();
+    $entry = readLoginAttempts()[mikanBoxLoginAttemptKey($identifier)] ?? null;
+    if (is_array($entry) && !empty($entry['locked_at'])) {
+        $remain = ((int)$entry['locked_at'] + LOGIN_LOCKOUT_SECONDS) - time();
         if ($remain > 0) return $remain;
     }
     return 0;
 }
 
-/** 失敗を記録する。閾値に達したらロックを開始する。 */
+/**
+ * Call right before a password, setup token or code is checked: under one exclusive lock it
+ * returns the seconds left when locked, otherwise counts this attempt and returns 0. Counting
+ * before the check means parallel requests cannot run more than LOGIN_MAX_ATTEMPTS checks; the
+ * attempt that reaches the limit still runs and starts the lock. A success calls clearLoginAttempts().
+ * $identifier は用途ごとに分ける（例: IP + "|login" / IP + "|device"）。
+ */
+function mikanBoxLoginAttemptStart($identifier): int {
+    $key = mikanBoxLoginAttemptKey($identifier);
+    $remain = mikanBoxLoginAttemptsUpdate(function (array &$data) use ($key) {
+        $now = time();
+        $entry = $data[$key] ?? null;
+        if (is_array($entry) && !empty($entry['locked_at'])) {
+            $left = ((int)$entry['locked_at'] + LOGIN_LOCKOUT_SECONDS) - $now;
+            if ($left > 0) return $left;
+            $entry = null;
+        }
+        if (!is_array($entry) || $now - (int)($entry['first_at'] ?? 0) > LOGIN_ATTEMPT_WINDOW_SEC) $entry = ['count' => 0, 'first_at' => $now, 'locked_at' => 0];
+        $entry['count'] = (int)$entry['count'] + 1;
+        if ($entry['count'] >= LOGIN_MAX_ATTEMPTS) $entry['locked_at'] = $now;
+        $data[$key] = $entry;
+        return 0;
+    });
+    return is_int($remain) ? $remain : 0;
+}
+
+/** A failed attempt (already counted by mikanBoxLoginAttemptStart) is recorded in the activity log. */
 function recordLoginFailure($identifier) {
     mikanBoxAudit("login_failed");
-    $data  = readLoginAttempts();
-    $entry = $data[$identifier] ?? ['count' => 0, 'first_at' => time(), 'locked_at' => 0];
-
-    // ロック時間が過ぎていれば解除してカウントリセット
-    if (!empty($entry['locked_at']) && time() > $entry['locked_at'] + LOGIN_LOCKOUT_SECONDS) {
-        $entry = ['count' => 0, 'first_at' => time(), 'locked_at' => 0];
-    }
-    // 一定時間失敗がなければウィンドウをリセット
-    if (empty($entry['locked_at']) && (time() - ($entry['first_at'] ?? 0)) > LOGIN_ATTEMPT_WINDOW_SEC) {
-        $entry = ['count' => 0, 'first_at' => time(), 'locked_at' => 0];
-    }
-
-    $entry['count']++;
-    if ($entry['count'] >= LOGIN_MAX_ATTEMPTS) {
-        $entry['locked_at'] = time();
-    }
-    $data[$identifier] = $entry;
-
-    // 古いエントリを間引き（24時間以上前でロック中でないもの）
-    $cutoff = time() - 86400;
-    foreach ($data as $k => $v) {
-        if (empty($v['locked_at']) && ($v['first_at'] ?? 0) < $cutoff) {
-            unset($data[$k]);
-        }
-    }
-    writeLoginAttempts($data);
 }
 
-/** ログイン・リセット成功時に呼び、その識別子の失敗カウントを消す。 */
+/** ログイン・登録の成功時に呼び、その識別子の試行回数を消す。 */
 function clearLoginAttempts($identifier) {
-    $data = readLoginAttempts();
-    if (isset($data[$identifier])) {
-        unset($data[$identifier]);
-        writeLoginAttempts($data);
-    }
+    $key = mikanBoxLoginAttemptKey($identifier);
+    if (!is_file(loginAttemptsFilePath())) return;
+    mikanBoxLoginAttemptsUpdate(function (array &$data) use ($key) { unset($data[$key]); return true; });
 }
 
+/** The address attempts are counted by: IPv4 as is, IPv6 by its /64 network (one host usually holds a whole /64). */
 function getClientIp() {
-    return $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        return inet_ntop(substr(inet_pton($ip), 0, 8) . str_repeat("\0", 8)) . '/64';
+    }
+    return $ip !== '' ? $ip : 'unknown';
 }

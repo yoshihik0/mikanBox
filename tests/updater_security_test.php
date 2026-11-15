@@ -57,7 +57,18 @@ try {
     try { mikanBoxUpdateWithLock($root.'/core',static function(){throw new RuntimeException('injected');}); } catch(RuntimeException $e) {}
     check(mikanBoxUpdateWithLock($root.'/core',static fn()=>['success'=>true])['success'],'exception releases lock');
     check(is_file($root.'/core/.update.lock'),'lock inode retained');
+    // The old tests/ folder of a hand-installed ZIP: listed release files go, the owner's files stay (2.21.3).
+    mkdir($root.'/tests');file_put_contents($root.'/tests/updater_security_test.php','old');file_put_contents($root.'/tests/visual_test.py','old');file_put_contents($root.'/tests/my-notes.txt','mine');
     check(install()['success'],'install success');
+    check(!is_file($root.'/tests/updater_security_test.php') && !is_file($root.'/tests/visual_test.py'),'files the old releases shipped in tests/ are removed');
+    check(is_file($root.'/tests/my-notes.txt') && is_dir($root.'/tests'),'other files and their folder stay');
+    unlink($root.'/tests/my-notes.txt');check(mikanBoxUpdateRemoveRetiredTests($root)===0 && !is_dir($root.'/tests'),'an empty tests/ folder is removed');
+    check(mikanBoxUpdateRemoveRetiredTests($root)===0,'no tests/ folder is fine');
+    $outside=$root.'/outside';mkdir($outside);file_put_contents($outside.'/visual_test.py','keep');
+    symlink($outside,$root.'/tests');check(mikanBoxUpdateRemoveRetiredTests($root)===0 && is_file($outside.'/visual_test.py'),'a tests/ symbolic link is not followed');unlink($root.'/tests');
+    mkdir($root.'/tests');symlink($outside.'/visual_test.py',$root.'/tests/visual_test.py');
+    check(mikanBoxUpdateRemoveRetiredTests($root)===0 && is_file($outside.'/visual_test.py') && is_link($root.'/tests/visual_test.py'),'a linked file is not removed or followed');
+    unlink($root.'/tests/visual_test.py');rmdir($root.'/tests');
     check(str_ends_with($downloaded,'/archive/'.$sha.'.zip'),'download fixed commit');
     $backup=mikanBoxGetUpdateBackup($root.'/data');
     check($backup['from_version']==='1.0.0','reread actual version, ignore stale caller');

@@ -345,13 +345,13 @@ class MikanBoxSSG {
 
     /**
      * Folders the generator never writes into or removes from, whatever a page ID says:
-     * the program folder, the data folder, media, setup-token and tests. Lower-cased, so
+     * the program folder, the data folder, media and setup-token. Lower-cased, so
      * MIKANBOX/x cannot reach mikanBox/ on case-insensitive file systems (macOS, Windows).
      */
     private function protectedRoots() {
         static $cache = [];
         $siteRoot = dirname(CORE_DIR);
-        $paths = [CORE_DIR, $siteRoot . '/media', $siteRoot . '/setup-token', $siteRoot . '/tests'];
+        $paths = [CORE_DIR, $siteRoot . '/media', $siteRoot . '/setup-token'];
         if (defined('DATA_DIR')) $paths[] = DATA_DIR;
         if (defined('MEDIA_DIR')) $paths[] = MEDIA_DIR;
         if (function_exists('mikanBoxSetupTokenDir')) $paths[] = mikanBoxSetupTokenDir();
@@ -580,7 +580,7 @@ class MikanBoxSSG {
         while ($currentDir && is_dir($currentDir)) {
             $realCurrent = realpath($currentDir);
             // Safety: Stop if we are outside the output directory, at the root itself, or at a
-            // protected folder (program, data, media, setup-token, tests).
+            // protected folder (program, data, media, setup-token).
             if (!$realCurrent || !$realRoot || $realCurrent === $realRoot || !$this->permittedDirectory($currentDir)) {
                 break;
             }

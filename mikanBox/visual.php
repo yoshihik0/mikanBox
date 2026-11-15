@@ -14,6 +14,7 @@ require_once __DIR__ . '/lib/renderer.php';
 require_once __DIR__ . '/lib/visual-blocks.php';
 require_once __DIR__ . '/lib/visual-history.php';
 mikanBoxRedirectToHttpsIfNeeded();                  // 管理画面と同じ: http の GET は https の同じアドレスへ（security.php）
+ini_set('display_errors', '0');                    // エラーはサーバーのログへ。画面にサーバーのパスを出さない
 
 // ---------------------------------------------------------------- 共通の部品
 function mbv_nonce(): string { static $n = null; return $n ??= rtrim(strtr(base64_encode(random_bytes(16)), '+/', '-_'), '='); }
@@ -53,7 +54,7 @@ function mbv_same_origin(): bool {
 function mbv_nl(string $s): string { return str_replace("\r\n", "\n", $s); }
 function mbv_body(): array { return json_decode((string)file_get_contents('php://input'), true) ?: []; }
 function mbv_valid_id(string $id): bool { return (bool)preg_match('~\A[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\z~', $id); }
-/** 管理画面・MCP と同じ決まり（mikanBoxIdIsReserved）: 本体・データ・media・api・setup-token・tests と重なるIDは使えない */
+/** 管理画面・MCP と同じ決まり（mikanBoxIdIsReserved）: 本体・データ・media・api・setup-token と重なるIDは使えない */
 function mbv_reserved_id(string $id): bool { return mikanBoxIdIsReserved($id); }
 /** ページのステータスの表示名（管理画面と同じ言語キー） */
 function mbv_status_label(string $s): string {

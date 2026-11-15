@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.21.2</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.21.3</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -144,7 +144,9 @@ Static site support means the design doesn't have to expand its attack surface.
 
 The minimum runtime remains PHP 8.0. For new installations and Internet-facing sites, use the latest patched release of supported PHP 8.4 or 8.5. [SQLite Edition]{.type-badge .badge-sqlite} additionally requires the SQLite3 extension to be enabled (this is enabled by default on most shared hosting).
 
-The web server is assumed to be Apache with `.htaccess` enabled, because `.htaccess` is what keeps the data folder and similar files from being opened directly in a browser. Environments without `.htaccess` (such as Nginx) are not supported.
+The web server is assumed to be Apache with `.htaccess` enabled, because `.htaccess` is what keeps the data folder and similar files from being opened directly in a browser. Environments without `.htaccess` (such as Nginx) are not supported. From v2.21.3, the admin screen checks the protection of the data folder when it opens, and shows a warning at the top if files inside it can be read directly from a browser (the check uses `protection-check.txt`, a small file with fixed content inside the data folder).
+
+The server is assumed to support HTTPS (except when you run mikanBox on your own computer with `php -S` / `localhost`), so that sign-in details, setup tokens and the MCP API key are never read on the way. For what happens when the admin screen is opened with `http://`, see the move to HTTPS described under "Installation" below.
 
 ### Installation
 
@@ -167,7 +169,7 @@ PHP is the only requirement. No database, no build tooling, no Node.js.
 1. Check whether PHP is installed. Run `php -v` in a terminal; check the version and use the latest patched PHP 8.4 or 8.5 for a new installation.
 2. If it is missing, install it. macOS no longer ships PHP, so install [Homebrew](https://brew.sh/) and run `brew install php`. On Windows, download it from [windows.php.net](https://windows.php.net/download/). On Linux, run `sudo apt install php` (Debian family) or `sudo dnf install php` (Fedora family).
 3. Extract `index.php` and the `mikanBox` folder into any folder.
-4. Change into that folder and run `php -S localhost:8000`. This is the server bundled with PHP; nothing else is needed.
+4. Change into that folder and run `php -S localhost:8000 index.php`. This is the server bundled with PHP; nothing else is needed. Do not leave out the final `index.php`: without it, the data folder (with secrets such as the MCP API key) can be read from a browser. From v2.21.3 the admin screen shows a warning in that case.
 5. Open `http://localhost:8000/mikanBox/admin.php` in a browser and complete the first-time setup. See [Initial Setup and Sign-in](#first-setup).
 
 The `mikanData` and `media` folders are created on first access, exactly as they are on a server. To stop the server, press Control+C in the terminal that started it.
@@ -212,7 +214,7 @@ If `setup-token.txt` holds no token, one shorter than 20 characters, or one made
 
 Save `setup-token.txt` as UTF-8 text without a BOM (byte order mark). From v2.21.2, a file that starts with a BOM or contains control characters is not read (it counts as holding no token).
 
-When you run mikanBox on your own computer with PHP's built-in server (`php -S localhost:8000`, see "Running it locally") and open it as `localhost` from that same computer, no token is needed; a password is enough. The exemption applies only in that case. If mikanBox runs behind a web server such as Apache or nginx, a reverse proxy, or a tunnel that exposes it to the Internet, the token is required, even on your own machine.
+When you run mikanBox on your own computer with PHP's built-in server (`php -S localhost:8000 index.php`, see "Running it locally") and open it as `localhost` from that same computer, no token is needed; a password is enough. If mikanBox runs on a web server such as Apache or nginx, the token is required, even on your own machine. Do not expose a site running on PHP's built-in server to the Internet through a reverse proxy or a tunnel: depending on how the connection is forwarded, the exemption can also apply to visitors from outside. To publish a site, set it up on a web server and use the token.
 
 [SQLite Edition]{.type-badge .badge-sqlite} (v2.9.0 and later) has no passwords. Only registered devices (browsers) can open the admin screen. A device's key (a random token) lives in that browser's cookie, and the server stores only its hash. A leaked database cannot reveal the key, and there is no password to reuse or leak. Even if someone guesses the admin URL, they get no further than the sign-in screen without a key.
 
@@ -226,7 +228,7 @@ When you run mikanBox on your own computer with PHP's built-in server (`php -S l
 4. Open `mikanBox/admin.php`, enter the token you kept, a username, a display name and a name for this device (for example, "Work laptop"), then press "Register this device".
 5. When registration succeeds, this browser stores the device's key and you are taken straight into the admin screen. A token works only once.
 
-If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the registration screen is not shown. Only a notice reading "The installation method has changed. Please see this page." appears. Nobody becomes the admin just by visiting first. When you run mikanBox with PHP's built-in server (`php -S localhost:8000`) and open it as `localhost` from the same computer, no token is needed to register the first device: enter a username and a display name (leaving the device name empty makes it "This computer"). If mikanBox runs behind a web server such as Apache or nginx, a reverse proxy, or a tunnel that exposes it to the Internet, the token is required, even on your own machine. Recovery after every device is lost needs the token even locally.
+If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the registration screen is not shown. Only a notice reading "The installation method has changed. Please see this page." appears. Nobody becomes the admin just by visiting first. When you run mikanBox with PHP's built-in server (`php -S localhost:8000 index.php`) and open it as `localhost` from the same computer, no token is needed to register the first device: enter a username and a display name (leaving the device name empty makes it "This computer"). If mikanBox runs on a web server such as Apache or nginx, the token is required, even on your own machine. Do not expose a site running on PHP's built-in server to the Internet through a reverse proxy or a tunnel (depending on how the connection is forwarded, the exemption can also apply to visitors from outside). Recovery after every device is lost needs the token even locally.
 
 Save `setup-token.txt` as UTF-8 text without a BOM (byte order mark). From v2.21.2, a file that starts with a BOM or contains control characters is not read (it counts as holding no token).
 
@@ -264,7 +266,7 @@ Updating to v2.9.0 deletes passwords and security answers, so you can no longer 
 
 Starting with v2.8.6, login state, logout and CSRF tokens are separate for each installation, even on the same domain or when flat and SQLite editions are mixed. Logging into one site does not log you into another. Moving the installation directory on the server also requires a new login. Different URLs pointing to the same real directory are treated as the same installation.
 
-From v2.21.0, a sign-in lasts until 24 hours pass without activity. Closing the browser signs you out. Sign-ins are stored in the data folder's `sessions/` (blocked from the Web and left out of backups). Because the storage location changes, everyone signs in once more after updating to v2.21.0 (in the SQLite edition, a registered device signs in automatically). From v2.21.1, opening a screen shown before you sign in creates no sign-in record; one is created only when a sign-in succeeds. Among those screens, the flat edition's initial password setup and the SQLite edition's device registration, recovery, add-code entry and invitation screens cannot be sent more than 2 hours after they were opened; reload the screen. The admin screens you use after signing in (editing pages and designs, site settings, media and so on) have no such limit.
+From v2.21.0, a sign-in lasts until 24 hours pass without activity. From v2.21.3 the server also checks these 24 hours on every request and ends an expired sign-in right away (in the SQLite edition the registered device signs in again). Closing the browser signs you out. Sign-ins are stored in the data folder's `sessions/` (blocked from the Web and left out of backups). Because the storage location changes, everyone signs in once more after updating to v2.21.0 (in the SQLite edition, a registered device signs in automatically). From v2.21.1, opening a screen shown before you sign in creates no sign-in record; one is created only when a sign-in succeeds. Among those screens, the flat edition's initial password setup and the SQLite edition's device registration, recovery, add-code entry and invitation screens cannot be sent more than 2 hours after they were opened; reload the screen. The admin screens you use after signing in (editing pages and designs, site settings, media and so on) have no such limit.
 
 If your sign-in expires while you are editing, pressing Save or a similar button shows "Your sign-in has expired" and nothing is sent. What you typed stays on the screen. Sign in to the admin screen in another tab, then save again on the original screen. The screen no longer switches to the login page and loses your input, and an action that did not run is no longer reported as done.
 
@@ -284,8 +286,10 @@ This separation prevents accidental shared authentication. It does not provide c
 
 If you deliver a site to someone else — including your own custom design and content — the steps for letting them set up a new admin account on their own environment differ by edition.
 
-- [SQLite Edition]{.type-badge .badge-sqlite}: Create an empty file named `mikanData/reset-accounts.txt` on the server (0 bytes: no content and no BOM; from v2.21.2 a file with content is ignored). On the next visit, all registered users, devices and unused codes are deleted and the initial setup screen appears. This file is deleted automatically afterward, so there's no risk of accidentally leaving it in place. The recipient then follows [Registering the First Device](#device-setup) with a token of their own.
-- [flat Edition]{.type-badge .badge-flat}: Clear the value of `"password_hash"` inside the `mikanData/settings.json` file.
+- [SQLite Edition]{.type-badge .badge-sqlite}: Create an empty file named `mikanData/reset-accounts.txt` on the server (0 bytes: no content and no BOM; from v2.21.2 a file with content is ignored). On the next visit, all registered users, devices and unused codes are deleted and the initial setup screen appears. From v2.21.3, edit locks and the MCP API key are cleared at the same time. This file is deleted automatically afterward, so there's no risk of accidentally leaving it in place. The recipient then follows [Registering the First Device](#device-setup) with a token of their own.
+- [flat Edition]{.type-badge .badge-flat}: Clear the value of `"password_hash"` inside the `mikanData/settings.json` file. When the recipient sets a new password, the MCP API key stops working (from v2.21.3).
+
+In both editions, the MCP API key used before the hand-over no longer connects. The recipient issues a key of their own under [MCP API Key](#site-mcp-key) when they need one.
 
 #### Security
 
@@ -497,7 +501,7 @@ A private note visible only to admins. Free-form space for anything you want to 
 
 #### ID
 
-The identifying slug that becomes part of the page's URL. Letters, digits, hyphens and underscores are allowed. A dot (`.`) is not allowed; the extension comes from the [output format](#output-formats). Other characters and a leading, trailing or doubled "/" are not allowed either (from v2.21.2 the save is refused instead of silently removing them). IDs starting with the admin folder, the data folder, `media`, `api`, `setup-token` or `tests` (in any letter case) overlap system locations and cannot be used. Saved pages stay viewable, editable and deletable as long as their ID is not changed. The page's URL takes the form `siteURL/ID`. Note that saving with an ID matching an existing page will overwrite it. The index page's ID cannot be changed. You can also use "/" within an ID. On a static site, any "/" in the ID is treated as a directory boundary; on a dynamic site, a pseudo directory structure is created the same way. For example, an ID of `news/2024` produces a URL like `siteURL/news/2024`.
+The identifying slug that becomes part of the page's URL. Letters, digits, hyphens and underscores are allowed. A dot (`.`) is not allowed; the extension comes from the [output format](#output-formats). Other characters and a leading, trailing or doubled "/" are not allowed either (from v2.21.2 the save is refused instead of silently removing them). IDs starting with the admin folder, the data folder, `media`, `api` or `setup-token` (in any letter case) overlap system locations and cannot be used. Saved pages stay viewable, editable and deletable as long as their ID is not changed. The page's URL takes the form `siteURL/ID`. Note that saving with an ID matching an existing page will overwrite it. The index page's ID cannot be changed. You can also use "/" within an ID. On a static site, any "/" in the ID is treated as a directory boundary; on a dynamic site, a pseudo directory structure is created the same way. For example, an ID of `news/2024` produces a URL like `siteURL/news/2024`.
 
 #### Output format
 
@@ -671,7 +675,7 @@ After you confirm an update, the button changes to [Updating…] and remains dis
 
 mikanBox doesn't just render pages dynamically with PHP — it also has a feature (SSG: Static Site Generation) to export the entire site as "static HTML files," and the two can be mixed freely.
 
-Static site generation never writes into, or deletes files from, the admin folder, the data folder, `media`, `setup-token` or `tests`. From v2.21.2, every file it writes or removes is checked (following symbolic links and ignoring letter case); a page that would land in such a place is not written, and the build result shows it as an error.
+Static site generation never writes into, or deletes files from, the admin folder, the data folder, `media` or `setup-token`. From v2.21.2, every file it writes or removes is checked (following symbolic links and ignoring letter case); a page that would land in such a place is not written, and the build result shows it as an error.
 
 #### Benefits of SSG
 
@@ -759,13 +763,13 @@ Every tool carries annotations (`readOnlyHint`, `destructiveHint`, `idempotentHi
 
 Claude's custom connector screen supports authless or OAuth authentication. Its OAuth Client ID and OAuth Client Secret fields are not API-key fields. Until mikanBox implements OAuth, the administration MCP cannot be registered safely as a Claude custom connector. Do not paste the API key into the Client ID or Client Secret field. The authless public help MCP can be registered as a custom connector using only its URL.
 
-Treat the API key like a password. Never store it in a public repository or shared file. If several mikanBox sites are connected, AI calls `get_site_info` on first connection and before writes to confirm the target site.
+Treat the API key like a password. Never store it in a public repository or shared file. An AI client holding the MCP API key can also write JavaScript into pages and components, and that script also runs when a signed-in administrator opens the public pages or visual editing. Give the key only to AI clients you trust as much as an administrator. While you are not using it, you can stop the administration MCP (see "Enabling MCP and its last-use time"). If several mikanBox sites are connected, AI calls `get_site_info` on first connection and before writes to confirm the target site.
 
 A page's [output format](#output-formats) is set through `output_format` (`html` / `html_md` / `md` / `json` / `xml` / `csv` / `txt` / `js` / `css` / `db`), `md_footer_comps` (an array of footer component IDs) and `expand_tags` (whether a data page expands tags; the format's default when omitted) in `create_page` and `update_page`. `get_page` and `list_pages` also return `output_format`. Updating a published page with `update_page` no longer changes its update date (`updated_at`); it becomes the current time only when a page goes from non-public to public, the same as on the admin screen (since 2.17.0). `status` is `draft`, `public_dynamic` or `public_static`; the former `db` is accepted and saved as `output_format` `db` with Public (Dynamic).
 
 `preview_page` returns the result in the page's output format without saving and regardless of status (with only an `id` it shows the saved content; pass the body and other fields to render them unsaved; a new `id` works too), which is how to check tag expansion. `get_site_info` now returns `version` (the mikanBox version; when it differs from the last connection, read the tool list and `get_ai_context` again). The project rules in `get_ai_context` (`documents`) also include an entry that points at output formats (`mikanbox-output-formats`).
 
-Starting with mikanBox 2.5.1, the MCP connection instructions tell AI to call `get_ai_context` on first connection. This tool returns every [AI Instructions]{.type-badge .badge-ai} component—such as `DESIGN.md`, `BRAND.md`, and `CONTENTS.md`—in a single response. AI treats the returned content as site-specific project instructions for content, design, and code changes. Updating an instruction component updates what AI receives the next time it loads the context.
+Starting with mikanBox 2.5.1, the MCP connection instructions tell AI to call `get_ai_context` on first connection. This tool returns every [AI Instructions]{.type-badge .badge-ai} component—such as `DESIGN.md`, `BRAND.md`, and `CONTENTS.md`—in a single response. AI treats the returned content as site-specific project instructions for content, design, and code changes. AI instructions are for design and content work. They are treated as never containing instructions about the MCP key, sign-in or authentication, site settings, or the server or the program itself; AI does not follow such content if it appears there, and the user's instructions take precedence when they conflict (stated in the connection instructions from v2.21.3). Updating an instruction component updates what AI receives the next time it loads the context.
 
 #### Connection URL
 
@@ -781,6 +785,8 @@ An issued API key is shown in a read-only field. Until one is issued there is no
 - [[auto_awesome]{.material-symbols-outlined}Generate API Key]{.m-btn .m-btn-blue} — (When none is issued) Issues a new API key.
 - [[auto_awesome]{.material-symbols-outlined}Regenerate API Key]{.m-btn .m-btn-gray} — (When one is issued) Invalidates the current key and issues a new one. Any existing AI integrations will need to be reconfigured.
 
+The MCP API key stops working when you regenerate it, when the [SQLite Edition]{.type-badge .badge-sqlite} is recovered with a setup token or handed over with `reset-accounts.txt`, and when the [flat Edition]{.type-badge .badge-flat} password is set again after `password_hash` was emptied (the last two from v2.21.3). An ordinary password change while signed in, stopping a device and deleting a user leave it unchanged.
+
 #### Enabling MCP and its last-use time (PHP editions)
 
 Clear “Enable MCP” and save to stop management MCP while retaining its key. HTTP requests receive 403, and local stdio connections reject their next request. An already running request is not cancelled. Public help MCP remains available. Existing connections remain enabled after updating; enabling again permits the same key. Regenerate a leaked key as well as disabling access. This switch does not restrict tools that can edit server files directly.
@@ -789,7 +795,7 @@ The current key's last successful HTTP authentication is shown in UTC. Its times
 
 ### Security activity (PHP editions) {#site-audit}
 
-“Recent security activity” on the Site screen shows the latest 50 events. Both PHP editions record MCP key issuance/regeneration, enabling/disabling MCP, page publication-state changes, and failed sign-ins. SQLite also records device registration/stopping, enrollment/invitation code issuance, user deletion, recovery and account reset. Successful program rollbacks are recorded too.
+“Recent security activity” on the Site screen shows the latest 50 events. Both PHP editions record MCP key issuance/regeneration, enabling/disabling MCP, page publication-state changes, and failed sign-ins. SQLite also records device registration/stopping, enrollment/invitation code issuance, user deletion, recovery and account reset. The flat edition records "Recovery" when setting the password again retires the MCP API key. Successful program rollbacks are recorded too.
 
 Records contain the time, action, actor, necessary target IDs, and a masked IP address. Keys, tokens, codes, passwords, content and full IP addresses are excluded. The final IPv4 octet is masked; IPv6 addresses retain only their first 48 bits. Oldest records are removed above approximately 1 MB. Recording failures are shown in the admin screen without treating a successful operation as failed.
 
@@ -818,7 +824,7 @@ Reads the first row as field names and converts every other row into a `{{DATARO
 
 ### Data Management [SQLite Edition only]{.type-badge .badge-sqlite} {#site-data-mgmt}
 
-Download and back up all of the site's data (SQLite file / JSON ZIP) as well as any uploaded media files. You can also import data from external sources.
+Download and back up all of the site's data (SQLite file / JSON ZIP) as well as any uploaded media files. You can also import data from external sources. From v2.21.3 the downloaded data does not include the MCP API key; after restoring from a backup, issue a new key under [MCP API Key](#site-mcp-key).
 
 #### [download]{.material-symbols-outlined} Download All Data (SQLite){.m-btn .m-btn-gray}
 
@@ -838,7 +844,7 @@ Opens the [Data Migration &amp; Import Tool](#data-migration) over the admin pan
 
 ### Backup [flat Edition only]{.type-badge .badge-flat} {#site-backup}
 
-Downloads all of the site's data (JSON) and any uploaded media files (jpg, svg, etc.) as a ZIP. Regular backups are recommended.
+Downloads all of the site's data (JSON) and any uploaded media files (jpg, svg, etc.) as a ZIP. Regular backups are recommended. From v2.21.3 the downloaded data does not include the MCP API key; after restoring from a backup, issue a new key under [MCP API Key](#site-mcp-key).
 
 #### [download]{.material-symbols-outlined} Download All Data (JSON){.m-btn .m-btn-gray}
 
@@ -944,7 +950,7 @@ Enter a new password (at least 7 characters).
 
 Changes and saves the password.
 
-**If you forget your password:** Using FTP or a file manager, edit the `mikanData/settings.json` file on the server and clear the value of `password_hash`. The initial password setup screen will appear on your next visit.
+**If you forget your password:** Using FTP or a file manager, edit the `mikanData/settings.json` file on the server and clear the value of `password_hash`. The initial password setup screen will appear on your next visit. From v2.21.3, setting the password again on that screen retires the MCP API key. Issue a new one under [MCP API Key](#site-mcp-key) and switch your AI clients to it. Changing the password with the form above while signed in keeps the key.
 
 ---
 

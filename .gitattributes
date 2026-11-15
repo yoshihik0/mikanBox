@@ -1,0 +1,5 @@
+# Development files stay out of release archives (GitHub zip/tar and the archive the
+# built-in updater downloads). The repository keeps them.
+/tests export-ignore
+/SECURITY.md export-ignore
+/.gitattributes export-ignore

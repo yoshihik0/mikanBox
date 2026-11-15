@@ -319,7 +319,7 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-visual-test-') as tmp:
 
         # ---- 10. ログアウト後は、すべて断る
         if not SQLITE:   # SQLite版には、ログアウトがない（端末を停止する）
-            req(ed, ADM + '?action=logout')
+            req(ed, ADM, urllib.parse.urlencode({'logout_action': '1', 'csrf_token': token}).encode())   # logout is a POST with the CSRF token (2.21.3)
             st, _, _ = api(ed, 'source', query='&id=index')
             check(st == 401, 'API is refused after logout')
             st, txt, hd = req(ed, VIS + '?id=index')

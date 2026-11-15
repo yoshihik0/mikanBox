@@ -99,6 +99,8 @@ function mikanBoxDeviceEnsureSchema(SQLite3 $db): void {
  * Hand over a site: an empty DATA_DIR/reset-accounts.txt (no content, no BOM) removes every user,
  * device and code on the next request, so the new owner starts from the setup
  * screen with a setup token of their own. The file deletes itself.
+ * As with recovery by setup token, edit locks and the MCP key go too: whoever held the old
+ * sign-in must not keep writing through MCP after the hand-over.
  */
 function mikanBoxAccountsResetIfRequested(SQLite3 $db): void {
     $file = DATA_DIR . '/reset-accounts.txt';
@@ -107,9 +109,11 @@ function mikanBoxAccountsResetIfRequested(SQLite3 $db): void {
     // BOM included (static .txt output starts with one), is ignored and the file is left alone.
     $content = @file_get_contents($file);
     if ($content === false || trim($content, " \t\r\n") !== '') return;
-    foreach (['DELETE FROM users', 'DELETE FROM device_sessions', 'DELETE FROM device_codes'] as $sql) {
+    foreach (['DELETE FROM users', 'DELETE FROM device_sessions', 'DELETE FROM device_codes', 'DELETE FROM locks'] as $sql) {
         $db->exec($sql);
     }
+    $db->exec("INSERT INTO settings(key,value) VALUES('mcp_api_key','\"\"') ON CONFLICT(key) DO UPDATE SET value=excluded.value");
+    if (isset($GLOBALS['mikanbox_settings']) && is_array($GLOBALS['mikanbox_settings'])) $GLOBALS['mikanbox_settings']['mcp_api_key'] = '';
     @unlink($file);
     mikanBoxAudit('accounts_reset');
 }
@@ -128,7 +132,7 @@ function mikanBoxDeviceCookieName(): string {
 
 function mikanBoxDeviceSetCookie(string $value, int $expires): void {
     if (headers_sent()) return;
-    $secure = (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off');
+    $secure = function_exists('mikanBoxRequestIsHttps') ? mikanBoxRequestIsHttps() : (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off');
     setcookie(mikanBoxDeviceCookieName(), $value, [
         'expires' => $expires, 'path' => '/', 'domain' => '',
         'secure' => $secure, 'httponly' => true, 'samesite' => 'Lax',

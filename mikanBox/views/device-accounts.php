@@ -1,4 +1,5 @@
 <?php
+defined('MIKANBOX') or die();
 // Users and their devices (SQLite edition). Included by views/site.php.
 // Wording and structure follow mikanBox-cloud's "Devices and users" section.
 $me = mikanBoxCurrentDevice();

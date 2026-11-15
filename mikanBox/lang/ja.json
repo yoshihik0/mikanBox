@@ -626,6 +626,8 @@
     "audit_heading": "最近の操作記録",
     "audit_hint": "直近50件を表示します。IPは一部を伏せ、記録は約1 MBを上限に古いものから削除します。",
     "audit_unavailable": "操作記録を保存できません。データフォルダの権限を確認してください。",
+    "warn_cli_server_no_router": "PHPの簡易サーバーが index.php を指定せずに起動されています。この起動方法では、データフォルダ（MCP APIキーなどの秘密を含む）がブラウザから読めます。サーバーを止め、index.php があるフォルダで「php -S localhost:8000 index.php」と起動し直してください。",
+    "warn_data_dir_readable": "データフォルダの中のファイルが、ブラウザから直接読める状態です。設定・下書き・MCP APIキーなどが外から読まれるおそれがあります。このサーバーでは .htaccess による保護が効いていません。マニュアルの「動作環境」を確認し、.htaccess が有効なサーバーへ移すか、サーバーの設定でデータフォルダへのアクセスを拒否してください。",
     "audit_time": "日時（UTC）",
     "audit_action": "操作",
     "audit_actor": "実行者",

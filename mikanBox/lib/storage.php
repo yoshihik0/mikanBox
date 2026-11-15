@@ -56,7 +56,7 @@ function mikanBoxProtectDataDirectory(string $dirPath): bool {
  */
 function mikanBoxDataDirectoryHasPayload(string $dirPath): bool {
     if (!is_dir($dirPath)) return false;
-    $ignored = ['.', '..', '.htaccess', '.DS_Store', 'index.html'];
+    $ignored = ['.', '..', '.htaccess', '.DS_Store', 'index.html', 'protection-check.txt'];
     foreach (scandir($dirPath) ?: [] as $entry) {
         if (!in_array($entry, $ignored, true)) return true;
     }

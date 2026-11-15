@@ -208,6 +208,16 @@ body {
     border-color: #cbd5e1; /* Gray border */
     background: #ffffff; /* White background */
 }
+.admin-alert[hidden] { display: none; }
+.admin-alert {
+    margin: 8px 0 12px;
+    padding: 10px 14px;
+    border: 1px solid #f87171;
+    border-radius: 6px;
+    color: #f87171;
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
 .page-top-links {
     position: sticky;
     top: 0;

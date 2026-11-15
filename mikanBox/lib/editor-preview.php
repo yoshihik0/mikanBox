@@ -42,7 +42,7 @@ function mikanBoxRenderSavedPreview(array $settings, string $id, string $stash =
     header('X-Content-Type-Options: nosniff');
     header('Cache-Control: no-store');
     header('Referrer-Policy: no-referrer');
-    header('Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals');
+    header("Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals; frame-ancestors 'self'");
     echo $preview['body'];
 }
 
@@ -81,6 +81,6 @@ function mikanBoxRenderEditorPreview(array $settings, array $input): void {
     header('X-Content-Type-Options: nosniff');
     header('Cache-Control: no-store');
     header('Referrer-Policy: no-referrer');
-    header('Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals');
+    header("Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals; frame-ancestors 'self'");
     echo $preview['body'];
 }

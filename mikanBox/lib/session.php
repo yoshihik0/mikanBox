@@ -84,7 +84,7 @@ function mikanBoxOpenSession(string $name, string $site): void {
             ini_set('session.gc_probability', '1');
             ini_set('session.gc_divisor', '100');
         }
-        $secure = (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off');
+        $secure = function_exists('mikanBoxRequestIsHttps') ? mikanBoxRequestIsHttps() : (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off');
         session_set_cookie_params([
             'lifetime' => 0, 'path' => '/', 'domain' => '',
             'secure' => $secure, 'httponly' => true, 'samesite' => 'Lax',
@@ -105,6 +105,26 @@ function mikanBoxOpenSession(string $name, string $site): void {
         }
         $_SESSION['mikanbox_session_site'] = $site;
     }
+    mikanBoxEnforceIdleLimit();
+}
+
+/**
+ * The 24-hour idle limit, enforced on every request instead of relying on PHP's probabilistic
+ * garbage collection (which small sites almost never trigger). A sign-in unused for longer is
+ * cleared and the session ID replaced; the browser then behaves exactly as after a lost session
+ * file (ajax answers 401 JSON and the editor keeps its unsaved text). The time is refreshed at
+ * most once a minute so that ordinary requests do not rewrite the session file each time.
+ */
+function mikanBoxEnforceIdleLimit(?int $now = null): void {
+    if (empty($_SESSION['admin_logged_in'])) return;
+    $now ??= time();
+    $seen = (int)($_SESSION['mikanbox_last_seen'] ?? 0);
+    if ($seen > 0 && $now - $seen > MIKANBOX_SESSION_IDLE_SECONDS) {
+        mikanBoxClearAuthentication();
+        if (PHP_SAPI !== 'cli' && !headers_sent()) @session_regenerate_id(true);
+        return;
+    }
+    if ($seen === 0 || $now - $seen >= 60) $_SESSION['mikanbox_last_seen'] = $now;
 }
 
 /**
@@ -125,7 +145,7 @@ function mikanBoxDiscardIdleSessionAtShutdown(): void {
 }
 
 function mikanBoxClearAuthentication(): void {
-    unset($_SESSION['admin_logged_in'], $_SESSION['admin_username'], $_SESSION['admin_display_name'], $_SESSION['mikanbox_password_fingerprint']);
+    unset($_SESSION['admin_logged_in'], $_SESSION['admin_username'], $_SESSION['admin_display_name'], $_SESSION['mikanbox_password_fingerprint'], $_SESSION['mikanbox_last_seen']);
 }
 
 function mikanBoxRenewAuthentication(): void {

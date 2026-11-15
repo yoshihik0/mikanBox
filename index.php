@@ -1,5 +1,8 @@
 <?php
 ob_start();
+// PHP's built-in server runs this file first on every request only when it was given as the
+// router (php -S localhost:8000 index.php). The admin screen warns when it is missing.
+if (PHP_SAPI === 'cli-server' && !defined('MIKANBOX_CLI_ROUTER')) define('MIKANBOX_CLI_ROUTER', true);
 
 /**
  * mikanBox Front-end Controller
@@ -23,17 +26,19 @@ require_once CORE_DIR . '/lib/renderer.php';
 
 // Deny data before any routing or real-file bypass, including router requests
 // whose SCRIPT_NAME points at the requested static file instead of index.php.
+// The setup-token folder (one-time sign-in tokens) is denied the same way.
 $securityDocRoot = realpath((string)($_SERVER['DOCUMENT_ROOT'] ?? ''));
-$securityDataRoot = realpath(DATA_DIR);
-if ($securityDocRoot && $securityDataRoot && str_starts_with($securityDataRoot, rtrim($securityDocRoot, '/\\') . '/')) {
-    $securityDataUrl = '/' . trim(substr($securityDataRoot, strlen($securityDocRoot)), '/');
-    $securitySegments = [];
-    foreach (explode('/', rawurldecode((string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'))) as $segment) {
-        if ($segment === '..') array_pop($securitySegments);
-        elseif ($segment !== '' && $segment !== '.') $securitySegments[] = $segment;
-    }
-    $securityRequestPath = '/' . implode('/', $securitySegments);
-    if (strcasecmp($securityRequestPath, $securityDataUrl) === 0 || stripos($securityRequestPath, $securityDataUrl . '/') === 0) {
+$securitySegments = [];
+foreach (explode('/', rawurldecode((string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'))) as $segment) {
+    if ($segment === '..') array_pop($securitySegments);
+    elseif ($segment !== '' && $segment !== '.') $securitySegments[] = $segment;
+}
+$securityRequestPath = '/' . implode('/', $securitySegments);
+foreach ([DATA_DIR, __DIR__ . '/setup-token'] as $securityPrivateDir) {
+    $securityPrivateRoot = realpath($securityPrivateDir);
+    if (!$securityDocRoot || !$securityPrivateRoot || !str_starts_with($securityPrivateRoot, rtrim($securityDocRoot, '/\\') . '/')) continue;
+    $securityPrivateUrl = '/' . trim(substr($securityPrivateRoot, strlen($securityDocRoot)), '/');
+    if (strcasecmp($securityRequestPath, $securityPrivateUrl) === 0 || stripos($securityRequestPath, $securityPrivateUrl . '/') === 0) {
         http_response_code(404); if (ob_get_length()) ob_clean(); echo 'Not Found'; exit;
     }
 }
@@ -66,6 +71,7 @@ $pageId = isset($_GET['page']) ? $_GET['page'] : '';
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
+mikanBoxSendPublicHeaders();   // nosniff and a cross-origin-safe Referer (security.php)
 
 if ($pageId === '' || $pageId === 'index.php') {
     $reqUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);

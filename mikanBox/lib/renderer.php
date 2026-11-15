@@ -202,9 +202,11 @@ class MikanBoxRenderer {
         // 2. Load Wrapper
         $wrapperCompId = isset($pageData['wrapper_comp']) ? $pageData['wrapper_comp'] : '_layout';
         $wrapperData = $wrapperCompId === '__none' ? null : loadData(COMPONENTS_DIR, $wrapperCompId);
+        if (!empty($wrapperData['is_ai_doc'])) $wrapperData = null;   // AI documents are never published: fall back to _layout
         $wrapperJsId = $wrapperData ? $wrapperCompId : '_layout';
         if ($wrapperData) $this->includedComponentIds[$wrapperJsId] = true;
         $wrapperData = $wrapperCompId === '__none' ? null : ($wrapperData ?: loadData(COMPONENTS_DIR, '_layout'));
+        if (!empty($wrapperData['is_ai_doc'])) $wrapperData = null;
         $html = $wrapperData['html'] ?? '{{CONTENT}}';
 
         // Embed main content into the wrapper
@@ -1081,7 +1083,8 @@ class MikanBoxRenderer {
         foreach (getSortedPostIds() as $postId) {
             $postInfo = $this->loadPage($postId);
             if (!$postInfo) continue;
-            if (in_array($postInfo['status'] ?? 'public', ['draft', 'db'], true)) continue;
+            // Pages a visitor cannot open are never listed: drafts, db and pages awaiting approval (2.21.3).
+            if (in_array($postInfo['status'] ?? 'public', ['draft', 'db', 'pending'], true)) continue;
             if ($this->isRelativeStaticMode() && ($postInfo['status'] ?? '') !== 'public_static') continue;
             if (($postInfo['sort_order'] ?? 0) < 0) continue;
             // Data-format pages are parts of a site, not content, so lists never show them.
@@ -1133,6 +1136,7 @@ class MikanBoxRenderer {
             $effectiveCompId = $options['component'] ?: '_nav_card';
             if ($tagType === 'NAV_CARDS' && !$isMarkdown) {
                 $compData = loadData(COMPONENTS_DIR, $effectiveCompId);
+                if (!empty($compData['is_ai_doc'])) $compData = null;   // never a card template
                 $template = $compData ? (string)($compData['html'] ?? '') : null;
             }
             $parts = [];
@@ -1178,6 +1182,7 @@ class MikanBoxRenderer {
         // NAV_CARDS in HTML
         $effectiveCompId = $options['component'] ?: '_nav_card';
         $compData = loadData(COMPONENTS_DIR, $effectiveCompId);
+        if (!empty($compData['is_ai_doc'])) $compData = null;   // an AI document is never published as a card template
         $customTemplate = null;
         $prefixClass = '';
         if ($compData) {

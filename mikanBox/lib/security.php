@@ -33,6 +33,31 @@ function mikanBoxRequestIsHttps(?array $server = null): bool {
     return $forwarded === 'https';
 }
 
+/**
+ * Headers for every admin screen (admin.php and its sign-in and setup screens, convert.php):
+ * no framing by other sites (visual editing frames its own pages, hence SAMEORIGIN), no MIME
+ * sniffing, and no admin URL in the Referer sent to other sites. visual.php sends its own
+ * stricter set. A later Content-Security-Policy (the sandboxed preview) adds frame-ancestors itself.
+ */
+function mikanBoxSendAdminHeaders(): void {
+    if (headers_sent() || PHP_SAPI === 'cli') return;
+    header('X-Frame-Options: SAMEORIGIN');
+    header("Content-Security-Policy: frame-ancestors 'self'");
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: same-origin');
+}
+
+/** Public (dynamic) pages: only no sniffing and a cross-origin-safe Referer. No framing rules, no CSP. */
+/** Sign-in forms take text fields only: an array (name[]=x) becomes '' instead of a type error that names server paths. */
+function mikanBoxScalarPost(): void {
+    foreach ($_POST as $key => $value) if (!is_string($value)) $_POST[$key] = '';
+}
+function mikanBoxSendPublicHeaders(): void {
+    if (headers_sent() || PHP_SAPI === 'cli') return;
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+}
+
 /** The browser addressed this computer itself (localhost, 127.0.0.1, [::1] or *.localhost). */
 function mikanBoxRequestHostIsLocal(?array $server = null): bool {
     $server ??= $_SERVER;
@@ -185,6 +210,36 @@ function mikanBoxPreAuthCsrfVerify($token): bool {
     if (!is_string($token) || $token === '') return false;
     if (mikanBoxStatelessCsrfVerify($token, 'login')) return true;
     return session_status() === PHP_SESSION_ACTIVE && verifyCsrfToken($token);   // forms issued by the session fallback
+}
+/**
+ * PHP's built-in server started without index.php as the router serves every real file as is,
+ * the data folder included. index.php marks routed requests; the desktop app has its own router.
+ */
+function mikanBoxCliServerWithoutRouter(): bool {
+    return PHP_SAPI === 'cli-server' && !defined('MIKANBOX_CLI_ROUTER') && getenv('MIKANBOX_DESKTOP_READY') === false;
+}
+/**
+ * Data folder protection check (2.21.3). The data folder is protected by .htaccess; on a server
+ * where that has no effect (nginx without matching rules, AllowOverride None) its files could be
+ * read from a browser without anyone noticing. The admin screen therefore asks, from the
+ * browser, for one harmless fixed file inside the data folder: a protected folder answers
+ * 403/404, and if the file comes back the screen shows a warning.
+ * Returns the address of that file relative to admin.php, or null when there is nothing to
+ * check (data folder outside the site folder, file cannot be written, or the built-in server
+ * without a router, which has its own warning).
+ */
+const MIKANBOX_DATA_PROBE_FILE = 'protection-check.txt';
+const MIKANBOX_DATA_PROBE_TEXT = "mikanBox data protection check\n";
+function mikanBoxDataProtectionProbe(): ?string {
+    if (!defined('DATA_DIR') || !defined('CORE_DIR') || mikanBoxCliServerWithoutRouter()) return null;
+    $data = realpath(DATA_DIR);
+    $root = realpath(dirname(CORE_DIR));
+    if ($data === false || $root === false || dirname($data) !== $root) return null;
+    $file = $data . '/' . MIKANBOX_DATA_PROBE_FILE;
+    if (is_link($file)) return null;
+    if (!is_file($file) && @file_put_contents($file, MIKANBOX_DATA_PROBE_TEXT) === false) return null;
+    if ((string)@file_get_contents($file) !== MIKANBOX_DATA_PROBE_TEXT) return null;
+    return '../' . rawurlencode(basename($data)) . '/' . MIKANBOX_DATA_PROBE_FILE;
 }
 function mikanBoxMcpEnabled(): bool {
     return mikanBoxSecurityLocked(function($dir) {

@@ -267,6 +267,19 @@
     });
   }
 
+  // Data folder protection check: ask for one harmless fixed file inside the data folder.
+  // A protected folder answers 403/404; only if the file itself comes back is the warning shown.
+  const checkDataProtection = () => {
+    const box = document.getElementById('data-protection-alert');
+    if (!box || !box.dataset.probe) return;
+    fetch(box.dataset.probe, { cache: 'no-store', credentials: 'omit' })
+      .then((response) => (response.ok ? response.text() : ''))
+      .then((text) => { if (text.indexOf('mikanBox data protection check') === 0) box.hidden = false; })
+      .catch(() => {});
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', checkDataProtection);
+  else checkDataProtection();
+
   window.MikanUI = { toast, confirm: confirmDialog, post, ensureSession, refresh, expand, collapse, fadeOut, scrollToY };
   window.showToast = toast;
   window.showConfirmDialog = confirmDialog;

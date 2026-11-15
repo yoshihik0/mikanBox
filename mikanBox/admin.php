@@ -11,6 +11,8 @@ require_once __DIR__ . '/lib/renderer.php';
 define('MIKANBOX', true);
 // Signing in over plain HTTP is avoided: GET/HEAD go to the same address on https:// (see security.php).
 mikanBoxRedirectToHttpsIfNeeded();
+mikanBoxSendAdminHeaders();   // framing, sniffing and Referer rules for every admin screen (security.php)
+ini_set('display_errors', '0');   // errors go to the server log, never into a page with server paths
 require_once __DIR__ . '/lib/updater.php';
 $installedVersion = mikanBoxUpdateReadVersion(CORE_DIR . '/config.php') ?: MIKANBOX_VERSION;
 
@@ -57,6 +59,7 @@ $inviteStep = null; // set when an invite code was accepted and its owner must c
 
 // --- Registering a device: first device (setup token) or an added device (one-time code) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
+    mikanBoxScalarPost();
     $loginAction = $_POST['login_action'];
     $rateLimitId = getClientIp() . '|device';
     $lockedRemain = checkLoginRateLimit($rateLimitId);
@@ -75,7 +78,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
     } elseif ($loginAction === 'setup') {
         $user = trim($_POST['username'] ?? '');
         $disp = trim($_POST['display_name'] ?? '');
-        if (!$localInitialSetup && !mikanBoxSetupTokenMatches($_POST['setup_token'] ?? '')) {
+        if (!$localInitialSetup && ($setupWait = mikanBoxLoginAttemptStart($rateLimitId)) > 0) {
+            $loginError = t('err_rate_limited', (int)ceil($setupWait / 60));   // counted before the token is checked
+        } elseif (!$localInitialSetup && !mikanBoxSetupTokenMatches($_POST['setup_token'] ?? '')) {
             recordLoginFailure($rateLimitId);
             $loginError = t('err_setup_token_invalid');
         } elseif (empty($user) || !preg_match('/^[a-zA-Z0-9_\-]+$/', $user)) {
@@ -141,9 +146,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
         }
     } else {
         $code = (string)($_POST['code'] ?? '');
-        $kind = mikanBoxDeviceCodeKind($code);
+        $claimWait = mikanBoxLoginAttemptStart($rateLimitId);   // counted before the code is checked
+        $kind = $claimWait > 0 ? null : mikanBoxDeviceCodeKind($code);
         $newUser = ['username' => $_POST['username'] ?? '', 'display_name' => $_POST['display_name'] ?? ''];
-        if ($kind === null) {
+        if ($claimWait > 0) {
+            $loginError = t('err_rate_limited', (int)ceil($claimWait / 60));
+        } elseif ($kind === null) {
             recordLoginFailure($rateLimitId);
             $loginError = t('err_device_code_invalid');
         } elseif ($kind === 'invite' && !isset($_POST['username'])) {
@@ -188,6 +196,12 @@ if ($isInitialSetup || !$isLoggedIn) {
 
 // ==========================================
 // Post-login Processing (Routing & Data Saving)
+// Right after a system update the admin screen reloads with update_checked. The update itself was
+// run by the previous version's updater, so the new version tidies the old tests/ folder here.
+if (isset($_GET['update_checked'])) {
+    require_once __DIR__ . '/lib/updater.php';
+    mikanBoxUpdateRemoveRetiredTests(dirname(CORE_DIR));
+}
 // ==========================================
 // Logged in: Load common data
 // $settings is already loaded above
@@ -961,14 +975,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     }
     elseif ($_POST['save_action'] === 'download_backup_sqlite') {
         // Download raw SQLite database file directly
+        // A consistent copy (SQLite's online backup) with the MCP API key cleared (2.21.3): the key
+        // never leaves the server in a backup; issue a new one after restoring.
         $dbFile = DB_FILE;
+        $copyFile = DATA_DIR . '/backup_sqlite_' . bin2hex(random_bytes(8)) . '.sqlite';
+        $copied = false;
         if (file_exists($dbFile)) {
+            try {
+                $copy = new SQLite3($copyFile);
+                $copied = $db->backup($copy);
+                if ($copied) $copy->exec("UPDATE settings SET value = '\"\"' WHERE key = 'mcp_api_key'");
+                $copy->close();
+            } catch (Throwable $e) { $copied = false; }
+        }
+        if ($copied && is_file($copyFile)) {
             header('Content-Type: application/x-sqlite3');
             header('Content-Disposition: attachment; filename="mikanBox_' . date('Ymd') . '.sqlite"');
-            header('Content-Length: ' . filesize($dbFile));
-            readfile($dbFile);
+            header('Content-Length: ' . filesize($copyFile));
+            readfile($copyFile);
+            @unlink($copyFile);
             exit;
         } else {
+            @unlink($copyFile);
             $message = t('error_save_failed');
         }
     }
@@ -1006,7 +1034,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                     }
                 }
                 
-                // Add settings.json
+                // Add settings.json (without the MCP API key, 2.21.3: issue a new one after restoring)
+                if (array_key_exists('mcp_api_key', $settings)) $settings['mcp_api_key'] = '';
                 $zip->addFromString('data/settings.json', json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
                 
                 // Add components
@@ -1522,6 +1551,8 @@ function getIcon($name) {
     <div class="page-top-links">
         <a href="<?= $lastSsgRelPath ?>" target="_blank"><?= t('admin_view_site') ?></a>
     </div>
+    <?php if (mikanBoxCliServerWithoutRouter()): ?><p class="admin-alert" role="alert"><?= htmlspecialchars(t('warn_cli_server_no_router'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+    <?php if (($mbDataProbe = mikanBoxDataProtectionProbe()) !== null): ?><p class="admin-alert" id="data-protection-alert" role="alert" hidden data-probe="<?= htmlspecialchars($mbDataProbe, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(t('warn_data_dir_readable'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
 
     <!-- Category Cloud (Steps 3 & 4) -->
     <?php

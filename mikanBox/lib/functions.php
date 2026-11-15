@@ -672,6 +672,8 @@ function searchPosts($keyword, $isAdmin = false) {
             $id = $row['id'];
             $title = $row['title'] !== '' ? $row['title'] : $row['id'];
             $content_md = $data['content_md'] ?? '';
+            // Visitors search only what the page shows: hidden values (GHOST), data rows and HTML comments are left out.
+            if (!$isAdmin) $content_md = mikanBoxSearchableText((string)$content_md);
             $description = $data['description'] ?? '';
             $category = $data['category'] ?? '';
             $keywords = $data['keywords'] ?? '';
@@ -724,6 +726,13 @@ function searchPosts($keyword, $isAdmin = false) {
         }
     }
     return $results;
+}
+
+/** Page text without what the page never shows: {{DATAROW}} blocks, {{DATA:KEY:GHOST}} values and HTML comments. */
+function mikanBoxSearchableText(string $markdown): string {
+    $text = preg_replace('/\{\{DATAROW:[a-zA-Z0-9_\-]+\}\}.*?\{\{\/DATAROW\}\}/s', ' ', $markdown) ?? '';
+    $text = preg_replace('/\{\{DATA:[a-zA-Z][a-zA-Z0-9_]*:GHOST\}\}.*?\{\{\/DATA\}\}/s', ' ', $text) ?? '';
+    return preg_replace('/<!--.*?-->/s', ' ', $text) ?? '';
 }
 
 /**

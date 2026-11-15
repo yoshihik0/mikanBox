@@ -486,9 +486,41 @@ function mikanBoxInstallUpdateLocked(
     }
 
     mikanBoxUpdateRemoveTree($workDir);
+    mikanBoxUpdateRemoveRetiredTests($siteRoot);   // tests/ left from a hand-installed ZIP (best effort)
     // The site-root .htaccess belongs to the site owner and is never replaced; only the
     // charset block for static text files is appended once when it is missing.
     return ['success' => true, 'version' => $newVersion, 'htaccess' => mikanBoxEnsureSiteHtaccessCharset($siteRoot)];
+}
+
+/**
+ * Until 2.21.2 the release ZIP carried a tests/ folder (development tests) that the updater never
+ * installed, but sites set up by hand from the ZIP may still have it. Remove only the files
+ * those releases contained (every name ever tracked under tests/ in either edition), never
+ * following symbolic links, and the folder itself once it is empty. Anything else stays.
+ * Best effort: a failure here never fails an update. Returns the number of files removed.
+ */
+const MIKANBOX_RETIRED_TEST_FILES = [
+    'device_atomic_test.py', 'external_markdown_security_test.php', 'mcp_http_integration_test.php',
+    'mcp_key_persistence_test.php', 'mcp_key_view_test.php', 'mcp_protocol_test.php',
+    'migration_security_test.py', 'public_help_test.php', 'public_mcp_http_integration_test.php',
+    'security_controls_test.py', 'security_release_test.py', 'sqlite_migration_exceptions_test.php',
+    'updater_core_dir_test.php', 'updater_program_files_test.php', 'updater_security_test.php',
+    'visual_test.py',
+];
+function mikanBoxUpdateRemoveRetiredTests(string $siteRoot): int {
+    $removed = 0;
+    try {
+        $dir = rtrim($siteRoot, '/\\') . '/tests';
+        if (is_link($dir) || !is_dir($dir)) return 0;
+        foreach (MIKANBOX_RETIRED_TEST_FILES as $name) {
+            $file = $dir . '/' . $name;
+            if (is_link($file) || !is_file($file)) continue;
+            if (@unlink($file)) $removed++;
+        }
+        $left = @scandir($dir);
+        if (is_array($left) && !array_diff($left, ['.', '..'])) @rmdir($dir);
+    } catch (Throwable $error) {}
+    return $removed;
 }
 
 /** Extensions whose static files should come with charset=utf-8. */

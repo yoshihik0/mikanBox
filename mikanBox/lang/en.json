@@ -626,6 +626,8 @@
     "audit_heading": "Recent security activity",
     "audit_hint": "Shows the latest 50 events. IP addresses are masked; oldest entries are removed above approximately 1 MB.",
     "audit_unavailable": "Security activity could not be recorded. Check data-directory permissions.",
+    "warn_cli_server_no_router": "PHP's built-in server was started without index.php. Started this way, the data folder (with secrets such as the MCP API key) can be read from a browser. Stop the server and start it again in the folder with index.php as \"php -S localhost:8000 index.php\".",
+    "warn_data_dir_readable": "Files inside the data folder can be read directly from a browser. Settings, drafts and the MCP API key could be read from outside. The .htaccess protection has no effect on this server. Check the requirements in the manual, then move to a server where .htaccess works or deny access to the data folder in the server configuration.",
     "audit_time": "Time (UTC)",
     "audit_action": "Action",
     "audit_actor": "Actor",

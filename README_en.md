@@ -77,6 +77,8 @@ If you run it on your own computer and just upload a static site, flat or this e
 For the PHP editions, the minimum version describes compatibility. Use the latest patched, supported PHP 8.4 or 8.5 for new installations and Internet-facing sites.
 
 - A web server with PHP 8.0 or later (with the SQLite3 extension enabled — standard on most hosting providers)
+- A server where `.htaccess` works (Apache; it keeps the data folder and similar files from being opened in a browser)
+- A server with HTTPS (not needed for a local `php -S` / `localhost`)
 
 ---
 
@@ -225,6 +227,8 @@ Then simply submit that feed to Apple Podcasts, Spotify, Amazon Music, or other 
 - By operating locally and uploading static files, you can keep PHP and JSON files out of the public directory, minimizing tampering risk
 - Renaming the admin directory makes the URL harder to guess
 - `.htaccess` restricts direct access to management files
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ---
 
