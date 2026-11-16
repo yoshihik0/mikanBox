@@ -184,3 +184,16 @@ html.fv-panel-open .fv-vp{bottom:38vh}
 .fv-confirm-row{display:flex;justify-content:flex-end;gap:8px}
 .fv-confirm-btn{font:inherit;padding:6px 16px;border-radius:6px;border:1px solid #cbd5e1;background:#f1f5f9;color:#1e293b;cursor:pointer}
 .fv-confirm-ok{background:var(--fv-navy,#1e3a5f);border-color:transparent;color:#fff}
+
+/* 文字をクリックして、その場で直す */
+html.fv-edit .fv-hover{outline:1px dashed #3b9bd8!important;outline-offset:2px;cursor:text}
+html.fv-inspect .fv-hover{outline:0!important}
+.fv-inlbar{position:fixed;z-index:2147483003;display:flex;align-items:center;gap:6px;max-width:calc(100vw - 16px);padding:4px 6px 4px 10px;background:var(--fv-navy);color:#e6eef6;border-radius:10px;box-shadow:0 4px 16px rgba(18,40,61,.3);font:12px/1.4 system-ui,-apple-system,"Hiragino Sans",sans-serif}
+.fv-inlmsg{color:#9db4c9;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fv-inlmsg.bad{color:#fca5a5;white-space:normal}
+.fv-inlbar button{display:inline-flex;align-items:center;justify-content:center;flex:none;height:26px;padding:0 8px;border:1px solid var(--fv-navy-line);background:transparent;color:#e6eef6;border-radius:8px;cursor:pointer}
+.fv-inlbar button:hover{background:var(--fv-navy-line)}
+.fv-inlbar .fv-save{background:var(--fv-sky-strong);color:var(--fv-ink);border-color:var(--fv-sky-line)}
+.fv-inlbar .fv-ic{font-size:18px}
+.fv-inlbar .fv-sep{background:var(--fv-navy-line)}
+.fv-inlbar .fv-del:hover{background:var(--fv-danger);border-color:var(--fv-danger)}

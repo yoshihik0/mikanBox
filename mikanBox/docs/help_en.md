@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.21.4</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.22.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -589,12 +589,27 @@ Visual Editing works only on pages that publish HTML (output format HTML or HTML
 - The [[edit_square]{.material-symbols-outlined} Visual edit]{.m-btn .m-btn-blue} button at the top right of the page edit screen.
 - Open `visual.php` in the admin folder (next to `admin.php`) directly. A page picker appears.
 
-#### Editing the body (pick with the magnifier, edit in the "Body" panel below)
+#### Click text to edit it in place
 
-Body editing is **one panel that opens from the bottom: "Body"**. Only the part you picked is **cut out** into the input box, so you can focus on it. The page stays visible while you edit, changes show on it as you type, and the place you are changing gets a frame.
+From v2.22.0, **clicking text** in the body puts an input box right where the text is, so you can change it in place. The font and color stay as they are, and the cursor lands where you clicked.
 
-- The everyday screen is **browsing**. Clicking follows links as usual. Links within the site open in that page's **visual editor**, so you can look around. Links that lead outside the editor, such as other sites, open in a new tab and show a note when you touch them.
-- To change something, click it with the [[search]{.material-symbols-outlined} Pick to edit]{.m-btn} (magnifier) at the bottom right. On a selector row, **click the path (such as `.pillar`)** or press [[edit_note]{.material-symbols-outlined}]{.m-btn}: the "Body" panel opens with **only that element** in the input box. The element also gets a frame on the page, and the page scrolls by itself so the picked place is visible. The cut-out part corresponds to that place in the whole body, and saving saves the whole body.
+- You can edit headings, paragraphs, list items, table cells, bold and italic text, link labels, code blocks and text inside HTML. A dotted frame appears when you point at them.
+- Save with ⌘/Ctrl+Enter (or ⌘/Ctrl+S, or [[check]{.material-symbols-outlined}]{.m-btn} on the bar); cancel with Esc. Saving updates the body at once, and ↶ at the bottom right takes it back. In single-line text, Enter does not add a line break (in a code block of several lines, Shift+Enter does).
+- **Links, buttons and the headings of collapsible sections** work as usual when clicked. To change their wording, **Shift+click** them.
+- A small bar appears next to the input box. [[add_row_above]{.material-symbols-outlined}]{.m-btn} [[add_row_below]{.material-symbols-outlined}]{.m-btn} add a paragraph **right before or after** that paragraph or heading, and [[delete]{.material-symbols-outlined}]{.m-btn} deletes it (after showing what will be removed and asking). For a paragraph written inside HTML such as a `<div>`, the new one goes inside it. An element written in HTML (such as `<li>`) is added wrapped in the same tag. The new one says "(new paragraph)" and is ready for typing. On an item of a Markdown list, these add or delete an item (indented items under it go with it). Inside a table, they act on the whole table.
+- [[edit_note]{.material-symbols-outlined}]{.m-btn} on the bar moves to the "Body" panel below, keeping what you typed.
+- What you type is saved **as plain text**. Typing `**` or `<b>` shows those symbols as they are. To make text bold, add a link or add a line break, use the "Body" panel.
+- Only text whose place in the body can be confirmed is editable in place. Elsewhere, for example in a block containing a `{{…}}` tag, a click opens the "Body" panel below at that part.
+- **Alt-click** (⌥-click) opens that element in the "Body" panel below. While the "Body" panel is open, a plain click also selects the element you clicked.
+- All of this works inside the screen-width check as well.
+- [[edit]{.material-symbols-outlined}]{.m-btn} (pencil) at the bottom right turns click-to-edit off, leaving **browsing only** (for example, to try parts of the page that react to clicks). The setting is remembered in the browser. If you click elsewhere with unsaved input, you are asked whether to discard it.
+
+#### Editing in the "Body" panel below (pick with Alt-click or the magnifier)
+
+For larger rewrites, or to change tags and Markdown symbols, use **the "Body" panel that opens from the bottom**. Only the part you picked is **cut out** into the input box, so you can focus on it. The page stays visible while you edit, changes show on it as you type, and the place you are changing gets a frame.
+
+- Clicking a link follows it as usual. Links within the site open in that page's **visual editor**, so you can look around. Links that lead outside the editor, such as other sites, open in a new tab and show a note when you touch them.
+- To pick a place, **Alt-click** (⌥-click) it, or click it with the [[search]{.material-symbols-outlined} Inspect]{.m-btn} (magnifier) at the bottom right. With the magnifier, on a selector row, **click the path (such as `.pillar`)** or press [[edit_note]{.material-symbols-outlined}]{.m-btn}: the "Body" panel opens with **only that element** in the input box. The element also gets a frame on the page, and the page scrolls by itself so the picked place is visible. The cut-out part corresponds to that place in the whole body, and saving saves the whole body.
 - Changes appear on the page right away (also inside the screen-width check, so you can edit **at phone width**). Save with ⌘/Ctrl+Enter or the Save button at the top right of the panel. The page is not reloaded after saving. "Unsaved" is shown until you save.
 - Live updates are made in the browser (nothing is sent to the server). Only blocks with parts the server completes, such as `{{…}}` tags, links within the site and images, and changes that regroup the blocks around them (opening or closing a code block, for example), are rendered by the server. Either way, the page looks as it will when published.
 - Live updates are separate from saving. If one cannot be shown (for example, the connection failed), "Could not update the page (saving still works)" appears at the top right of the panel; you can still save.
@@ -629,8 +644,8 @@ Body editing is **one panel that opens from the bottom: "Body"**. Only the part 
 
 #### Tools for checking
 
-- Magnifier (Pick to edit): click an element on the page to see candidate selectors (class names, etc.). The upper rows are the clicked element, the lower rows its outer parents. Each row has [[edit_note]{.material-symbols-outlined}]{.m-btn} (same as clicking the path: select the element at that level in the "Body" panel; only for elements inside the body), [[palette]{.material-symbols-outlined}]{.m-btn} (choose among the CSS rules related to the element at that level) and [[content_copy]{.material-symbols-outlined}]{.m-btn} (copy).
-- Screen width: shows the same page at phone (375), tablet (768) and PC (1200). CSS you type shows there at once. You can pick places with the magnifier here too, edit in the "Body" panel below without closing the check, and your changes show in this view at once. "Full width" ends the check and returns to the normal screen.
+- Magnifier (Inspect): click an element on the page to see candidate selectors (class names, etc.). The upper rows are the clicked element, the lower rows its outer parents. Each row has [[edit_note]{.material-symbols-outlined}]{.m-btn} (same as clicking the path: select the element at that level in the "Body" panel; only for elements inside the body), [[palette]{.material-symbols-outlined}]{.m-btn} (choose among the CSS rules related to the element at that level) and [[content_copy]{.material-symbols-outlined}]{.m-btn} (copy).
+- Screen width: shows the same page at phone (375), tablet (768) and PC (1200). CSS you type shows there at once. Here too you can click text to edit it in place and pick places with Alt-click or the magnifier, edit in the "Body" panel below without closing the check, and your changes show in this view at once. "Full width" ends the check and returns to the normal screen.
 
 #### Safety rules and limits
 

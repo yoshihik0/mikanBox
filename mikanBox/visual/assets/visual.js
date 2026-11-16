@@ -94,10 +94,11 @@
   var tgPoints = ibtn('history', T('visual_js_points_title'), 'fv-toggle fv-icon');
   var sep2 = el('span', 'fv-sep');
   var tgView = ibtn('devices', T('visual_js_view_title'), 'fv-toggle fv-icon');
+  var tgEdit = ibtn('edit', T('visual_js_edit_title'), 'fv-toggle fv-icon');
   var tgInspect = ibtn('search', T('visual_js_inspect_title'), 'fv-toggle', T('visual_js_inspect_label'));
   var tgMd = ibtn('edit_note', T('visual_js_md_title'), 'fv-toggle', T('visual_js_md_label'));
   var tgCss = ibtn('palette', T('visual_js_css_title'), 'fv-toggle', 'CSS');
-  dock.append(tgPages, lnkList, lnkPage, sep1, tgUndo, tgRedo, tgPoints, sep2, tgView, tgInspect, tgMd, tgCss); document.body.appendChild(dock);
+  dock.append(tgPages, lnkList, lnkPage, sep1, tgUndo, tgRedo, tgPoints, sep2, tgView, tgEdit, tgInspect, tgMd, tgCss); document.body.appendChild(dock);
   // 使い方は1つだけ: ふだんは閲覧（クリックでリンクをたどる。サイト内のリンクは、そのページのビジュアル編集で開く）。直したいところは、虫眼鏡で選ぶ
   var pageNote = null;
   if (!DOC && scopeEl() && !scopeEl().querySelector('[data-ln]')) {   // 本文がクリックで選べないページ（Raw HTML など）
@@ -145,7 +146,7 @@
   }
   // 保存していない入力があるときだけ確認してから go() を実行する
   function guard(message, go) {
-    if (active && active.dirty()) askConfirm(message).then(function (yes) { if (yes) go(); });
+    if ((active && active.dirty()) || (inl && inl.dirty())) askConfirm(message).then(function (yes) { if (yes) go(); });
     else go();
   }
   function history(kind) {
@@ -398,7 +399,7 @@
   // ---------------------------------------------------------------- 画面幅の確認
   var vp = null, vpFrame = null, vpWidth = 375;
   function liveDocs() { var d = [document]; try { if (vpFrame && vpFrame.contentDocument) d.push(vpFrame.contentDocument); } catch (e) {} return d; }
-  function closeViewport() { if (vp) { vp.remove(); vp = null; vpFrame = null; } tgView.classList.remove('active'); root.classList.remove('fv-vp-open'); }
+  function closeViewport() { if (inl && inl.doc !== document) closeInline(); if (vp) { vp.remove(); vp = null; vpFrame = null; } tgView.classList.remove('active'); root.classList.remove('fv-vp-open'); }
   function openViewport() {
     if (vp) { closeViewport(); return; }
     tgView.classList.add('active'); root.classList.add('fv-vp-open');
@@ -575,6 +576,7 @@
   }
   function openPanel(kind, after) {
     if (active && active.kind === kind) return;
+    if (inl) { leaveInline(function () { openPanel(kind, after); }); return; }   // 文字のその場編集は、パネルを開く前に終える
     if (active && !closePanel(false, function () { openPanel(kind, after); })) return;
     var K = KINDS[kind];
     sessionStorage.setItem('fv-panel', kind); K.btn.classList.add('active'); root.classList.add('fv-panel-open');
@@ -748,7 +750,8 @@
     var d; try { d = vpFrame.contentDocument; } catch (e) { return; }
     if (!d || !d.body || d.documentElement.hasAttribute('data-fv-bound')) return;
     d.documentElement.setAttribute('data-fv-bound', '1');
-    var st = d.createElement('style'); st.textContent = 'html.fv-inspect *{cursor:crosshair!important}.fv-target{outline:2px solid #3b9bd8!important;outline-offset:2px}'; d.head.appendChild(st);
+    var st = d.createElement('style'); st.textContent = 'html.fv-inspect *{cursor:crosshair!important}.fv-target{outline:2px solid #3b9bd8!important;outline-offset:2px}.fv-hover{outline:1px dashed #3b9bd8!important;outline-offset:2px;cursor:text}html.fv-inspect .fv-hover{outline:0!important}'; d.head.appendChild(st);
+    bindEdit(d);
     var sc = d.querySelector('.mikan-content-scope'); if (sc) { applyLn(sc); }
     d.addEventListener('mouseover', function (e) {
       if (!inspecting) return;
@@ -886,10 +889,10 @@
     var nth = 0; for (var x = elm.previousElementSibling; x; x = x.previousElementSibling) if (norm(x.textContent) === want) nth++;
     return cands[nth] || cands[0];
   }
-  function setTarget(a, b, path, root, doc, els) {
-    var P = mdPanel(); if (!P) return;
-    var full = P.getFull(), s = doc ? 0 : lineStart(full, a), e = doc ? full.length : lineEnd(full, b);
-    tgt = { s: s, e: e, path: [], crumbs: [], trail: [], root: root, doc: !!doc };
+  /** 本文 full の中で、行 a〜b のブロックから path をたどった先の範囲を返す（下の「本文」と、その場編集が、同じ決め方で対象を決める） */
+  function resolveTarget(full, a, b, path, root, doc, els) {
+    var s = doc ? 0 : lineStart(full, a), e = doc ? full.length : lineEnd(full, b);
+    var tgt = { s: s, e: e, path: [], crumbs: [], trail: [], root: root, doc: !!doc };
     for (var i = 0; i < path.length; i++) {
       var info = childRanges(full.slice(tgt.s, tgt.e)); if (!info) break;
       var same = info.all.filter(function (k) { return k.name === path[i].tag; }), k = same[path[i].nth];
@@ -900,7 +903,29 @@
       var s0 = tgt.s; tgt.s = s0 + k.s; tgt.e = s0 + k.e;
       if (k.md) { tgt.md = k.name; break; }
     }
+    return tgt;
+  }
+  function setTarget(a, b, path, root, doc, els) {
+    var P = mdPanel(); if (!P) return;
+    tgt = resolveTarget(P.getFull(), a, b, path, root, doc, els);
     tbar.reset(); applyTarget(true);
+  }
+  // ---- 前後への追加・削除の決まり（下の「本文」のバーと、その場編集のバーで共通）
+  /** 範囲 [s, e) が、行をまるごと使っているか（前後が改行か、端か） */
+  function unitWholeLines(f, s, e) {
+    var ls = f.lastIndexOf('\n', s - 1) + 1, le = f.indexOf('\n', e); if (le < 0) le = f.length;
+    return f.slice(ls, s).trim() === '' && f.slice(e, le).trim() === '';
+  }
+  /** 追加するものとの区切り: HTML の中の要素は、行をまるごと使っていれば改行、同じ行の中なら区切らない。それ以外は空行 */
+  function unitSep(f, s, e, nested) { return nested ? (unitWholeLines(f, s, e) ? '\n' : '') : '\n\n'; }
+  /** 追加する中身: HTML の中の要素は、同じタグで囲む */
+  function unitNew(nested, tag, text) { return nested ? '<' + tag + '>' + text + '</' + tag + '>' : text; }
+  /** 削除する範囲: 行をまるごと使っているときは、行ごと（HTML の中の要素でなければ、後ろの空行も） */
+  function unitDeleteRange(f, s, e, nested) {
+    if (!unitWholeLines(f, s, e)) return [s, e];
+    var a = f.lastIndexOf('\n', s - 1) + 1, b = f.indexOf('\n', e); b = b < 0 ? f.length : b + 1;
+    if (!nested && /^[ \t]*\n/.test(f.slice(b))) b += f.slice(b).indexOf('\n') + 1;
+    return [a, b];
   }
   /** 編集対象のバー（本文パネルの上）: 階層・中へ/外へ・上下に追加・複製・削除・追加などを元に戻す・全体を表示 */
   function buildTbar() {
@@ -948,13 +973,9 @@
       var s = stack.pop(); if (!s || !mdPanel()) return; tgt = s.tgt; mdPanel().setFull(s.full); kids.textContent = ''; applyTarget(true);
     });
     function nested() { return inner() && !tgt.md; }   // HTML の中の要素（Markdown の段落は、ふつうの段落として扱う）
-    function newPara() { return nested() ? '<' + innerTag() + '>' + T('visual_js_new_paragraph') + '</' + innerTag() + '>' : T('visual_js_new_paragraph'); }
+    function newPara() { return unitNew(nested(), nested() ? innerTag() : '', T('visual_js_new_paragraph')); }
     /** 要素が、行をまるごと使っているか（前後が改行か、端か）。使っていれば改行で区切り、同じ行の中なら、区切らずに並べる */
-    function wholeLines(f) {
-      var ls = f.lastIndexOf('\n', tgt.s - 1) + 1, le = f.indexOf('\n', tgt.e); if (le < 0) le = f.length;
-      return f.slice(ls, tgt.s).trim() === '' && f.slice(tgt.e, le).trim() === '';
-    }
-    function sepFor(f) { return nested() ? (wholeLines(f) ? '\n' : '') : '\n\n'; }
+    function sepFor(f) { return unitSep(f, tgt.s, tgt.e, nested()); }
     /** newFull にして、[s, e) を新しい編集対象にする。外側の要素の終わりは、増えた文字数だけずらす */
     function edit(newFull, s, e, nthDelta) {
       var P = mdPanel(), added = newFull.length - P.getFull().length;
@@ -979,11 +1000,7 @@
       var P = mdPanel(); if (!P || !tgt) return;
       if (del.dataset.armed === '1') {
         clearTimeout(delTimer); del.dataset.armed = '0'; del.classList.remove('armed'); del.innerHTML = ic('delete');
-        var f = P.getFull(), s = tgt.s, e = tgt.e;
-        if (wholeLines(f)) {   // 行をまるごと使っているときは、行ごと（ページ直下のブロックは、後ろの空行も）消す
-          s = f.lastIndexOf('\n', tgt.s - 1) + 1; e = f.indexOf('\n', tgt.e); e = e < 0 ? f.length : e + 1;
-          if (!nested() && /^[ \t]*\n/.test(f.slice(e))) e += f.slice(e).indexOf('\n') + 1;
-        }
+        var f = P.getFull(), dr = unitDeleteRange(f, tgt.s, tgt.e, nested()), s = dr[0], e = dr[1];   // 行をまるごと使っているときは、行ごと（ページ直下のブロックは、後ろの空行も）消す
         snap(); P.setFull(f.slice(0, s) + f.slice(e)); tgt = null; kids.textContent = ''; applyTarget(false); return;
       }
       del.dataset.armed = '1'; del.innerHTML = ic('delete') + '<span class="fv-lb">' + H(T('visual_js_delete_really')) + '</span>'; del.classList.add('armed');
@@ -1103,4 +1120,405 @@
     if (active && active.kind === 'md') go(); else openPanel('md', go);
     return true;
   }
+
+  // ---------------------------------------------------------------- 文字をクリックして、その場で直す
+  // 本文の文字をクリックすると、その文字の位置に入力欄を出す。直せるのは、元の本文のどこに当たるかを確かめられたところだけ:
+  // 本文のブロックをブラウザの中で変換し、文字を目印に置き換えて変換し直したとき、その文字だけが変わること、
+  // 変わった場所がクリックした場所と同じ（要素の並びが同じ）であることを確かめる。保存する文字も、同じように確かめてから送る。
+  // 確かめられないところ（{{…}} タグを含むブロックなど）は、下の「本文」で直す。
+  var INL_PROBE = 'FvInlineProbe7q';
+  /** 変換後のHTMLの文字を、表示される文字に戻す。知らない名前の参照があれば null */
+  function inlDecode(s) {
+    var bad = false, named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+    var out = String(s).replace(/&(#\d+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);/g, function (whole, body) {
+      if (body.charAt(0) !== '#') { if (Object.prototype.hasOwnProperty.call(named, body)) return named[body]; bad = true; return whole; }
+      var code = /^#[xX]/.test(body) ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+      if (!(code > 0 && code <= 0x10ffff)) { bad = true; return whole; }
+      return String.fromCodePoint(code);
+    });
+    return bad ? null : out;
+  }
+  function inlEscHtml(v) { return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  /** 記号を数値の参照にする（Markdownの記号として読まれないように） */
+  function inlEscMd(v) { return String(v).replace(/[!-\/:-@\[-\x60\x7b-~]/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+  /** 文字の前後の空白を分ける（直すのは、空白を除いた中身だけ） */
+  function inlSplit(data) {
+    var m = /^(\s*)([\s\S]*?)(\s*)$/.exec(String(data));
+    return { lead: m[1], core: m[2], trail: m[3] };
+  }
+  /**
+   * ブロックの本文 src の中で、表示されている文字 core に当たる場所の候補を返す。
+   * 候補は、そこを目印に置き換えて変換し直すと、変換結果のうち、ちょうど1つの文字のまとまり（タグとタグの間の全部）だけが目印に変わるもの。
+   * { at, len, A, B, html }: src の [at, at+len) が core。変換結果は A + 文字 + B。html は目印を入れた変換結果
+   */
+  function inlCandidates(src, core, render) {
+    var out = [], seen = {}, tried = 0, h0 = render(src);
+    if (!core || src.indexOf(INL_PROBE) >= 0) return out;
+    [core, inlEscHtml(core), inlEscMd(core)].forEach(function (needle) {
+      for (var at = src.indexOf(needle); at >= 0 && tried < 24; at = src.indexOf(needle, at + 1)) {
+        var key = at + ':' + needle.length; if (seen[key]) continue; seen[key] = 1; tried++;
+        var h1 = render(src.slice(0, at) + INL_PROBE + src.slice(at + needle.length)), p = h1.indexOf(INL_PROBE);
+        if (p < 0 || h1.indexOf(INL_PROBE, p + 1) >= 0) continue;
+        var A = h1.slice(0, p), B = h1.slice(p + INL_PROBE.length);
+        if (h0.length < A.length + B.length || h0.slice(0, A.length) !== A || h0.slice(h0.length - B.length) !== B) continue;
+        var mid = h0.slice(A.length, h0.length - B.length);
+        if (/[<>]/.test(mid) || inlDecode(mid) !== core) continue;
+        if (!/(^|>)\s*$/.test(A) || !/^\s*(<|$)/.test(B)) continue;   // 文字のまとまりの全部であること
+        out.push({ at: at, len: needle.length, A: A, B: B, html: h1 });
+      }
+    });
+    return out;
+  }
+  /** 候補 cand の場所を value に置き換えた本文を返す。変換し直して、表示がちょうど value になるものだけ。できなければ null */
+  function inlApply(src, cand, value, render) {
+    if (!String(value).trim() || /\x7b\x7b|[\u0000-\u0008\u000b-\u001f]/.test(value)) return null;
+    var encs = [function (v) { return v; }, inlEscHtml, inlEscMd];
+    for (var i = 0; i < encs.length; i++) {
+      var next = src.slice(0, cand.at) + encs[i](value) + src.slice(cand.at + cand.len), h = render(next);
+      if (h.length < cand.A.length + cand.B.length || h.slice(0, cand.A.length) !== cand.A || h.slice(h.length - cand.B.length) !== cand.B) continue;
+      var mid = h.slice(cand.A.length, h.length - cand.B.length);
+      if (!/[<>]/.test(mid) && inlDecode(mid) === value) return next;
+    }
+    return null;
+  }
+
+  /** 文字のノードの場所: 外の要素 top から、要素の並び（タグと、要素の中での何番目か）と、文字のまとまりの何番目か */
+  function inlPath(node, top) {
+    var steps = [], ord = 0, x;
+    for (x = node.previousSibling; x; x = x.previousSibling) if (x.nodeType === 3 && x.data.trim()) ord++;
+    for (var cur = node.parentNode; cur && cur !== top; cur = cur.parentNode) {
+      if (cur.nodeType !== 1) return null;
+      var n = 0; for (x = cur.previousElementSibling; x; x = x.previousElementSibling) n++;
+      steps.unshift(cur.tagName.toLowerCase() + ':' + n);
+    }
+    return cur === top ? steps.join('/') + '#' + ord : null;
+  }
+  /** 目印を入れた変換結果の中で、目印のある場所。{ root: いちばん外の要素の何番目か, path } */
+  function inlLocalPlace(html) {
+    var tpl = document.createElement('template'); tpl.innerHTML = html;
+    var w = document.createTreeWalker(tpl.content, NodeFilter.SHOW_TEXT), n;
+    while ((n = w.nextNode())) {
+      if (n.data.trim() !== INL_PROBE) continue;
+      var top = n; while (top.parentNode && top.parentNode !== tpl.content) top = top.parentNode;
+      if (top === n || top.nodeType !== 1) return null;
+      var root = 0; for (var x = top.previousElementSibling; x; x = x.previousElementSibling) root++;
+      return { root: root, path: top.tagName.toLowerCase() + '|' + inlPath(n, top) };
+    }
+    return null;
+  }
+
+  /** src の at の位置の行が、リストの項目の1行目なら、その項目の範囲（字下げした続きの行も含む）と、行頭の記号を返す */
+  function inlListItem(src, at) {
+    var s = src.lastIndexOf('\n', at - 1) + 1, le = src.indexOf('\n', s); if (le < 0) le = src.length;
+    var m = /^([ \t]*)([-*+]|\d+[.)])([ \t]+)/.exec(src.slice(s, le)); if (!m || at < s + m[0].length) return null;
+    var e = le;
+    while (e < src.length) {
+      var ns = e + 1, ne = src.indexOf('\n', ns); if (ne < 0) ne = src.length;
+      var line = src.slice(ns, ne), ind = /^[ \t]*/.exec(line)[0].length;
+      if (!line.trim() || ind <= m[1].length) break;
+      e = ne;
+    }
+    return { s: s, e: e, head: m[0] };
+  }
+
+  var inl = null, inlLoading = false, editOn = true;
+  try { editOn = localStorage.getItem('fv-edit') !== '0'; } catch (e) {}
+  function setEdit(v) {
+    editOn = v; tgEdit.classList.toggle('active', v); root.classList.toggle('fv-edit', v);
+    try { localStorage.setItem('fv-edit', v ? '1' : '0'); } catch (e) {}
+    if (!v) { clearHover(); leaveInline(function () {}); }
+  }
+  tgEdit.addEventListener('click', function () { setEdit(!editOn); toast(editOn ? T('visual_js_edit_on') : T('visual_js_edit_off')); });
+
+  // ---- 直せるところに触れたら、枠を出す（画面幅の確認の中でも同じ。そちらには bindFrame がつなぐ）
+  var INL_BLOCKS = 'p,h1,h2,h3,h4,h5,h6,li,td,th,figcaption,blockquote,caption,dt,dd,summary,pre';
+  var INL_NATIVE = 'a[href],area[href],button,summary,input,select,textarea,label,video,audio,iframe,[contenteditable],[role="button"],[role="tab"],[onclick]';
+  var hovered = null;
+  function scopeOf(d) { return d.querySelector('.mikan-content-scope'); }
+  function clearHover() { if (hovered) { hovered.classList.remove('fv-hover'); hovered = null; } }
+  function editableBlock(t) {
+    if (!t || !t.closest || t.closest('.fv-ui')) return null;
+    var blk = t.closest('[data-ln]'), sc = scopeOf(t.ownerDocument);
+    if (!blk || !sc || !sc.contains(blk)) return null;
+    var b = t.closest(INL_BLOCKS);
+    return b && blk.contains(b) ? b : blk;
+  }
+  function onEditHover(e) {
+    var b = editOn && !inspecting && !inl && !(active && active.kind === 'css') ? editableBlock(e.target) : null;
+    if (b === hovered) return;
+    clearHover(); if (b) { hovered = b; b.classList.add('fv-hover'); }
+  }
+
+  // ---- 入力欄を、文字の位置に置く（文字と同じ書体・色・行間で）
+  function inlMount(node, parts) {
+    var d = node.ownerDocument, host = node.parentElement, cs = d.defaultView.getComputedStyle(host), ta = d.createElement('textarea');
+    var multi = parts.core.indexOf('\n') >= 0, alone = !multi && host.childNodes.length === 1 && !host.matches('a,span,strong,em,b,i,u,s,small,code,mark,sub,sup,cite,summary');
+    function style(x, css) { Object.keys(css).forEach(function (k) { x.style.setProperty(k, css[k], 'important'); }); }
+    var copy = {};
+    ['font-family', 'font-size', 'font-style', 'font-weight', 'font-variant', 'letter-spacing', 'line-height', 'text-align', 'text-indent', 'text-transform', 'color', 'direction', 'word-spacing', 'tab-size', 'font-feature-settings'].forEach(function (p) { copy[p] = cs.getPropertyValue(p); });
+    var base = { 'box-sizing': 'border-box', margin: '0', padding: '0', border: '0', 'border-radius': '0', background: 'transparent', outline: 'none', resize: 'none', overflow: 'hidden', 'box-shadow': 'none', 'min-width': '0', 'min-height': '0', 'max-width': 'none', 'max-height': 'none', appearance: 'none', '-webkit-appearance': 'none', 'caret-color': 'auto', float: 'none', transition: 'none' };
+    ta.rows = 1; ta.spellcheck = false; ta.value = parts.core; ta.setAttribute('aria-label', T('visual_js_inline_label'));
+    style(ta, base); style(ta, copy);
+    var wrap = d.createElement('span'), mirror = null; wrap.className = 'fv-inl fv-ui';
+    if (multi || alone) {
+      // その要素の文字がこれだけ（または複数行）: 幅いっぱいの入力欄。高さは中身に合わせる
+      style(wrap, { display: 'block', position: 'static', margin: '0', padding: '0' });
+      style(ta, { display: 'block', width: '100%', 'white-space': multi ? 'pre' : 'pre-wrap', 'overflow-x': multi ? 'auto' : 'hidden' });
+      if (multi) ta.wrap = 'off';
+      wrap.appendChild(ta);
+    } else {
+      // 文の途中の文字: 見えない写しで幅と高さを決め、入力欄を重ねる（入力に合わせて伸び縮みし、長ければ折り返す）
+      mirror = d.createElement('span'); mirror.setAttribute('aria-hidden', 'true');
+      style(wrap, { display: 'inline-grid', position: 'relative', 'grid-template-columns': 'minmax(0,1fr)', 'max-width': '100%', 'vertical-align': 'baseline', margin: '0', padding: '0' });
+      style(mirror, copy); style(mirror, { visibility: 'hidden', 'white-space': 'pre-wrap', 'overflow-wrap': 'anywhere', 'padding-inline-end': '2px', 'min-width': '1ch' });
+      style(ta, { position: 'absolute', inset: '0', width: '100%', height: '100%', 'white-space': 'pre-wrap', 'overflow-wrap': 'anywhere' });
+      wrap.append(mirror, ta);
+    }
+    var lead = d.createTextNode(parts.lead), trail = d.createTextNode(parts.trail);
+    node.replaceWith(lead, wrap, trail);
+    function fit() {
+      if (mirror) { mirror.textContent = ta.value || ' '; return; }
+      ta.style.setProperty('height', 'auto', 'important'); ta.style.setProperty('height', Math.max(ta.scrollHeight, 1) + 'px', 'important');
+    }
+    fit();
+    return {
+      input: ta, wrap: wrap, multi: multi, fit: fit,
+      unmount: function (saved) { if (saved !== undefined) node.data = parts.lead + saved + parts.trail; lead.remove(); trail.remove(); wrap.replaceWith(node); }
+    };
+  }
+
+  // ---- 入力欄のそばに出す、小さなバー（前後に追加・削除・本文で直す・キャンセル・保存）
+  function inlBar(item) {
+    var bar = el('div', 'fv-inlbar fv-ui'), msg = el('span', 'fv-inlmsg', T('visual_js_inline_hint'));
+    var above = ibtn('add_row_above', item ? T('visual_js_inline_item_above') : T('visual_js_add_above'), ''), below = ibtn('add_row_below', item ? T('visual_js_inline_item_below') : T('visual_js_add_below'), '');
+    var del = ibtn('delete', item ? T('visual_js_inline_item_delete') : T('visual_js_delete_block'), 'fv-del');
+    var src = ibtn('edit_note', T('visual_js_inline_source'), ''), cancel = ibtn('close', T('visual_js_cancel_esc'), ''), save = ibtn('check', T('visual_js_save_title'), 'fv-save');
+    [above, below, del, src, cancel, save].forEach(function (b) { b.addEventListener('mousedown', function (ev) { ev.preventDefault(); }); });
+    above.addEventListener('click', function () { inlAdd(false); }); below.addEventListener('click', function () { inlAdd(true); }); del.addEventListener('click', inlDelete);
+    src.addEventListener('click', inlToSource); cancel.addEventListener('click', function () { closeInline(); }); save.addEventListener('click', saveInline);
+    bar.append(msg, above, below, del, el('span', 'fv-sep'), src, cancel, save); document.body.appendChild(bar);
+    return { el: bar, say: function (t, bad) { msg.textContent = t; msg.classList.toggle('bad', !!bad); placeInline(); } };
+  }
+  function placeInline() {
+    if (!inl) return;
+    var r = inl.m.wrap.getBoundingClientRect(), b = inl.bar.el, w = b.offsetWidth, h = b.offsetHeight, f = inl.doc !== document && vpFrame ? vpFrame.getBoundingClientRect() : { left: 0, top: 0 };
+    var top = r.top + f.top - h - 8 >= 8 ? r.top + f.top - h - 8 : r.bottom + f.top + 8;
+    b.style.left = Math.max(8, Math.min(r.left + f.left, innerWidth - w - 8)) + 'px';
+    b.style.top = Math.max(8, Math.min(top, innerHeight - h - 8)) + 'px';
+  }
+  window.addEventListener('scroll', placeInline, true); window.addEventListener('resize', placeInline);
+
+  function closeInline(saved) {
+    if (!inl) return;
+    var x = inl; inl = null; x.m.unmount(saved); x.bar.el.remove(); x.host.classList.remove('fv-target');
+  }
+  /** その場編集を終えてから then() を実行する。未保存の入力があれば、捨ててよいかを確かめる */
+  function leaveInline(then) {
+    if (!inl) { then(); return; }
+    if (!inl.dirty()) { closeInline(); then(); return; }
+    var x = inl;
+    askConfirm(T('visual_js_inline_discard')).then(function (yes) { if (yes) { if (inl === x) closeInline(); then(); } else if (inl === x) x.m.input.focus({ preventScroll: true }); });
+  }
+  /** 本文全体を next にして保存し、ページを描き直す。saved は、入力欄を閉じるときに文字に残す内容。then は、描き直したあと */
+  function inlCommit(x, next, saved, then) {
+    x.busy = true; x.bar.say(T('visual_js_inline_saving'));
+    post(API('save-md'), { id: PAGE, old: x.full, new: next }).then(function (r) {
+      x.busy = false;
+      if (!r.ok) { if (inl === x) x.bar.say(r.j.error || T('visual_js_save_failed'), true); return; }
+      if (inl === x) closeInline(saved);
+      toast(T('visual_js_saved') + (r.j.notice ? ' ' + r.j.notice : ''));
+      refreshContent(next).then(function () { if (then) then(); });
+    }).catch(function () { x.busy = false; if (inl === x) x.bar.say(T('visual_js_save_failed'), true); });
+  }
+  /** 入力中の内容を入れた、ブロックの本文（直していなければ、そのまま）。表示どおりに保存できない入力なら null */
+  function inlBase(x) {
+    var v = x.m.input.value;
+    if (v === x.initial) return x.src;
+    if (!x.m.multi && /[\r\n]/.test(v)) return null;
+    return inlApply(x.src, x.cand, v, x.render);
+  }
+  function saveInline() {
+    if (!inl || inl.busy || inl.composing) return;
+    var x = inl, v = x.m.input.value;
+    if (v === x.initial) { closeInline(); return; }
+    if (!x.m.multi && /[\r\n]/.test(v)) { x.bar.say(T('visual_js_inline_one_line'), true); return; }
+    var block = inlBase(x);
+    if (block === null) { x.bar.say(T('visual_js_inline_cannot'), true); return; }
+    inlCommit(x, x.full.slice(0, x.s) + block + x.full.slice(x.e), v);
+  }
+  /** 入力した内容を持ったまま、下の「本文」で、その要素を開く */
+  function inlToSource() {
+    if (!inl || inl.busy) return;
+    var x = inl, next = null;
+    if (x.dirty()) {
+      var block = inlBase(x);
+      if (block === null) { x.bar.say(T('visual_js_inline_cannot'), true); return; }
+      next = x.full.slice(0, x.s) + block + x.full.slice(x.e);
+    }
+    var ep = editPath(x.host), ln = /^(\d+)-(\d+)$/.exec(ep ? ep.blk.getAttribute('data-ln') : ''); if (!ln) return;
+    var rootIdx = Math.max(0, [].slice.call(ep.blk.ownerDocument.querySelectorAll('[data-ln="' + ln[0] + '"]')).indexOf(ep.blk));
+    closeInline();
+    openPanel('md', function () {
+      var P = mdPanel(); if (!P) return;
+      var a = +ln[1], b = +ln[2];
+      if (next !== null) { P.setFull(next); b += next.split('\n').length - x.full.split('\n').length; }
+      setTarget(a, b, ep.path, rootIdx, false, next === null ? ep.els : null);
+    });
+  }
+
+  // ---- 前後に追加・削除。リストの項目の文字なら項目を、それ以外は、本文のブロック（空行で区切ったまとまり）を扱う。どれも、すぐに保存する
+  function inlCountLi(html) { return (html.match(/<li[\s>]/g) || []).length; }
+  function inlTimes(text, part) { return text.split(part).length - 1; }
+  /** 追加したところ（ph と書いた、nth 番目の文字）を、その場で直せるように開く */
+  function inlOpenNew(d, ph, nth) {
+    var found = [], sc = scopeOf(d); if (!sc) return;
+    var w = d.createTreeWalker(sc, NodeFilter.SHOW_TEXT), n;
+    while ((n = w.nextNode())) if (n.data.trim() === ph && n.parentElement.closest('[data-ln]') && !n.parentElement.closest('.fv-ui')) found.push(n);
+    var node = found[Math.min(nth, found.length - 1)];
+    if (node) startInline(node, undefined, true);
+  }
+  /** 入力中の内容を入れた本文全体と、その中での対象の範囲 */
+  function inlUnit(x, base) {
+    return { f: x.full.slice(0, x.s) + base + x.full.slice(x.e), s: x.unit.s, e: x.unit.e + base.length - x.src.length, nested: x.unit.nested, tag: x.unit.tag };
+  }
+  function inlAdd(after) {
+    if (!inl || inl.busy || inl.composing) return;
+    var x = inl, base = inlBase(x), item = base !== null && x.item ? inlListItem(base, x.cand.at) : null, next, ph, at;
+    if (base === null) { x.bar.say(T('visual_js_inline_cannot'), true); return; }
+    if (item) {
+      ph = T('visual_js_new_item');
+      var row = item.head + ph, block = after ? base.slice(0, item.e) + '\n' + row + base.slice(item.e) : base.slice(0, item.s) + row + '\n' + base.slice(item.s);
+      if (inlCountLi(x.render(block)) !== inlCountLi(x.render(base)) + 1) { x.bar.say(T('visual_js_inline_cannot'), true); return; }
+      next = x.full.slice(0, x.s) + block + x.full.slice(x.e);
+      at = x.s + (after ? item.e + 1 : item.s);
+    } else {
+      ph = T('visual_js_new_paragraph');
+      var u = inlUnit(x, base), t = unitNew(u.nested, u.tag, ph), sep = unitSep(u.f, u.s, u.e, u.nested);
+      next = after ? u.f.slice(0, u.e) + sep + t + u.f.slice(u.e) : u.f.slice(0, u.s) + t + sep + u.f.slice(u.s);
+      at = after ? u.e + sep.length : u.s;
+    }
+    var d = x.doc, nth = inlTimes(next.slice(0, at), ph);
+    inlCommit(x, next, undefined, function () { inlOpenNew(d, ph, nth); });
+  }
+  function inlDelete() {
+    if (!inl || inl.busy || inl.composing) return;
+    var x = inl, item = x.item ? inlListItem(x.src, x.cand.at) : null, next = null, what;
+    if (item) {   // リストの項目だけを消す。最後の1項目のときは、リストごと（下へ）
+      var block = item.e < x.src.length ? x.src.slice(0, item.s) + x.src.slice(item.e + 1) : x.src.slice(0, Math.max(0, item.s - 1));
+      var left = block.trim() ? inlCountLi(x.render(block)) : 0;
+      if (left >= 1 && left < inlCountLi(x.render(x.src))) { next = x.full.slice(0, x.s) + block + x.full.slice(x.e); what = x.src.slice(item.s, item.e); }
+    }
+    if (next === null) {
+      var u = inlUnit(x, x.src), dr = unitDeleteRange(u.f, u.s, u.e, u.nested);
+      next = u.f.slice(0, dr[0]) + u.f.slice(dr[1]); what = u.f.slice(u.s, u.e);
+    }
+    var shown = what.replace(/\s+/g, ' ').trim();
+    askConfirm(T('visual_js_inline_delete_confirm', shown.length > 40 ? shown.slice(0, 40) + '…' : shown)).then(function (yes) {
+      if (inl !== x) return;
+      if (yes) inlCommit(x, next); else x.m.input.focus({ preventScroll: true });
+    });
+  }
+
+  /** クリックした文字 node を、その場で直す。できないところは、下の「本文」で、その要素を開く。selectAll: 文字を全部選んだ状態で開く（追加した直後） */
+  function startInline(node, offset, selectAll) {
+    var d = node.ownerDocument, host = node.parentElement, blk = host.closest('[data-ln]'), m = /^(\d+)-(\d+)$/.exec(blk.getAttribute('data-ln') || '');
+    function fallback() { if (openEditAt(host)) toast(T('visual_js_inline_fallback')); else toast(T('visual_js_inline_unavailable')); }
+    if (!LIVE || !LIVE.markdown || !m) { fallback(); return; }
+    if (inlLoading) return;
+    inlLoading = true;
+    jfetch(API('source') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (x) {
+      inlLoading = false;
+      if (!x.ok) { toast(x.j.error || T('visual_js_failed')); return; }
+      if (inl || active || !node.isConnected) return;
+      var full = String(x.j.text), isHtml = !!x.j.is_html || /^\s*<!DOCTYPE/i.test(full);
+      var bk = LIVE.splitBlocks(full).filter(function (b) { return b.start === +m[1] && b.end === +m[2]; })[0];
+      var parts = inlSplit(node.data);
+      if (!bk || !parts.core || bk.text.indexOf('{{') >= 0 || /<!--\s*\/?fv/.test(bk.text)) { fallback(); return; }
+      var render = isHtml ? function (t) { return t; } : function (t) { return LIVE.markdown(t); };
+      var rootIdx = 0; for (var s = blk.previousElementSibling; s; s = s.previousElementSibling) if (s.getAttribute('data-ln') === m[0]) rootIdx++;
+      var want = blk.tagName.toLowerCase() + '|' + inlPath(node, blk);
+      var cand = inlCandidates(bk.text, parts.core, render).filter(function (c) { var p = inlLocalPlace(c.html); return p && p.root === rootIdx && p.path === want; })[0];
+      if (!cand) { fallback(); return; }
+      clearHover();
+      var item = !isHtml && !!host.closest('li') && blk.contains(host.closest('li')) && !!inlListItem(bk.text, cand.at);
+      // 追加・削除の対象: 文字を含む、いちばん近いまとまり（段落・見出しなど）。本文の中の範囲は、下の「本文」で選ぶときと同じ決め方
+      var bs = lineStart(full, bk.start), be = lineEnd(full, bk.end), pos = bs + cand.at, unit = { s: bs, e: be, nested: false, tag: '' };
+      var unitEl = host.closest(INL_BLOCKS); if (!unitEl || !blk.contains(unitEl)) unitEl = host;
+      var ep = editPath(unitEl), rt = ep && !ep.doc ? resolveTarget(full, bk.start, bk.end, ep.path, 0, false, ep.els) : null;
+      if (rt && rt.s <= pos && pos < rt.e) unit = { s: rt.s, e: rt.e, nested: rt.path.length > 0 && !rt.md, tag: rt.path.length ? rt.path[rt.path.length - 1].tag : '' };
+      var mount = inlMount(node, parts), bar = inlBar(item, unit.nested);
+      inl = {
+        m: mount, bar: bar, host: host, doc: d, bk: bk, item: item, unit: unit, full: full, s: bs, e: be, src: bk.text, cand: cand, render: render,
+        initial: parts.core, busy: false, composing: false, dirty: function () { return mount.input.value !== parts.core; }
+      };
+      host.classList.add('fv-target');
+      var ta = mount.input, x0 = inl;
+      ta.addEventListener('input', function () { mount.fit(); if (inl === x0) bar.say(x0.dirty() ? T('visual_js_unsaved') : T('visual_js_inline_hint')); });
+      ta.addEventListener('compositionstart', function () { x0.composing = true; });
+      ta.addEventListener('compositionend', function () { x0.composing = false; });
+      ta.addEventListener('keydown', function (ev) {
+        ev.stopPropagation();
+        if (ev.isComposing || x0.composing || ev.keyCode === 229) return;   // 日本語の変換中は、確定のEnterなどをそのまま通す
+        var mod = ev.metaKey || ev.ctrlKey;
+        if (ev.key === 'Escape') { ev.preventDefault(); closeInline(); }
+        else if (mod && (ev.key === 'Enter' || ev.key.toLowerCase() === 's')) { ev.preventDefault(); saveInline(); }
+        else if (ev.key === 'Enter' && !(ev.shiftKey && mount.multi)) ev.preventDefault();
+      });
+      if (selectAll) {   // 追加した直後: 見えるところまで動かす
+        var r = mount.wrap.getBoundingClientRect(), vh = d.defaultView.innerHeight;
+        if (r.top < 60 || r.bottom > vh - 80) d.defaultView.scrollBy({ top: r.top - vh / 3, behavior: 'instant' });
+      }
+      placeInline();
+      ta.focus({ preventScroll: true });
+      var pos = Math.max(0, Math.min(parts.core.length, (offset === undefined ? node.data.length : offset) - parts.lead.length));
+      if (selectAll) ta.setSelectionRange(0, parts.core.length); else ta.setSelectionRange(pos, pos);
+    }).catch(function () { inlLoading = false; toast(T('visual_js_failed')); });
+  }
+
+  /** クリックした位置にある文字のノードと、その中の位置（文字の上をクリックしたときだけ） */
+  function textAt(e, t) {
+    var node = null, off = 0, d = t.ownerDocument;
+    if (d.caretPositionFromPoint) { var cp = d.caretPositionFromPoint(e.clientX, e.clientY); if (cp) { node = cp.offsetNode; off = cp.offset; } }
+    else if (d.caretRangeFromPoint) { var cr = d.caretRangeFromPoint(e.clientX, e.clientY); if (cr) { node = cr.startContainer; off = cr.startOffset; } }
+    if (!node || node.nodeType !== 3 || !node.data.trim() || !node.parentElement || !(node.parentElement === t || t.contains(node.parentElement))) return null;
+    var r = d.createRange(); r.selectNodeContents(node);
+    var hit = [].slice.call(r.getClientRects()).some(function (b) { return e.clientX >= b.left - 3 && e.clientX <= b.right + 3 && e.clientY >= b.top - 3 && e.clientY <= b.bottom + 3; });
+    return hit ? { node: node, offset: off } : null;
+  }
+  var downAt = null;
+  function onEditDown(e) { downAt = { x: e.clientX, y: e.clientY }; }
+  function onEditClick(e) {
+    if (!editOn || inspecting || e.button !== 0 || e.metaKey || e.ctrlKey) return;
+    var t = e.target.nodeType === 1 ? e.target : e.target.parentElement;
+    if (!t || t.closest('.fv-ui')) return;
+    var d = t.ownerDocument;
+    function stop() { e.preventDefault(); e.stopPropagation(); }
+    if (inl) {   // 入力欄の外をクリック: 未保存なら確かめる。変更がなければ閉じて、このクリックをそのまま扱う
+      if (inl.busy) { stop(); return; }
+      if (inl.dirty()) { stop(); leaveInline(function () {}); return; }
+      closeInline();
+    }
+    var sc = scopeOf(d); if (!sc || !sc.contains(t) || (active && active.kind === 'css')) return;
+    if (e.altKey) {   // ⌥クリック: その要素を、下の「本文」で開く
+      if (!editPath(t)) return;
+      stop(); openEditAt(t); return;
+    }
+    if (DOC || !t.closest('[data-ln]')) return;
+    if (t.closest(INL_NATIVE) && !e.shiftKey) return;   // リンク・ボタンなどは、ふつうに動かす（文言を直すときは Shift+クリック）
+    var dragged = e.detail && downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5, sel = d.defaultView.getSelection();
+    if (dragged || (sel && !sel.isCollapsed && sel.toString().trim())) return;   // 文字を選択する操作
+    var hit = textAt(e, t); if (!hit) return;
+    stop();
+    if (active && active.kind === 'md') { openEditAt(hit.node.parentElement); return; }   // 「本文」を開いているときは、そこで選ぶ
+    startInline(hit.node, hit.offset);
+  }
+  /** クリックで直すしくみを、文書 d（このページ、または画面幅の確認の中）につなぐ */
+  function bindEdit(d) {
+    d.addEventListener('mouseover', onEditHover);
+    d.addEventListener('pointerdown', onEditDown, true);
+    d.addEventListener('click', onEditClick, true);
+    if (d !== document) d.defaultView.addEventListener('scroll', placeInline, true);
+  }
+  bindEdit(document);
+  setEdit(editOn);
 })();
