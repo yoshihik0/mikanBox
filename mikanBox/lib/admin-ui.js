@@ -126,12 +126,16 @@
 
   // Replace the listed elements with their fresh versions from the server, keeping which
   // <details> were open and the scroll position.
-  async function refresh(selectors) {
+  // url: where to read the fresh screen from (default: this address). A failed read throws.
+  async function refresh(selectors, url) {
     const list = Array.isArray(selectors) ? selectors : String(selectors || '').split(',').map(s => s.trim()).filter(Boolean);
     if (!list.length) return;
-    const response = await fetch(window.location.href, { credentials: 'same-origin' });
+    const response = await fetch(url || window.location.href, { credentials: 'same-origin', cache: url ? 'no-store' : 'default' });
+    if (url && !response.ok) throw new Error('refresh failed');
     const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
     const y = window.scrollY;
+    // A sign-in page or an error page has none of the parts: that is a failure, not "nothing changed".
+    if (url && !list.some(selector => doc.querySelector(selector))) throw new Error('refresh failed');
     for (const selector of list) {
       const fresh = doc.querySelector(selector);
       const old = document.querySelector(selector);
@@ -142,6 +146,38 @@
     }
     window.scrollTo({ top: y, behavior: 'instant' });
   }
+
+  // A reload that cannot be avoided (program update, restore) comes back to the same place:
+  // the admin screen reads this once on its next load.
+  function keepPosition() {
+    try {
+      const open = [...document.querySelectorAll('details')].map(detail => detail.open);
+      sessionStorage.setItem('mikanbox-reload-position', JSON.stringify({ y: window.scrollY, open, at: Date.now() }));
+    } catch (_) { /* no storage: the reload starts at the top */ }
+  }
+
+  // Links: <a href="..." data-refresh="#a, #b"> reads its address in the background and updates
+  // only those parts (e.g. "Check again" for the version). The screen is not reloaded;
+  // data-done="message" is shown in the toast when it worked.
+  document.addEventListener('click', async (event) => {
+    const link = event.target instanceof Element ? event.target.closest('a[data-refresh]') : null;
+    if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (link.getAttribute('aria-busy') === 'true') return;
+    link.setAttribute('aria-busy', 'true');
+    link.style.opacity = '0.5';
+    const done = link.dataset.done || '', selectors = link.dataset.refresh;
+    try {
+      await refresh(selectors, link.href);
+      // The refreshed part can say that it has nothing to show: data-failed="message".
+      const failed = document.querySelector(selectors.split(',')[0].trim() + '[data-failed]');
+      if (failed) toast(failed.dataset.failed, true); else toast(done);
+    } catch (_) {
+      toast(S().networkError || '', true);
+    } finally {
+      if (link.isConnected) { link.removeAttribute('aria-busy'); link.style.opacity = ''; }
+    }
+  });
 
   // Forms: data-confirm="message" asks first; data-ajax runs it without a reload and
   // data-refresh="#a, #b" updates those parts of the screen; data-busy-text swaps the
@@ -179,6 +215,7 @@
       if (form.dataset.busyText && button) { button.disabled = true; button.textContent = form.dataset.busyText; }
       form.setAttribute('aria-busy', 'true');
       form.dataset.uiHandled = '1';
+      keepPosition();
       if (submitter && submitter.name) {
         const hidden = document.createElement('input');
         hidden.type = 'hidden'; hidden.name = submitter.name; hidden.value = submitter.value;
@@ -280,7 +317,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', checkDataProtection);
   else checkDataProtection();
 
-  window.MikanUI = { toast, confirm: confirmDialog, post, ensureSession, refresh, expand, collapse, fadeOut, scrollToY };
+  window.MikanUI = { toast, confirm: confirmDialog, post, ensureSession, refresh, keepPosition, expand, collapse, fadeOut, scrollToY };
   window.showToast = toast;
   window.showConfirmDialog = confirmDialog;
 })();

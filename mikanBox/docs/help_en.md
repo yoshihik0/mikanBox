@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.22.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.22.1</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -674,7 +674,7 @@ Saves the memo's content.
 
 ### System Update
 
-Displays the installed version and the latest version available on GitHub. When a newer version is available, use the [Update] button to update mikanBox.
+Displays the installed version and the latest version available on GitHub. When a newer version is available, use the [Update] button to update mikanBox. [Check again] fetches the latest version information again. The screen is not reloaded, and the result appears at the bottom right (from v2.22.1). Updating, reinstalling and restoring the previous version do reload the screen, which then returns to the same position.
 
 Updates use only published stable GitHub releases. Development branches and tags without a release are excluded. Publication is verified again when the update starts, and the download is pinned to a specific commit. If verification fails, the update stops. Only one update or restore can run per site; if another operation is running, try again after it finishes.
 

@@ -328,7 +328,7 @@
     return fetch(location.href, { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (html) {
       var doc = new DOMParser().parseFromString(html, 'text/html');
       var neu = doc.querySelector('.mikan-content-scope'), cur = scopeEl();
-      if (!neu || !cur) { location.reload(); return; }
+      if (!neu || !cur) { sessionStorage.setItem('fv-scroll', String(y)); location.reload(); return; }
       liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; swapScope(sc, neu); applyLn(sc); if (d === document) rewriteLinks(sc); });   // 画面幅の確認の中も、同じ本文にそろえる
       window.scrollTo(0, y);
       domText = text === undefined ? null : text;

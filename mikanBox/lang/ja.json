@@ -135,6 +135,7 @@
     "version_latest_current": "最新版です",
     "version_check_failed": "取得できませんでした",
     "btn_check_updates": "再確認",
+    "msg_updates_checked": "最新バージョンを確認しました",
     "btn_system_update": "更新する",
     "btn_system_reinstall": "再インストール",
     "msg_system_updating": "更新中…",

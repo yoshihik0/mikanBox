@@ -46,7 +46,7 @@
     if (!mikanBoxUpdateBackupMatchesVersion($updateBackup, $installedVersion)) $updateBackup = null;
     ?>
     <div class="section-container section-tight">
-        <div style="font-size:0.82em; color:var(--text-sub,#888); padding:6px 2px; display:flex; gap:1.5em; align-items:center; flex-wrap:wrap;">
+        <div id="version-row"<?= $latestVersion ? '' : ' data-failed="' . htmlspecialchars(t('version_latest') . ': ' . t('version_check_failed'), ENT_QUOTES) . '"' ?> style="font-size:0.82em; color:var(--text-sub,#888); padding:6px 2px; display:flex; gap:1.5em; align-items:center; flex-wrap:wrap;">
             <span><?= t('version_current') ?>: <?= htmlspecialchars($installedVersion) ?></span>
             <div style="display:inline-flex; gap:8px; align-items:center;">
                 <?= t('version_latest') ?>: <?= $latestVersion ? htmlspecialchars($latestVersion) : t('version_check_failed') ?>
@@ -72,7 +72,7 @@
                         <button type="submit" style="font:inherit; color:inherit; background:none; border:0; padding:0; text-decoration:underline; cursor:pointer;"><?= t('btn_system_reinstall') ?></button>
                     </form>
                 <?php endif; ?>
-                <a href="admin.php?view=settings&amp;refresh_updates=1" style="color:inherit; font-size:0.92em;"><?= t('btn_check_updates') ?></a>
+                <a href="admin.php?view=settings&amp;refresh_updates=1" data-refresh="#version-row" data-done="<?= htmlspecialchars(t('msg_updates_checked'), ENT_QUOTES) ?>" style="color:inherit; font-size:0.92em;"><?= t('btn_check_updates') ?></a>
             </div>
             <a href="https://github.com/<?= htmlspecialchars($githubRepo) ?>" target="_blank" rel="noopener" style="color:inherit;">GitHub</a>
             <?php if ($updateBackup): ?>

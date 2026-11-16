@@ -134,6 +134,7 @@
     "version_latest_current": "Up to date",
     "version_check_failed": "Could not retrieve",
     "btn_check_updates": "Check again",
+    "msg_updates_checked": "Checked for the latest version",
     "btn_system_update": "Update",
     "btn_system_reinstall": "Reinstall",
     "msg_system_updating": "Updating…",

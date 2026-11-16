@@ -1637,10 +1637,15 @@ function getIcon($name) {
         try {
             const saved = JSON.parse(sessionStorage.getItem('mikanbox-reload-position') || 'null');
             if (!saved) return;
-            restoredReloadPosition = true;
             sessionStorage.removeItem('mikanbox-reload-position');
+            // A position kept before an update that never came back here (signed out, closed tab) is not used later.
+            if (saved.at && Date.now() - saved.at > 300000) return;
+            restoredReloadPosition = true;
             document.querySelectorAll('details').forEach((detail, i) => { if (saved.open[i] !== undefined) detail.open = saved.open[i]; });
-            requestAnimationFrame(() => window.scrollTo({top: saved.y, behavior: 'instant'}));
+            // Frames do not run in a background tab, so the position is also set on a timer.
+            const back = () => window.scrollTo({top: saved.y, behavior: 'instant'});
+            requestAnimationFrame(back);
+            setTimeout(back, 60);
         } catch (e) {}
     })();
 
