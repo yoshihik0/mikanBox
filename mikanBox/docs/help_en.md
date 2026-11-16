@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.21.3</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.21.4</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -249,7 +249,7 @@ To invite another editor, use "Invite someone" in the same place: issue an invit
 1. Make a new token, write it to `setup-token.txt` in the `setup-token` folder and upload it. A value that was used before does not work.
 2. On the sign-in screen, open "Recovery (all devices lost)" and enter the token, an existing username and a device name.
 
-Recovery stops every registered device and clears unused codes, edit locks and the MCP API key. Create a new key under "MCP API Key".
+Recovery stops every registered device and clears unused codes, edit locks and the MCP API key. From v2.21.4, share links for pages awaiting approval issued before then also stop working. Create a new key under "MCP API Key".
 
 #### Updating from 2.8.x {#upgrade-to-devices}
 
@@ -286,7 +286,7 @@ This separation prevents accidental shared authentication. It does not provide c
 
 If you deliver a site to someone else — including your own custom design and content — the steps for letting them set up a new admin account on their own environment differ by edition.
 
-- [SQLite Edition]{.type-badge .badge-sqlite}: Create an empty file named `mikanData/reset-accounts.txt` on the server (0 bytes: no content and no BOM; from v2.21.2 a file with content is ignored). On the next visit, all registered users, devices and unused codes are deleted and the initial setup screen appears. From v2.21.3, edit locks and the MCP API key are cleared at the same time. This file is deleted automatically afterward, so there's no risk of accidentally leaving it in place. The recipient then follows [Registering the First Device](#device-setup) with a token of their own.
+- [SQLite Edition]{.type-badge .badge-sqlite}: Create an empty file named `mikanData/reset-accounts.txt` on the server (0 bytes: no content and no BOM; from v2.21.2 a file with content is ignored). On the next visit, all registered users, devices and unused codes are deleted and the initial setup screen appears. From v2.21.3, edit locks and the MCP API key are cleared at the same time. From v2.21.4, share links for pages awaiting approval issued before then also stop working. This file is deleted automatically afterward, so there's no risk of accidentally leaving it in place. The recipient then follows [Registering the First Device](#device-setup) with a token of their own.
 - [flat Edition]{.type-badge .badge-flat}: Clear the value of `"password_hash"` inside the `mikanData/settings.json` file. When the recipient sets a new password, the MCP API key stops working (from v2.21.3).
 
 In both editions, the MCP API key used before the hand-over no longer connects. The recipient issues a key of their own under [MCP API Key](#site-mcp-key) when they need one.

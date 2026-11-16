@@ -114,6 +114,8 @@ function mikanBoxAccountsResetIfRequested(SQLite3 $db): void {
     }
     $db->exec("INSERT INTO settings(key,value) VALUES('mcp_api_key','\"\"') ON CONFLICT(key) DO UPDATE SET value=excluded.value");
     if (isset($GLOBALS['mikanbox_settings']) && is_array($GLOBALS['mikanbox_settings'])) $GLOBALS['mikanbox_settings']['mcp_api_key'] = '';
+    // A new signing secret: preview links for pages awaiting approval that were issued before stop working.
+    mikanBoxAuthMetaSet($db, 'site_secret', bin2hex(random_bytes(32)));
     @unlink($file);
     mikanBoxAudit('accounts_reset');
 }
@@ -535,6 +537,8 @@ function mikanBoxSetupTokenConsume(string $token): bool {
                 mikanBoxDeviceWrite($db, 'DELETE FROM device_codes', []);
                 mikanBoxDeviceWrite($db, 'DELETE FROM locks', []);
                 mikanBoxDeviceWrite($db, "INSERT INTO settings(key,value) VALUES('mcp_api_key',:empty) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [':empty'=>'""']);
+                // A new signing secret: preview links issued before the recovery stop working (2.21.4).
+                mikanBoxDeviceWrite($db, 'INSERT INTO auth_meta (key, value) VALUES (:k, :v) ON CONFLICT(key) DO UPDATE SET value = excluded.value', [':k'=>'site_secret', ':v'=>bin2hex(random_bytes(32))]);
             }
             return $recovery;
         });
