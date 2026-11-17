@@ -1036,30 +1036,15 @@ CSV conversion and Cloud’s complete JSON backup/restore controls follow the co
 
 Clear page and media keyword searches using the clear control; category filters remain selected. Cloud image renaming offers Cancel, Rename only and Update references when used by content. Image changes do not require the Cloud publication connection. Full backup for recovery (JSON) includes images, users and revision history beyond the separate data/media downloads. Current D1 image storage is capped at 400 MB; existing and restored images plus other temporary restore images must fit within 450 MB.
 
-### Cloud: Migrate from D1 to R2 (development v0.5.0)
+### Cloud: media storage
 
-Start with D1 without enabling R2. Site → Media storage shows the current storage and usage and provides “Migrate from D1 to R2”. Storage for images and uploaded JS/CSS switches; content, settings, users and other records remain in D1.
+The Cloud edition keeps pages, history and media (images, and uploaded JS and CSS) in the D1 database. No payment method has to be registered with Cloudflare to stay within the free plan. Storing media in R2, and the migration from D1 to R2, were removed in Cloud v0.12.0.
 
-R2 requires registering a payment method even when usage stays in the free allowance. Enable R2, create a bucket, and bind it to the Worker as `MEDIA`. Local Wrangler includes a test binding; production does not yet include R2. Add this configuration to `wrangler.production.json`, replace the bucket name, and deploy the code. Connecting a bucket alone does not switch storage.
+Media may total 400 MB, with up to 10 MB per file and 10,000 files. The D1 free plan allows 500 MB per database; the rest is for pages, history and database overhead. Usage is shown on the media screen and under Site → Storage usage, with a notice near the limit. Delete unused media, or make images smaller with the upload options "Limit long edge to" and "Convert to WebP".
 
-```json
-"r2_buckets": [{"binding": "MEDIA", "bucket_name": "your-bucket-name"}]
-```
+Published images and built page HTML are delivered as the public site's static files. Complete JSON backups, D1 Time Travel and the SQL export include the images. See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md) for details.
 
-Enter your current administrator password to begin. Each image is copied and its checksum and R2 write are verified. D1 originals remain visible while image additions, modifications and deletions are paused. Resume or cancel from the same menu after closing the browser. After all images are verified, one database transaction removes D1 image bytes and switches pointers to R2. Incomplete, failed and cancelled migrations retain D1 originals. There is no reverse-switch menu after successful migration. Save a complete JSON backup first. Image URLs and content filenames stay unchanged.
-
-D1 image storage is limited to 400 MB. D1 Free allows 500 MB per database; Paid allows 10 GB per database and requires a separate plan upgrade. R2 removes the 400 MB combined image limit, retaining 10 MB per image and 10,000 images. R2 Standard’s account-wide monthly free allowance is 10 GB-month, one million Class A operations and ten million Class B operations. These are billing allowances, not hard limits; excess usage is charged.
-
-Site settings display D1 database size and tracked R2 storage, including temporary and retained images, with a notice near 80% of the free storage allowance. Other sites and untracked bucket objects are excluded. Check account totals, requests, billing and alerts in Cloudflare. Billing alerts do not stop usage. Removing D1 images does not necessarily shrink allocated database storage immediately.
-
-R2 writes use new immutable objects followed by atomic D1 pointer changes. “Clean unused temporary images” removes up to 20 unreferenced images retained for at least 24 hours, excluding live migration and restore objects. Complete JSON backups include image bytes and can restore to either storage mode while preserving the destination’s storage choice. D1 restoration is limited to 400 MB images and 450 MB of existing plus staged images; both current and temporary R2 images count toward storage usage. D1 Time Travel and SQL export do not contain R2 image bytes; older pointers may reference already-cleaned objects. Use complete JSON backups with R2.
-
-Images use the stable `/media/filename` Worker route in both modes. Image changes do not require the Cloud publication connection. Image requests consume Worker allowances; R2 serving also reads D1 metadata and R2 objects. Built page HTML is served directly from Static Assets. Updated page/component references after renaming or WebP conversion still require the usual rebuild and publication to update deployed HTML.
-
-Run `node scripts/test-r2-local.mjs` from the Cloud directory to test the official local Worker, D1 and R2 bindings without registering a payment method. It creates disposable isolated state, runs 15 integration checks covering migration/cancellation, image operations and backup restoration, then removes the state. It does not use existing local data or remote services. Local integration testing does not verify live R2 permissions, network access or billing. Results are saved to `artifacts/r2-local-system-test.json`.
-
-References: [D1 limits](https://developers.cloudflare.com/d1/platform/limits/), [R2 pricing](https://developers.cloudflare.com/r2/pricing/), [R2 setup](https://developers.cloudflare.com/r2/get-started/), [Usage-based billing](https://developers.cloudflare.com/billing/understand/usage-based-billing/).
-
+Reference: [D1 limits](https://developers.cloudflare.com/d1/platform/limits/).
 
 ## Design {#design-mgmt}
 
@@ -1200,7 +1185,7 @@ Paste embed tags into page content or a design component's HTML, rather than the
 
 These `media/` paths are completed for nested pages, and the files are included in static exports. Uploading does not automatically insert tags into pages. Follow the library's instructions for loading order and attributes such as `type="module"`. Uploading a complete folder hierarchy is not supported. If JS/CSS references other files by relative paths, arrange those files accordingly.
 
-Uploads require a trusted administrator or MCP API key, just like code editing. Format validation does not guarantee safe code: check its source and contents. PHP editions save files under `media/` and configure JavaScript/CSS MIME types and `nosniff` on Apache. On other servers, configure `text/javascript` / `text/css` and `X-Content-Type-Options: nosniff`. Cloud uses the existing media storage setting (D1 or R2), with the same `/media/filename` URL in either mode. Backup, restore, and D1-to-R2 migration include these files. Page/component code fields remain in D1. MCP `upload_media` also accepts JS/CSS.
+Uploads require a trusted administrator or MCP API key, just like code editing. Format validation does not guarantee safe code: check its source and contents. PHP editions save files under `media/` and configure JavaScript/CSS MIME types and `nosniff` on Apache. On other servers, configure `text/javascript` / `text/css` and `X-Content-Type-Options: nosniff`. Cloud stores them in D1 and serves them at `/media/filename`. Backup and restore include these files. Page/component code fields remain in D1. MCP `upload_media` also accepts JS/CSS.
 
 ### Upload Area
 
