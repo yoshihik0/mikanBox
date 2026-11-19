@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.23.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.24.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -307,7 +307,7 @@ Manages the pages that make up the actual substance of the site. You decide the 
 
 ### [save]{.material-symbols-outlined .mat-icon}Site
 
-Groups together the settings and management tools for running the site as a whole: the admin memo, Static Site Generation (SSG), language, the MCP API key, CSV import, data management/backup, common site settings, devices and users (SQLite Edition), and changing your password (flat Edition).
+Groups together the settings and management tools for running the site as a whole: the admin memo, Static Site Generation (SSG), language, the MCP API key, CSV import, data management, common site settings, devices and users (SQLite Edition), and changing your password (flat Edition).
 
 ### [widgets]{.material-symbols-outlined .mat-icon}Design
 
@@ -837,37 +837,14 @@ Reads the first row as field names and converts every other row into a `{{DATARO
 - We recommend keeping data-only pages set to **Draft**. Visitors won't see them, but they can still be referenced via `{{POST_MD:pageID#rowID:FIELD}}` or `{{NAV_CARDS}}`.
 - Publishing the page with the output format **mikanBox DB** shows nothing as a page, while its `{{DATA}}` and `{{DATAROW}}` data becomes readable as a JSON API at `siteURL/api/pageID.json` ([mikanBox DB](#mikanbox-db)).
 
-### Data Management [SQLite Edition only]{.type-badge .badge-sqlite} {#site-data-mgmt}
+<a id="site-backup"></a>
+### Data Management {#site-data-mgmt}
 
-Download and back up all of the site's data (SQLite file / JSON ZIP) as well as any uploaded media files. You can also import data from external sources. From v2.21.3 the downloaded data does not include the MCP API key; after restoring from a backup, issue a new key under [MCP API Key](#site-mcp-key).
+Saving the site (backup) and reading files are done in the [Data Import & Migration Tool](#data-migration). Save the site regularly.
 
-#### [download]{.material-symbols-outlined} Download All Data (SQLite){.m-btn .m-btn-gray}
+#### [settings_backup_restore]{.material-symbols-outlined} Data Import &amp; Migration Tool{.m-btn .m-btn-orange}
 
-Downloads the site's database file (`mikanBox.sqlite`) as-is, page history included.
-
-#### [download]{.material-symbols-outlined} Download All Data (JSON){.m-btn .m-btn-gray}
-
-Exports all text data — pages, designs, settings, and more — as JSON files and downloads them. Page history (visual editing history included) is not included.
-
-#### [download]{.material-symbols-outlined} Download All Media{.m-btn .m-btn-gray}
-
-Bundles every uploaded file (images, etc.) into a single ZIP and downloads it.
-
-#### [settings_backup_restore]{.material-symbols-outlined} Data Import &amp; Migration Tool{.m-btn .m-btn-blue}
-
-Opens the [Data Migration &amp; Import Tool](#data-migration) inside the admin panel. The side navigation stays, so its icons lead back to each admin screen.
-
-### Backup [flat Edition only]{.type-badge .badge-flat} {#site-backup}
-
-Downloads all of the site's data (JSON) and any uploaded media files (jpg, svg, etc.) as a ZIP. Regular backups are recommended. From v2.21.3 the downloaded data does not include the MCP API key; after restoring from a backup, issue a new key under [MCP API Key](#site-mcp-key).
-
-#### [download]{.material-symbols-outlined} Download All Data (JSON){.m-btn .m-btn-gray}
-
-Exports all text data — pages, designs, settings, and more — as JSON files and downloads them. Page history (visual editing history included) is not included.
-
-#### [download]{.material-symbols-outlined} Download All Media (files){.m-btn .m-btn-gray}
-
-Bundles every uploaded file (images, etc.) into a single ZIP and downloads it.
+Opens the [Data Import & Migration Tool](#data-migration) inside the admin screen. The side navigation stays, so its icons lead back to the other screens.
 
 ### Site Settings {#site-settings}
 
@@ -971,76 +948,69 @@ Changes and saves the password.
 
 ## Data Migration &amp; Import Tool {#data-migration}
 
-In the SQLite edition, the "Data Migration & Import Tool" button in Site Settings opens the tool inside the admin panel (as in the Cloud edition; the side navigation icons lead back to each admin screen). You can also open `admin.php?view=import` directly, and the old `mikanBox/convert.php` address leads to the same screen. You can check the current state of the database and media, and bulk-import external data.
+Open it from "Data management" on the Site screen (`admin.php?view=import`; in Cloud, `/admin?view=import`). The screen is the same in all three editions. From v2.24.0 saving and reading are gathered here. Opening the former `mikanBox/convert.php` also leads here.
 
-### Current State
+### Save {#data-export}
 
-#### SQLite Database State
+Choose the contents and press "Download".
 
-Shows whether the database file exists, its size, and the number of registered pages, components, and users (editors).
+| Contents | What is saved |
+|---|---|
+| JSON and media | The settings, pages and components as JSON, with the media files, in one ZIP. |
+| JSON only | A ZIP of the settings, pages and components as JSON. |
+| Media only | A ZIP of the media files. |
+| Database [SQLite and Cloud editions]{.type-badge .badge-sqlite} | The database file in the SQLite edition; the D1 SQL file in Cloud. Page history is included. |
 
-#### Media File State
+- **Include page history** (SQLite and Cloud): the history of each page (the last 10 entries) is saved too. It is off at first. The flat edition has no page history.
+- The file also holds what is not public, such as drafts and notes: keep it somewhere safe and do not share it.
+- Users, devices, passwords and the MCP API key are not included. Only the content settings (site name, description, categories and the like) are saved; the site ID and the publishing settings are not.
+- Inside the ZIP: `data/settings.json`, `data/posts/pageID.json`, `data/components/ID.json`, `data/revisions/pageID.json` (history) and `media/filename`. The layout is the same in all three editions, so the file can be read into a site of another edition.
 
-Shows the storage directory, the number of registered media files, and total media size.
+### Read {#data-import}
 
-### Content Package (ZIP) Import
+Choose files and press "Read". Their contents are recognised and the JSON and media are read; files that cannot be read are ignored. Several files can be chosen at once.
 
-Upload a ZIP package (a theme or a starter set of content) containing `posts/`, `components/`, and similar folders, and import it into the current SQLite database. Only the contents of `posts/` and `components/` are imported — the contents of `settings.json` (site setting values) are never read at all.
+Files you can choose:
 
-A package may have an outer folder containing `posts/` or `components/`. That outer folder is not part of the resulting IDs. Open “How to arrange files in the ZIP” on the import screen for an example. macOS metadata such as `__MACOSX` and `._` files is ignored.
+- A ZIP saved here (also one saved in another edition, or a ZIP from "Download data" / "Download media" of v2.23 and earlier)
+- A ZIP with `posts/` and `components/`, also inside an outer folder. The page ID comes from the folders and file name under `posts/` (`posts/coffee/menu.json` is `coffee/menu`). `__MACOSX` and `._` files made by macOS are skipped.
+- A ZIP of media files only
+- A WordPress XML export (Tools > Export). Posts and pages are read; published posts become public, pending ones pending, and the rest drafts. The HTML is converted to basic Markdown.
+- Media files
 
-Each page ID comes from its path under `posts/` without the `.json` extension: for example, `posts/coffee/menu.json` becomes `coffee/menu`. Component IDs come from their paths under `components/`. Titles inside the files do not determine IDs. Anything matching an existing ID is skipped; nothing is ever overwritten. If you want to bring in a page or component in a way that overwrites an existing one, either delete the existing item in the admin panel first, or rename the JSON file to your intended ID before including it in the ZIP.
+Choose what happens when the same item exists:
 
-From v2.21.2, items whose ID could not be used for a new page or component (a page ID with a dot, an ID starting with a reserved folder name, and so on) are not imported; the run log shows how many and which. The WordPress import does the same.
+| Choice | What happens |
+|---|---|
+| Do not overwrite (add only what is missing) | Only what the site does not have is added. Pages and components with the same ID and media with the same name are skipped. Settings are not read. This is the default. |
+| Overwrite items with the same ID | Items with the same ID or name are replaced by the file's. What the file does not have stays. The previous content of a page is kept in its history (SQLite and Cloud). |
+| Replace everything (what the file lacks is deleted) | The site becomes the file's contents; what the file does not have is deleted. You are asked before it runs. |
 
-ZIP extraction accepts JSON only (10 MB per file, 50 MB total, 10,000 entries). Once import finishes, the extracted folder is renamed to `{folder name}-{identifier}_imported` inside the protected `mikanData/private-import/` folder and left in place (it is not deleted).
+- Only the kinds the file holds (pages, components, media) change. Replacing with a file of pages only leaves the components and media as they are.
+- Settings are read only when overwriting or replacing. Users, devices, the site ID and the MCP API key stay as they are.
+- When replacing, the page history also becomes the file's; a file saved without history leaves the history empty.
+- IDs that a new page or component could not have (such as a page ID starting with a reserved folder name) are not read and are listed in the result.
+- Media are checked as on upload (name and type); SVG files are cleaned of scripts as on upload. A single file larger than the server's upload limit cannot be read and is listed in the result.
+- The result appears in the toast at the bottom right; the screen is not reloaded.
+- Build the site to update the public pages with what was read. In Cloud, media that are read are sent to the public site at once.
 
-#### Choose File
+### Export the public site {#site-export}
 
-Select the ZIP file to upload.
+Downloads the public site as it is now, as a ZIP. In the PHP editions, pages published dynamically are included as files too.
 
-#### [publish]{.material-symbols-outlined} Upload &amp; Import{.m-btn .m-btn-orange}
+- **Use relative paths**: links between pages and to images are written from each file's own position, so they keep working when the site moves to another address or folder. The PHP editions write pages as `pageID.html`.
+- Without it, links start with the site's address.
+- Server files such as `.htaccess` are not included.
 
-Imports the selected ZIP file.
+### Data migration in Cloud
 
-### WordPress Migration (XML Import)
-
-Upload an XML file (WXR format) exported from WordPress's "Tools > Export," and bulk-import posts and pages as mikanBox page data. Publication status (published/draft) is preserved, and the body HTML is automatically converted to simplified Markdown.
-
-#### Choose File
-
-Select the WordPress XML file to upload.
-
-#### [publish]{.material-symbols-outlined} Parse &amp; Import XML{.m-btn .m-btn-orange}
-
-Parses and imports the selected XML file.
-
-### Execution Log
-
-After running an import, the result (success, errors, etc.) is shown here as a log.
-
-#### [arrow_back]{.material-symbols-outlined .mat-icon} Back to Admin Panel
-
-Returns to the regular admin panel (`admin.php`).
-
-
-### Cloud data import and export
-
-Open `/admin?view=import` from Site settings. It follows the SQLite tool’s status cards, ZIP import, WordPress XML import and execution log. Cloud shows page/component/user counts and media count/total size, without PHP directory paths or a local SQLite file size.
-
-ZIP import adds only JSON records under `posts/` and `components/`, skipping existing IDs. Settings, accounts and images are not imported. WordPress WXR maps published posts to dynamic pages, pending posts to pending pages, and other statuses to drafts; HTML is converted to basic Markdown. Upload images separately. ZIP/XML files are limited to 20 MB, ZIP expansion to 15 MB total, and imported content to 1 MB in UTF-8 with 300 total records. ZIP supports store and Deflate; encrypted or corrupt files are rejected. ZIP/XML parsing runs in the browser.
-
-Cloud’s full backup and its restore follow the common import sections. Restoring a full backup replaces the current site data, unlike the additive ZIP/XML import; users are restored only when “Also restore users” is ticked. Rebuild static pages after import. Site settings use shared CSS for two-column fields, account accordions and category add-button alignment.
-
----
-
-Clear page and media keyword searches using the clear control; category filters remain selected. Cloud image renaming offers Cancel, Rename only and Update references when used by content. Image changes do not require the Cloud publication connection. Full backup for recovery (JSON) includes images, users and revision history beyond the separate data/media downloads. Current D1 image storage is capped at 400 MB; existing and restored images plus other temporary restore images must fit within 450 MB.
+The Cloud edition also has "Restore D1 to a past time". See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md).
 
 ### Cloud: where media is kept
 
 In the Cloud edition (from v0.13.0) media files (images, and uploaded JS and CSS) are kept only on the public site. An uploaded file is sent to the public site at once, and appears in the media list once it is confirmed there. The D1 database keeps pages, history, settings and the information about each media file (name, size and so on).
 
-Cloudflare's free plan allows 20,000 files of up to 25 MiB each on the public site (mikanBox allows 10 MB per file and 10,000 files). The public site is the only place the media is kept, so save it regularly with "Download media" on the Site screen or "Full backup" in the data tool. See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md) for details.
+Cloudflare's free plan allows 20,000 files of up to 25 MiB each on the public site (mikanBox allows 10 MB per file and 10,000 files). The public site is the only place the media is kept, so save it regularly with "Save" (JSON and media) in the data tool. See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md) for details.
 
 ## Design {#design-mgmt}
 
@@ -2014,7 +1984,7 @@ Permission is hereby granted, free of charge, to use this software and associate
 
 Flat password changes invalidate other browser sessions. Updating to 2.16.6 requires signing in again. Keep Internet-facing installations behind server access restrictions until initial setup is complete; the simple localhost setup is unchanged.
 
-SQLite JSON migration and ZIP imports retain source data under the protected data directory's `private-import/` folder. On access after updating, old import packages under the management folder are moved to protected storage. If an old backup contained credentials, the MCP key is invalidated: issue a new key in the admin screen. Configure the web server to deny the entire data directory and the management folder's `import/` path.
+SQLite JSON migration retains its source data under the protected data directory's `private-import/` folder. On access after updating, old import packages under the management folder are moved to protected storage. If an old backup contained credentials, the MCP key is invalidated: issue a new key in the admin screen. Configure the web server to deny the entire data directory and the management folder's `import/` path.
 
 Management notes, including site notes, are available to authenticated management MCP clients as working context. They are excluded from public pages, public APIs and public-help MCP. Reading a note is not permission to publish it.
 

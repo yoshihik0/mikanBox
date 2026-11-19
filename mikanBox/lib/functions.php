@@ -605,6 +605,60 @@ function deleteData($dir, $id) {
     return false;
 }
 
+/**
+ * History read from a data-tool file (lib/data-transfer.php): [{created_at, editor, data}, ...],
+ * oldest first. The newest 10 per page are kept, as for edits.
+ */
+function mikanBoxImportRevisions(string $postId, array $items): void {
+    $db = getDb();
+    $stmt = $db->prepare("INSERT INTO post_revisions (post_id, title, category, status, sort_order, updated_at, data, editor_id, created_at)
+        VALUES (:post_id, :title, :category, :status, :sort_order, :updated_at, :data, :editor_id, :created_at)");
+    foreach (array_slice($items, -10) as $item) {
+        $data = is_array($item['data'] ?? null) ? $item['data'] : null;
+        $created = is_string($item['created_at'] ?? null) ? $item['created_at'] : '';
+        if ($data === null || $created === '') continue;
+        $stmt->bindValue(':post_id', $postId, SQLITE3_TEXT);
+        $stmt->bindValue(':title', (string)($data['title'] ?? ''), SQLITE3_TEXT);
+        $stmt->bindValue(':category', (string)($data['category'] ?? ''), SQLITE3_TEXT);
+        $stmt->bindValue(':status', (string)($data['status'] ?? ''), SQLITE3_TEXT);
+        $stmt->bindValue(':sort_order', (int)($data['sort_order'] ?? 0), SQLITE3_INTEGER);
+        $stmt->bindValue(':updated_at', (string)($data['updated_at'] ?? ''), SQLITE3_TEXT);
+        $stmt->bindValue(':data', json_encode($data, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+        $stmt->bindValue(':editor_id', substr((string)($item['editor'] ?? ''), 0, 80), SQLITE3_TEXT);
+        $stmt->bindValue(':created_at', $created, SQLITE3_TEXT);
+        $stmt->execute();
+        $stmt->reset();
+    }
+    $db->exec("DELETE FROM post_revisions WHERE id IN (
+        SELECT id FROM post_revisions WHERE post_id = '" . $db->escapeString($postId) . "'
+        ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET 10
+    )");
+}
+
+/** The data tool's "Database" choice: a consistent copy of the SQLite file, without the MCP API key. Returns only on failure. */
+function mikanBoxDownloadDatabase(): void {
+    $db = getDb();
+    $copyFile = DATA_DIR . '/backup_sqlite_' . bin2hex(random_bytes(8)) . '.sqlite';
+    $copied = false;
+    if (file_exists(DB_FILE)) {
+        try {
+            $copy = new SQLite3($copyFile);
+            $copied = $db->backup($copy);
+            if ($copied) $copy->exec("UPDATE settings SET value = '\"\"' WHERE key = 'mcp_api_key'");
+            $copy->close();
+        } catch (Throwable $e) { $copied = false; }
+    }
+    if ($copied && is_file($copyFile)) {
+        header('Content-Type: application/x-sqlite3');
+        header('Content-Disposition: attachment; filename="mikanbox-database-' . date('Y-m-d') . '.sqlite"');
+        header('Content-Length: ' . filesize($copyFile));
+        readfile($copyFile);
+        @unlink($copyFile);
+        exit;
+    }
+    @unlink($copyFile);
+}
+
 /** Days a pending-approval preview URL stays valid. */
 const MIKANBOX_PREVIEW_TOKEN_DAYS = 7;
 

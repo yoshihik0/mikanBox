@@ -75,25 +75,21 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-auth-audit-') as td:
      status,body=Browser().req(url+public_path)
      assert 'PAGE_PRIVATE_MARKER' not in body and 'SITE_PRIVATE_MARKER' not in body and 'COMPONENT_PRIVATE_MARKER' not in body
     print(edition, 'public page/API/help exclude notes')
-    if edition=='sqlite':
-     package=io.BytesIO()
-     with zipfile.ZipFile(package,'w') as z:
-      z.writestr('posts/import-note.json',json.dumps({'title':'Imported','status':'draft','content_md':'Imported body','memo':'IMPORT_PRIVATE_MARKER'}))
-      z.writestr('unexpected.php','<?php echo "must not extract"; ?>')
-      z.writestr('.htaccess','Require all granted')
-     boundary='mikanbox-test-boundary'
-     parts=[]
-     for name,value in {'action':'upload_import','csrf_token':b.csrf(admin)}.items():
-      parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="'+name+'"\r\n\r\n'+value+'\r\n').encode())
-     parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="package_zip"; filename="audit.zip"\r\nContent-Type: application/zip\r\n\r\n').encode()+package.getvalue()+b'\r\n')
-     parts.append(('--'+boundary+'--\r\n').encode())
-     response=b.op.open(urllib.request.Request(url+'/mikanBox/convert.php',data=b''.join(parts),headers={'Content-Type':'multipart/form-data; boundary='+boundary}),timeout=10)
-     assert response.status==200
-     archives=list((site/'mikanData/private-import').glob('audit-*_imported'))
-     assert len(archives)==1
-     assert (archives[0]/'posts/import-note.json').exists()
-     assert not (archives[0]/'unexpected.php').exists() and not (archives[0]/'.htaccess').exists()
+    if True:
+     # The data tool reads only media files into media/ and keeps imported notes private (2.24.0).
+     b=a if edition=='flat' else b   # the browser that is still signed in
+     part={'pages':[{'id':'import-note','data':{'title':'Imported','status':'draft','content_md':'Imported body','memo':'IMPORT_PRIVATE_MARKER'}}]}
+     status,out=b.req(admin,{'save_action':'transfer_import_data','mode':'add','part':json.dumps(part),'csrf_token':b.csrf(admin),'ajax_request':'1'})
+     assert status==200 and json.loads(out)['pages']==1
+     for name,body in [('unexpected.php','<?php echo 1;'),('.htaccess','Require all granted'),('x.php.png','<?php echo 1;')]:
+      boundary='mikanbox-test-boundary'
+      fields={'save_action':'transfer_import_media','mode':'overwrite','name':name,'csrf_token':b.csrf(admin),'ajax_request':'1'}
+      parts=[('--'+boundary+'\r\nContent-Disposition: form-data; name="'+k+'"\r\n\r\n'+v+'\r\n').encode() for k,v in fields.items()]
+      parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="file"; filename="f"\r\nContent-Type: application/octet-stream\r\n\r\n').encode()+body.encode()+('\r\n--'+boundary+'--\r\n').encode())
+      response=b.op.open(urllib.request.Request(admin,data=b''.join(parts),headers={'Content-Type':'multipart/form-data; boundary='+boundary}),timeout=10)
+      assert json.loads(response.read())['success'] is False, name
+      assert not (site/'media'/name).exists() or name=='.htaccess'
      assert 'IMPORT_PRIVATE_MARKER' not in Browser().req(url+'/import-note')[1]
-     print('sqlite: ZIP imports only JSON into protected storage; imported notes stay private')
+     print(edition+': the data tool reads only media files; imported notes stay private')
 
    finally:proc.terminate();proc.wait(timeout=5)

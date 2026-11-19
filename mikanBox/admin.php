@@ -14,6 +14,7 @@ mikanBoxRedirectToHttpsIfNeeded();
 mikanBoxSendAdminHeaders();   // framing, sniffing and Referer rules for every admin screen (security.php)
 ini_set('display_errors', '0');   // errors go to the server log, never into a page with server paths
 require_once __DIR__ . '/lib/updater.php';
+require_once __DIR__ . '/lib/data-transfer.php';
 $installedVersion = mikanBoxUpdateReadVersion(CORE_DIR . '/config.php') ?: MIKANBOX_VERSION;
 
 // CSRF token generation (initial or on session timeout). Without a session (nobody signed in yet)
@@ -214,15 +215,9 @@ if (isset($_GET['page_preview']) && is_string($_GET['page_preview'])) {
 }
 $site_name = $settings['site_name'] ?? SITE_NAME;
 $view = $_GET['view'] ?? 'pages';
-$dataToolHtml = null;
-if ($view === 'import') {
-    // Data migration and import tool: shown inside the admin screen in place of the sections, with
-    // the side navigation kept (as in the Cloud edition), so its icons lead back.
-    define('MIKANBOX_DATA_TOOL', true);
-    define('MIKANBOX_DATA_TOOL_INLINE', true);
-    require __DIR__ . '/convert.php';
-    $dataToolHtml = $mikanBoxDataToolHtml ?? '';
-}
+// Data tool (views/data-tool.php): shown inside the admin screen in place of the sections, with the
+// side navigation kept (as in the Cloud edition), so its icons lead back.
+$dataToolHtml = $view === 'import' ? '' : null;
 if ($view === 'design') $view = 'components'; // 'design' is an alias for 'components'
 
 // 🍊 Tag Guide Helper (Reusable)
@@ -267,6 +262,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     }
     $success = true;
     $resolvedFilename = null;
+
+    if (str_starts_with((string)$_POST['save_action'], 'transfer_')) {
+        if (ob_get_length()) ob_clean();
+        mikanBoxTransferHandle((string)$_POST['save_action']);
+    }
 
     if (in_array($_POST['save_action'], ['system_update', 'system_restore'], true)) {
         require_once __DIR__ . '/lib/updater.php';
@@ -978,113 +978,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $count = $ssg->deletePage($pid);
         $message = "Static files for '$pid' deleted ($count files).";
     }
-    elseif ($_POST['save_action'] === 'download_backup_sqlite') {
-        // Download raw SQLite database file directly
-        // A consistent copy (SQLite's online backup) with the MCP API key cleared (2.21.3): the key
-        // never leaves the server in a backup; issue a new one after restoring.
-        $dbFile = DB_FILE;
-        $copyFile = DATA_DIR . '/backup_sqlite_' . bin2hex(random_bytes(8)) . '.sqlite';
-        $copied = false;
-        if (file_exists($dbFile)) {
-            try {
-                $copy = new SQLite3($copyFile);
-                $copied = $db->backup($copy);
-                if ($copied) $copy->exec("UPDATE settings SET value = '\"\"' WHERE key = 'mcp_api_key'");
-                $copy->close();
-            } catch (Throwable $e) { $copied = false; }
-        }
-        if ($copied && is_file($copyFile)) {
-            header('Content-Type: application/x-sqlite3');
-            header('Content-Disposition: attachment; filename="mikanBox_' . date('Ymd') . '.sqlite"');
-            header('Content-Length: ' . filesize($copyFile));
-            readfile($copyFile);
-            @unlink($copyFile);
-            exit;
-        } else {
-            @unlink($copyFile);
-            $message = t('error_save_failed');
-        }
-    }
-    elseif ($_POST['save_action'] === 'download_backup_json' || $_POST['save_action'] === 'download_backup_media') {
-        $mode = $_POST['save_action'] === 'download_backup_json' ? 'data' : 'media';
-        $zip = new ZipArchive();
-        $zipFile = DATA_DIR . "/backup_{$mode}_" . date('YmdHis') . '.zip';
-        
-        if ($zip->open($zipFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
-            if ($mode === 'data') {
-                // Dynamically build JSON structure from SQLite
-                $settings = [];
-                $resSettings = $db->query("SELECT key, value FROM settings");
-                if ($resSettings) {
-                    while ($row = $resSettings->fetchArray(SQLITE3_ASSOC)) {
-                        $settings[$row['key']] = json_decode($row['value'], true);
-                    }
-                }
-                
-                // Add users data
-                $resUsers = $db->query("SELECT username, password_hash, display_name FROM users");
-                if ($resUsers) {
-                    $users = [];
-                    while ($u = $resUsers->fetchArray(SQLITE3_ASSOC)) {
-                        $users[$u['username']] = [
-                            'password_hash' => $u['password_hash'],
-                            'display_name' => $u['display_name']
-                        ];
-                        if ($u['username'] === 'admin') {
-                            $settings['password_hash'] = $u['password_hash'];
-                        }
-                    }
-                    if (!empty($users)) {
-                        $settings['users'] = $users;
-                    }
-                }
-                
-                // Add settings.json (without the MCP API key, 2.21.3: issue a new one after restoring)
-                if (array_key_exists('mcp_api_key', $settings)) $settings['mcp_api_key'] = '';
-                $zip->addFromString('data/settings.json', json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-                
-                // Add components
-                $resComp = $db->query("SELECT id, data FROM components");
-                if ($resComp) {
-                    while ($row = $resComp->fetchArray(SQLITE3_ASSOC)) {
-                        $zip->addFromString('data/components/' . $row['id'] . '.json', $row['data']);
-                    }
-                }
-                
-                // Add posts (pages)
-                $resPosts = $db->query("SELECT id, data FROM posts");
-                if ($resPosts) {
-                    while ($row = $resPosts->fetchArray(SQLITE3_ASSOC)) {
-                        $zip->addFromString('data/posts/' . $row['id'] . '.json', $row['data']);
-                    }
-                }
-            } else {
-                // Media backup remains file-system based
-                $sourceDir = MEDIA_DIR;
-                if (is_dir($sourceDir)) {
-                    $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($sourceDir), RecursiveIteratorIterator::LEAVES_ONLY);
-                    foreach ($files as $file) {
-                        if (!$file->isDir()) {
-                            $filePath = $file->getRealPath();
-                            $relativePath = 'media/' . substr($filePath, strlen($sourceDir) + 1);
-                            $zip->addFile($filePath, $relativePath);
-                        }
-                    }
-                }
-            }
-            
-            $zip->close();
-            
-            // Output ZIP file to browser
-            header('Content-Type: application/zip');
-            header('Content-Disposition: attachment; filename="' . basename(__DIR__) . '_' . $mode . '_' . date('Ymd') . '.zip"');
-            readfile($zipFile);
-            unlink($zipFile);
-            exit;
-        } else {
-            $message = t('error_save_failed');
-        }
-    }
     elseif ($_POST['save_action'] === 'set_mcp_enabled') {
         $saved = mikanBoxMcpSetEnabled(($_POST['mcp_enabled'] ?? '') === '1');
         mikanBoxAdminDone(basename(__FILE__) . '#mcp-api-key', $saved ? t('msg_update_success') : t('err_save_failed'), [], (bool)$saved);
@@ -1560,7 +1453,7 @@ function getIcon($name) {
     <?php if (($mbDataProbe = mikanBoxDataProtectionProbe()) !== null): ?><p class="admin-alert" id="data-protection-alert" role="alert" hidden data-probe="<?= htmlspecialchars($mbDataProbe, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(t('warn_data_dir_readable'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
 
     <?php if ($dataToolHtml !== null): ?>
-    <?= $dataToolHtml ?>
+    <?php require __DIR__ . '/views/data-tool.php'; ?>
     <?php else: ?>
     <!-- Category Cloud (Steps 3 & 4) -->
     <?php
