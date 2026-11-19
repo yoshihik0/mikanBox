@@ -843,11 +843,11 @@ Download and back up all of the site's data (SQLite file / JSON ZIP) as well as 
 
 #### [download]{.material-symbols-outlined} Download All Data (SQLite){.m-btn .m-btn-gray}
 
-Downloads the site's database file (`mikanBox.sqlite`) as-is.
+Downloads the site's database file (`mikanBox.sqlite`) as-is, page history included.
 
 #### [download]{.material-symbols-outlined} Download All Data (JSON){.m-btn .m-btn-gray}
 
-Exports all text data — pages, designs, settings, and more — as JSON files and downloads them.
+Exports all text data — pages, designs, settings, and more — as JSON files and downloads them. Page history (visual editing history included) is not included.
 
 #### [download]{.material-symbols-outlined} Download All Media{.m-btn .m-btn-gray}
 
@@ -863,7 +863,7 @@ Downloads all of the site's data (JSON) and any uploaded media files (jpg, svg, 
 
 #### [download]{.material-symbols-outlined} Download All Data (JSON){.m-btn .m-btn-gray}
 
-Exports all text data — pages, designs, settings, and more — as JSON files and downloads them.
+Exports all text data — pages, designs, settings, and more — as JSON files and downloads them. Page history (visual editing history included) is not included.
 
 #### [download]{.material-symbols-outlined} Download All Media (files){.m-btn .m-btn-gray}
 

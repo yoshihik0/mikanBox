@@ -846,11 +846,11 @@ CSVファイルを選択します。エンコーディング（UTF-8 / Shift-JIS
 
 #### [download]{.material-symbols-outlined} データ一括ダウンロード (SQLite){.m-btn .m-btn-gray}
 
-サイトのデータベースファイル（`mikanBox.sqlite`）をそのままダウンロードします。
+サイトのデータベースファイル（`mikanBox.sqlite`）をそのままダウンロードします。ページの履歴も含みます。
 
 #### [download]{.material-symbols-outlined} データ一括ダウンロード (JSON){.m-btn .m-btn-gray}
 
-記事、デザイン、設定などのすべてのテキストデータをJSONファイルとして書き出してダウンロードします。
+記事、デザイン、設定などのすべてのテキストデータをJSONファイルとして書き出してダウンロードします。ページの履歴（ビジュアル編集の履歴を含む）は含みません。
 
 #### [download]{.material-symbols-outlined} メディア一括ダウンロード{.m-btn .m-btn-gray}
 
@@ -866,7 +866,7 @@ CSVファイルを選択します。エンコーディング（UTF-8 / Shift-JIS
 
 #### [download]{.material-symbols-outlined} データ一括ダウンロード (JSON){.m-btn .m-btn-gray}
 
-記事、デザイン、設定などのすべてのテキストデータをJSONファイルとして書き出してダウンロードします。
+記事、デザイン、設定などのすべてのテキストデータをJSONファイルとして書き出してダウンロードします。ページの履歴（ビジュアル編集の履歴を含む）は含みません。
 
 #### [download]{.material-symbols-outlined} メディア一括ダウンロード (files){.m-btn .m-btn-gray}
 

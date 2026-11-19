@@ -532,7 +532,7 @@
     "admin_forgot_password_flat": "パスワードを忘れた場合は、",
     "admin_forgot_password_hint_flat": "settings.json の中の password_hash を空にすると再設定できます。",
     "backup_head_flat": "バックアップ",
-    "backup_hint_cloud": "データ（JSON）は、設定・ページ・コンポーネントのテキストデータです。新しいサイトの「コンテンツパッケージ（ZIP）インポート」に取り込めば、内容を戻せます。メディアは、公開中のメディアファイルをまとめてZIPでダウンロードします。",
+    "backup_hint_cloud": "データ（JSON）は、設定・ページ・コンポーネントのテキストデータです（ページの履歴は含みません）。新しいサイトの「コンテンツパッケージ（ZIP）インポート」に取り込めば、内容を戻せます。メディアは、公開中のメディアファイルをまとめてZIPでダウンロードします。",
     "backup_hint_flat": "サイトの全データ（JSON）と、アップロードしたメディアファイル（jpg,svgなど）をZIPでダウンロードします。定期的な保存を推奨します。",
     "backup_media_flat": "メディア一括ダウンロード (files)",
     "component_search_placeholder": "コンポーネントを検索",

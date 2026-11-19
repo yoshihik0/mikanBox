@@ -532,7 +532,7 @@
     "admin_forgot_password_flat": "If you forgot your password,",
     "admin_forgot_password_hint_flat": "Clear the password_hash value in settings.json to reset.",
     "backup_head_flat": "Backup",
-    "backup_hint_cloud": "Data (JSON) is the text of the settings, pages and components; importing it with “Content package (ZIP) import” into a new site brings the content back. Media downloads the published media files together as a ZIP.",
+    "backup_hint_cloud": "Data (JSON) is the text of the settings, pages and components (without page history); importing it with “Content package (ZIP) import” into a new site brings the content back. Media downloads the published media files together as a ZIP.",
     "backup_hint_flat": "Download all site data (JSON) and uploaded media files (jpg, svg, etc.) as a ZIP file. Regular backups are recommended.",
     "backup_media_flat": "Download All Media (files)",
     "component_search_placeholder": "Search components",
