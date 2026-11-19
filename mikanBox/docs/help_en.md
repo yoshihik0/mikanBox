@@ -873,7 +873,7 @@ Bundles every uploaded file (images, etc.) into a single ZIP and downloads it.
 
 The first row places the immutable site ID on the left and the site name on the right. Explanations appear below their input fields.
 
-Common site settings show the site name on the left and the read-only site ID on the right in equal-width columns. The site URL follows on the next row, with its explanation below the field. Static generation method hints use normal font weight. In Cloud, open the dedicated Data Import & Migration Tool from site settings for complete JSON backup and restore.
+Common site settings show the site name on the left and the read-only site ID on the right in equal-width columns. The site URL follows on the next row, with its explanation below the field. Static generation method hints use normal font weight. In Cloud, open the dedicated Data Import & Migration Tool from site settings for the full backup (one ZIP) and its restore.
 
 #### Site ID (for AI)
 
@@ -1030,7 +1030,7 @@ Open `/admin?view=import` from Site settings. It follows the SQLite tool’s sta
 
 ZIP import adds only JSON records under `posts/` and `components/`, skipping existing IDs. Settings, accounts and images are not imported. WordPress WXR maps published posts to dynamic pages, pending posts to pending pages, and other statuses to drafts; HTML is converted to basic Markdown. Upload images separately. ZIP/XML files are limited to 20 MB, ZIP expansion to 15 MB total, and imported content to 1 MB in UTF-8 with 300 total records. ZIP supports store and Deflate; encrypted or corrupt files are rejected. ZIP/XML parsing runs in the browser.
 
-CSV conversion and Cloud’s complete JSON backup/restore controls follow the common import sections. Full JSON restore replaces current site data, unlike additive ZIP/XML import, and retains administrator-password and user-restoration requirements. Rebuild static pages after import. Site settings use shared CSS for two-column fields, account accordions and category add-button alignment.
+Cloud’s full backup and its restore follow the common import sections. Restoring a full backup replaces the current site data, unlike the additive ZIP/XML import; users are restored only when “Also restore users” is ticked. Rebuild static pages after import. Site settings use shared CSS for two-column fields, account accordions and category add-button alignment.
 
 ---
 
@@ -1040,7 +1040,7 @@ Clear page and media keyword searches using the clear control; category filters 
 
 In the Cloud edition (from v0.13.0) media files (images, and uploaded JS and CSS) are kept only on the public site. An uploaded file is sent to the public site at once, and appears in the media list once it is confirmed there. The D1 database keeps pages, history, settings and the information about each media file (name, size and so on).
 
-Cloudflare's free plan allows 20,000 files of up to 25 MiB each on the public site (mikanBox allows 10 MB per file and 10,000 files). The public site is the only place the media is kept, so save it regularly with "Download media" on the Site screen or "JSON backup" in the data tool. See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md) for details.
+Cloudflare's free plan allows 20,000 files of up to 25 MiB each on the public site (mikanBox allows 10 MB per file and 10,000 files). The public site is the only place the media is kept, so save it regularly with "Download media" on the Site screen or "Full backup" in the data tool. See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md) for details.
 
 ## Design {#design-mgmt}
 
