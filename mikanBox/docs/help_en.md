@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.22.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.22.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -238,7 +238,7 @@ After you clear cookies, or when you sign in from another browser or computer, t
 
 [SQLite Edition only]{.type-badge .badge-sqlite}
 
-On a registered device, open Site → "Devices and users" → "Add a device" → "Issue a code". The code is shown at the top of the screen. Open the admin screen on the new device and enter the code and a device name. A code has 10 characters, is valid for 3 hours and works once. Keep it private. After 10 wrong entries from the same address (IP), entry from that address is blocked for 15 minutes.
+On a registered device, open Site → "Devices and users" → "Add a device" → "Issue a code". The code is shown right under the button (an invite code under "Issue an invite code"). Open the admin screen on the new device and enter the code and a device name. A code has 10 characters, is valid for 3 hours and works once. Keep it private. After 10 wrong entries from the same address (IP), entry from that address is blocked for 15 minutes.
 
 To invite another editor, use "Invite someone" in the same place: issue an invite code and hand it over. The invited person chooses their own user ID and display name when they first sign in. A device added with an add code is registered as the same user as whoever issued the code.
 
@@ -381,7 +381,7 @@ Above the page list, registered categories are shown as a tag cloud. Click one t
 #### Category:
 
 - [All]{.m-btn .m-btn-gray} — Clears the filter and shows every page.
-- [Category name]{.m-btn .m-btn-gray} — Clicking narrows the list to pages that include that category. Clicking the "×" in the tag's corner removes that category from every page in one go (only shown in delete mode).
+- [Category name]{.m-btn .m-btn-gray} — Clicking narrows the list to pages that include that category. In delete mode, clicking the "×" in the tag's corner, or the category name itself, removes that category from every page in one go (when pages use it, a confirmation shows how many).
 - [[add]{.material-symbols-outlined}New]{.m-btn .m-btn-blue} — Type a new category name directly and add it. Even a category not yet assigned to any page will show up in the cloud right away.
 - [[delete]{.material-symbols-outlined}Delete]{.m-btn .m-btn-gray} — Switches to "delete mode," where an "×" appears on every category tag for removal.
 
@@ -933,7 +933,7 @@ Each user is shown with their own devices. You see the username and display name
 
 #### Add a Device
 
-Issues an add code. Open the admin screen on the new device and enter the code. A code is valid for 3 hours and works once. The code is shown only right after it is issued and cannot be viewed later.
+Issues an add code. Open the admin screen on the new device and enter the code. A code is valid for 3 hours and works once. The code is shown right under the button you pressed, only right after it is issued, and cannot be viewed later.
 
 ##### Invite Someone
 
@@ -1052,16 +1052,22 @@ Manages three types of components: [Page]{.type-badge .badge-page}, which builds
 
 #### [add]{.material-symbols-outlined} Create New{.m-btn .m-btn-blue}
 
-Creates a new component. Clicking opens the design-edit area.
+Right next to the "Design" heading (the same place as in the page list). Creates a new component. Clicking opens the design-edit area.
+
+#### Searching components
+
+Typing in the field at the right of the heading row narrows the list to components whose ID or memo contains the text. It works together with the type filter.
 
 ### Component List
+
+The list is ordered AI instructions → pages → parts (parts start with `_global_head`, `_header` and `_footer`, then follow ID order).
 
 #### Edit
 
 Clicking the [[edit]{.material-symbols-outlined}Edit]{.m-btn .m-btn-blue} button opens the edit screen for that component.
 
 
-Use the selector to the right of “Ask AI” in the component list: All (default), Selected category, Page, Part, AI instructions, or Standard components. A standard component has an ID beginning with `_`; type filters use the component type setting. Omit `_` for ordinary new or duplicated components, but use it when standard classification is intended. These names are not rejected on save. “Selected category” uses the category at the top of the admin screen and matches component ID prefixes, just like media filenames: `apps_header` belongs to `apps`. With no category selected, it does not narrow the list.
+Use the selector to the right of “Ask AI” in the component list: All (default), Page, Part, AI instructions, or Standard components. A standard component has an ID beginning with `_`; type filters use the component type setting. Omit `_` for ordinary new or duplicated components, but use it when standard classification is intended. These names are not rejected on save.
 #### Component ID
 
 The component's identifier. Clicking it also opens the edit screen. IDs starting with "_" are system components provided out of the box — you're free to edit and reuse them.

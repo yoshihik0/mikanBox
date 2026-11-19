@@ -1259,7 +1259,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             try {
                 if ($action === 'device_code_create') {
                     // Shown once, in the section itself: a toast would vanish before it could be copied.
-                    $_SESSION['device_code_flash'] = mikanBoxDeviceIssueCode($currentDevice, isset($_POST['invite']));
+                    $_SESSION['device_code_flash'] = ['code' => mikanBoxDeviceIssueCode($currentDevice, isset($_POST['invite'])), 'invite' => isset($_POST['invite'])];
                     $message = t('msg_device_code_issued');
                 } elseif ($action === 'device_code_cancel') {
                     mikanBoxDeviceCancelCode((string)($_POST['code_hash'] ?? ''));
@@ -1683,7 +1683,9 @@ function getIcon($name) {
             return;
         }
 
-        const deleteBadge = e.target.closest('.category-delete-badge');
+        // In delete mode the whole category deletes it, not only its small × mark.
+        const deleteBadge = e.target.closest('.category-delete-badge')
+            || e.target.closest('.category-cloud-wrap.delete-mode .category-cloud-tag-wrap')?.querySelector('.category-delete-badge');
         if (deleteBadge) {
             e.preventDefault();
             const val = deleteBadge.getAttribute('data-category');
@@ -2118,6 +2120,7 @@ function getIcon($name) {
     document.addEventListener('click', async function(e) {
         const tag = e.target.closest('.category-cloud-tag');
         if (!tag) return;
+        if (tag.closest('.category-cloud-wrap.delete-mode') && tag.closest('.category-cloud-tag-wrap')) { e.preventDefault(); return; }
 
         // Skip category filtering for control buttons (New and Delete)
         if (tag.classList.contains('btn-add-cat') || tag.classList.contains('btn-toggle-del-cat')) {

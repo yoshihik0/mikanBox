@@ -424,8 +424,8 @@ ob_start();
 
             <section id="zip-import" class="data-tool-card">
                 <h2><span class="material-symbols-outlined">upload_file</span> コンテンツパッケージ (ZIP) インポート</h2>
-                <p>テーマや初期データを含むZIPパッケージ（<code>settings.json</code>, <code>posts/</code>, <code>components/</code> フォルダなどを含むアーカイブ）をアップロードして、現在のSQLiteデータベースにインポートします。<br>
-                    ※インポートされたファイル群は、<code>mikanData/private-import/</code> フォルダ配下に <code>{フォルダ名}_imported</code> として展開されます。</p>
+                <p><?= htmlspecialchars(t('import_zip_hint')) ?><br>
+                    <?= htmlspecialchars(t('import_zip_kept_sqlite')) ?></p>
                 <form method="post" enctype="multipart/form-data" action="<?= $importAction ?>" data-data-tool-form>
                     <input type="hidden" name="csrf_token" value="<?= $csrfValue ?>">
                     <input type="hidden" name="action" value="upload_import">
@@ -449,8 +449,7 @@ components/
 
             <section id="wp-import" class="data-tool-card">
                 <h2><span class="material-symbols-outlined">description</span> WordPress データ移行 (XML インポート)</h2>
-                <p>WordPress の「ツール ＞ エクスポート」から書き出した XML ファイル（WXR 形式）をアップロードし、投稿や固定ページを mikanBox のページデータとして一括インポートします。<br>
-                    ※インポートされたページのステータスは WordPress での公開状態（公開/下書き）が維持されます。本文の HTML は自動的に簡易的な Markdown 形式に変換されます。</p>
+                <p><?= htmlspecialchars(t('import_wp_hint')) ?></p>
                 <form method="post" enctype="multipart/form-data" action="<?= $importAction ?>" data-data-tool-form>
                     <input type="hidden" name="csrf_token" value="<?= $csrfValue ?>">
                     <input type="hidden" name="action" value="wordpress_import">

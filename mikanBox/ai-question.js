@@ -315,7 +315,7 @@
         const selector = document.querySelectorAll('#design .component-filter-select')[0];
         if (!selector) return;
         const url = new URL(window.location.href);
-        const allowed = ['all', 'category', 'wrapper', 'part', 'ai_doc', 'standard'];
+        const allowed = ['all', 'wrapper', 'part', 'ai_doc', 'standard'];
         const requested = url.searchParams.get('component_filter') || 'all';
         const mode = allowed.includes(requested) ? requested : 'all';
         selector.value = mode;
@@ -326,13 +326,15 @@
             else target.searchParams.set('component_filter', mode);
             link.href = target.pathname + target.search + target.hash;
         });
-        const category = url.searchParams.get('cat') || '';
+        // The search field matches the ID and the memo (as typed, ignoring case).
+        const search = document.getElementById('admin-component-search');
+        const query = (search ? search.value : '').trim().toLowerCase();
         document.querySelectorAll('#design tr[data-component-id]').forEach(row => {
             const id = row.dataset.componentId;
-            const matches = mode === 'all'
+            const matches = (mode === 'all'
                 || (mode === 'standard' && id.startsWith('_'))
-                || (mode === 'category' && (!category || id.split('_').slice(0, -1).includes(category)))
-                || row.dataset.componentType === mode;
+                || row.dataset.componentType === mode)
+                && (!query || (id + '\n' + (row.dataset.componentMemo || '')).toLowerCase().includes(query));
             row.classList.toggle('component-filter-hidden', !matches);
         });
     }
@@ -352,6 +354,9 @@
             else url.searchParams.set('component_filter', mode);
             history.replaceState(null, '', url.pathname + url.search + url.hash);
             filterComponents();
+        });
+        document.addEventListener('input', event => {
+            if (event.target.id === 'admin-component-search') filterComponents();
         });
         window.addEventListener('popstate', filterComponents);
         }

@@ -1,8 +1,8 @@
 {
-    "html": "<meta charset=\"UTF-8\">\r\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n<meta name=\"description\" content=\"{{DESCRIPTION}}\">\r\n<meta name=\"keywords\" content=\"{{KEYWORDS}}\">\r\n<meta property=\"og:image\" content=\"{{OGP_IMAGE}}\">\r\n<title>{{FULL_TITLE}}<\/title>\r\n{{HEAD_CSS}}",
+    "html": "<meta charset=\"UTF-8\">\r\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n<meta name=\"description\" content=\"{{DESCRIPTION}}\">\r\n<meta name=\"keywords\" content=\"{{KEYWORDS}}\">\r\n<meta property=\"og:image\" content=\"{{OGP_IMAGE}}\">\r\n<title>{{FULL_TITLE}}</title>\r\n{{HEAD_CSS}}",
     "css": "",
     "is_global": true,
     "is_wrapper": false,
     "is_ai_doc": false,
-    "memo": "共通headタグ。{{HEAD_CSS}}は、ページやコンポーネントのCSSを整理して出力するタグです。共通の計測タグは、計測コードを入れたコンポーネントを作り、サイト設定の「計測コンポーネント」で指定すると、全ページのhead内へ共通して挿入できます。"
+    "memo": "共通headタグ。{{HEAD_CSS}}は、ページやコンポーネントのCSSを整理して出力するタグです（書かなかったときは、</head>の直前に入れます）。文字コード・viewport・タイトル・説明・OGP画像のタグが無いときも、自動で補います。計測タグは、サイト設定の計測IDか計測コードに入れると、全ページのheadに入ります。"
 }

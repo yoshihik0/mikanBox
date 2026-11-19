@@ -20,6 +20,13 @@ $codes = $me ? mikanBoxDeviceCodes() : [];
 $deviceNames = [];
 foreach ($devices as $d) $deviceNames[$d['id']] = $d['name'];
 $probation = $me ? mikanBoxDeviceOnProbation($me) : false;
+// A code is shown once, right under the button that issued it (the flash is consumed here).
+$issued = is_array($_SESSION['device_code_flash'] ?? null) ? $_SESSION['device_code_flash'] : null;
+unset($_SESSION['device_code_flash']);
+$codeBox = static function (bool $invite) use ($issued, $e): string {
+    if (!$issued || (bool)$issued['invite'] !== $invite) return '';
+    return '<div class="issued-code" role="status"><div class="issued-code-value">' . $e($issued['code']) . '</div><div class="sub-text">' . $e(t('device_code_panel_note', MIKANBOX_DEVICE_CODE_HOURS)) . '</div></div>';
+};
 $headingStyle = 'font-size: 0.95rem; margin: 18px 0 12px; color: var(--text); border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;';
 $boxStyle = 'margin-top: 15px; margin-bottom: 15px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fafafa;';
 $boxSummaryStyle = 'padding: 10px 15px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; border-bottom: none; background: transparent;';
@@ -28,20 +35,13 @@ $boxBodyStyle = 'padding: 15px; border-top: 1px solid #e2e8f0; background: #fff;
     <!-- Devices and Users Section -->
     <div id="users-mgmt" class="section-large-bottom">
         <div class="section-container section-tight">
-            <details class="section-accordion"<?= !empty($_SESSION['device_code_flash']) ? ' open' : '' ?>>
+            <details class="section-accordion"<?= $issued ? ' open' : '' ?>>
                 <summary class="header section-header accordion-summary">
                     <h2 class="accordion-title">
                         <?= $e(t('device_section_title')) ?> <span class="accordion-arrow">▼</span>
                     </h2>
                 </summary>
                 <div class="editor-container editor-container-sub">
-                    <?php if (!empty($_SESSION['device_code_flash'])): ?>
-                        <div role="status" style="background: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 8px; padding: 14px 16px; margin-bottom: 18px;">
-                            <div style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.6rem; letter-spacing: 0.12em; font-weight: 700; user-select: all;"><?= $e($_SESSION['device_code_flash']) ?></div>
-                            <div class="sub-text" style="margin-top: 6px;"><?= $e(t('device_code_panel_note', MIKANBOX_DEVICE_CODE_HOURS)) ?></div>
-                        </div>
-                        <?php unset($_SESSION['device_code_flash']); ?>
-                    <?php endif; ?>
                     <p class="sub-text sub-text-intro"><?= $e(t('device_section_intro')) ?></p>
                     <?php if ($probation): ?>
                         <p class="error" role="status"><?= $e(t('device_probation_notice', MIKANBOX_DEVICE_PROBATION_DAYS)) ?></p>
@@ -116,7 +116,7 @@ $boxBodyStyle = 'padding: 15px; border-top: 1px solid #e2e8f0; background: #fff;
                     </div>
 
                     <!-- Add a device -->
-                    <details class="section-accordion" style="<?= $boxStyle ?>">
+                    <details class="section-accordion" style="<?= $boxStyle ?>"<?= $issued ? ' open' : '' ?>>
                         <summary class="header section-header accordion-summary" style="<?= $boxSummaryStyle ?>">
                             <h3 style="font-size: 0.95rem; margin: 0; color: var(--text); display: inline-flex; align-items: center; gap: 8px; pointer-events: none;">
                                 <?= getIcon('add') ?> <?= $e(t('device_add_summary')) ?>
@@ -130,6 +130,7 @@ $boxBodyStyle = 'padding: 15px; border-top: 1px solid #e2e8f0; background: #fff;
                                 <input type="hidden" name="save_action" value="device_code_create">
                                 <button type="submit" class="btn btn-blue btn-small"><?= getIcon('add') ?> <?= $e(t('device_btn_issue_code')) ?></button>
                             </form>
+                            <?= $codeBox(false) ?>
                             <h4 style="margin: 20px 0 10px; font-size: 0.9rem;"><?= $e(t('device_invite_title')) ?></h4>
                             <p class="sub-text"><?= $e(t('device_invite_admin_intro')) ?></p>
                             <form method="post" data-ajax data-refresh="#users-mgmt">
@@ -138,6 +139,7 @@ $boxBodyStyle = 'padding: 15px; border-top: 1px solid #e2e8f0; background: #fff;
                                 <input type="hidden" name="invite" value="1">
                                 <button type="submit" class="btn btn-blue btn-small"><?= getIcon('add') ?> <?= $e(t('device_btn_invite')) ?></button>
                             </form>
+                            <?= $codeBox(true) ?>
                         </div>
                     </details>
 

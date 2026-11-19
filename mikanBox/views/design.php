@@ -3,8 +3,14 @@
     <div id="design" class="section-anchor">
         <div class="section-container section-large-bottom">
             <div class="header">
-            <h1><?= getIcon('component') ?> <?= t('nav_design') ?><a href="<?= $helpFile ?>#design-mgmt" target="_blank" class="manual-link"><?= t('admin_help') ?></a><span class="component-filter-control"><select class="select-auto component-filter-select" aria-label="<?= t('component_filter_label') ?>"><?php foreach (['all','category','wrapper','part','ai_doc','standard'] as $filter): ?><option value="<?= $filter ?>"><?= t('component_filter_' . $filter) ?></option><?php endforeach; ?></select></span></h1>
-            <a href="?view=design&new=1#design-editor" class="btn btn-blue"><?= getIcon('add') ?> <?= t('btn_create_new') ?></a>
+            <h1><?= getIcon('component') ?> <?= t('nav_design') ?><a href="?view=design&new=1#design-editor" class="btn btn-sm btn-blue" style="margin-left: 15px; display: inline-flex; align-items: center; gap: 5px; font-size: 0.85rem; padding: 4px 10px; vertical-align: middle;"><?= getIcon('add') ?> <?= t('btn_create_new') ?></a><a href="<?= $helpFile ?>#design-mgmt" target="_blank" class="manual-link"><?= t('admin_help') ?></a><span class="component-filter-control"><select class="select-auto component-filter-select" aria-label="<?= t('component_filter_label') ?>"><?php foreach (['all','wrapper','part','ai_doc','standard'] as $filter): ?><option value="<?= $filter ?>"><?= t('component_filter_' . $filter) ?></option><?php endforeach; ?></select></span></h1>
+            <!-- Component search: filters the list in place by ID and memo -->
+            <form class="search-bar-wrap" role="search" onsubmit="return false">
+                <div class="admin-search">
+                    <input type="search" id="admin-component-search" class="admin-search-input" placeholder="<?= t('component_search_placeholder') ?>" aria-label="<?= t('component_search_placeholder') ?>">
+                    <span class="admin-search-icon"><?= getIcon('search') ?></span>
+                </div>
+            </form>
         </div>
         <div class="table-responsive <?= ($view === 'components' && ($editId !== null || isset($_GET['new']))) ? 'mb-0' : 'ssg-build-row no-editor' ?>" id="comps-table-wrap">
         <table>
@@ -21,16 +27,17 @@
                 ];
             }
             usort($compDataListDesign, function($a, $b) {
+                // AI instructions first, then page templates, then parts.
                 $typePriority = function($item) {
+                    if ($item['is_ai_doc']) return 0;
                     if ($item['is_wrapper']) return 1;
-                    if ($item['is_ai_doc']) return 3;
                     return 2;
                 };
                 $pA = $typePriority($a);
                 $pB = $typePriority($b);
                 if ($pA !== $pB) return $pA - $pB;
 
-                $priority = ['global_head' => 1, 'header' => 2, 'footer' => 3];
+                $priority = ['_global_head' => 1, '_header' => 2, '_footer' => 3];
                 $pA2 = $priority[$a['id']] ?? 99;
                 $pB2 = $priority[$b['id']] ?? 99;
                 if ($pA2 !== $pB2) return $pA2 - $pB2;
@@ -50,7 +57,7 @@
                     $typeClass = 'type-badge';
                 }
             ?>
-            <tr data-component-id="<?= htmlspecialchars($cid, ENT_QUOTES) ?>" data-component-type="<?= !empty($cData['is_wrapper']) ? 'wrapper' : (!empty($cData['is_ai_doc']) ? 'ai_doc' : 'part') ?>">
+            <tr data-component-id="<?= htmlspecialchars($cid, ENT_QUOTES) ?>" data-component-type="<?= !empty($cData['is_wrapper']) ? 'wrapper' : (!empty($cData['is_ai_doc']) ? 'ai_doc' : 'part') ?>" data-component-memo="<?= htmlspecialchars((string)($cData['memo'] ?? ''), ENT_QUOTES) ?>">
                 <td class="td-narrow">
                     <div class="flex-center">
                          <a href="?view=design&edit=<?= $cid ?>#design-editor" class="btn btn-sm btn-blue"><?= getIcon('edit') ?> <?= t('btn_edit') ?></a>
