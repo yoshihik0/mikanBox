@@ -1001,6 +1001,52 @@ function mikanBoxPublicPageUrl($pid, $data, array $settings, $staticRelPath): ?s
     return $root . $pid;
 }
 
+/** Fingerprint of a page as saved, recorded at each full build to tell which static pages changed since. */
+function mikanBoxBuildFingerprint(array $data): string {
+    return substr(hash('sha256', json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)), 0, 16);
+}
+
+/** What a full build covered, kept in the settings (last_build) so the page list can tell what changed since. */
+function mikanBoxBuildRecord(): array {
+    $pages = [];
+    foreach (getFileList(POSTS_DIR) as $pid) {
+        $data = loadData(POSTS_DIR, $pid);
+        if (is_array($data) && ($data['status'] ?? '') === 'public_static') $pages[$pid] = mikanBoxBuildFingerprint($data);
+    }
+    return ['at' => gmdate('c'), 'pages' => $pages];
+}
+
+/**
+ * The build box state, as in the Cloud edition: how many static pages differ from the last full build
+ * (changed, newly static, or no longer static), when it ran, and where the static site is.
+ * Changes to components or settings show only once the pages are rebuilt (as in Cloud).
+ */
+function mikanBoxBuildStatus(array $settings): array {
+    $last = is_array($settings['last_build'] ?? null) ? $settings['last_build'] : null;
+    $built = is_array($last['pages'] ?? null) ? $last['pages'] : [];
+    $stale = 0; $seen = [];
+    foreach (getFileList(POSTS_DIR) as $pid) {
+        $data = loadData(POSTS_DIR, $pid);
+        if (!is_array($data) || ($data['status'] ?? '') !== 'public_static') continue;
+        $seen[$pid] = true;
+        if (($built[$pid] ?? null) !== mikanBoxBuildFingerprint($data)) $stale++;
+    }
+    foreach (array_keys($built) as $pid) if (!isset($seen[$pid])) $stale++;
+    $dir = trim((string)($settings['ssg_dir'] ?? ($settings['last_ssg_dir'] ?? '')), '/');
+    if (($settings['ssg_mode'] ?? 'server') === 'export') {
+        $destination = ['folder' => true, 'label' => ($dir !== '' ? $dir . '/' : '/')];
+    } else {
+        $root = rtrim(trim((string)($settings['ssg_root_url'] ?? '')), '/');
+        if ($root === '') {
+            $https = !empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off';
+            $admin = rtrim(str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/mikanBox/admin.php'))), '/');
+            $root = ($https ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . rtrim(dirname($admin), '/') . ($dir !== '' ? '/' . $dir : '');
+        }
+        $destination = ['folder' => false, 'label' => $root . '/'];
+    }
+    return ['built_at' => $last['at'] ?? null, 'stale' => $last ? $stale : null, 'destination' => $destination];
+}
+
 /** Dynamic-site URL of a page for sitemap and RSS: Markdown-only pages point at /id.md. */
 function mikanBoxFeedPageUrl($siteUrl, $pageId, $data): string {
     if (mikanBoxIsApiFormat(mikanBoxPageOutputFormat($data))) return $siteUrl . '/api/' . $pageId . '.json';

@@ -197,11 +197,22 @@
         <?php endif; ?>
 
         <div class="flex-row ssg-build-row <?= ($view === 'pages' && ($editId !== null || isset($_GET['new']))) ? 'has-editor' : 'no-editor' ?>">
-            <form method="post" data-ajax>
+            <div class="publish-box mt-10" id="publish-box">
+            <form method="post" data-ajax data-refresh="#publish-box">
                 <input type="hidden" name="save_action" value="ssg_build">
                 <?= csrfField() ?>
                 <button type="submit" class="btn btn-blue"><?= getIcon('sparkles') ?> <?= t('btn_ssg_build') ?></button>
             </form>
+            <?php $buildStatus = mikanBoxBuildStatus($settings); // as in the Cloud edition's publish box ?>
+            <span class="publish-status" id="build-status" role="status"><?php
+                if ($buildStatus['stale'] === null) echo htmlspecialchars(t('build_status_never'));
+                else {
+                    echo htmlspecialchars($buildStatus['stale'] > 0 ? t('build_status_stale', $buildStatus['stale']) : t('build_status_up_to_date'));
+                    echo ' ' . htmlspecialchars(t('build_status_last')) . ': <time datetime="' . htmlspecialchars((string)$buildStatus['built_at']) . '">' . htmlspecialchars(date('Y/m/d H:i', strtotime((string)$buildStatus['built_at']))) . '</time>';
+                }
+            ?></span>
+            <span class="publish-status"><?php if ($buildStatus['destination']['folder']): ?><?= htmlspecialchars(t('build_status_destination_folder')) ?>: <code><?= htmlspecialchars($buildStatus['destination']['label']) ?></code><?php else: ?><?= htmlspecialchars(t('build_status_destination')) ?>: <a href="<?= htmlspecialchars($buildStatus['destination']['label']) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($buildStatus['destination']['label']) ?></a><?php endif; ?></span>
+            </div>
         </div>
         </div> <!-- /.section-container -->
     </div> <!-- /#pages -->

@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.22.2</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.23.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -456,7 +456,7 @@ Pages whose output format is not HTML show a small label beside the title: `+MD`
 
 #### [auto_awesome]{.material-symbols-outlined} Build Static Site{.m-btn .m-btn-blue}
 
-Found at the bottom of the page list. Writes out every page whose status is "Public (Static)" as static HTML files. After editing a Public (Static) page, other pages can end up out of sync, so it's a good idea to rebuild the whole site here.
+Found at the bottom of the page list. Under the button you see how many "Public (Static)" pages changed since the last build ("N page(s) have changes not on the public site." or "The public site is up to date."), when the last build ran, and where the static site is (the output folder in export mode). Changes to components or settings alone are not counted. This is the same display as in the Cloud edition. It writes out every page whose status is "Public (Static)" as static HTML files. After editing a Public (Static) page, other pages can end up out of sync, so it's a good idea to rebuild the whole site here.
 
 ---
 
@@ -855,7 +855,7 @@ Bundles every uploaded file (images, etc.) into a single ZIP and downloads it.
 
 #### [settings_backup_restore]{.material-symbols-outlined} Data Import &amp; Migration Tool{.m-btn .m-btn-blue}
 
-Opens the [Data Migration &amp; Import Tool](#data-migration) over the admin panel (in the same window).
+Opens the [Data Migration &amp; Import Tool](#data-migration) inside the admin panel. The side navigation stays, so its icons lead back to each admin screen.
 
 ### Backup [flat Edition only]{.type-badge .badge-flat} {#site-backup}
 
@@ -971,7 +971,7 @@ Changes and saves the password.
 
 ## Data Migration &amp; Import Tool {#data-migration}
 
-In the SQLite edition, the "Data Migration & Import Tool" button in Site Settings opens the tool over the admin panel (in the same window; closing it returns you to the admin panel). You can also open `admin.php?view=import` directly, and the old `mikanBox/convert.php` address leads to the same screen. You can check the current state of the database and media, and bulk-import external data.
+In the SQLite edition, the "Data Migration & Import Tool" button in Site Settings opens the tool inside the admin panel (as in the Cloud edition; the side navigation icons lead back to each admin screen). You can also open `admin.php?view=import` directly, and the old `mikanBox/convert.php` address leads to the same screen. You can check the current state of the database and media, and bulk-import external data.
 
 ### Current State
 
@@ -1036,15 +1036,11 @@ CSV conversion and Cloud’s complete JSON backup/restore controls follow the co
 
 Clear page and media keyword searches using the clear control; category filters remain selected. Cloud image renaming offers Cancel, Rename only and Update references when used by content. Image changes do not require the Cloud publication connection. Full backup for recovery (JSON) includes images, users and revision history beyond the separate data/media downloads. Current D1 image storage is capped at 400 MB; existing and restored images plus other temporary restore images must fit within 450 MB.
 
-### Cloud: media storage
+### Cloud: where media is kept
 
-The Cloud edition keeps pages, history and media (images, and uploaded JS and CSS) in the D1 database. No payment method has to be registered with Cloudflare to stay within the free plan. Storing media in R2, and the migration from D1 to R2, were removed in Cloud v0.12.0.
+In the Cloud edition (from v0.13.0) media files (images, and uploaded JS and CSS) are kept only on the public site. An uploaded file is sent to the public site at once, and appears in the media list once it is confirmed there. The D1 database keeps pages, history, settings and the information about each media file (name, size and so on).
 
-Media may total 400 MB, with up to 10 MB per file and 10,000 files. The D1 free plan allows 500 MB per database; the rest is for pages, history and database overhead. Usage is shown on the media screen and under Site → Storage usage, with a notice near the limit. Delete unused media, or make images smaller with the upload options "Limit long edge to" and "Convert to WebP".
-
-Published images and built page HTML are delivered as the public site's static files. Complete JSON backups, D1 Time Travel and the SQL export include the images. See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md) for details.
-
-Reference: [D1 limits](https://developers.cloudflare.com/d1/platform/limits/).
+Cloudflare's free plan allows 20,000 files of up to 25 MiB each on the public site (mikanBox allows 10 MB per file and 10,000 files). The public site is the only place the media is kept, so save it regularly with "Download media" on the Site screen or "JSON backup" in the data tool. See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md) for details.
 
 ## Design {#design-mgmt}
 
@@ -1288,7 +1284,7 @@ Filename search and pagination use the same layout across editions. Search appli
 
 Expand “Upload options▼” to configure uploads. After uploading, renaming, resizing, converting to WebP, or deleting a file, the media list retains its scroll position where possible. File actions appear in this order: “Resize▼”, “Rename▼”, “Convert to WebP”. Resize dimensions and filename inputs use the same height and save button size. Enter a width or height to preserve the aspect ratio.
 
-“Convert to WebP” appears only for existing JPEG (jpg/jpeg) and PNG images, not WebP, GIF, SVG, audio or video. PHP requires server WebP encoding support. Conversion changes the extension to `.webp` and updates page content/CSS/JavaScript/OGP, component HTML/CSS/JavaScript, and the site OGP image. Memos and past revisions are unchanged. An existing WebP target is never overwritten; the source and references remain intact. Rebuild static pages afterward. Cloud converts the image in the browser and updates storage and delivery; keep the screen open until complete.
+“Convert to WebP” appears only for existing JPEG (jpg/jpeg) and PNG images, not WebP, GIF, SVG, audio or video. Pressing it asks for confirmation first (the image and the links to it change) in all three editions. PHP requires server WebP encoding support. Conversion changes the extension to `.webp` and updates page content/CSS/JavaScript/OGP, component HTML/CSS/JavaScript, and the site OGP image. Memos and past revisions are unchanged. An existing WebP target is never overwritten; the source and references remain intact. Rebuild static pages afterward. Cloud converts the image in the browser and updates storage and delivery; keep the screen open until complete.
 
 ## Markdown {#markdown}
 

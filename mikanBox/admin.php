@@ -214,11 +214,14 @@ if (isset($_GET['page_preview']) && is_string($_GET['page_preview'])) {
 }
 $site_name = $settings['site_name'] ?? SITE_NAME;
 $view = $_GET['view'] ?? 'pages';
+$dataToolHtml = null;
 if ($view === 'import') {
-    // Data migration and import tool (inside the admin screen; the overlay loads it with embed=1).
+    // Data migration and import tool: shown inside the admin screen in place of the sections, with
+    // the side navigation kept (as in the Cloud edition), so its icons lead back.
     define('MIKANBOX_DATA_TOOL', true);
+    define('MIKANBOX_DATA_TOOL_INLINE', true);
     require __DIR__ . '/convert.php';
-    exit;
+    $dataToolHtml = $mikanBoxDataToolHtml ?? '';
 }
 if ($view === 'design') $view = 'components'; // 'design' is an alias for 'components'
 
@@ -941,6 +944,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         if (!empty($errors)) $message .= ' / ' . implode(', ', $errors);
         if (empty($results)) $message .= t('msg_html_pages_none');
         
+        // What this build covered, for the state shown beside the build button.
+        if (empty($errors)) $settings['last_build'] = mikanBoxBuildRecord();
         $saved = saveSettings($settings);
         if (!$saved) {
             $message .= ' / ' . t('err_save_failed');
@@ -1507,7 +1512,7 @@ function getIcon($name) {
         <span class="text">mikanBox</span>
     </div>
     
-    <a href="#pages" class="nav-pages" title="<?= t('nav_pages') ?>">
+    <a href="<?= $dataToolHtml !== null ? 'admin.php' : '' ?>#pages" class="nav-pages" title="<?= t('nav_pages') ?>">
         <?= getIcon('page') ?>
         <span><?= t('nav_pages') ?></span>
     </a>
@@ -1519,11 +1524,11 @@ function getIcon($name) {
         <span class="close-badge" data-url="admin.php#pages" title="<?= t('btn_close') ?>">×</span>
     </a>
     <?php endif; ?>
-    <a href="#site" class="nav-settings" title="<?= t('nav_settings') ?>">
+    <a href="<?= $dataToolHtml !== null ? 'admin.php' : '' ?>#site" class="nav-settings" title="<?= t('nav_settings') ?>">
         <?= getIcon('save') ?>
         <span><?= t('nav_settings') ?></span>
     </a>
-    <a href="#design" class="nav-design" title="<?= t('nav_design') ?>">
+    <a href="<?= $dataToolHtml !== null ? 'admin.php' : '' ?>#design" class="nav-design" title="<?= t('nav_design') ?>">
         <?= getIcon('component') ?>
         <span><?= t('nav_design') ?></span>
     </a>
@@ -1536,7 +1541,7 @@ function getIcon($name) {
     </a>
     <?php endif; ?>
 
-    <a href="#media" class="nav-media" title="<?= t('nav_media') ?>">
+    <a href="<?= $dataToolHtml !== null ? 'admin.php' : '' ?>#media" class="nav-media" title="<?= t('nav_media') ?>">
         <?= getIcon('media') ?>
         <span><?= t('nav_media') ?></span>
     </a>
@@ -1554,6 +1559,9 @@ function getIcon($name) {
     <?php if (mikanBoxCliServerWithoutRouter()): ?><p class="admin-alert" role="alert"><?= htmlspecialchars(t('warn_cli_server_no_router'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
     <?php if (($mbDataProbe = mikanBoxDataProtectionProbe()) !== null): ?><p class="admin-alert" id="data-protection-alert" role="alert" hidden data-probe="<?= htmlspecialchars($mbDataProbe, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(t('warn_data_dir_readable'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
 
+    <?php if ($dataToolHtml !== null): ?>
+    <?= $dataToolHtml ?>
+    <?php else: ?>
     <!-- Category Cloud (Steps 3 & 4) -->
     <?php
     $allPageIds = getFileList(POSTS_DIR);
@@ -1617,6 +1625,7 @@ function getIcon($name) {
     <?php include __DIR__ . '/views/design.php'; ?>
 
     <?php include __DIR__ . '/views/media.php'; ?>
+    <?php endif; ?>
 
 
 
@@ -2162,55 +2171,6 @@ function getIcon($name) {
     });
 
 
-    // Data migration and import tool: opens over the admin screen (same window, no reload).
-    (function () {
-        let overlay = null;
-        const load = async (url, options) => {
-            const response = await fetch(url, Object.assign({ credentials: 'same-origin' }, options || {}));
-            return response.text();
-        };
-        const close = () => {
-            if (!overlay) return;
-            overlay.remove(); overlay = null;
-            document.body.classList.remove('data-tool-open');
-            if (typeof refreshPageList === 'function') refreshPageList();
-        };
-        const show = (html) => {
-            if (!overlay) {
-                overlay = document.createElement('div');
-                overlay.className = 'data-tool-overlay';
-                overlay.setAttribute('role', 'dialog');
-                overlay.setAttribute('aria-modal', 'true');
-                document.body.appendChild(overlay);
-                document.body.classList.add('data-tool-open');
-                overlay.addEventListener('click', (e) => {
-                    if (e.target === overlay || e.target.closest('[data-data-tool-close]')) { e.preventDefault(); close(); }
-                });
-                overlay.addEventListener('submit', async (e) => {
-                    const form = e.target.closest('form[data-data-tool-form]');
-                    if (!form) return;
-                    e.preventDefault();
-                    const data = new FormData(form);
-                    data.set('embed', '1');
-                    const buttons = [...form.querySelectorAll('button')];
-                    buttons.forEach(b => { b.disabled = true; });
-                    try { show(await load(form.getAttribute('action'), { method: 'POST', body: data })); }
-                    catch (err) { showToast(<?= json_encode(t('err_network_error')) ?>, true); buttons.forEach(b => { b.disabled = false; }); }
-                });
-            }
-            overlay.innerHTML = html;
-            overlay.scrollTop = 0;
-        };
-        document.addEventListener('click', async (e) => {
-            const link = e.target.closest('[data-open-data-tool]');
-            if (!link) return;
-            e.preventDefault();
-            try { show(await load('admin.php?view=import&embed=1')); }
-            catch (err) { window.location.href = link.href; }
-        });
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay && !document.querySelector('dialog[open]')) close(); });
-    })();
-
     // Modeless AJAX Pagination click handler
     document.addEventListener('click', async function(e) {
         const link = e.target.closest('.pagination-link');
@@ -2256,6 +2216,12 @@ function getIcon($name) {
             
             if (action === 'delete_media') {
                 const confirmed = await window.showConfirmDialog('<?= t('hint_confirm_delete') ?>', '<?= t('btn_delete') ?>', '<?= t('btn_delete_confirm') ?>', 'btn-red');
+                if (!confirmed) return;
+            }
+            if (action === 'convert_media_webp') {
+                // The file name and the links that use it change, so ask first (as in Cloud).
+                const fileName = form.querySelector('input[name="filename"]')?.value || '';
+                const confirmed = await window.showConfirmDialog(<?= json_encode(t('confirm_media_webp')) ?>.replace('%s', fileName), <?= json_encode(t('btn_convert_webp')) ?>, <?= json_encode(t('btn_convert_webp')) ?>, 'btn-blue');
                 if (!confirmed) return;
             }
             const formData = new FormData(form);

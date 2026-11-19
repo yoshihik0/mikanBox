@@ -477,17 +477,18 @@ components/
             <?php endif; ?>
         </div>
         <footer class="data-tool-footer">
-            <?php if ($embed): ?>
-                <a href="admin.php" data-data-tool-close><span class="material-symbols-outlined icon">arrow_back</span> 管理画面へ戻る</a>
-            <?php else: ?>
-                <a href="admin.php"><span class="material-symbols-outlined icon">arrow_back</span> 管理画面へ戻る</a>
-            <?php endif; ?>
+            <a href="admin.php"><span class="material-symbols-outlined icon">arrow_back</span> 管理画面へ戻る</a>
             <span>&copy; <?= date('Y') ?> mikanBox</span>
         </footer>
     </main>
 </div>
 <?php
 $fragment = ob_get_clean();
+if (defined('MIKANBOX_DATA_TOOL_INLINE')) {
+    // admin.php shows it inside the admin screen.
+    $mikanBoxDataToolHtml = $fragment;
+    return;
+}
 if ($embed) {
     header('Content-Type: text/html; charset=utf-8');
     echo $fragment;
