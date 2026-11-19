@@ -877,7 +877,7 @@
     "transfer_sending_data": "Reading data {done} / {total}",
     "transfer_sending_media": "Reading media {done} / {total}",
     "transfer_publishing": "Publishing…",
-    "transfer_publish_failed": "The file was read, but the media could not be sent to the public site. Read the same file again with \"Overwrite items with the same ID\".",
+    "transfer_publish_failed": "The media could not be sent to the public site, so they were not read. Read the same file again.",
     "transfer_done": "Read: {pages} pages, {components} components, {media} media files ({skipped} skipped, {deleted} deleted).",
     "transfer_refused": "Not read because the ID breaks the ID rule: {ids}.",
     "transfer_media_failed": "Media that could not be read: {list}.",

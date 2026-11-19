@@ -877,7 +877,7 @@
     "transfer_sending_data": "データを読み込み中 {done} / {total}",
     "transfer_sending_media": "画像を読み込み中 {done} / {total}",
     "transfer_publishing": "公開サイトへ送っています…",
-    "transfer_publish_failed": "読み込みは終わりましたが、画像を公開サイトへ送れませんでした。同じファイルを「同じIDのものを上書きする」で、もう一度読み込んでください。",
+    "transfer_publish_failed": "画像を公開サイトへ送れなかったため、画像は読み込んでいません。同じファイルを、もう一度読み込んでください。",
     "transfer_done": "読み込みました: ページ {pages} 件、コンポーネント {components} 件、画像 {media} 件（飛ばしたもの {skipped} 件、消したもの {deleted} 件）。",
     "transfer_refused": "IDの決まりに合わないため読み込まなかったもの: {ids}。",
     "transfer_media_failed": "読み込めなかった画像: {list}。",

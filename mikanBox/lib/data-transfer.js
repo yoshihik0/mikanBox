@@ -6,7 +6,7 @@
 //
 // <form data-transfer="import" data-messages="{...}"> with <input type="file" multiple> and radio "mode"
 // (add | overwrite | replace). Texts come from the server (lang/*.json, keys transfer_*).
-// Cloud sets window.MikanTransferPublish(source) to put the media on the public site afterwards.
+// Cloud sets window.MikanTransferPublish(source, newMedia) to put the media on the public site afterwards.
 (() => {
   'use strict';
   const MEDIA = /\.(?:jpe?g|png|gif|webp|svg|mp3|m4a|mp4|js|css)$/i;
@@ -156,12 +156,13 @@
         const result = await send(form, 'transfer_import_data', { mode, part: list[i] });
         total.pages += result.pages; total.components += result.components; total.skipped += result.skipped; total.refused.push(...(result.refused || []));
       }
-      const media = [...found.media.entries()];
+      const media = [...found.media.entries()], pending = [];
       for (let i = 0; i < media.length; i++) {
         progress(say('transfer_sending_media', { done: i + 1, total: media.length }));
         try {
           const result = await send(form, 'transfer_import_media', { mode, name: media[i][0] }, await media[i][1]());
-          if (result.outcome === 'saved') total.media++; else total.skipped++;
+          // Cloud: "pending" files are recorded once the public site carries them (after the publication below).
+          if (result.outcome === 'saved') total.media++; else if (result.outcome === 'pending') pending.push(result.media); else total.skipped++;
         } catch (error) { total.failed.push(media[i][0] + ': ' + error.message); }
       }
       const keep = {};
@@ -173,14 +174,15 @@
       const deleted = Object.values(finish.deleted || {}).reduce((a, b) => a + b, 0);
       // Cloud: media files live on the public site, so read or deleted media are published at once
       // (a full build, which also brings the pages up to date). Pages alone wait for a build, as in PHP.
-      const published = !!window.MikanTransferPublish && (total.media > 0 || (finish.deleted?.media || 0) > 0);
+      const published = !!window.MikanTransferPublish && (pending.length > 0 || (finish.deleted?.media || 0) > 0);
       if (published) {
         progress(say('transfer_publishing'));
         const source = async path => {
           const name = decodeURIComponent(String(path).replace(/^\/media\//, ''));
           return found.media.has(name) ? { bytes: new Uint8Array(await (await found.media.get(name)()).arrayBuffer()) } : null;
         };
-        try { await window.MikanTransferPublish(source); } catch (error) { throw new Error(say('transfer_publish_failed') + ' ' + (error.message || '')); }
+        try { await window.MikanTransferPublish(source, pending); } catch (error) { throw new Error(say('transfer_publish_failed') + ' ' + (error.message || '')); }
+        if (pending.length) total.media += (await send(form, 'transfer_record_media', { media: pending })).recorded;
       }
       progress('');
       const summary = say('transfer_done', { pages: total.pages, components: total.components, media: total.media, skipped: total.skipped, deleted });
