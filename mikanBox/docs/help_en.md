@@ -56,7 +56,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.23.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.23.1</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -1201,7 +1201,7 @@ Uploads the selected file.
 
 #### Upload Options...
 
-Click "Upload Options..." to expand it. The supported formats and the JS/CSS conditions (UTF-8, up to 10 MB; upload only files you trust) are shown here too. These choices apply only at upload time and are remembered by your browser, so the same settings are reused next time. They apply to drag-and-drop uploads as well.
+Click "Upload Options..." to expand it. The supported formats and a note on JS/CSS (they run on public pages, so upload only files you trust) are shown here too. These choices apply only at upload time and are remembered by your browser, so the same settings are reused next time. They apply to drag-and-drop uploads as well.
 
 - **Limit long edge to N px** — When an image's long edge exceeds the given value, it is scaled down on upload while keeping its aspect ratio. The default is 2000px. Photos straight from a phone or camera are often several thousand pixels wide, which badly hurts page speed; this setting prevents that.
 - **Convert to WebP (jpg / png only)** — Re-encodes the image as WebP, typically 25-35% smaller. The extension becomes `.webp`, so the filename changes. jpg is converted lossily (quality 82) and png losslessly, so text and thin lines in screenshots and diagrams are not smeared.

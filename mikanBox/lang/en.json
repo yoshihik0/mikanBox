@@ -101,7 +101,7 @@
     "media_server_limit": "Server Limits",
     "media_max_size": "Max File Size",
     "media_post_limit": "POST Limit",
-    "media_code_hint": "JS/CSS must be UTF-8 and up to 10 MB. Upload only trusted files.",
+    "media_code_hint": "JS and CSS run on public pages. Upload only files you trust.",
     "media_copy_url": "Copy URL",
     "media_copy_tag": "Copy embed tag",
     "media_type_filter": "File type",
