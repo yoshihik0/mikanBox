@@ -23,7 +23,7 @@
 const MIKANBOX_TRANSFER_SETTINGS = ['site_name', 'description', 'keywords', 'ogp_image', 'category_candidates', 'registered_categories', 'memo', 'ai_prompt', 'pages_per_page', 'media_per_page', 'tracking_id', 'tracking_head_code', 'tracking_body_code', 'tracking_component', 'system_lang'];
 const MIKANBOX_TRANSFER_MODES = ['add', 'overwrite', 'replace'];
 /** Larger parts are refused; the browser sends about 1 MB at a time. */
-const MIKANBOX_TRANSFER_PART_BYTES = 8000000;
+const MIKANBOX_TRANSFER_PART_BYTES = 4000000;
 
 function mikanBoxTransferHasHistory(): bool {
     return function_exists('getRevisions') && function_exists('mikanBoxImportRevisions');
@@ -163,13 +163,18 @@ function mikanBoxTransferMayWrite(string $mode, bool $exists): bool {
  */
 function mikanBoxTransferImportData(string $mode, array $part): array {
     $result = ['pages' => 0, 'components' => 0, 'skipped' => 0, 'refused' => [], 'settings' => false];
+    if (count((array)($part['pages'] ?? [])) + count((array)($part['components'] ?? [])) + count((array)($part['revisions'] ?? [])) > 1000) return $result + ['error' => true];
     $history = mikanBoxTransferHasHistory();
     $editor = $_SESSION['admin_username'] ?? 'admin';
     $added = [];
     if ($mode !== 'add' && isset($part['settings']) && is_array($part['settings'])) {
         $settings = loadSettings();
         foreach (mikanBoxTransferSettings($part['settings']) as $key => $value) {
-            if (is_scalar($value) || $value === null) $settings[$key] = $value;
+            if (!(is_scalar($value) || $value === null) || (is_string($value) && strlen($value) > 300000)) continue;
+            // Values are checked as the settings screen checks them.
+            if ($key === 'tracking_id' && !mikanBoxTrackingIdValid((string)$value)) continue;
+            if (in_array($key, ['pages_per_page', 'media_per_page'], true) && !(is_numeric($value) && (int)$value >= 1 && (int)$value <= 1000)) continue;
+            $settings[$key] = $value;
         }
         $result['settings'] = (bool)saveSettings($settings);
     }
@@ -271,7 +276,8 @@ function mikanBoxTransferHandle(string $action): void {
         $raw = (string)($_POST['part'] ?? '');
         $part = strlen($raw) <= MIKANBOX_TRANSFER_PART_BYTES ? json_decode($raw, true) : null;
         if (!is_array($part)) { http_response_code(400); $reply(['success' => false, 'message' => t('err_transfer_file')]); exit; }
-        $reply(['success' => true] + mikanBoxTransferImportData($mode, $part));
+        $result = mikanBoxTransferImportData($mode, $part);
+        $reply(empty($result['error']) ? ['success' => true] + $result : ['success' => false, 'message' => t('err_transfer_file')]);
         exit;
     }
     if ($action === 'transfer_import_media') {

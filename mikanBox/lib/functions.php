@@ -615,8 +615,10 @@ function mikanBoxImportRevisions(string $postId, array $items): void {
         VALUES (:post_id, :title, :category, :status, :sort_order, :updated_at, :data, :editor_id, :created_at)");
     foreach (array_slice($items, -10) as $item) {
         $data = is_array($item['data'] ?? null) ? $item['data'] : null;
-        $created = is_string($item['created_at'] ?? null) ? $item['created_at'] : '';
-        if ($data === null || $created === '') continue;
+        $time = is_string($item['created_at'] ?? null) ? strtotime($item['created_at']) : false;
+        if ($data === null || $time === false) continue;
+        $created = date('Y-m-d H:i:s', $time);
+        $data = mikanBoxNormalizeLegacyPage($data);
         $stmt->bindValue(':post_id', $postId, SQLITE3_TEXT);
         $stmt->bindValue(':title', (string)($data['title'] ?? ''), SQLITE3_TEXT);
         $stmt->bindValue(':category', (string)($data['category'] ?? ''), SQLITE3_TEXT);
@@ -624,7 +626,7 @@ function mikanBoxImportRevisions(string $postId, array $items): void {
         $stmt->bindValue(':sort_order', (int)($data['sort_order'] ?? 0), SQLITE3_INTEGER);
         $stmt->bindValue(':updated_at', (string)($data['updated_at'] ?? ''), SQLITE3_TEXT);
         $stmt->bindValue(':data', json_encode($data, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-        $stmt->bindValue(':editor_id', substr((string)($item['editor'] ?? ''), 0, 80), SQLITE3_TEXT);
+        $stmt->bindValue(':editor_id', substr(preg_replace('/[^A-Za-z0-9_.@-]/', '', (string)($item['editor'] ?? '')), 0, 80), SQLITE3_TEXT);
         $stmt->bindValue(':created_at', $created, SQLITE3_TEXT);
         $stmt->execute();
         $stmt->reset();

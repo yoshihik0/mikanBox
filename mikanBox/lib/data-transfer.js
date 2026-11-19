@@ -121,7 +121,8 @@
     let part = { ...first, pages: [], components: [], revisions: [] }, size = JSON.stringify(first).length;
     const push = (kind, item) => {
       const bytes = JSON.stringify(item).length;
-      if (size + bytes > PART_BYTES && (part.pages.length || part.components.length)) { list.push(part); part = { pages: [], components: [], revisions: [] }; size = 0; }
+      const items = part.pages.length + part.components.length + part.revisions.length;
+      if ((size + bytes > PART_BYTES || items >= 500) && (part.pages.length || part.components.length)) { list.push(part); part = { pages: [], components: [], revisions: [] }; size = 0; }
       part[kind].push(item); size += bytes;
     };
     for (const [id, data] of found.pages) {
