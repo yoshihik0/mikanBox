@@ -65,7 +65,7 @@ unset($_SESSION['mikanbox_mcp_new_key']);
 <?php if ((!empty($GLOBALS['mikanbox_audit_unavailable']) || !empty($_SESSION['mikanbox_audit_unavailable']))): ?><p role="alert"><?= t('audit_unavailable') ?></p><?php endif; ?>
 <?php $auditGroups = ['important' => [], 'edit' => [], 'login' => []];
       $auditAll = array_reverse(mikanBoxAuditRecent());   // oldest first: "unusual" means not seen in any earlier record
-      $auditUnusual = array_flip(mikanBoxAuditUnusual($auditAll));
+      $auditUnusual = array_flip(mikanBoxAuditUnusual($auditAll, function_exists('mikanBoxIntegrityUnusualAcceptedUntil') ? mikanBoxIntegrityUnusualAcceptedUntil() : ''));
       foreach (array_reverse($auditAll, true) as $auditIndex => $event) { $event['unusual'] = isset($auditUnusual[$auditIndex]); $auditGroups[mikanBoxAuditGroup((string)($event['event'] ?? ''))][] = $event; } ?>
 <div class="audit-tabs">
 <?php $n = 0; foreach ($auditGroups as $group => $events): $n++; ?><input type="radio" name="audit-tab" id="audit-tab-<?= $n ?>"<?= $n === 1 ? ' checked' : '' ?> aria-label="<?= htmlspecialchars(t('audit_tab_' . $group), ENT_QUOTES, 'UTF-8') ?>"><?php endforeach; ?>

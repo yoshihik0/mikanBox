@@ -440,12 +440,15 @@ function mikanBoxAuditRecent(): array {
  * $rows: oldest first. Returns the indexes of those rows. The first record of a site is the
  * start of the history, not unusual.
  */
-function mikanBoxAuditUnusual(array $rows): array {
+function mikanBoxAuditUnusual(array $rows, string $acceptedUntil = ''): array {
+    // $acceptedUntil: records up to the last "this is my change" are no longer flagged.
+    $until=$acceptedUntil !== '' ? (int)strtotime($acceptedUntil) : 0;
     $seen=[]; $flagged=[];
     foreach ($rows as $i=>$row) {
         $actor=trim((string)($row['actor'] ?? ''));
         $key=$actor."\0".(string)($row['ip'] ?? '');
-        if ($actor === '' || ($seen && !isset($seen[$key]))) $flagged[]=$i;
+        $accepted=$until && (int)strtotime((string)($row['at'] ?? '')) <= $until;
+        if (!$accepted && ($actor === '' || ($seen && !isset($seen[$key])))) $flagged[]=$i;
         $seen[$key]=true;
     }
     return $flagged;

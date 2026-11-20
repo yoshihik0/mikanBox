@@ -55,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.28.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.28.1</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -826,14 +826,14 @@ Logs and MCP state live in the data directory's `security/` folder. `events.json
 “Check for tampering”, above the version display on the Site screen, looks for changes that are not in the history and shows the result under the button. It runs only when you press it, so page views are not affected. It checks three things.
 
 - **Public files**: the text files the site generation wrote (HTML and so on) and the media js, css, svg and html files, against the fingerprints taken when mikanBox wrote them. It lists files that changed, unknown files that appeared, and files that disappeared. Images, audio and video are not checked.
-- **Program**: the official release of the installed version is fetched from GitHub and compared with the program files. When GitHub cannot be reached (for example on a local site), the state recorded on this server at the last update or acceptance is used instead, and the result says which was used.
+- **Program**: the official release of the installed version is fetched from GitHub and compared with the program files. When GitHub cannot be reached (for example on a local site), the state recorded on this server at the last update or acceptance is used instead, and the result says which was used. Files that an earlier version used and the current one no longer does are listed separately as “Files left from an earlier version”; the next update removes them (from v2.28.1).
 - **Stored data**: the content of pages, components and site settings is compared with the last “after” fingerprint in the history.
 
 If nothing is found, the result says so with the time of the check. If what is found is your own change (you uploaded a file by FTP, or cleared password_hash in the settings file to recover), press “This is my change (accept)” and the present state becomes the new basis. The acceptance is recorded as an important operation. The basis for public files is made when the site is generated, and the one for media when you accept.
 
 As a limit, anyone who can rewrite server files can also rewrite the basis recorded on this server. Only the comparison with the official release lies outside the server, which makes it hard to forge. This is a clue for noticing a problem, not protection against intrusion.
 
-In the history tables, records whose person and IP range have not appeared in any earlier record, or whose person is unknown, get a light background color (there is no setting; a new site with no records yet shows no color). Such records of the last 30 days are also listed in the result as “Unusual operations”.
+In the history tables, records whose person and IP range have not appeared in any earlier record, or whose person is unknown, get a light background color (there is no setting; a new site with no records yet shows no color). Such records of the last 30 days are also listed in the result as “Unusual operations”. Once you have confirmed they were yours, “This is my change (accept)” removes the color and the listing for the records up to then (from v2.28.1).
 
 ### CSV Import {#csv-import}
 

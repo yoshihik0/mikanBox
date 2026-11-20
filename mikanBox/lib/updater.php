@@ -487,6 +487,7 @@ function mikanBoxInstallUpdateLocked(
 
     mikanBoxUpdateRemoveTree($workDir);
     mikanBoxUpdateRemoveRetiredTests($siteRoot);   // tests/ left from a hand-installed ZIP (best effort)
+    mikanBoxUpdateRemoveRetiredProgramFiles($coreDir);   // files earlier versions shipped (best effort)
     // The site-root .htaccess belongs to the site owner and is never replaced; only the
     // charset block for static text files is appended once when it is missing.
     if (function_exists('mikanBoxIntegrityRecordProgram')) mikanBoxIntegrityRecordProgram($coreDir, (string)$newVersion, 'installed');
@@ -501,6 +502,33 @@ function mikanBoxInstallUpdateLocked(
  * following symbolic links, and the folder itself once it is empty. Anything else stays.
  * Best effort: a failure here never fails an update. Returns the number of files removed.
  */
+/**
+ * Program files earlier versions shipped that are no longer part of mikanBox (relative to the core
+ * folder). Copying a new version never removed them, so they stay behind on updated sites and the
+ * tamper check reports them. They are removed after an update, never following symbolic links.
+ */
+const MIKANBOX_RETIRED_PROGRAM_FILES = [
+    'all' => ['admin-ui.js', 'preview-editor.js', 'views/data-tool.php', 'import/en/components/_ai.json', 'import/ja/components/_ai.json'],
+    // The search pages and parts are still part of the SQLite edition.
+    'flat' => ['import/en/components/_search_box.json', 'import/ja/components/_search_box.json',
+               'import/en/components/_search_result_item.json', 'import/ja/components/_search_result_item.json',
+               'import/en/posts/search.json', 'import/ja/posts/search.json'],
+    'sqlite' => ['convert.php'],
+];
+/** The retired files of this edition (the SQLite edition is the one with getDb). */
+function mikanBoxUpdateRetiredProgramFiles(): array {
+    return array_merge(MIKANBOX_RETIRED_PROGRAM_FILES['all'], MIKANBOX_RETIRED_PROGRAM_FILES[function_exists('getDb') ? 'sqlite' : 'flat']);
+}
+function mikanBoxUpdateRemoveRetiredProgramFiles(string $coreDir): int {
+    $removed = 0;
+    foreach (mikanBoxUpdateRetiredProgramFiles() as $name) {
+        $file = rtrim($coreDir, '/\\') . '/' . $name;
+        if (is_link($file) || !is_file($file)) continue;
+        if (@unlink($file)) $removed++;
+    }
+    return $removed;
+}
+
 const MIKANBOX_RETIRED_TEST_FILES = [
     'device_atomic_test.py', 'external_markdown_security_test.php', 'mcp_http_integration_test.php',
     'mcp_key_persistence_test.php', 'mcp_key_view_test.php', 'mcp_protocol_test.php',

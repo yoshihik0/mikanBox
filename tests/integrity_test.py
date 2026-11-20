@@ -111,6 +111,26 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-integrity-') as temporary:
         check(found(site)==[],edition+': accepting clears data findings')
         php(site,'$GLOBALS["mikanbox_audit_quiet"]=true;saveData(POSTS_DIR,"imp",["title"=>"Imp","status"=>"draft"]);$GLOBALS["mikanbox_audit_quiet"]=false;mikanBoxIntegrityDataKnown($GLOBALS["mikanbox_audit_quiet_after"]);')
         check(found(site)==[],edition+': items written by an import are not findings')
+        # --- an old record without a fingerprint (written before 2.26.0) is not "exists after a deletion"
+        php(site,'saveData(POSTS_DIR,"legacy",["title"=>"L","status"=>"draft"]);')
+        rows=json.loads(php(site,'echo json_encode(array_reverse(mikanBoxAuditRecent()));'))
+        rows=[r for r in rows if r.get('target')!='legacy']+[{'event':'page_status','at':'2026-11-08T13:57:03+00:00','actor':'MCP','ip':'1.1.1.0/24','target':'legacy','from':'draft','to':'public_dynamic'}]
+        res=json.loads(php(site,'echo json_encode(mikanBoxIntegrityCheckData(mikanBoxIntegrityLoad(),json_decode($argv[2],true))["found"]);'.replace('$argv[2]',json.dumps(json.dumps(rows)))))
+        check('page:legacy' not in res['unrecorded'] and 'page:legacy' not in res['changed'],edition+': an old status record without a fingerprint is not reported')
+        rows.append({'event':'page_deleted','at':'2026-11-20T00:00:00+00:00','actor':'a','ip':'1.1.1.0/24','target':'legacy'})
+        res=json.loads(php(site,'echo json_encode(mikanBoxIntegrityCheckData(mikanBoxIntegrityLoad(),json_decode($argv[2],true))["found"]);'.replace('$argv[2]',json.dumps(json.dumps(rows)))))
+        check('page:legacy' in res['unrecorded'],edition+': an item that exists after a deletion record is still reported')
+        php(site,'deleteData(POSTS_DIR,"legacy");')
+        # --- files earlier versions shipped: reported on their own, removed by the updater
+        old=site/'mikanBox/views/data-tool.php';old.write_text('<?php // old')
+        good2=json.loads(php(site,'echo json_encode(["files"=>mikanBoxIntegrityPackageHashes(dirname(CORE_DIR),CORE_DIR)]);'))
+        good2['files'].pop('mikanBox/views/data-tool.php',None);(site/'mikanData/official2.json').write_text(json.dumps(good2))
+        off2='fn()=>json_decode(file_get_contents(DATA_DIR."/official2.json"),true)'
+        check(found(site,official=off2)==['program.old:mikanBox/views/data-tool.php'],edition+': a file an earlier version shipped is listed as left over, not as unknown')
+        check(php(site,'require_once CORE_DIR."/lib/updater.php";echo mikanBoxUpdateRemoveRetiredProgramFiles(CORE_DIR);').strip()=='1' and not old.exists(),edition+': the updater removes it')
+        (site/'mikanBox/views/evil.php').write_text('<?php // not ours')
+        check(found(site,official=off2)==['program.added:mikanBox/views/evil.php'] and php(site,'require_once CORE_DIR."/lib/updater.php";echo mikanBoxUpdateRemoveRetiredProgramFiles(CORE_DIR);').strip()=='0',edition+': other unknown files stay unknown and are never removed')
+        (site/'mikanBox/views/evil.php').unlink()
         # --- unusual actors
         u=lambda rows: json.loads(php(site,'echo json_encode(mikanBoxAuditUnusual(json_decode($argv[2]?? "[]",true)));'.replace('$argv[2]?? "[]"',json.dumps(json.dumps(rows)))))
         R=lambda a,i:{'actor':a,'ip':i}
@@ -123,6 +143,14 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-integrity-') as temporary:
               {'event':'page_updated','at':time.strftime('%Y-%m-%dT%H:%M:%S+00:00',time.gmtime(now-1*86400)),'actor':'a','ip':'8.8.8.0/24'}]
         out=json.loads(php(site,'echo json_encode(array_column(mikanBoxIntegrityUnusual(json_decode($argv[2],true)),"ip"));'.replace('$argv[2]',json.dumps(json.dumps(rows)))))
         check(out==['8.8.8.0/24'],edition+': only records of the last 30 days are listed')
+        R2=lambda a,i,t:{'actor':a,'ip':i,'at':t}
+        ur=lambda rows,until: json.loads(php(site,'echo json_encode(mikanBoxAuditUnusual(json_decode($argv[2],true),'.replace('$argv[2]',json.dumps(json.dumps(rows)))+json.dumps(until)+'));'))
+        rr=[R2('a','1.1.1.0/24','2026-11-01T00:00:00+00:00'),R2('b','1.1.1.0/24','2026-11-02T00:00:00+00:00'),R2('c','1.1.1.0/24','2026-11-04T00:00:00+00:00')]
+        check(ur(rr,'')==[1,2] and ur(rr,'2026-11-03T00:00:00+00:00')==[2],edition+': records up to an acceptance are no longer unusual; later ones still are')
+        php(site,'mikanBoxAudit("page_updated",["target"=>"x"]);$_SERVER["REMOTE_ADDR"]="203.0.113.9";$GLOBALS["mikanbox_audit_actor"]="stranger";mikanBoxAudit("page_updated",["target"=>"y"]);')
+        check(json.loads(php(site,'echo json_encode(count(mikanBoxIntegrityCheck($CTX,["official"=>$OFFLINE])["unusual"]));'))>=1,edition+': a stranger is listed')
+        php(site,'mikanBoxIntegrityAccept($CTX,["official"=>$OFFLINE]);')
+        check(json.loads(php(site,'echo json_encode(count(mikanBoxIntegrityCheck($CTX,["official"=>$OFFLINE])["unusual"]));'))==0,edition+': accepting stops listing the records that were looked at')
         view=(repo/'mikanBox/views/site-sections/mcp-key.php').read_text()
         check('audit-unusual' in view and 'mikanBoxAuditUnusual' in view,edition+': the history tables highlight unusual records')
         check('site-sections/integrity.php' in (repo/'mikanBox/views/site.php').read_text(),edition+': the Site screen shows the check above the version row')

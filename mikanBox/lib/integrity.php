@@ -168,7 +168,18 @@ function mikanBoxIntegrityDiff(array $reference, array $current, array $accepted
     return $found;
 }
 function mikanBoxIntegrityHasFindings(array $found): bool {
-    return (bool)($found['changed'] ?? []) || (bool)($found['added'] ?? []) || (bool)($found['missing'] ?? []);
+    return (bool)($found['changed'] ?? []) || (bool)($found['added'] ?? []) || (bool)($found['missing'] ?? []) || (bool)($found['old'] ?? []);
+}
+/** A program path (as the check lists it) that is one of the files earlier versions shipped. */
+function mikanBoxIntegrityRetired(string $path, string $coreDir): bool {
+    if (!defined('MIKANBOX_RETIRED_PROGRAM_FILES')) require_once __DIR__ . '/updater.php';
+    $core = basename(rtrim($coreDir, '/\\'));
+    $rel = str_starts_with($path, $core . '/') ? substr($path, strlen($core) + 1) : $path;
+    return in_array($rel, mikanBoxUpdateRetiredProgramFiles(), true);
+}
+/** Records up to the last acceptance are not "out of the ordinary" any more (they were looked at). */
+function mikanBoxIntegrityUnusualAcceptedUntil(): string {
+    return (string)(mikanBoxIntegrityLoad()['unusual_until'] ?? '');
 }
 
 /** Public output: baseline files plus unknown page/code files in the places the generator writes to. */
@@ -242,6 +253,9 @@ function mikanBoxIntegrityCheckProgram(array $state, array $ctx, ?callable $offi
     $result = $official ? $official() : mikanBoxIntegrityOfficialHashes($ctx['repo'], $ctx['version'], $ctx['coreDir'], $ctx['dataDir']);
     if (isset($result['files'])) {
         $found = mikanBoxIntegrityDiff($result['files'], $current, is_array($state['program_accepted'] ?? null) ? $state['program_accepted'] : []);
+        // Files earlier versions shipped and an update left behind: reported on their own, with what to do.
+        $found['old'] = array_values(array_filter($found['added'], fn($path) => mikanBoxIntegrityRetired($path, $ctx['coreDir'])));
+        $found['added'] = array_values(array_diff($found['added'], $found['old']));
         $differs = mikanBoxIntegrityDiff($result['files'], $current);
         $diffMap = [];
         foreach ($differs as $list) foreach ($list as $path) $diffMap[$path] = $current[$path] ?? '';
@@ -287,7 +301,7 @@ function mikanBoxIntegrityCheckData(array $state, ?array $rows = null): array {
         $current[$key] = $now;
         if (array_key_exists($key, $known) && ($known[$key] === $now || ($known[$key] === '' && !$exists))) continue;
         if (!$exists) { if ($row['after'] !== '') $found['missing'][] = $key; }
-        elseif ($row['after'] === '' && $key !== 'settings') $found['unrecorded'][] = $key;
+        elseif ($row['after'] === '' && !$row['stale'] && $key !== 'settings') $found['unrecorded'][] = $key;   // only after a deletion record; old records without fingerprints cannot be compared
         elseif (!$row['stale'] && !in_array($row['after'], $hashes, true)) $found['changed'][] = $key;
     }
     return ['found' => $found, 'current' => $current];
@@ -297,7 +311,7 @@ function mikanBoxIntegrityUnusual(?array $rows = null, ?int $now = null): array 
     $rows ??= array_reverse(mikanBoxAuditRecent());
     $since = ($now ?? time()) - 30 * 86400;
     $out = [];
-    foreach (mikanBoxAuditUnusual($rows) as $i) if ((int)strtotime((string)($rows[$i]['at'] ?? '')) >= $since) $out[] = $rows[$i];
+    foreach (mikanBoxAuditUnusual($rows, mikanBoxIntegrityUnusualAcceptedUntil()) as $i) if ((int)strtotime((string)($rows[$i]['at'] ?? '')) >= $since) $out[] = $rows[$i];
     return array_slice(array_reverse($out), 0, 100);
 }
 
@@ -341,8 +355,11 @@ function mikanBoxIntegrityAccept(array $ctx, array $opts = []): array {
         if (($report['program']['reference'] === 'none') || mikanBoxIntegrityHasFindings($report['program']['found'] ?? [])) $parts[] = 'program';
         foreach ($known as $key => $hash) $state['data_known'][$key] = $hash;
         if ($known) $parts[] = 'data';
+        if ($report['unusual']) $parts[] = 'unusual';
     });
     mikanBoxAudit('integrity_accepted', ['target' => implode(',', array_unique($parts))]);
+    // After the acceptance's own record, so that record is not "out of the ordinary" either.
+    if ($report['unusual']) mikanBoxIntegrityMutate(function(&$state) { $state['unusual_until'] = gmdate('c'); });
     return $report;
 }
 
@@ -384,7 +401,8 @@ function mikanBoxIntegrityRender(array $report, ?string $acceptedNote = null): s
             . mikanBoxIntegrityE($p['reference'] === 'official' ? t('integrity_ref_official', $p['version']) : t('integrity_ref_local')) . '</p>'
             . mikanBoxIntegrityList(t('integrity_changed'), $p['found']['changed'])
             . mikanBoxIntegrityList(t('integrity_added'), $p['found']['added'])
-            . mikanBoxIntegrityList(t('integrity_missing'), $p['found']['missing']);
+            . mikanBoxIntegrityList(t('integrity_missing'), $p['found']['missing'])
+            . (($p['found']['old'] ?? []) ? mikanBoxIntegrityList(t('integrity_old_files'), $p['found']['old']) . '<p class="integrity-ref">' . mikanBoxIntegrityE(t('integrity_old_files_hint')) . '</p>' : '');
     }
     $d = $report['data']['found'];
     if ($d['changed'] || $d['missing'] || $d['unrecorded']) {
@@ -410,7 +428,7 @@ function mikanBoxIntegrityRender(array $report, ?string $acceptedNote = null): s
         }
         $html .= '</tbody></table>';
     }
-    if ($report['findings'] || $report['needs_baseline']) {
+    if ($report['findings'] || $report['needs_baseline'] || $report['unusual']) {
         $html .= '<p><button type="button" class="btn btn-gray btn-small" data-integrity-accept>' . mikanBoxIntegrityE(t('integrity_accept_btn')) . '</button> <small class="sub-text">' . mikanBoxIntegrityE(t('integrity_accept_hint')) . '</small></p>';
     }
     return $html . '</div>';
