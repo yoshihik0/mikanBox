@@ -1927,6 +1927,9 @@ input[type="datetime-local"], input:not([type]) {
 .data-tool-card [data-transfer-status]:not(:empty) { display: block; margin-top: 10px; font-size: .8rem; line-height: 1.5; overflow-wrap: anywhere; }
 .backup-field { display: block; }
 /* Data tool: Save and Read (views/data-tool.php, Cloud views.ts) */
+.transfer-stats { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 0; margin: 0 0 6px; font-size: .88rem; color: var(--text-sub); }
+.transfer-stats strong { color: var(--text); margin-left: 4px; }
+#backup .data-tool-card { margin-top: 16px; background: #fff; }
 .data-tool-card > p { font-size: .88rem; line-height: 1.6; color: var(--text-sub); margin: 0 0 14px; }
 .transfer-field { display: inline-flex; align-items: center; gap: 8px; font-size: .9rem; margin: 0; }
 .transfer-field select { width: auto; margin: 0; }

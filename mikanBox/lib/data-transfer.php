@@ -147,6 +147,22 @@ function mikanBoxTransferRemoveTree(string $dir): void {
     @rmdir($dir);
 }
 
+/** The site's figures shown above Save and Read. */
+function mikanBoxTransferStats(): array {
+    $bytes = 0;
+    $names = mikanBoxTransferMediaNames();
+    foreach ($names as $name) $bytes += (int)@filesize(MEDIA_DIR . '/' . $name);
+    $size = fn(int $b) => $b >= 1048576 ? round($b / 1048576, 1) . ' MB' : round($b / 1024, 1) . ' KB';
+    $stats = ['pages' => count(getFileList(POSTS_DIR)), 'components' => count(getFileList(COMPONENTS_DIR))];
+    if (function_exists('getDb')) {
+        try { $stats['users'] = (int)getDb()->querySingle('SELECT COUNT(*) FROM users'); } catch (Throwable $e) {}
+    }
+    $stats['media'] = count($names);
+    $stats['media_size'] = $size($bytes);
+    if (defined('DB_FILE') && is_file(DB_FILE)) $stats['database'] = $size((int)filesize(DB_FILE));
+    return $stats;
+}
+
 function mikanBoxTransferMode(): string {
     $mode = (string)($_POST['mode'] ?? '');
     return in_array($mode, MIKANBOX_TRANSFER_MODES, true) ? $mode : 'add';
@@ -252,7 +268,7 @@ function mikanBoxTransferHandle(string $action): void {
         if ($contents === 'database' && function_exists('mikanBoxDownloadDatabase')) mikanBoxDownloadDatabase();
         mikanBoxTransferExport($contents, ($_POST['include_revisions'] ?? '') === '1');
         $_SESSION['admin_message'] = $contents === 'media' && !mikanBoxTransferMediaNames() ? t('transfer_nothing_to_save') : t('error_save_failed');
-        header('Location: admin.php?view=import');
+        header('Location: admin.php#backup');
         exit;
     }
     if ($action === 'transfer_site_export') {
@@ -266,7 +282,7 @@ function mikanBoxTransferHandle(string $action): void {
             exit;
         }
         $_SESSION['admin_message'] = $built['error'];
-        header('Location: admin.php?view=import');
+        header('Location: admin.php#backup');
         exit;
     }
     header('Content-Type: application/json; charset=utf-8');

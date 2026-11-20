@@ -215,9 +215,6 @@ if (isset($_GET['page_preview']) && is_string($_GET['page_preview'])) {
 }
 $site_name = $settings['site_name'] ?? SITE_NAME;
 $view = $_GET['view'] ?? 'pages';
-// Data tool (views/data-tool.php): shown inside the admin screen in place of the sections, with the
-// side navigation kept (as in the Cloud edition), so its icons lead back.
-$dataToolHtml = $view === 'import' ? '' : null;
 if ($view === 'design') $view = 'components'; // 'design' is an alias for 'components'
 
 // 🍊 Tag Guide Helper (Reusable)
@@ -1405,7 +1402,7 @@ function getIcon($name) {
         <span class="text">mikanBox</span>
     </div>
     
-    <a href="<?= $dataToolHtml !== null ? 'admin.php' : '' ?>#pages" class="nav-pages" title="<?= t('nav_pages') ?>">
+    <a href="#pages" class="nav-pages" title="<?= t('nav_pages') ?>">
         <?= getIcon('page') ?>
         <span><?= t('nav_pages') ?></span>
     </a>
@@ -1417,11 +1414,11 @@ function getIcon($name) {
         <span class="close-badge" data-url="admin.php#pages" title="<?= t('btn_close') ?>">×</span>
     </a>
     <?php endif; ?>
-    <a href="<?= $dataToolHtml !== null ? 'admin.php' : '' ?>#site" class="nav-settings" title="<?= t('nav_settings') ?>">
+    <a href="#site" class="nav-settings" title="<?= t('nav_settings') ?>">
         <?= getIcon('save') ?>
         <span><?= t('nav_settings') ?></span>
     </a>
-    <a href="<?= $dataToolHtml !== null ? 'admin.php' : '' ?>#design" class="nav-design" title="<?= t('nav_design') ?>">
+    <a href="#design" class="nav-design" title="<?= t('nav_design') ?>">
         <?= getIcon('component') ?>
         <span><?= t('nav_design') ?></span>
     </a>
@@ -1434,7 +1431,7 @@ function getIcon($name) {
     </a>
     <?php endif; ?>
 
-    <a href="<?= $dataToolHtml !== null ? 'admin.php' : '' ?>#media" class="nav-media" title="<?= t('nav_media') ?>">
+    <a href="#media" class="nav-media" title="<?= t('nav_media') ?>">
         <?= getIcon('media') ?>
         <span><?= t('nav_media') ?></span>
     </a>
@@ -1452,9 +1449,6 @@ function getIcon($name) {
     <?php if (mikanBoxCliServerWithoutRouter()): ?><p class="admin-alert" role="alert"><?= htmlspecialchars(t('warn_cli_server_no_router'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
     <?php if (($mbDataProbe = mikanBoxDataProtectionProbe()) !== null): ?><p class="admin-alert" id="data-protection-alert" role="alert" hidden data-probe="<?= htmlspecialchars($mbDataProbe, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(t('warn_data_dir_readable'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
 
-    <?php if ($dataToolHtml !== null): ?>
-    <?php require __DIR__ . '/views/data-tool.php'; ?>
-    <?php else: ?>
     <!-- Category Cloud (Steps 3 & 4) -->
     <?php
     $allPageIds = getFileList(POSTS_DIR);
@@ -1518,7 +1512,6 @@ function getIcon($name) {
     <?php include __DIR__ . '/views/design.php'; ?>
 
     <?php include __DIR__ . '/views/media.php'; ?>
-    <?php endif; ?>
 
 
 

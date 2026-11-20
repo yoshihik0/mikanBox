@@ -122,8 +122,7 @@
     "sett_lang_ja": "Japanese (日本語)",
     "sett_lang_en": "English (英語)",
     "backup_head": "Data Management",
-    "backup_hint": "Saving the site (backup) and reading files are done in the Data Import & Migration Tool. Save the site regularly.",
-    "btn_data_tool": "Data Import & Migration Tool",
+    "backup_hint": "Save the site's content to a file, or read a saved file or another site's data. Save the site regularly.",
     "memo_head": "Admin Memo",
     "version_current": "Current version",
     "version_latest": "Latest version",
@@ -849,7 +848,6 @@
     "page_sort_id": "By ID",
     "page_sort_title": "By title",
     "page_sort_hint": "\"Display order\" matches the lists on the public side (display order, then newest update first). The Updated date is set when a page is created and renewed when it changes from private to public (editing a public page does not change it). index always stays first.",
-    "transfer_tool_intro": "Save the site's content to a file, or read a saved file or another site's data.",
     "transfer_export_title": "Save",
     "transfer_export_hint": "Saves the site's content to a file. It also holds what is not public, such as drafts and notes: keep it somewhere safe and do not share it. Users, devices and the MCP API key are not included.",
     "transfer_contents_label": "Contents",
@@ -888,5 +886,11 @@
     "site_export_title": "Export the public site",
     "site_export_hint": "Downloads the public site as it is now, as a ZIP. With \"Use relative paths\", links between pages and to images are written from each file's own position, so they keep working when the site moves to another address or folder.",
     "site_export_relative": "Use relative paths",
-    "site_export_btn": "Download the public site"
+    "site_export_btn": "Download the public site",
+    "transfer_stats_pages": "Pages",
+    "transfer_stats_components": "Components",
+    "transfer_stats_users": "Users",
+    "transfer_stats_media": "Media files",
+    "transfer_stats_media_size": "Media total",
+    "transfer_stats_database": "Database"
 }

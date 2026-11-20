@@ -34,7 +34,7 @@ function mikanBoxRequestIsHttps(?array $server = null): bool {
 }
 
 /**
- * Headers for every admin screen (admin.php and its sign-in and setup screens, convert.php):
+ * Headers for every admin screen (admin.php and its sign-in and setup screens):
  * no framing by other sites (visual editing frames its own pages, hence SAMEORIGIN), no MIME
  * sniffing, and no admin URL in the Referer sent to other sites. visual.php sends its own
  * stricter set. A later Content-Security-Policy (the sandboxed preview) adds frame-ancestors itself.

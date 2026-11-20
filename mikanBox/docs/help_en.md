@@ -10,7 +10,6 @@
 - <a href="#page-edit">Page Edit</a>
 - <a href="#visual-edit">Visual Editing</a>
 - <a href="#site">Site</a>
-- <a href="#data-migration">Data Migration &amp; Import Tool</a>
 - <a href="#design-mgmt">Design</a>
 - <a href="#design-edit">Design Edit</a>
 - <a href="#media-mgmt">Media</a>
@@ -56,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.24.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.25.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -840,17 +839,71 @@ Reads the first row as field names and converts every other row into a `{{DATARO
 <a id="site-backup"></a>
 ### Data Management {#site-data-mgmt}
 
-Saving the site (backup) and reading files are done in the [Data Import & Migration Tool](#data-migration). Save the site regularly.
+Save the site's content to a file, or read a saved file or another site's data. Save the site regularly. From v2.25.0 the former "Data Import & Migration Tool" screen is part of this section.
 
-#### [settings_backup_restore]{.material-symbols-outlined} Data Import &amp; Migration Tool{.m-btn .m-btn-orange}
+The top of the section shows the number of pages, components and media files, and the total size of the media. The SQLite and Cloud editions also show the number of users and the size of the database.
 
-Opens the [Data Import & Migration Tool](#data-migration) inside the admin screen. The side navigation stays, so its icons lead back to the other screens.
+#### Save {#data-export}
+
+Choose the contents and press "Download".
+
+| Contents | What is saved |
+|---|---|
+| JSON and media | The settings, pages and components as JSON, with the media files, in one ZIP. |
+| JSON only | A ZIP of the settings, pages and components as JSON. |
+| Media only | A ZIP of the media files. |
+| Database [SQLite and Cloud editions]{.type-badge .badge-sqlite} | The database file in the SQLite edition; the D1 SQL file in Cloud. Page history is included. |
+
+- **Include page history** (SQLite and Cloud): the history of each page (the last 10 entries) is saved too. It is off at first. The flat edition has no page history.
+- The file also holds what is not public, such as drafts and notes: keep it somewhere safe and do not share it.
+- Users, devices, passwords and the MCP API key are not included. Only the content settings (site name, description, categories and the like) are saved; the site ID and the publishing settings are not.
+- Inside the ZIP: `data/settings.json`, `data/posts/pageID.json`, `data/components/ID.json`, `data/revisions/pageID.json` (history) and `media/filename`. The layout is the same in all three editions, so the file can be read into a site of another edition.
+
+#### Read {#data-import}
+
+Choose files and press "Read". Their contents are recognised and the JSON and media are read; files that cannot be read are ignored. Several files can be chosen at once.
+
+Files you can choose:
+
+- A ZIP saved here (also one saved in another edition, or a ZIP from "Download data" / "Download media" of v2.23 and earlier)
+- A ZIP with `posts/` and `components/`, also inside an outer folder. The page ID comes from the folders and file name under `posts/` (`posts/coffee/menu.json` is `coffee/menu`). `__MACOSX` and `._` files made by macOS are skipped.
+- A ZIP of media files only
+- A WordPress XML export (Tools > Export). Posts and pages are read; published posts become public, pending ones pending, and the rest drafts. The HTML is converted to basic Markdown.
+- Media files
+
+Choose what happens when the same item exists:
+
+| Choice | What happens |
+|---|---|
+| Do not overwrite (add only what is missing) | Only what the site does not have is added. Pages and components with the same ID and media with the same name are skipped. Settings are not read. This is the default. |
+| Overwrite items with the same ID | Items with the same ID or name are replaced by the file's. What the file does not have stays. The previous content of a page is kept in its history (SQLite and Cloud). |
+| Replace everything (what the file lacks is deleted) | The site becomes the file's contents; what the file does not have is deleted. You are asked before it runs. |
+
+- Only the kinds the file holds (pages, components, media) change. Replacing with a file of pages only leaves the components and media as they are.
+- Settings are read only when overwriting or replacing. Users, devices, the site ID and the MCP API key stay as they are.
+- When replacing, the page history also becomes the file's; a file saved without history leaves the history empty.
+- IDs that a new page or component could not have (such as a page ID starting with a reserved folder name) are not read and are listed in the result.
+- Media are checked as on upload (name and type); SVG files are cleaned of scripts as on upload. A single file larger than the server's upload limit cannot be read and is listed in the result.
+- The result appears in the toast at the bottom right; the screen is not reloaded.
+- Build the site to update the public pages with what was read. In Cloud, media that are read are sent to the public site at once.
+
+#### Export the public site {#site-export}
+
+Downloads the public site as it is now, as a ZIP. In the PHP editions, pages published dynamically are included as files too.
+
+- **Use relative paths**: links between pages and to images are written from each file's own position, so they keep working when the site moves to another address or folder. The PHP editions write pages as `pageID.html`.
+- Without it, links start with the site's address.
+- Server files such as `.htaccess` are not included.
+
+#### Data migration in Cloud
+
+The Cloud edition also has "Restore D1 to a past time". See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md).
 
 ### Site Settings {#site-settings}
 
 The first row places the immutable site ID on the left and the site name on the right. Explanations appear below their input fields.
 
-Common site settings show the site name on the left and the read-only site ID on the right in equal-width columns. The site URL follows on the next row, with its explanation below the field. Static generation method hints use normal font weight. In Cloud, open the dedicated Data Import & Migration Tool from site settings for the full backup (one ZIP) and its restore.
+Common site settings show the site name on the left and the read-only site ID on the right in equal-width columns. The site URL follows on the next row, with its explanation below the field. Static generation method hints use normal font weight.
 
 #### Site ID (for AI)
 
@@ -946,71 +999,11 @@ Changes and saves the password.
 
 ---
 
-## Data Migration &amp; Import Tool {#data-migration}
-
-Open it from "Data management" on the Site screen (`admin.php?view=import`; in Cloud, `/admin?view=import`). The screen is the same in all three editions. From v2.24.0 saving and reading are gathered here. Opening the former `mikanBox/convert.php` also leads here.
-
-### Save {#data-export}
-
-Choose the contents and press "Download".
-
-| Contents | What is saved |
-|---|---|
-| JSON and media | The settings, pages and components as JSON, with the media files, in one ZIP. |
-| JSON only | A ZIP of the settings, pages and components as JSON. |
-| Media only | A ZIP of the media files. |
-| Database [SQLite and Cloud editions]{.type-badge .badge-sqlite} | The database file in the SQLite edition; the D1 SQL file in Cloud. Page history is included. |
-
-- **Include page history** (SQLite and Cloud): the history of each page (the last 10 entries) is saved too. It is off at first. The flat edition has no page history.
-- The file also holds what is not public, such as drafts and notes: keep it somewhere safe and do not share it.
-- Users, devices, passwords and the MCP API key are not included. Only the content settings (site name, description, categories and the like) are saved; the site ID and the publishing settings are not.
-- Inside the ZIP: `data/settings.json`, `data/posts/pageID.json`, `data/components/ID.json`, `data/revisions/pageID.json` (history) and `media/filename`. The layout is the same in all three editions, so the file can be read into a site of another edition.
-
-### Read {#data-import}
-
-Choose files and press "Read". Their contents are recognised and the JSON and media are read; files that cannot be read are ignored. Several files can be chosen at once.
-
-Files you can choose:
-
-- A ZIP saved here (also one saved in another edition, or a ZIP from "Download data" / "Download media" of v2.23 and earlier)
-- A ZIP with `posts/` and `components/`, also inside an outer folder. The page ID comes from the folders and file name under `posts/` (`posts/coffee/menu.json` is `coffee/menu`). `__MACOSX` and `._` files made by macOS are skipped.
-- A ZIP of media files only
-- A WordPress XML export (Tools > Export). Posts and pages are read; published posts become public, pending ones pending, and the rest drafts. The HTML is converted to basic Markdown.
-- Media files
-
-Choose what happens when the same item exists:
-
-| Choice | What happens |
-|---|---|
-| Do not overwrite (add only what is missing) | Only what the site does not have is added. Pages and components with the same ID and media with the same name are skipped. Settings are not read. This is the default. |
-| Overwrite items with the same ID | Items with the same ID or name are replaced by the file's. What the file does not have stays. The previous content of a page is kept in its history (SQLite and Cloud). |
-| Replace everything (what the file lacks is deleted) | The site becomes the file's contents; what the file does not have is deleted. You are asked before it runs. |
-
-- Only the kinds the file holds (pages, components, media) change. Replacing with a file of pages only leaves the components and media as they are.
-- Settings are read only when overwriting or replacing. Users, devices, the site ID and the MCP API key stay as they are.
-- When replacing, the page history also becomes the file's; a file saved without history leaves the history empty.
-- IDs that a new page or component could not have (such as a page ID starting with a reserved folder name) are not read and are listed in the result.
-- Media are checked as on upload (name and type); SVG files are cleaned of scripts as on upload. A single file larger than the server's upload limit cannot be read and is listed in the result.
-- The result appears in the toast at the bottom right; the screen is not reloaded.
-- Build the site to update the public pages with what was read. In Cloud, media that are read are sent to the public site at once.
-
-### Export the public site {#site-export}
-
-Downloads the public site as it is now, as a ZIP. In the PHP editions, pages published dynamically are included as files too.
-
-- **Use relative paths**: links between pages and to images are written from each file's own position, so they keep working when the site moves to another address or folder. The PHP editions write pages as `pageID.html`.
-- Without it, links start with the site's address.
-- Server files such as `.htaccess` are not included.
-
-### Data migration in Cloud
-
-The Cloud edition also has "Restore D1 to a past time". See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md).
-
 ### Cloud: where media is kept
 
 In the Cloud edition (from v0.13.0) media files (images, and uploaded JS and CSS) are kept only on the public site. An uploaded file is sent to the public site at once, and appears in the media list once it is confirmed there. The D1 database keeps pages, history, settings and the information about each media file (name, size and so on).
 
-Cloudflare's free plan allows 20,000 files of up to 25 MiB each on the public site (mikanBox allows 10 MB per file and 10,000 files). The public site is the only place the media is kept, so save it regularly with "Save" (JSON and media) in the data tool. See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md) for details.
+Cloudflare's free plan allows 20,000 files of up to 25 MiB each on the public site (mikanBox allows 10 MB per file and 10,000 files). The public site is the only place the media is kept, so save it regularly with "Save" (JSON and media) under Site → Data management. See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md) for details.
 
 ## Design {#design-mgmt}
 

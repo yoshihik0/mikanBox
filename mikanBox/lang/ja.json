@@ -123,8 +123,7 @@
     "sett_lang_ja": "日本語 (Japanese)",
     "sett_lang_en": "英語 (English)",
     "backup_head": "データ管理",
-    "backup_hint": "サイトの内容の書き出し（バックアップ）と読み込みは、データ移行・インポートツールで行います。定期的に書き出して保存してください。",
-    "btn_data_tool": "データ移行・インポートツール",
+    "backup_hint": "サイトの内容を書き出して保存したり、保存したファイルやほかのサイトのデータを読み込んだりします。定期的に書き出して、保存してください。",
     "memo_head": "管理メモ",
     "version_current": "現在のバージョン",
     "version_latest": "最新バージョン",
@@ -849,7 +848,6 @@
     "page_sort_id": "ID順",
     "page_sort_title": "タイトル順",
     "page_sort_hint": "「表示順」は公開側の一覧と同じ並び（表示順、同じなら更新日の新しい順）です。「更新」の日付は、作成時に設定され、非公開から公開に切り替えた時点で更新されます（公開後の編集では変わりません）。index は常に先頭です。",
-    "transfer_tool_intro": "サイトの内容を書き出して保存したり、保存したファイルやほかのサイトのデータを読み込んだりします。",
     "transfer_export_title": "書き出し",
     "transfer_export_hint": "サイトの内容を、ファイルに保存します。下書きや管理メモなど、公開していない内容も入るので、人に渡さず、安全な場所に保管してください。ユーザー・端末・MCP APIキーは含みません。",
     "transfer_contents_label": "保存する内容",
@@ -888,5 +886,11 @@
     "site_export_title": "公開サイトの書き出し",
     "site_export_hint": "現状の公開サイトを、ZIPでダウンロードします。「相対パスにする」を選ぶと、ページ同士のリンクや画像の場所を、それぞれのファイルの位置から見た書き方にします。サイトのアドレスやフォルダが変わっても、リンクが切れません。",
     "site_export_relative": "相対パスにする",
-    "site_export_btn": "公開サイトをダウンロード"
+    "site_export_btn": "公開サイトをダウンロード",
+    "transfer_stats_pages": "ページ",
+    "transfer_stats_components": "コンポーネント",
+    "transfer_stats_users": "ユーザー",
+    "transfer_stats_media": "メディア",
+    "transfer_stats_media_size": "メディアの合計",
+    "transfer_stats_database": "データベース"
 }

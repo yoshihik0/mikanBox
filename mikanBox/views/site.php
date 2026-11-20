@@ -111,9 +111,7 @@
                 </summary>
                 <div class="editor-container editor-container-sub">
                     <small class="sub-text sub-text-intro"><?= t('backup_hint') ?></small>
-                    <div class="flex-row gap-10">
-                        <a href="admin.php?view=import" class="btn btn-orange btn-small" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;"><?= getIcon('settings_backup_restore') ?> <?= t('btn_data_tool') ?></a>
-                    </div>
+<?php require __DIR__ . '/data-transfer-sections.php'; ?>
                 </div>
             </details>
         </div>

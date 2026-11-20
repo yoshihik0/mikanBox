@@ -1,27 +1,21 @@
 <?php
 /**
- * The data tool screen (admin.php?view=import), the same in the flat and SQLite editions; the Cloud
- * edition draws the same structure in src/admin/views.ts. Save (one ZIP, or the database where the
- * edition has one) and Read (data-transfer.js; lib/data-transfer.php handles both).
+ * The site screen's "Data management": the site's figures, Save, Read and the public site export, the same
+ * in the flat and SQLite editions (the Cloud edition draws the same in src/admin/import-view.ts).
  */
 $transferTexts = [];
 foreach (['transfer_reading', 'transfer_nothing', 'transfer_not_zip', 'transfer_bad_json', 'transfer_confirm_title', 'transfer_confirm_replace', 'transfer_btn_replace', 'transfer_sending_data', 'transfer_sending_media', 'transfer_publishing', 'transfer_publish_failed', 'transfer_done', 'transfer_refused', 'transfer_media_failed', 'transfer_build_hint'] as $key) $transferTexts[$key] = t($key);
 $hasDatabase = function_exists('mikanBoxDownloadDatabase');
 ?>
-<div id="data-import" class="section-anchor">
-    <main class="data-tool">
-        <header class="data-tool-header">
-            <div class="data-tool-logo">🍊</div>
-            <div>
-                <h1><?= htmlspecialchars(t('btn_data_tool')) ?></h1>
-                <p><?= htmlspecialchars(t('transfer_tool_intro')) ?></p>
-            </div>
-        </header>
-        <div class="data-tool-content">
+            <ul class="transfer-stats">
+                <?php foreach (mikanBoxTransferStats() as $key => $value): ?>
+                <li><?= htmlspecialchars(t('transfer_stats_' . $key)) ?> <strong><?= htmlspecialchars((string)$value) ?></strong></li>
+                <?php endforeach; ?>
+            </ul>
             <section id="transfer-export" class="data-tool-card">
                 <h2><?= getIcon('download') ?> <?= htmlspecialchars(t('transfer_export_title')) ?></h2>
                 <p><?= htmlspecialchars(t('transfer_export_hint')) ?></p>
-                <form method="post" action="admin.php?view=import" class="transfer-export-form">
+                <form method="post" action="admin.php" class="transfer-export-form">
                     <?= csrfField() ?>
                     <input type="hidden" name="save_action" value="transfer_export">
                     <div class="flex-row flex-row-wrap items-center">
@@ -62,7 +56,7 @@ $hasDatabase = function_exists('mikanBoxDownloadDatabase');
             <section id="site-export" class="data-tool-card">
                 <h2><?= getIcon('download') ?> <?= htmlspecialchars(t('site_export_title')) ?></h2>
                 <p><?= htmlspecialchars(t('site_export_hint')) ?></p>
-                <form method="post" action="admin.php?view=import">
+                <form method="post" action="admin.php">
                     <?= csrfField() ?>
                     <input type="hidden" name="save_action" value="transfer_site_export">
                     <div class="flex-row flex-row-wrap items-center">
@@ -71,8 +65,5 @@ $hasDatabase = function_exists('mikanBoxDownloadDatabase');
                     </div>
                 </form>
             </section>
-        </div>
-    </main>
-</div>
 <?= mikanBoxInlineAdminScript('zip.js') ?>
 <?= mikanBoxInlineAdminScript('data-transfer.js') ?>
