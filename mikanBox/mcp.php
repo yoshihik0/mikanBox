@@ -1259,9 +1259,7 @@ if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
 
         // すべてのMCPリクエストでAPIキー認証
         $settings = loadSettings();
-        $apiKey   = $settings['mcp_api_key'] ?? '';
-
-        if (empty($apiKey) || !mikanBoxMcpEnabled()) {
+        if (!mikanBoxMcpKeyList($settings) || !mikanBoxMcpEnabled()) {
             http_response_code(403);
             echo json_encode(mcpErrorResponse($id, -32001, t('mcp_err_mcp_disabled')), JSON_UNESCAPED_UNICODE);
             exit;
@@ -1278,14 +1276,16 @@ if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
             $provided = trim($apiKeyHeader);
         }
 
-        if (!mikanBoxMcpKeyMatches($apiKey, $provided)) {
+        $matchedKey = mikanBoxMcpKeyFind($settings, $provided);
+        if ($matchedKey === null) {
             http_response_code(401);
             echo json_encode(mcpErrorResponse($id, -32001, t('mcp_err_unauthorized')), JSON_UNESCAPED_UNICODE);
             exit;
         }
 
-        $GLOBALS['mikanbox_audit_actor'] = 'MCP';
-        mikanBoxMcpUsed($apiKey);
+        // The actor carries the key's name, so the history shows which AI tool or machine acted.
+        $GLOBALS['mikanbox_audit_actor'] = $matchedKey['name'] !== '' ? 'MCP (' . $matchedKey['name'] . ')' : 'MCP';
+        mikanBoxMcpUsed($matchedKey['id']);
         mikanBoxMcpKeyUpgrade();   // a key an older version stored in plain text
         if ($method === 'initialize') {
             $initializeError = mcpValidateInitialize($request);

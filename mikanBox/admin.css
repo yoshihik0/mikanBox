@@ -2094,3 +2094,8 @@ body.data-tool-open { overflow: hidden; }
 .integrity-notes{padding-left:1.2em;margin:6px 0}
 .integrity-unusual{width:100%;border-collapse:collapse}
 .integrity-unusual td{padding:3px 8px;border-bottom:1px solid var(--border,#ddd)}
+
+/* MCP API keys: one row per named key */
+.mcp-key-table { width: 100%; border-collapse: collapse; }
+.mcp-key-table th, .mcp-key-table td { text-align: left; padding: 6px 8px; vertical-align: middle; }
+.mcp-key-table form { margin: 0; }

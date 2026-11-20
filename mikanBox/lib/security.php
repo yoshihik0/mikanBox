@@ -256,8 +256,13 @@ function mikanBoxMcpSetEnabled(bool $enabled): bool {
     if ($ok) mikanBoxAudit($enabled ? 'mcp_enabled' : 'mcp_disabled');
     return $ok;
 }
-// The MCP API key is stored only as its fingerprint ("sha256:" + hex) and shown once, when it is issued.
-// A key stored by an older version in plain text is converted on first use (mikanBoxMcpKeyUpgrade).
+// MCP API keys. Each key has a name (the AI tool or machine it is for) and is stored only as its
+// fingerprint ("sha256:" + hex); the key itself is shown once, when it is issued.
+// They are kept in the setting `mcp_api_key`, as a list of ['name','hash','created']. An older
+// version stored one key there as a string (the fingerprint, or even the plain key): it reads as one key
+// without a name, and becomes the first list entry when a key is added or revoked. An empty string means no key.
+const MIKANBOX_MCP_KEY_LIMIT = 20;
+const MIKANBOX_MCP_KEY_NAME_MAX = 40;
 function mikanBoxMcpKeyStore(string $key): string {
     return 'sha256:' . hash('sha256', $key);
 }
@@ -267,36 +272,78 @@ function mikanBoxMcpKeyDigest(string $stored): string {
     if (preg_match('/\Asha256:([0-9a-f]{64})\z/', $stored, $m)) return $m[1];
     return hash('sha256', $stored);
 }
-function mikanBoxMcpKeyMatches(string $stored, string $provided): bool {
-    $digest = mikanBoxMcpKeyDigest($stored);
-    return $digest !== '' && $provided !== '' && hash_equals($digest, hash('sha256', $provided));
+/** The keys the settings hold: a list of ['id','name','hash','created'] (id: the first 16 hex digits of the sha256). */
+function mikanBoxMcpKeyList(array $settings): array {
+    $raw = $settings['mcp_api_key'] ?? '';
+    $items = is_array($raw) ? $raw : ($raw === '' || $raw === null ? [] : [['name' => '', 'hash' => (string)$raw, 'created' => 0]]);
+    $list = [];
+    foreach ($items as $item) {
+        if (!is_array($item)) continue;
+        $digest = mikanBoxMcpKeyDigest((string)($item['hash'] ?? ''));
+        if ($digest === '') continue;
+        $list[] = ['id' => substr($digest, 0, 16), 'name' => (string)($item['name'] ?? ''), 'hash' => 'sha256:' . $digest, 'created' => (int)($item['created'] ?? 0)];
+    }
+    return $list;
+}
+function mikanBoxMcpKeyStoreList(array $list) {
+    if (!$list) return '';
+    return array_map(fn($k) => ['name' => $k['name'], 'hash' => $k['hash'], 'created' => $k['created']], array_values($list));
+}
+function mikanBoxMcpKeyCleanName(string $name): string {
+    $name = trim((string)preg_replace('/[\p{C}\s]+/u', ' ', $name));
+    return mb_substr($name, 0, MIKANBOX_MCP_KEY_NAME_MAX);
+}
+/** The key record the supplied key matches, or null. */
+function mikanBoxMcpKeyFind(array $settings, string $provided): ?array {
+    if ($provided === '') return null;
+    $digest = hash('sha256', $provided);
+    foreach (mikanBoxMcpKeyList($settings) as $key) if (hash_equals(substr($key['hash'], 7), $digest)) return $key;
+    return null;
+}
+/** Adds a named key to $settings (not saved). Returns the new key, shown once, or '' when the limit is reached. */
+function mikanBoxMcpKeyAdd(array &$settings, string $name): string {
+    $list = mikanBoxMcpKeyList($settings);
+    if (count($list) >= MIKANBOX_MCP_KEY_LIMIT) return '';
+    $key = bin2hex(random_bytes(24));
+    $list[] = ['id' => '', 'name' => mikanBoxMcpKeyCleanName($name), 'hash' => mikanBoxMcpKeyStore($key), 'created' => time()];
+    $settings['mcp_api_key'] = mikanBoxMcpKeyStoreList($list);
+    return $key;
+}
+/** Removes the key with this id from $settings (not saved). */
+function mikanBoxMcpKeyRevoke(array &$settings, string $id): bool {
+    $list = mikanBoxMcpKeyList($settings);
+    $rest = array_values(array_filter($list, fn($k) => $k['id'] !== $id));
+    if (count($rest) === count($list)) return false;
+    $settings['mcp_api_key'] = mikanBoxMcpKeyStoreList($rest);
+    return true;
 }
 /** Replaces a key an older version stored in plain text with its fingerprint. The key itself keeps working. */
 function mikanBoxMcpKeyUpgrade(): void {
     $settings = loadSettings();
-    $stored = (string)($settings['mcp_api_key'] ?? '');
-    if ($stored === '' || str_starts_with($stored, 'sha256:')) return;
+    $stored = $settings['mcp_api_key'] ?? '';
+    if (!is_string($stored) || $stored === '' || str_starts_with($stored, 'sha256:')) return;
     $settings['mcp_api_key'] = mikanBoxMcpKeyStore($stored);
     if (saveSettings($settings)) $GLOBALS['mikanbox_settings'] = $settings;
 }
-/** $stored: the key as settings hold it. The usage record keeps only the key's sha256. */
-function mikanBoxMcpUsed(string $stored): void {
-    $fingerprint = mikanBoxMcpKeyDigest($stored);
-    if ($fingerprint === '') return;
-    mikanBoxSecurityLocked(function($dir) use ($fingerprint) {
+/** $id: the key's id. The usage record keeps when each key was last used, at most once an hour. */
+function mikanBoxMcpUsed(string $id): void {
+    if ($id === '') return;
+    mikanBoxSecurityLocked(function($dir) use ($id) {
         $state = mikanBoxSecurityReadState($dir);
         if ($state === null) return false;
-        if (($state['key'] ?? '') === $fingerprint && time() - (int)($state['used_at'] ?? 0) < 3600) return true;
-        $state['key'] = $fingerprint; $state['used_at'] = time();
+        $used = is_array($state['used'] ?? null) ? $state['used'] : [];
+        if (time() - (int)($used[$id] ?? 0) < 3600) return true;
+        $used[$id] = time();
+        if (count($used) > 100) $used = array_slice($used, -100, null, true);
+        $state['used'] = $used;
         return mikanBoxSecurityWriteState($dir, $state);
     });
 }
-function mikanBoxMcpLastUsed(string $stored): int {
-    $fingerprint = mikanBoxMcpKeyDigest($stored);
-    if ($fingerprint === '') return 0;
-    return (int)mikanBoxSecurityLocked(function($dir) use ($fingerprint) {
+function mikanBoxMcpLastUsed(string $id): int {
+    if ($id === '') return 0;
+    return (int)mikanBoxSecurityLocked(function($dir) use ($id) {
         $state = mikanBoxSecurityReadState($dir);
-        return ($state['key'] ?? '') === $fingerprint ? (int)($state['used_at'] ?? 0) : 0;
+        return (int)(($state['used'] ?? [])[$id] ?? 0);
     });
 }
 function mikanBoxMaskedIp(): string {
@@ -369,7 +416,7 @@ function mikanBoxAuditMedia(string $event, string $name, string $before = '', st
     if (function_exists('mikanBoxIntegrityMediaChanged')) mikanBoxIntegrityMediaChanged($name, $event === 'media_deleted', $from);
 }
 function mikanBoxAudit(string $event, array $details = []): void {
-    $events = array_merge(['mcp_enabled','mcp_disabled','mcp_key_issued','mcp_key_rotated','login_failed','device_registered','device_revoked','code_issued','invite_issued','recovery','accounts_reset','user_deleted','system_restored','system_updated','data_restored','integrity_accepted'], MIKANBOX_AUDIT_EDIT_EVENTS);
+    $events = array_merge(['mcp_enabled','mcp_disabled','mcp_key_issued','mcp_key_rotated','mcp_key_revoked','login_failed','device_registered','device_revoked','code_issued','invite_issued','recovery','accounts_reset','user_deleted','system_restored','system_updated','data_restored','integrity_accepted'], MIKANBOX_AUDIT_EDIT_EVENTS);
     if (!in_array($event, $events, true)) return;
     // A bulk operation records one summary instead of a line per item.
     if (!empty($GLOBALS['mikanbox_audit_quiet']) && mikanBoxAuditGroup($event) === 'edit' && $event !== 'data_imported') return;
@@ -458,7 +505,11 @@ const MIKANBOX_AUDIT_SETTINGS_IGNORED = ['last_build','mcp_api_key'];
 if (!function_exists("saveSettings")) {
 function saveSettings($settings) {
     $previous=loadSettings(); $ok=mikanBoxStorageSaveSettings($settings);
-    if ($ok && !empty($settings['mcp_api_key']) && mikanBoxMcpKeyDigest((string)($previous['mcp_api_key'] ?? '')) !== mikanBoxMcpKeyDigest((string)$settings['mcp_api_key'])) mikanBoxAudit(empty($previous['mcp_api_key'])?'mcp_key_issued':'mcp_key_rotated');
+    if ($ok) {
+        $before = array_column(mikanBoxMcpKeyList((array)$previous), 'id'); $after = array_column(mikanBoxMcpKeyList((array)$settings), 'id');
+        foreach (array_diff($after, $before) as $id) mikanBoxAudit('mcp_key_issued', ['target' => $id]);
+        foreach (array_diff($before, $after) as $id) mikanBoxAudit('mcp_key_revoked', ['target' => $id]);
+    }
     if ($ok && is_array($previous) && is_array($settings)) {
         $changed=[];
         foreach (array_unique(array_merge(array_keys($previous),array_keys($settings))) as $key) {

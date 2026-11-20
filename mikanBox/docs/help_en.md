@@ -55,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.28.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.29.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -793,21 +793,25 @@ The URL of this site's administration MCP. "Copy" puts it on the clipboard so yo
 
 #### API Key
 
-The API key is shown only once, when it is issued (from v2.28.0). The server keeps only the key's fingerprint (SHA-256), not the key itself, so a leaked settings file or backup does not reveal it. It cannot be shown again later: copy it right away and set it in the tool you connect. If you lose it, regenerate it. Keys issued before v2.28.0 keep working (they are replaced by their fingerprint the first time they are used or when the Site screen is opened). Until a key is issued there is no field, only "Generate API Key".
+You can issue any number of named API keys (from v2.29.0; up to 20). Name each key after the AI tool or machine that will use it (for example “Claude Code on MacBook”). Issuing a separate key for each AI tool or machine shows in the history which key acted, and lets you revoke just the one that is a problem. You can set one key in several tools, but the history cannot tell them apart and revoking it stops them all.
+
+The API key is shown only once, when it is issued (from v2.28.0). The server keeps only the key's fingerprint (SHA-256), not the key itself, so a leaked settings file or backup does not reveal it. It cannot be shown again later: copy it right away and set it in the tool you connect. If you lose it, revoke that key and issue a new one. A key issued before v2.29.0 keeps working, as a single key without a name.
+
+Issued keys are listed with their name, issue date and last-use time.
 
 - [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the just-issued API key to the clipboard. Paste the generated key into the settings of whatever tool you're connecting (e.g. `.mcp.json` for Claude Desktop).
-- [[auto_awesome]{.material-symbols-outlined}Generate API Key]{.m-btn .m-btn-blue} — (When none is issued) Issues a new API key.
-- [[auto_awesome]{.material-symbols-outlined}Regenerate API Key]{.m-btn .m-btn-gray} — (When one is issued) Invalidates the current key and issues a new one. Any existing AI integrations will need to be reconfigured.
+- [[auto_awesome]{.material-symbols-outlined}Issue key]{.m-btn .m-btn-blue} — Enter a “Name of the new key” and press it to issue a new key and show it in place. Other keys are not affected.
+- [Revoke]{.m-btn .m-btn-gray} — Revokes that key in the list. AI tools that use it can no longer connect. The other keys keep working.
 
 You can also avoid writing the key in plain text in a local file such as `.mcp.json`. On macOS, store it in the Keychain (`security add-generic-password -s mikanbox-mcp -a mcp -w 'KEY'`) and read it each time you connect. For example, with `mcp-remote`, set `command` to `sh` and `args` to `["-c", "exec npx mcp-remote@0.1.38 CONNECTION_URL --header \"Authorization:Bearer $(security find-generic-password -s mikanbox-mcp -w)\""]`.
 
-The MCP API key stops working when you regenerate it, when the [SQLite Edition]{.type-badge .badge-sqlite} is recovered with a setup token or handed over with `reset-accounts.txt`, and when the [flat Edition]{.type-badge .badge-flat} password is set again after `password_hash` was emptied (the last two from v2.21.3). An ordinary password change while signed in, stopping a device and deleting a user leave it unchanged.
+An MCP API key stops working when you revoke it in the list, when the [SQLite Edition]{.type-badge .badge-sqlite} is recovered with a setup token or handed over with `reset-accounts.txt`, and when the [flat Edition]{.type-badge .badge-flat} password is set again after `password_hash` was emptied (the last two from v2.21.3). An ordinary password change while signed in, stopping a device and deleting a user leave it unchanged.
 
 #### Enabling MCP and its last-use time (PHP editions)
 
-Clear “Enable MCP” and save to stop management MCP while retaining its key. HTTP requests receive 403, and local stdio connections reject their next request. An already running request is not cancelled. Public help MCP remains available. Existing connections remain enabled after updating; enabling again permits the same key. Regenerate a leaked key as well as disabling access. This switch does not restrict tools that can edit server files directly.
+Clear “Enable MCP” and save to stop management MCP while retaining its key. HTTP requests receive 403, and local stdio connections reject their next request. An already running request is not cancelled. Public help MCP remains available. Existing connections remain enabled after updating; enabling again permits the same key. Revoke a leaked key as well as disabling access. This switch does not restrict tools that can edit server files directly.
 
-The current key's last successful HTTP authentication is shown in UTC. Its timestamp is written at most once per hour. Invalid keys and public help requests do not update it. Regenerating the key resets the display to “Not recorded.” Local stdio requests do not use an API key and are excluded.
+Each key's last successful HTTP authentication is shown in UTC in the list. Its timestamp is written at most once per hour per key. Invalid keys and public help requests do not update it. A key that was just issued shows “Not used yet.” Local stdio requests do not use an API key and are excluded.
 
 ### Security activity (PHP editions) {#site-audit}
 
@@ -815,7 +819,7 @@ The current key's last successful HTTP authentication is shown in UTC. Its times
 
 “Site edits” records every addition, change and deletion of pages, components, media and site settings, whether it was made in the admin screen, in visual editing, through MCP or by importing data (from v2.26.0). Rewriting only the content of a page that is already public is recorded too. Saving the same item several times within 10 minutes by the same person is one line, and an import is one “Data imported” line rather than a line per page. For site settings, only the names of the settings that changed are recorded, never their values.
 
-“Important” holds, in both PHP editions, MCP key issuance/regeneration, enabling/disabling MCP, program updates and rollbacks, and data restores (importing with “Replace”). Program updates are recorded when updating from v2.26.0 or later. SQLite also records device registration/stopping, enrollment/invitation code issuance, user deletion, recovery and account reset. The flat edition records "Recovery" when setting the password again retires the MCP API key.
+“Important” holds, in both PHP editions, MCP key issuance/revocation, enabling/disabling MCP, program updates and rollbacks, and data restores (importing with “Replace”). Program updates are recorded when updating from v2.26.0 or later. SQLite also records device registration/stopping, enrollment/invitation code issuance, user deletion, recovery and account reset. The flat edition records "Recovery" when setting the password again retires the MCP API key.
 
 The latest 50 important operations, the latest 50 failed sign-ins and the latest 500 site edits are kept, so a run of failed sign-ins or of edits never pushes out the important records. Only writing operations are recorded, not page views, so the public site does not get slower.
 

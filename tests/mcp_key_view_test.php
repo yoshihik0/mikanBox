@@ -15,9 +15,15 @@ function t(string $key, ...$args): string { return $key; }
 function getIcon(string $name): string { return ''; }
 function csrfField(): string { return '<input type="hidden" name="csrf" value="test">'; }
 
+const MIKANBOX_MCP_KEY_NAME_MAX = 40;
 function mikanBoxMcpEnabled(): bool { return true; }
-function mikanBoxMcpLastUsed(string $key): int { return 0; }
+function mikanBoxMcpLastUsed(string $id): int { return 0; }
 function mikanBoxMcpKeyUpgrade(): void {}
+function mikanBoxMcpKeyList(array $settings): array {
+    $list = [];
+    foreach ((array)($settings['keys'] ?? []) as $i => $k) $list[] = ['id' => 'id' . $i, 'name' => $k['name'], 'hash' => 'sha256:x', 'created' => $k['created'] ?? 0];
+    return $list;
+}
 function mikanBoxAuditRecent(): array { return []; }
 function mikanBoxAuditUnusual(array $rows): array { return []; }
 function mikanBoxAuditGroup(string $event): string { return $event === 'login_failed' ? 'login' : ($event === 'page_status' ? 'edit' : 'important'); }
@@ -36,30 +42,20 @@ function checkMcpKeyView($condition, string $message): void {
     if (!$condition) $failures[] = $message;
 }
 
-// No key yet: the field must exist so the AJAX handler has somewhere to write.
+// The accordion is collapsed and keys are issued over AJAX: the place the new key is shown, and the
+// form that issues it, are always in the markup, so the first key has somewhere to appear.
 $html = renderMcpKeySection([]);
-checkMcpKeyView(str_contains($html, 'id="mcp-key-display"'), 'the key field must be rendered before any key exists');
-checkMcpKeyView(str_contains($html, 'value="" placeholder='), 'the key field must start empty');
-checkMcpKeyView((bool)preg_match('/id="mcp-key-issued" style="display:none;"/', $html), 'the issued block must be hidden before any key exists');
-checkMcpKeyView((bool)preg_match('/id="mcp-key-generate"(?! style="display:none)/', $html), 'the generate button must be visible before any key exists');
+checkMcpKeyView((bool)preg_match('/id="mcp-key-issued" style="display:none;"/', $html), 'the issued block exists, hidden');
+checkMcpKeyView(str_contains($html, 'id="mcp-key-display"') && str_contains($html, 'value="" readonly'), 'the key field exists and starts empty');
+checkMcpKeyView(str_contains($html, 'name="mcp_key_name"') && str_contains($html, 'value="generate_mcp_key"'), 'the issue form has a name field');
+checkMcpKeyView(str_contains($html, 'mcp_key_none') && !str_contains($html, 'revoke_mcp_key'), 'with no keys there is a note and nothing to revoke');
 
-// Key present: the issued block is shown and the generate button is put away.
-// Only the fingerprint is stored, and the field never shows what settings hold.
-$html = renderMcpKeySection(['mcp_api_key' => 'sha256:' . str_repeat('ab', 32)]);
-checkMcpKeyView(!str_contains($html, str_repeat('ab', 32)), 'the stored fingerprint is never rendered');
-checkMcpKeyView(str_contains($html, 'value="" placeholder="mcp_key_hidden_placeholder"'), 'an existing key is not shown: the field is empty with a note');
-checkMcpKeyView((bool)preg_match('/id="mcp-key-issued"(?! style="display:none)/', $html), 'the issued block must be visible once a key exists');
-checkMcpKeyView((bool)preg_match('/id="mcp-key-generate" style="display:none;"/', $html), 'the generate button must be hidden once a key exists');
-checkMcpKeyView((bool)preg_match('/id="mcp-key-once" style="display:none;"/', $html), 'the shown-once note is hidden when no key was just issued');
-
-// Just issued without ajax: the key is shown once from the session, escaped, then forgotten.
-$_SESSION['mikanbox_mcp_new_key'] = '"><script>alert(1)</script>';
-$html = renderMcpKeySection(['mcp_api_key' => 'sha256:' . str_repeat('cd', 32)]);
-checkMcpKeyView(!str_contains($html, '<script>alert(1)</script>') && str_contains($html, '&quot;&gt;&lt;script&gt;'), 'the just-issued key is shown once, HTML-escaped');
-checkMcpKeyView((bool)preg_match('/id="mcp-key-once"(?! style="display:none)/', $html), 'the shown-once note is visible with it');
-checkMcpKeyView(!isset($_SESSION['mikanbox_mcp_new_key']), 'the key is forgotten after it is shown');
-$html = renderMcpKeySection(['mcp_api_key' => 'sha256:' . str_repeat('cd', 32)]);
-checkMcpKeyView(!str_contains($html, 'alert(1)'), 'it is not shown a second time');
+// Keys are listed by name, each with a revoke form; names are escaped; unnamed keys get a label.
+$html = renderMcpKeySection(['keys' => [['name' => '"><script>alert(1)</script>', 'created' => 86400], ['name' => '']]]);
+checkMcpKeyView(!str_contains($html, '<script>alert(1)</script>') && str_contains($html, '&quot;&gt;&lt;script&gt;'), 'key names are HTML-escaped');
+checkMcpKeyView(substr_count($html, 'value="revoke_mcp_key"') === 2, 'every key has a revoke form');
+checkMcpKeyView(str_contains($html, 'mcp_key_unnamed') && str_contains($html, '1970-01-02'), 'an unnamed key is labelled and the issue date is shown');
+checkMcpKeyView(str_contains($html, 'name="mcp_key_id" value="id1"'), 'revoking sends the key id');
 
 if ($failures) {
     echo "MCP key view tests failed:\n- " . implode("\n- ", $failures) . "\n";

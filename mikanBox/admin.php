@@ -990,24 +990,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         mikanBoxAdminDone(basename(__FILE__) . '#mcp-api-key', $saved ? t('msg_update_success') : t('err_save_failed'), [], (bool)$saved);
     }
     elseif ($_POST['save_action'] === 'generate_mcp_key') {
-        $newKey = bin2hex(random_bytes(24));
-        $settings['mcp_api_key'] = mikanBoxMcpKeyStore($newKey);   // only the fingerprint is kept; the key is shown once
-        // settings.json への直接書き込みでは、loadSettings() が読むデータベースに
-        // 反映されず、発行したキーが mcp.php から見えない。保存はストレージ層へ通す。
-        $saved = saveSettings($settings);
-        if (isset($_POST['ajax_request'])) {
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success'     => $saved,
-                'message'     => $saved ? t('msg_mcp_key_generated') : t('err_save_failed'),
-                'mcp_api_key' => $saved ? $newKey : '',
-            ], JSON_UNESCAPED_UNICODE);
-            exit;
+        // A named key: the key itself is shown once, in the response; only its fingerprint is kept.
+        $newKey = mikanBoxMcpKeyAdd($settings, (string)($_POST['mcp_key_name'] ?? ''));
+        if ($newKey === '') {
+            mikanBoxAdminDone(basename(__FILE__) . '#mcp-api-key', t('err_mcp_key_limit', MIKANBOX_MCP_KEY_LIMIT), [], false);
         }
-        if ($saved) $_SESSION['mikanbox_mcp_new_key'] = $newKey;   // shown once on the next screen, then forgotten
-        $_SESSION['admin_message'] = $saved ? t('msg_mcp_key_generated') : t('err_save_failed');
-        header('Location: ' . basename(__FILE__) . '#mcp-api-key');
-        exit;
+        // 保存はストレージ層へ通す（SQLite版ではデータベースが読み取り元になるため、
+        // settings.json への直接書き込みでは発行したキーが反映されない）。
+        $saved = saveSettings($settings);
+        mikanBoxAdminDone(basename(__FILE__) . '#mcp-api-key', $saved ? t('msg_mcp_key_generated') : t('err_save_failed'), ['mcp_api_key' => $saved ? $newKey : ''], (bool)$saved);
+    }
+    elseif ($_POST['save_action'] === 'revoke_mcp_key') {
+        $saved = mikanBoxMcpKeyRevoke($settings, (string)($_POST['mcp_key_id'] ?? '')) && saveSettings($settings);
+        mikanBoxAdminDone(basename(__FILE__) . '#mcp-api-key', $saved ? t('msg_mcp_key_revoked') : t('err_save_failed'), [], (bool)$saved);
     }
     elseif ($_POST['save_action'] === 'change_status') {
         $id = $_POST['id'];
@@ -2939,7 +2934,7 @@ function getIcon($name) {
             const actionInput = (submitter && submitter.name === 'save_action') ? submitter : form.querySelector('input[name="save_action"]');
             const action = actionInput ? actionInput.value : '';
             
-            const ajaxActions = ['save_page', 'save_comp', 'save_settings', 'save_memo', 'ssg_save_settings', 'generate_mcp_key', 'delete_user'];
+            const ajaxActions = ['save_page', 'save_comp', 'save_settings', 'save_memo', 'ssg_save_settings', 'delete_user'];
             
             if (ajaxActions.includes(action)) {
                 e.preventDefault();
@@ -2963,21 +2958,6 @@ function getIcon($name) {
                         showToast(json.message || '<?= t('msg_update_success') ?? '保存しました' ?>', !json.success);
                         if (json.success) {
                         }
-                        if (action === 'generate_mcp_key' && json.mcp_api_key) {
-                            // Show the key in place. A reload would close the accordion this
-                            // section lives in, hiding the key just as it is issued.
-                            const keyDisplay = document.getElementById('mcp-key-display');
-                            if (keyDisplay) keyDisplay.value = json.mcp_api_key;
-                            const once = document.getElementById('mcp-key-once');
-                            if (once) once.style.display = '';
-                            const lastUsed = document.getElementById("mcp-last-used");
-                            if (lastUsed) lastUsed.textContent = <?= json_encode(t("mcp_never_used")) ?>;
-                            const issued = document.getElementById('mcp-key-issued');
-                            if (issued) issued.style.display = '';
-                            const generate = document.getElementById('mcp-key-generate');
-                            if (generate) generate.style.display = 'none';
-                        }
-
                         // Language change requires full reload to apply server-side translations
                         if (action === 'save_settings' && formData.has('system_lang')) {
                             setTimeout(reloadPreservingPosition, 600);
