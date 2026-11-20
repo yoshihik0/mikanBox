@@ -55,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.26.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.27.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -819,7 +819,19 @@ The latest 50 important operations, the latest 50 failed sign-ins and the latest
 
 Records contain the time, action, actor, necessary target IDs, a masked IP address and, for pages, components, media and settings, a fingerprint (SHA-256, not shown on screen) of the content before and after the change. Keys, tokens, codes, passwords, content, setting values and full IP addresses are excluded. The final IPv4 octet is masked; IPv6 addresses retain only their first 48 bits. Beyond the limits, the oldest records are removed. Recording failures are shown in the admin screen without treating a successful operation as failed.
 
-Logs and MCP state live in the data directory's `security/` folder. `events.jsonl.php` contains a PHP access-denial guard followed by JSON Lines records. Apache access rules and the front controller also protect the data directory. Servers serving static files without passing them through PHP must deny web access to the entire data directory. Backups including that directory also contain activity records and must be stored securely. Changes made by editing server files directly, without the admin screen or MCP, are not recorded. These records do not detect tampering by someone able to modify server files.
+Logs and MCP state live in the data directory's `security/` folder. `events.jsonl.php` contains a PHP access-denial guard followed by JSON Lines records. Apache access rules and the front controller also protect the data directory. Servers serving static files without passing them through PHP must deny web access to the entire data directory. Backups including that directory also contain activity records and must be stored securely. Changes made by editing server files directly, without the admin screen or MCP, are not in these records. Finding those is what “Check for tampering” below is for.
+
+“Check for tampering”, above the version display on the Site screen, looks for changes that are not in the history and shows the result under the button. It runs only when you press it, so page views are not affected. It checks three things.
+
+- **Public files**: the text files the site generation wrote (HTML and so on) and the media js, css, svg and html files, against the fingerprints taken when mikanBox wrote them. It lists files that changed, unknown files that appeared, and files that disappeared. Images, audio and video are not checked.
+- **Program**: the official release of the installed version is fetched from GitHub and compared with the program files. When GitHub cannot be reached (for example on a local site), the state recorded on this server at the last update or acceptance is used instead, and the result says which was used.
+- **Stored data**: the content of pages, components and site settings is compared with the last “after” fingerprint in the history.
+
+If nothing is found, the result says so with the time of the check. If what is found is your own change (you uploaded a file by FTP, or cleared password_hash in the settings file to recover), press “This is my change (accept)” and the present state becomes the new basis. The acceptance is recorded as an important operation. The basis for public files is made when the site is generated, and the one for media when you accept.
+
+As a limit, anyone who can rewrite server files can also rewrite the basis recorded on this server. Only the comparison with the official release lies outside the server, which makes it hard to forge. This is a clue for noticing a problem, not protection against intrusion.
+
+In the history tables, records whose person and IP range have not appeared in any earlier record, or whose person is unknown, get a light background color (there is no setting; a new site with no records yet shows no color). Such records of the last 30 days are also listed in the result as “Unusual operations”.
 
 ### CSV Import {#csv-import}
 

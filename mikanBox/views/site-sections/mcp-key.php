@@ -59,7 +59,10 @@ $mcpDisplayKey = (string)($settings['mcp_api_key'] ?? '');
 
 <div class="section-container section-tight"><details class="section-accordion"><summary class="header section-header accordion-summary"><h2 class="accordion-title"><?= t('audit_heading') ?> <span class="accordion-arrow">▼</span></h2></summary><div class="editor-container editor-container-sub">
 <?php if ((!empty($GLOBALS['mikanbox_audit_unavailable']) || !empty($_SESSION['mikanbox_audit_unavailable']))): ?><p role="alert"><?= t('audit_unavailable') ?></p><?php endif; ?>
-<?php $auditGroups = ['important' => [], 'edit' => [], 'login' => []]; foreach (mikanBoxAuditRecent() as $event) $auditGroups[mikanBoxAuditGroup((string)($event['event'] ?? ''))][] = $event; ?>
+<?php $auditGroups = ['important' => [], 'edit' => [], 'login' => []];
+      $auditAll = array_reverse(mikanBoxAuditRecent());   // oldest first: "unusual" means not seen in any earlier record
+      $auditUnusual = array_flip(mikanBoxAuditUnusual($auditAll));
+      foreach (array_reverse($auditAll, true) as $auditIndex => $event) { $event['unusual'] = isset($auditUnusual[$auditIndex]); $auditGroups[mikanBoxAuditGroup((string)($event['event'] ?? ''))][] = $event; } ?>
 <div class="audit-tabs">
 <?php $n = 0; foreach ($auditGroups as $group => $events): $n++; ?><input type="radio" name="audit-tab" id="audit-tab-<?= $n ?>"<?= $n === 1 ? ' checked' : '' ?> aria-label="<?= htmlspecialchars(t('audit_tab_' . $group), ENT_QUOTES, 'UTF-8') ?>"><?php endforeach; ?>
 <div class="audit-tab-labels"><?php $n = 0; foreach ($auditGroups as $group => $events): $n++; ?><label for="audit-tab-<?= $n ?>"><?= t('audit_tab_' . $group) ?> (<?= count($events) ?>)</label><?php endforeach; ?></div>
@@ -67,6 +70,6 @@ $mcpDisplayKey = (string)($settings['mcp_api_key'] ?? '');
 <?php if (!$events): ?><p><?= t('audit_empty') ?></p><?php else: ?>
 <table><thead><tr><th><?= t('audit_time') ?></th><th><?= t('audit_action') ?></th><th><?= t('audit_actor') ?></th><th><?= t('audit_target') ?></th><th>IP</th></tr></thead><tbody>
 <?php foreach ($events as $event): ?>
-<tr><?php foreach ([$event['at'] ?? '', t('audit_event_' . ($event['event'] ?? '')), $event['actor'] ?? '', mikanBoxAuditTargetText($event), $event['ip'] ?? ''] as $value): ?><td><?= htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') ?></td><?php endforeach; ?></tr>
+<tr<?= !empty($event['unusual']) ? ' class="audit-unusual" title="' . htmlspecialchars(t('audit_unusual_title'), ENT_QUOTES, 'UTF-8') . '"' : '' ?>><?php foreach ([$event['at'] ?? '', t('audit_event_' . ($event['event'] ?? '')), $event['actor'] ?? '', mikanBoxAuditTargetText($event), $event['ip'] ?? ''] as $value): ?><td><?= htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') ?></td><?php endforeach; ?></tr>
 <?php endforeach; ?></tbody></table><?php endif; ?></div><?php endforeach; ?>
 </div></div></details></div>

@@ -304,6 +304,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     $activeSsgDir = isset($_POST['ssg_dir']) ? (string)$_POST['ssg_dir'] : $ssgDir;
     // 絶対パスで解決（CWDに依存しない）
     $activeSsgAbsPath = !empty($activeSsgDir) ? $siteRoot . '/' . ltrim($activeSsgDir, '/') : $siteRoot;
+    if (in_array($_POST['save_action'], ['integrity_check', 'integrity_accept'], true)) {
+        mikanBoxIntegrityHandle((string)$_POST['save_action'], 'yoshihik0/mikanBox', $activeSsgAbsPath);   // answers with JSON and ends the request
+    }
     $activeSsgRelPath = '../' . (($activeSsgDir !== '') ? rtrim($activeSsgDir, '/') . '/' : '');
 
     // Initialize common renderer for actions

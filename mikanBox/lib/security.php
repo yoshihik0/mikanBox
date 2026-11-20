@@ -317,6 +317,19 @@ function mikanBoxAuditHash($data): string {
     if ($data === null) return '';
     return hash('sha256', is_string($data) ? $data : json_encode($data, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_INVALID_UTF8_SUBSTITUTE));
 }
+/**
+ * sha256 of a page or component as stored, without updated_at: saving an item again without a
+ * change only moves that time, and must not make the stored content look different from the record.
+ */
+function mikanBoxAuditDataHash($data): string {
+    return mikanBoxAuditHash(is_array($data) ? array_diff_key($data, ['updated_at'=>1]) : $data);
+}
+/** sha256 of the settings that are recorded as edits (no automatic values), in a fixed key order. */
+function mikanBoxAuditSettingsHash(array $settings): string {
+    $settings=array_diff_key($settings, array_flip(MIKANBOX_AUDIT_SETTINGS_IGNORED));
+    ksort($settings);
+    return mikanBoxAuditHash($settings);
+}
 /** sha256 of a media file ('' when missing or too large to read quickly). */
 function mikanBoxAuditFileHash(string $path): string {
     clearstatcache(true, $path);
@@ -328,9 +341,10 @@ function mikanBoxAuditMedia(string $event, string $name, string $before = '', st
     $details=['target'=>$name,'before'=>$before,'after'=>$event === 'media_deleted' ? '' : mikanBoxAuditFileHash(MEDIA_DIR.'/'.$name)];
     if ($from !== '' && $from !== $name) $details['from']=$from;
     mikanBoxAudit($event, $details);
+    if (function_exists('mikanBoxIntegrityMediaChanged')) mikanBoxIntegrityMediaChanged($name, $event === 'media_deleted', $from);
 }
 function mikanBoxAudit(string $event, array $details = []): void {
-    $events = array_merge(['mcp_enabled','mcp_disabled','mcp_key_issued','mcp_key_rotated','login_failed','device_registered','device_revoked','code_issued','invite_issued','recovery','accounts_reset','user_deleted','system_restored','system_updated','data_restored'], MIKANBOX_AUDIT_EDIT_EVENTS);
+    $events = array_merge(['mcp_enabled','mcp_disabled','mcp_key_issued','mcp_key_rotated','login_failed','device_registered','device_revoked','code_issued','invite_issued','recovery','accounts_reset','user_deleted','system_restored','system_updated','data_restored','integrity_accepted'], MIKANBOX_AUDIT_EDIT_EVENTS);
     if (!in_array($event, $events, true)) return;
     // A bulk operation records one summary instead of a line per item.
     if (!empty($GLOBALS['mikanbox_audit_quiet']) && mikanBoxAuditGroup($event) === 'edit' && $event !== 'data_imported') return;
@@ -395,6 +409,22 @@ function mikanBoxAuditRecent(): array {
     });
     return is_array($rows) ? $rows : [];
 }
+/**
+ * Which records are out of the ordinary: the person and the address range (masked IP) have not
+ * appeared in any earlier record, or there is no person at all (a change made outside mikanBox).
+ * $rows: oldest first. Returns the indexes of those rows. The first record of a site is the
+ * start of the history, not unusual.
+ */
+function mikanBoxAuditUnusual(array $rows): array {
+    $seen=[]; $flagged=[];
+    foreach ($rows as $i=>$row) {
+        $actor=trim((string)($row['actor'] ?? ''));
+        $key=$actor."\0".(string)($row['ip'] ?? '');
+        if ($actor === '' || ($seen && !isset($seen[$key]))) $flagged[]=$i;
+        $seen[$key]=true;
+    }
+    return $flagged;
+}
 // Settings that change by themselves (not an edit) and the MCP key (recorded on its own).
 const MIKANBOX_AUDIT_SETTINGS_IGNORED = ['last_build','mcp_api_key'];
 if (!function_exists("saveSettings")) {
@@ -409,8 +439,7 @@ function saveSettings($settings) {
         }
         sort($changed);
         if ($changed) {
-            $strip=fn($all)=>array_diff_key($all, array_flip(MIKANBOX_AUDIT_SETTINGS_IGNORED));
-            mikanBoxAudit('settings_changed',['target'=>substr(implode(',',$changed),0,200),'before'=>mikanBoxAuditHash($strip($previous)),'after'=>mikanBoxAuditHash($strip($settings))]);
+            mikanBoxAudit('settings_changed',['target'=>substr(implode(',',$changed),0,200),'before'=>mikanBoxAuditSettingsHash($previous),'after'=>mikanBoxAuditSettingsHash($settings)]);
         }
     }
     return $ok;
@@ -427,13 +456,15 @@ function saveData($dir,$id,$data) {
     $ok=mikanBoxStorageSaveData($dir,$id,$data);
     if (!$ok || $kind==='') return $ok;
     $after=mikanBoxAuditStored($dir,$id);
+    // A bulk operation (data import) records no line per item; the integrity check is told what it wrote.
+    if (!empty($GLOBALS['mikanbox_audit_quiet'])) $GLOBALS['mikanbox_audit_quiet_after'][$kind.':'.$id]=mikanBoxAuditDataHash($after);
     $content=fn($d)=>is_array($d) ? array_diff_key($d, ['updated_at'=>1,'status'=>1]) : $d;
     if ($before === null) {
-        mikanBoxAudit($kind.'_created',['target'=>$id,'after'=>mikanBoxAuditHash($after)] + ($kind==='page' ? ['to'=>(string)($data['status'] ?? '')] : []));
+        mikanBoxAudit($kind.'_created',['target'=>$id,'after'=>mikanBoxAuditDataHash($after)] + ($kind==='page' ? ['to'=>(string)($data['status'] ?? '')] : []));
         return $ok;
     }
-    if ($kind==='page' && ($before['status'] ?? '') !== ($data['status'] ?? '')) mikanBoxAudit('page_status',['target'=>$id,'from'=>$before['status'] ?? '', 'to'=>$data['status'] ?? '']);
-    if ($content($before) !== $content($after)) mikanBoxAudit($kind.'_updated',['target'=>$id,'before'=>mikanBoxAuditHash($before),'after'=>mikanBoxAuditHash($after)]);
+    if ($kind==='page' && ($before['status'] ?? '') !== ($data['status'] ?? '')) mikanBoxAudit('page_status',['target'=>$id,'from'=>$before['status'] ?? '', 'to'=>$data['status'] ?? '', 'after'=>mikanBoxAuditDataHash($after)]);
+    if ($content($before) !== $content($after)) mikanBoxAudit($kind.'_updated',['target'=>$id,'before'=>mikanBoxAuditDataHash($before),'after'=>mikanBoxAuditDataHash($after)]);
     return $ok;
 }
 }
@@ -442,7 +473,7 @@ function deleteData($dir,$id) {
     $kind=$dir===POSTS_DIR ? 'page' : ($dir===COMPONENTS_DIR ? 'component' : '');
     $before=$kind!=='' ? mikanBoxAuditStored($dir,$id) : null;
     $ok=mikanBoxStorageDeleteData($dir,$id);
-    if ($ok && $before !== null) mikanBoxAudit($kind.'_deleted',['target'=>$id,'before'=>mikanBoxAuditHash($before)]);
+    if ($ok && $before !== null) mikanBoxAudit($kind.'_deleted',['target'=>$id,'before'=>mikanBoxAuditDataHash($before)]);
     return $ok;
 }
 }

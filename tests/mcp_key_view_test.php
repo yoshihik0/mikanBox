@@ -18,6 +18,7 @@ function csrfField(): string { return '<input type="hidden" name="csrf" value="t
 function mikanBoxMcpEnabled(): bool { return true; }
 function mikanBoxMcpLastUsed(string $key): int { return 0; }
 function mikanBoxAuditRecent(): array { return []; }
+function mikanBoxAuditUnusual(array $rows): array { return []; }
 function mikanBoxAuditGroup(string $event): string { return $event === 'login_failed' ? 'login' : ($event === 'page_status' ? 'edit' : 'important'); }
 
 function renderMcpKeySection(array $settings): string {

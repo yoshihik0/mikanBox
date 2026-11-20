@@ -2075,3 +2075,17 @@ body.data-tool-open { overflow: hidden; }
 .audit-tabs>input:nth-of-type(1):checked~.audit-tab-labels label:nth-child(1),.audit-tabs>input:nth-of-type(2):checked~.audit-tab-labels label:nth-child(2),.audit-tabs>input:nth-of-type(3):checked~.audit-tab-labels label:nth-child(3){border-bottom-color:currentColor;font-weight:700}
 .audit-tabs>input:nth-of-type(1):checked~.audit-panel:nth-of-type(2),.audit-tabs>input:nth-of-type(2):checked~.audit-panel:nth-of-type(3),.audit-tabs>input:nth-of-type(3):checked~.audit-panel:nth-of-type(4){display:block}
 .audit-tabs>input:focus-visible~.audit-tab-labels{outline:2px solid currentColor}
+.audit-unusual>td{background:rgba(245,158,11,.16)}
+.audit-unusual>td:first-child{box-shadow:inset 3px 0 0 rgba(245,158,11,.9)}
+.integrity-box{font-size:.88em;padding:6px 2px}
+.integrity-box .integrity-result{margin-top:8px}
+.integrity-box h4{margin:12px 0 4px;font-size:1em}
+.integrity-ok{color:#15803d}
+.integrity-warn{color:#b91c1c;font-weight:700}
+.integrity-sub{margin:6px 0 2px}
+.integrity-list{margin:0 0 6px;padding-left:1.4em}
+.integrity-list code{word-break:break-all}
+.integrity-ref,.integrity-notes{color:var(--text-sub,#888)}
+.integrity-notes{padding-left:1.2em;margin:6px 0}
+.integrity-unusual{width:100%;border-collapse:collapse}
+.integrity-unusual td{padding:3px 8px;border-bottom:1px solid var(--border,#ddd)}

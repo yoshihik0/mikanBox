@@ -9,6 +9,11 @@ class MikanBoxSSG {
     private $options;
     /** Paths refused by permitted() during the current operation, as "Error: ..." lines. */
     private $refused = [];
+    /** Fingerprints of the files written (path => sha256) and the paths removed, handed to the integrity record once. */
+    private $written = [];
+    private $removed = [];
+    private $batch = 0;
+    private $fullBuild = false;
 
     public function __construct($renderer, $outputDir = 'dist', $options = []) {
         $this->renderer = $renderer;
@@ -21,6 +26,7 @@ class MikanBoxSSG {
             'output_mode' => $defaultOutputMode,
             'link_mode' => $settings['ssg_link_mode'] ?? 'absolute',
             'copy_media' => $defaultOutputMode === 'export',
+            'record_baseline' => true,   // false for a build into a temporary folder (a download), which is not the public site
         ], $options);
         if (($this->options['output_mode'] ?? 'server') !== 'export') {
             $this->options['link_mode'] = 'absolute';
@@ -29,6 +35,26 @@ class MikanBoxSSG {
     }
 
     public function build() {
+        $this->batch++;
+        try { return $this->buildSite(); } finally { $this->batch--; $this->flushBaseline(); }
+    }
+
+    /** Hand what this operation wrote and removed to the integrity record (what the "check for tampering" compares with). */
+    private function flushBaseline() {
+        if ($this->batch > 0 || (!$this->written && !$this->removed)) return;
+        if (!empty($this->options['record_baseline']) && function_exists('mikanBoxIntegrityPublicChanged')) {
+            mikanBoxIntegrityPublicChanged($this->outputDir, $this->written, $this->removed, $this->fullBuild);
+        }
+        $this->written = []; $this->removed = []; $this->fullBuild = false;
+    }
+
+    private function relativeOutput($file) {
+        $root = rtrim(str_replace('\\', '/', $this->outputDir), '/') . '/';
+        $file = str_replace('\\', '/', (string)$file);
+        return strncmp($file, $root, strlen($root)) === 0 ? substr($file, strlen($root)) : null;
+    }
+
+    private function buildSite() {
         $this->refused = [];
         // Safety: Do not write into core/data directories or their subdirectories.
         $realOut  = realpath($this->outputDir) ?: $this->outputDir;
@@ -183,6 +209,7 @@ class MikanBoxSSG {
             }
         }
 
+        if (empty($this->options['selected_pages']) && !$this->refused) $this->fullBuild = true;   // every static page was written: a complete basis
         return array_merge($results, $this->refused);
     }
 
@@ -330,9 +357,9 @@ class MikanBoxSSG {
         if (!is_dir($dirPath)) @mkdir($dirPath, 0777, true);
         // Checked again once the folders exist, so a link created in the meantime is caught too.
         if (!$this->permitted($targetFile)) return 'Error: Refused to write a protected location: ' . $shown;
-        return @file_put_contents($targetFile, $content) !== false
-            ? "Generated: $shown"
-            : "Error: Could not write $shown";
+        if (@file_put_contents($targetFile, $content) === false) return "Error: Could not write $shown";
+        if (($relative = $this->relativeOutput($targetFile)) !== null) { $this->written[$relative] = hash('sha256', (string)$content); unset($this->removed[$relative]); }
+        return "Generated: $shown";
     }
 
     // ------------------------------------------------------------------
@@ -431,7 +458,9 @@ class MikanBoxSSG {
             $this->refuse($file);
             return false;
         }
-        return @unlink($file);
+        $ok = @unlink($file);
+        if ($ok && ($relative = $this->relativeOutput($file)) !== null) { $this->removed[$relative] = true; unset($this->written[$relative]); }
+        return $ok;
     }
 
     /** Lines refused during the last operation (build() already includes them in its result). */
@@ -524,6 +553,11 @@ class MikanBoxSSG {
      * is removed, so a hand-placed file such as robots.txt beside an HTML page "robots" stays.
      */
     public function deletePage($pageId, $format = null) {
+        $this->batch++;
+        try { return $this->deletePageFiles($pageId, $format); } finally { $this->batch--; $this->flushBaseline(); }
+    }
+
+    private function deletePageFiles($pageId, $format) {
         if (empty($pageId)) return 0;
         $count = 0;
         $format = $format ?? mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId));
@@ -600,6 +634,11 @@ class MikanBoxSSG {
     }
 
     public function clear() {
+        $this->batch++;
+        try { return $this->clearOutput(); } finally { $this->batch--; $this->flushBaseline(); }
+    }
+
+    private function clearOutput() {
         $count = 0;
         if (!is_dir($this->outputDir)) return "0 files (Directory not found)";
 

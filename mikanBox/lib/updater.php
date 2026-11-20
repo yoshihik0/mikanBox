@@ -94,17 +94,17 @@ function mikanBoxUpdateDownload(string $url, string $destination): bool {
     return $copied !== false && $copied > 0;
 }
 
-function mikanBoxUpdateProgramFiles(string $packageRoot): array {
+function mikanBoxUpdateProgramFiles(string $packageRoot, string $coreName = 'mikanBox'): array {
     $relativeFiles = [];
     foreach (['index.php'] as $relative) {
         if (is_file($packageRoot . '/' . $relative)) $relativeFiles[] = $relative;
     }
     foreach (['.htaccess', 'admin.php', 'admin.css', 'ai-question.js', 'build.php', 'config.php', 'mcp.php', 'public-mcp.php', 'visual.php'] as $filename) {
-        $relative = 'mikanBox/' . $filename;
+        $relative = $coreName . '/' . $filename;
         if (is_file($packageRoot . '/' . $relative)) $relativeFiles[] = $relative;
     }
     foreach (['docs', 'lib', 'views', 'lang', 'visual'] as $directory) {
-        $sourceDir = $packageRoot . '/mikanBox/' . $directory;
+        $sourceDir = $packageRoot . '/' . $coreName . '/' . $directory;
         if (!is_dir($sourceDir)) continue;
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($sourceDir, RecursiveDirectoryIterator::SKIP_DOTS)
@@ -118,7 +118,7 @@ function mikanBoxUpdateProgramFiles(string $packageRoot): array {
     sort($relativeFiles);
 
     // Replace the files that run the updater itself last.
-    foreach (['mikanBox/lib/updater.php', 'mikanBox/admin.php', 'mikanBox/config.php'] as $lastFile) {
+    foreach ([$coreName . '/lib/updater.php', $coreName . '/admin.php', $coreName . '/config.php'] as $lastFile) {
         $index = array_search($lastFile, $relativeFiles, true);
         if ($index !== false) {
             unset($relativeFiles[$index]);
@@ -489,6 +489,7 @@ function mikanBoxInstallUpdateLocked(
     mikanBoxUpdateRemoveRetiredTests($siteRoot);   // tests/ left from a hand-installed ZIP (best effort)
     // The site-root .htaccess belongs to the site owner and is never replaced; only the
     // charset block for static text files is appended once when it is missing.
+    if (function_exists('mikanBoxIntegrityRecordProgram')) mikanBoxIntegrityRecordProgram($coreDir, (string)$newVersion, 'installed');
     if (function_exists('mikanBoxAudit')) mikanBoxAudit('system_updated', ['from' => $currentVersion, 'to' => (string)$newVersion]);
     return ['success' => true, 'version' => $newVersion, 'htaccess' => mikanBoxEnsureSiteHtaccessCharset($siteRoot)];
 }

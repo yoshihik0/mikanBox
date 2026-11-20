@@ -114,7 +114,7 @@ function mikanBoxTransferBuildSite(bool $relative): array {
             'structure' => $relative ? 'file' : ($settings['ssg_server_structure'] ?? 'directory'),
             // Every public page, those served dynamically included: the export is the site as visitors see it.
             'selected_pages' => array_values(array_filter(getSortedPostIds(), fn($id) => in_array(loadData(POSTS_DIR, $id)['status'] ?? '', ['public_static', 'public_dynamic'], true))),
-            'output_mode' => 'export', 'link_mode' => $site['ssg_link_mode'], 'copy_media' => true,
+            'output_mode' => 'export', 'link_mode' => $site['ssg_link_mode'], 'copy_media' => true, 'record_baseline' => false,
         ]);
         $errors = array_values(array_filter($ssg->build(), fn($r) => strpos((string)$r, 'Error') !== false));
     } finally {
@@ -219,6 +219,7 @@ function mikanBoxTransferImportData(string $mode, array $part): array {
         $GLOBALS['mikanbox_audit_quiet'] = false;
     }
     if ($result['pages'] || $result['components'] || $result['settings']) mikanBoxAudit('data_imported', ['target' => $mode]);
+    if (function_exists('mikanBoxIntegrityDataKnown')) { mikanBoxIntegrityDataKnown($GLOBALS['mikanbox_audit_quiet_after'] ?? []); $GLOBALS['mikanbox_audit_quiet_after'] = []; }
     // History from the file (sent in the same part as its page): for pages the file adds, and for every page when replacing.
     if ($history) {
         foreach (($part['revisions'] ?? []) as $item) {
@@ -241,6 +242,7 @@ function mikanBoxTransferImportMedia(string $mode, string $name, string $tmpPath
     if (!is_dir(MEDIA_DIR)) mkdir(MEDIA_DIR, 0777, true);
     if (file_put_contents($target, $content) === false) return t('err_upload_failed');
     mikanBoxAudit('data_imported', ['target' => $mode]);
+    if (function_exists('mikanBoxIntegrityMediaChanged')) mikanBoxIntegrityMediaChanged($name, false, '');
     return 'saved';
 }
 
@@ -263,7 +265,7 @@ function mikanBoxTransferFinish(string $mode, array $keep): array {
     if (is_array($keep['media'] ?? null)) {
         $wanted = array_flip(array_map('strval', $keep['media']));
         foreach (mikanBoxTransferMediaNames() as $name) {
-            if (!isset($wanted[$name]) && @unlink(MEDIA_DIR . '/' . $name)) $deleted['media']++;
+            if (!isset($wanted[$name]) && @unlink(MEDIA_DIR . '/' . $name)) { $deleted['media']++; if (function_exists('mikanBoxIntegrityMediaChanged')) mikanBoxIntegrityMediaChanged($name, true, ''); }
         }
     }
     mikanBoxAudit('data_restored', ['target' => 'import-replace']);
