@@ -55,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.30.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.30.1</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -237,7 +237,7 @@ After you clear cookies, or when you sign in from another browser or computer, t
 
 [SQLite Edition only]{.type-badge .badge-sqlite}
 
-On a registered device, open Site → "Devices and users" → "Add a device" → "Issue a code". The code is shown right under the button (an invite code under "Issue an invite code"). Open the admin screen on the new device and enter the code and a device name. A code has 10 characters, is valid for 3 hours and works once. Keep it private. After 10 wrong entries from the same address (IP), entry from that address is blocked for 15 minutes.
+On a registered device, open Site → "Devices and users" → "Add a device" → "Issue a code". The code is shown right under the button (an invite code under "Issue an invite code"; it is valid for 6 hours). Open the admin screen on the new device and enter the code and a device name. A code has 10 characters, is valid for 3 hours and works once. Keep it private. After 10 wrong entries from the same address (IP), entry from that address is blocked for 15 minutes.
 
 To invite another editor, use "Invite someone" in the same place: issue an invite code and hand it over. The invited person chooses their own user ID and display name when they first sign in. A device added with an add code is registered as the same user as whoever issued the code.
 
@@ -938,7 +938,7 @@ Issues an add code. Open the admin screen on the new device and enter the code. 
 
 ##### Invite Someone
 
-Issue an invite code and hand it to the person you want to invite. You do not choose a user ID or display name. When the invited person enters the code and a device name on the sign-in screen, a screen appears where they choose a user ID and display name (alphanumeric characters, underscores and hyphens only). Registering creates that user and registers the device. A user ID that someone else uses cannot be chosen; if it is refused, the code is not spent.
+Issue an invite code and hand it to the person you want to invite. You do not choose a user ID or display name. When the invited person enters the code and a device name on the sign-in screen, a screen appears where they choose a user ID and display name (alphanumeric characters, underscores and hyphens only). Registering creates that user and registers the device. A user ID that someone else uses cannot be chosen; if it is refused, the code is not spent. An invite code is valid for 6 hours and works once (longer than an add code, so it can reach someone far away; from v2.30.1).
 
 #### Unused Codes
 

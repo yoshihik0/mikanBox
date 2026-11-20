@@ -15,7 +15,8 @@ if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVE
 // (see mikanBoxDeviceLogin), so revoking a device takes effect immediately.
 // This mirrors mikanBox-cloud/src/devices.ts; keep behaviour and wording aligned.
 
-const MIKANBOX_DEVICE_CODE_HOURS = 3;
+const MIKANBOX_DEVICE_CODE_HOURS = 3;     // a code for adding your own device
+const MIKANBOX_DEVICE_INVITE_HOURS = 6;   // an invitation code: the invited person may be far away
 // A device younger than this cannot stop other devices, so a stolen add code
 // cannot be used to lock the original owner out before they notice.
 const MIKANBOX_DEVICE_PROBATION_DAYS = 3;
@@ -364,7 +365,7 @@ function mikanBoxDeviceIssueCode(array $creator, bool $invite = false): string {
     $stmt->bindValue(':d', '', SQLITE3_TEXT);
     $stmt->bindValue(':by', $creator['id'], SQLITE3_TEXT);
     $stmt->bindValue(':c', $now, SQLITE3_INTEGER);
-    $stmt->bindValue(':e', $now + MIKANBOX_DEVICE_CODE_HOURS * 3600, SQLITE3_INTEGER);
+    $stmt->bindValue(':e', $now + ($invite ? MIKANBOX_DEVICE_INVITE_HOURS : MIKANBOX_DEVICE_CODE_HOURS) * 3600, SQLITE3_INTEGER);
     $stmt->execute();
     mikanBoxAudit($invite ? 'invite_issued' : 'code_issued');
     return substr($code, 0, 5) . '-' . substr($code, 5);

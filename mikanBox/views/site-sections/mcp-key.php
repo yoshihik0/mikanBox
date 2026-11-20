@@ -14,7 +14,6 @@ $mcpKeys = mikanBoxMcpKeyList($settings);   // fingerprints only: a key is never
                     </h2>
                 </summary>
                 <div class="editor-container editor-container-sub">
-                    <small class="sub-text sub-text-intro"><?= t('mcp_key_hint') ?></small>
                     <div class="panel-card">
                         <form method="post" data-ajax>
                             <?= csrfField() ?><input type="hidden" name="save_action" value="set_mcp_enabled">
@@ -32,6 +31,7 @@ $mcpKeys = mikanBoxMcpKeyList($settings);   // fingerprints only: a key is never
                             <span class="accordion-arrow" style="font-size: 0.75rem; opacity: 0.5;">▼</span>
                         </summary>
                         <div style="<?= $boxBodyStyle ?>">
+                            <small class="sub-text sub-text-intro"><?= t('mcp_key_hint') ?></small>
                             <form method="post" id="mcp-key-generate" data-ajax data-refresh="#mcp-key-list">
                                 <?= csrfField() ?>
                                 <input type="hidden" name="save_action" value="generate_mcp_key">

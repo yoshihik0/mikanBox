@@ -1009,7 +1009,7 @@ function toolBuildSSG($settings) {
         'ssg_root_url'   => $settings['ssg_root_url'] ?? '',
         'ssg_dir'        => $ssgDir,
         'output_mode'    => $settings['ssg_mode'] ?? 'server',
-        'link_mode'      => $settings['ssg_link_mode'] ?? 'absolute',
+        'link_mode'      => $settings['ssg_link_mode'] ?? 'relative',
         'copy_media'     => ($settings['ssg_mode'] ?? 'server') === 'export',
     ];
 

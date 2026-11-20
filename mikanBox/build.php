@@ -26,7 +26,7 @@ $renderer = new MikanBoxRenderer($GLOBALS['mikanbox_settings']);
 $ssg = new MikanBoxSSG($renderer, $outputDir, [
     'structure' => $GLOBALS['mikanbox_settings']['ssg_structure'] ?? 'directory',
     'output_mode' => $GLOBALS['mikanbox_settings']['ssg_mode'] ?? 'server',
-    'link_mode' => $GLOBALS['mikanbox_settings']['ssg_link_mode'] ?? 'absolute',
+    'link_mode' => $GLOBALS['mikanbox_settings']['ssg_link_mode'] ?? 'relative',
     'copy_media' => ($GLOBALS['mikanbox_settings']['ssg_mode'] ?? 'server') === 'export',
 ]);
 

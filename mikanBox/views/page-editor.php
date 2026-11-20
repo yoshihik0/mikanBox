@@ -223,7 +223,7 @@
                              <label class="sub-label"><?= t('label_sort_order') ?></label>
                              <input type="number" name="sort_order" value="<?= htmlspecialchars($editData['sort_order']??'0') ?>" placeholder="0" class="input-full">
                          </div>
-                        <div class="form-group grid-span-2" data-formats="html html_md md">
+                        <div class="form-group grid-span-2 grid-row-start" data-formats="html html_md md">
                             <label class="sub-label"><?= t('label_ogp_image') ?></label>
                             <input type="text" name="ogp_image" value="<?= htmlspecialchars($editData['ogp_image']??'') ?>" placeholder="ogp.jpg">
                         </div>

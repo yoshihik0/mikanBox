@@ -50,7 +50,7 @@ $hasDatabase = function_exists('mikanBoxDownloadDatabase');
                         <label><input type="radio" name="mode" value="replace"> <?= htmlspecialchars(t('transfer_mode_replace')) ?></label>
                     </fieldset>
                     <p class="sub-text"><?= htmlspecialchars(t('transfer_import_note')) ?></p>
-                    <button type="submit" class="btn btn-blue btn-small"><?= getIcon('upload') ?> <?= htmlspecialchars(t('transfer_btn_import')) ?></button>
+                    <button type="submit" class="btn btn-gray btn-small"><?= getIcon('upload') ?> <?= htmlspecialchars(t('transfer_btn_import')) ?></button>
                     <span data-transfer-status role="status"></span>
                 </form>
             </section>

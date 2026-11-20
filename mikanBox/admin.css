@@ -339,6 +339,13 @@ body {
     grid-column: span 4;
 }
 
+/* The thumbnail (OGP image) always starts its own row: when the "Markdown version's trailing components"
+   field is hidden for an output format, the fields before it close up to the left, but the thumbnail
+   and what follows it stay where they are. */
+@media (min-width: 900px) {
+    .page-edit-grid > .grid-row-start { grid-column: 1 / span 2; }
+}
+
 @media (min-width: 900px) {
     .page-edit-grid {
         grid-template-columns: repeat(4, 1fr);

@@ -25,7 +25,7 @@ $issued = is_array($_SESSION['device_code_flash'] ?? null) ? $_SESSION['device_c
 unset($_SESSION['device_code_flash']);
 $codeBox = static function (bool $invite) use ($issued, $e): string {
     if (!$issued || (bool)$issued['invite'] !== $invite) return '';
-    return '<div class="issued-code" role="status"><div class="issued-code-value">' . $e($issued['code']) . '</div><div class="sub-text">' . $e(t('device_code_panel_note', MIKANBOX_DEVICE_CODE_HOURS)) . '</div></div>';
+    return '<div class="issued-code" role="status"><div class="issued-code-value">' . $e($issued['code']) . '</div><div class="sub-text">' . $e(t('device_code_panel_note', $issued['invite'] ? MIKANBOX_DEVICE_INVITE_HOURS : MIKANBOX_DEVICE_CODE_HOURS)) . '</div></div>';
 };
 $headingStyle = 'font-size: 0.95rem; margin: 18px 0 12px; color: var(--text); border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;';
 $boxStyle = 'margin-top: 15px; margin-bottom: 15px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fafafa;';
