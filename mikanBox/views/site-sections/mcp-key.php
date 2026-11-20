@@ -1,5 +1,8 @@
 <?php defined('MIKANBOX') or die();
-$mcpDisplayKey = (string)($settings['mcp_api_key'] ?? '');
+mikanBoxMcpKeyUpgrade();   // a key an older version stored in plain text is kept only as its fingerprint
+$mcpDisplayKey = (string)($settings['mcp_api_key'] ?? '');   // the fingerprint (or an old plain key, converted above): never shown
+$mcpJustIssued = (string)($_SESSION['mikanbox_mcp_new_key'] ?? '');   // shown once after a non-ajax issue
+unset($_SESSION['mikanbox_mcp_new_key']);
 ?>
     <div id="mcp-api-key">
         <div class="section-container section-tight">
@@ -37,9 +40,10 @@ $mcpDisplayKey = (string)($settings['mcp_api_key'] ?? '');
                         <div class="form-group mt-10">
                             <label for="mcp-key-display"><?= t('mcp_key_label') ?></label>
                             <div class="copy-row">
-                                <input type="text" id="mcp-key-display" value="<?= $mcpHasKey ? htmlspecialchars($mcpDisplayKey) : '' ?>" readonly>
+                                <input type="text" id="mcp-key-display" value="<?= htmlspecialchars($mcpJustIssued) ?>" placeholder="<?= htmlspecialchars(t('mcp_key_hidden_placeholder'), ENT_QUOTES, 'UTF-8') ?>" readonly>
                                 <button type="button" class="btn btn-gray btn-small" onclick="navigator.clipboard.writeText(document.getElementById('mcp-key-display').value).then(()=>showToast('<?= t('msg_copied') ?>'))"><?= getIcon('copy') ?> <?= t('btn_copy') ?></button>
                             </div>
+                            <small class="sub-text" id="mcp-key-once"<?= $mcpJustIssued === '' ? ' style="display:none;"' : '' ?>><?= t('mcp_key_once_note') ?></small>
                         </div>
                         <form method="post" class="mt-10">
                             <?= csrfField() ?>

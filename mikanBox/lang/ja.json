@@ -178,6 +178,8 @@
     "mcp_key_head": "MCP APIキー",
     "mcp_key_hint": "管理用MCP（2026-07-28／2025互換接続）で使用するAPIキーです。Authorization: Bearer または X-API-Key ヘッダーを設定できるクライアントで使用します。OAuth Client ID／シークレット欄には入力しないでください。",
     "mcp_key_label": "APIキー",
+    "mcp_key_hidden_placeholder": "キーは発行したときにだけ表示します。なくした場合は再発行してください。",
+    "mcp_key_once_note": "このキーは今だけ表示します。いまコピーして、AIツールに設定してください。",
     "btn_generate_mcp_key": "APIキーを生成",
     "btn_regenerate_mcp_key": "APIキーを再生成",
     "msg_status_changed": "「%s」の公開設定を変更しました。",

@@ -990,7 +990,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     }
     elseif ($_POST['save_action'] === 'generate_mcp_key') {
         $newKey = bin2hex(random_bytes(24));
-        $settings['mcp_api_key'] = $newKey;
+        $settings['mcp_api_key'] = mikanBoxMcpKeyStore($newKey);   // only the fingerprint is kept; the key is shown once
         // settings.json への直接書き込みでは、loadSettings() が読むデータベースに
         // 反映されず、発行したキーが mcp.php から見えない。保存はストレージ層へ通す。
         $saved = saveSettings($settings);
@@ -1003,6 +1003,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             ], JSON_UNESCAPED_UNICODE);
             exit;
         }
+        if ($saved) $_SESSION['mikanbox_mcp_new_key'] = $newKey;   // shown once on the next screen, then forgotten
         $_SESSION['admin_message'] = $saved ? t('msg_mcp_key_generated') : t('err_save_failed');
         header('Location: ' . basename(__FILE__) . '#mcp-api-key');
         exit;
@@ -2966,6 +2967,8 @@ function getIcon($name) {
                             // section lives in, hiding the key just as it is issued.
                             const keyDisplay = document.getElementById('mcp-key-display');
                             if (keyDisplay) keyDisplay.value = json.mcp_api_key;
+                            const once = document.getElementById('mcp-key-once');
+                            if (once) once.style.display = '';
                             const lastUsed = document.getElementById("mcp-last-used");
                             if (lastUsed) lastUsed.textContent = <?= json_encode(t("mcp_never_used")) ?>;
                             const issued = document.getElementById('mcp-key-issued');

@@ -55,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.27.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.28.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -793,11 +793,13 @@ The URL of this site's administration MCP. "Copy" puts it on the clipboard so yo
 
 #### API Key
 
-An issued API key is shown in a read-only field. Until one is issued there is no field, only "Generate API Key".
+The API key is shown only once, when it is issued (from v2.28.0). The server keeps only the key's fingerprint (SHA-256), not the key itself, so a leaked settings file or backup does not reveal it. It cannot be shown again later: copy it right away and set it in the tool you connect. If you lose it, regenerate it. Keys issued before v2.28.0 keep working (they are replaced by their fingerprint the first time they are used or when the Site screen is opened). Until a key is issued there is no field, only "Generate API Key".
 
-- [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the API key to the clipboard. Paste the generated key into the settings of whatever tool you're connecting (e.g. `.mcp.json` for Claude Desktop).
+- [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the just-issued API key to the clipboard. Paste the generated key into the settings of whatever tool you're connecting (e.g. `.mcp.json` for Claude Desktop).
 - [[auto_awesome]{.material-symbols-outlined}Generate API Key]{.m-btn .m-btn-blue} — (When none is issued) Issues a new API key.
 - [[auto_awesome]{.material-symbols-outlined}Regenerate API Key]{.m-btn .m-btn-gray} — (When one is issued) Invalidates the current key and issues a new one. Any existing AI integrations will need to be reconfigured.
+
+You can also avoid writing the key in plain text in a local file such as `.mcp.json`. On macOS, store it in the Keychain (`security add-generic-password -s mikanbox-mcp -a mcp -w 'KEY'`) and read it each time you connect. For example, with `mcp-remote`, set `command` to `sh` and `args` to `["-c", "exec npx mcp-remote@0.1.38 CONNECTION_URL --header \"Authorization:Bearer $(security find-generic-password -s mikanbox-mcp -w)\""]`.
 
 The MCP API key stops working when you regenerate it, when the [SQLite Edition]{.type-badge .badge-sqlite} is recovered with a setup token or handed over with `reset-accounts.txt`, and when the [flat Edition]{.type-badge .badge-flat} password is set again after `password_hash` was emptied (the last two from v2.21.3). An ordinary password change while signed in, stopping a device and deleting a user leave it unchanged.
 

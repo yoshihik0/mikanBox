@@ -1278,7 +1278,7 @@ if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
             $provided = trim($apiKeyHeader);
         }
 
-        if (!hash_equals($apiKey, $provided)) {
+        if (!mikanBoxMcpKeyMatches($apiKey, $provided)) {
             http_response_code(401);
             echo json_encode(mcpErrorResponse($id, -32001, t('mcp_err_unauthorized')), JSON_UNESCAPED_UNICODE);
             exit;
@@ -1286,6 +1286,7 @@ if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
 
         $GLOBALS['mikanbox_audit_actor'] = 'MCP';
         mikanBoxMcpUsed($apiKey);
+        mikanBoxMcpKeyUpgrade();   // a key an older version stored in plain text
         if ($method === 'initialize') {
             $initializeError = mcpValidateInitialize($request);
             if ($initializeError !== null) {

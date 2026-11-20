@@ -256,22 +256,47 @@ function mikanBoxMcpSetEnabled(bool $enabled): bool {
     if ($ok) mikanBoxAudit($enabled ? 'mcp_enabled' : 'mcp_disabled');
     return $ok;
 }
-function mikanBoxMcpUsed(string $key): void {
-    if ($key === '') return;
-    mikanBoxSecurityLocked(function($dir) use ($key) {
+// The MCP API key is stored only as its fingerprint ("sha256:" + hex) and shown once, when it is issued.
+// A key stored by an older version in plain text is converted on first use (mikanBoxMcpKeyUpgrade).
+function mikanBoxMcpKeyStore(string $key): string {
+    return 'sha256:' . hash('sha256', $key);
+}
+/** The sha256 of the key, from what settings hold ('' when there is no key). */
+function mikanBoxMcpKeyDigest(string $stored): string {
+    if ($stored === '') return '';
+    if (preg_match('/\Asha256:([0-9a-f]{64})\z/', $stored, $m)) return $m[1];
+    return hash('sha256', $stored);
+}
+function mikanBoxMcpKeyMatches(string $stored, string $provided): bool {
+    $digest = mikanBoxMcpKeyDigest($stored);
+    return $digest !== '' && $provided !== '' && hash_equals($digest, hash('sha256', $provided));
+}
+/** Replaces a key an older version stored in plain text with its fingerprint. The key itself keeps working. */
+function mikanBoxMcpKeyUpgrade(): void {
+    $settings = loadSettings();
+    $stored = (string)($settings['mcp_api_key'] ?? '');
+    if ($stored === '' || str_starts_with($stored, 'sha256:')) return;
+    $settings['mcp_api_key'] = mikanBoxMcpKeyStore($stored);
+    if (saveSettings($settings)) $GLOBALS['mikanbox_settings'] = $settings;
+}
+/** $stored: the key as settings hold it. The usage record keeps only the key's sha256. */
+function mikanBoxMcpUsed(string $stored): void {
+    $fingerprint = mikanBoxMcpKeyDigest($stored);
+    if ($fingerprint === '') return;
+    mikanBoxSecurityLocked(function($dir) use ($fingerprint) {
         $state = mikanBoxSecurityReadState($dir);
         if ($state === null) return false;
-        $fingerprint = hash('sha256', $key);
         if (($state['key'] ?? '') === $fingerprint && time() - (int)($state['used_at'] ?? 0) < 3600) return true;
         $state['key'] = $fingerprint; $state['used_at'] = time();
         return mikanBoxSecurityWriteState($dir, $state);
     });
 }
-function mikanBoxMcpLastUsed(string $key): int {
-    if ($key === '') return 0;
-    return (int)mikanBoxSecurityLocked(function($dir) use ($key) {
+function mikanBoxMcpLastUsed(string $stored): int {
+    $fingerprint = mikanBoxMcpKeyDigest($stored);
+    if ($fingerprint === '') return 0;
+    return (int)mikanBoxSecurityLocked(function($dir) use ($fingerprint) {
         $state = mikanBoxSecurityReadState($dir);
-        return ($state['key'] ?? '') === hash('sha256', $key) ? (int)($state['used_at'] ?? 0) : 0;
+        return ($state['key'] ?? '') === $fingerprint ? (int)($state['used_at'] ?? 0) : 0;
     });
 }
 function mikanBoxMaskedIp(): string {
@@ -430,7 +455,7 @@ const MIKANBOX_AUDIT_SETTINGS_IGNORED = ['last_build','mcp_api_key'];
 if (!function_exists("saveSettings")) {
 function saveSettings($settings) {
     $previous=loadSettings(); $ok=mikanBoxStorageSaveSettings($settings);
-    if ($ok && !empty($settings['mcp_api_key']) && ($previous['mcp_api_key'] ?? '') !== $settings['mcp_api_key']) mikanBoxAudit(empty($previous['mcp_api_key'])?'mcp_key_issued':'mcp_key_rotated');
+    if ($ok && !empty($settings['mcp_api_key']) && mikanBoxMcpKeyDigest((string)($previous['mcp_api_key'] ?? '')) !== mikanBoxMcpKeyDigest((string)$settings['mcp_api_key'])) mikanBoxAudit(empty($previous['mcp_api_key'])?'mcp_key_issued':'mcp_key_rotated');
     if ($ok && is_array($previous) && is_array($settings)) {
         $changed=[];
         foreach (array_unique(array_merge(array_keys($previous),array_keys($settings))) as $key) {

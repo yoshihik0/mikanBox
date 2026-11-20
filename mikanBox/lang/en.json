@@ -177,6 +177,8 @@
     "mcp_key_head": "MCP API Key",
     "mcp_key_hint": "API key for administration MCP connections using MCP 2026-07-28 or the compatible 2025 handshake. Use a client that can set Authorization: Bearer or X-API-Key headers. Do not enter this key as an OAuth Client ID or Client Secret.",
     "mcp_key_label": "API Key",
+    "mcp_key_hidden_placeholder": "The key is shown only when it is issued. If you lost it, regenerate it.",
+    "mcp_key_once_note": "This key is shown only now. Copy it and set it in your AI tool.",
     "btn_generate_mcp_key": "Generate API Key",
     "btn_regenerate_mcp_key": "Regenerate API Key",
     "msg_status_changed": "Status for '%s' changed.",

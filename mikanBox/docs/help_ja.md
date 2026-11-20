@@ -55,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.27.0</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">v2.28.0</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox** [SQLite版]{.type-badge .badge-sqlite}と、データベースを使わないJSONファイルベースの**🍊mikanBox flat** [flat版]{.type-badge .badge-flat}があります。基本的な使い方は共通なので、このヘルプは両方に対応しています。バージョンによって内容が異なる箇所には、上記のバッジで区別を示します。
 
@@ -796,11 +796,13 @@ mikanBox 2.5.1以降では、MCPの接続指示によりAIは初回接続時に 
 
 #### APIキー
 
-発行済みのAPIキーが読み取り専用の欄に表示されます。未発行のときは欄は出ず、「APIキーを生成」だけが表示されます。
+APIキーは、発行したときに一度だけ表示します（v2.28.0から）。サーバーにはキーそのものではなく、キーの指紋（SHA-256）だけを保存するので、設定ファイルやバックアップが漏れても、そこからキーは分かりません。あとから表示し直すことはできないので、発行したらすぐにコピーして、接続するツールに設定してください。なくした場合は再生成します。v2.28.0より前に発行したキーは、そのまま使えます（最初に使ったときか、サイト画面を開いたときに指紋へ置き換えます）。未発行のときは欄は出ず、「APIキーを生成」だけが表示されます。
 
-- [[content_copy]{.material-symbols-outlined}コピー]{.m-btn .m-btn-gray} — APIキーをクリップボードにコピーします。生成したキーは、Claude Desktopなど接続するツール側の設定（`.mcp.json`など）に貼り付けて使用します。
+- [[content_copy]{.material-symbols-outlined}コピー]{.m-btn .m-btn-gray} — 発行した直後のAPIキーをクリップボードにコピーします。生成したキーは、Claude Desktopなど接続するツール側の設定（`.mcp.json`など）に貼り付けて使用します。
 - [[auto_awesome]{.material-symbols-outlined}APIキーを生成]{.m-btn .m-btn-blue} — （未発行のとき）新しいAPIキーを発行します。
 - [[auto_awesome]{.material-symbols-outlined}APIキーを再生成]{.m-btn .m-btn-gray} — （発行済みのとき）現在のキーを無効化し、新しいキーを発行します。既存のAI連携設定は再設定が必要になります。
+
+キーを手元のファイル（`.mcp.json` など）に平文で書かずに済ませることもできます。macOSでは、キーをキーチェーンに保存し（`security add-generic-password -s mikanbox-mcp -a mcp -w 'キー'`）、接続のたびに読み出します。例えば `mcp-remote` を使う設定では、`command` を `sh`、`args` を `["-c", "exec npx mcp-remote@0.1.38 接続URL --header \"Authorization:Bearer $(security find-generic-password -s mikanbox-mcp -w)\""]` にします。
 
 MCP APIキーが無効になるのは、キーを再生成したとき、[SQLite版]{.type-badge .badge-sqlite}でセットアップトークンによる復旧をしたときと `reset-accounts.txt` で引き継いだとき、[flat版]{.type-badge .badge-flat}で `password_hash` を空にしてパスワードを設定し直したときです（後の2つはv2.21.3から）。ログイン中の通常のパスワード変更、端末の停止、ユーザーの削除では変わりません。
 

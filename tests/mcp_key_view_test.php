@@ -17,6 +17,7 @@ function csrfField(): string { return '<input type="hidden" name="csrf" value="t
 
 function mikanBoxMcpEnabled(): bool { return true; }
 function mikanBoxMcpLastUsed(string $key): int { return 0; }
+function mikanBoxMcpKeyUpgrade(): void {}
 function mikanBoxAuditRecent(): array { return []; }
 function mikanBoxAuditUnusual(array $rows): array { return []; }
 function mikanBoxAuditGroup(string $event): string { return $event === 'login_failed' ? 'login' : ($event === 'page_status' ? 'edit' : 'important'); }
@@ -38,20 +39,27 @@ function checkMcpKeyView($condition, string $message): void {
 // No key yet: the field must exist so the AJAX handler has somewhere to write.
 $html = renderMcpKeySection([]);
 checkMcpKeyView(str_contains($html, 'id="mcp-key-display"'), 'the key field must be rendered before any key exists');
-checkMcpKeyView(str_contains($html, 'value="" readonly'), 'the key field must start empty');
+checkMcpKeyView(str_contains($html, 'value="" placeholder='), 'the key field must start empty');
 checkMcpKeyView((bool)preg_match('/id="mcp-key-issued" style="display:none;"/', $html), 'the issued block must be hidden before any key exists');
 checkMcpKeyView((bool)preg_match('/id="mcp-key-generate"(?! style="display:none)/', $html), 'the generate button must be visible before any key exists');
 
 // Key present: the issued block is shown and the generate button is put away.
-$html = renderMcpKeySection(['mcp_api_key' => 'abc123DEADBEEF']);
-checkMcpKeyView(str_contains($html, 'value="abc123DEADBEEF"'), 'an existing key must be rendered into the field');
+// Only the fingerprint is stored, and the field never shows what settings hold.
+$html = renderMcpKeySection(['mcp_api_key' => 'sha256:' . str_repeat('ab', 32)]);
+checkMcpKeyView(!str_contains($html, str_repeat('ab', 32)), 'the stored fingerprint is never rendered');
+checkMcpKeyView(str_contains($html, 'value="" placeholder="mcp_key_hidden_placeholder"'), 'an existing key is not shown: the field is empty with a note');
 checkMcpKeyView((bool)preg_match('/id="mcp-key-issued"(?! style="display:none)/', $html), 'the issued block must be visible once a key exists');
 checkMcpKeyView((bool)preg_match('/id="mcp-key-generate" style="display:none;"/', $html), 'the generate button must be hidden once a key exists');
+checkMcpKeyView((bool)preg_match('/id="mcp-key-once" style="display:none;"/', $html), 'the shown-once note is hidden when no key was just issued');
 
-// The key is attacker-influenced only via the admin, but it still lands in an
-// attribute, so it must be escaped.
-$html = renderMcpKeySection(['mcp_api_key' => '"><script>alert(1)</script>']);
-checkMcpKeyView(!str_contains($html, '<script>alert(1)</script>'), 'the key value must be HTML-escaped');
+// Just issued without ajax: the key is shown once from the session, escaped, then forgotten.
+$_SESSION['mikanbox_mcp_new_key'] = '"><script>alert(1)</script>';
+$html = renderMcpKeySection(['mcp_api_key' => 'sha256:' . str_repeat('cd', 32)]);
+checkMcpKeyView(!str_contains($html, '<script>alert(1)</script>') && str_contains($html, '&quot;&gt;&lt;script&gt;'), 'the just-issued key is shown once, HTML-escaped');
+checkMcpKeyView((bool)preg_match('/id="mcp-key-once"(?! style="display:none)/', $html), 'the shown-once note is visible with it');
+checkMcpKeyView(!isset($_SESSION['mikanbox_mcp_new_key']), 'the key is forgotten after it is shown');
+$html = renderMcpKeySection(['mcp_api_key' => 'sha256:' . str_repeat('cd', 32)]);
+checkMcpKeyView(!str_contains($html, 'alert(1)'), 'it is not shown a second time');
 
 if ($failures) {
     echo "MCP key view tests failed:\n- " . implode("\n- ", $failures) . "\n";
