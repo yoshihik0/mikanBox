@@ -55,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.25.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.25.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -809,9 +809,9 @@ The current key's last successful HTTP authentication is shown in UTC. Its times
 
 ### Security activity (PHP editions) {#site-audit}
 
-“Recent security activity” on the Site screen shows the latest 50 events, and only those 50 are kept. Both PHP editions record MCP key issuance/regeneration, enabling/disabling MCP, page publication-state changes, and failed sign-ins. SQLite also records device registration/stopping, enrollment/invitation code issuance, user deletion, recovery and account reset. The flat edition records "Recovery" when setting the password again retires the MCP API key. Successful program rollbacks are recorded too.
+“Recent security activity” on the Site screen shows the records, newest first. They are kept in three groups, each holding only its latest 50 (150 in all): important operations, page publication-state changes, and failed sign-ins. A run of failed sign-ins therefore never pushes out important records such as MCP key issuance, device registration or recovery. Both PHP editions record MCP key issuance/regeneration, enabling/disabling MCP, page publication-state changes, and failed sign-ins. SQLite also records device registration/stopping, enrollment/invitation code issuance, user deletion, recovery and account reset. The flat edition records "Recovery" when setting the password again retires the MCP API key. Successful program rollbacks are recorded too.
 
-Records contain the time, action, actor, necessary target IDs, and a masked IP address. Keys, tokens, codes, passwords, content and full IP addresses are excluded. The final IPv4 octet is masked; IPv6 addresses retain only their first 48 bits. From the 51st on, the oldest records are removed. Recording failures are shown in the admin screen without treating a successful operation as failed.
+Records contain the time, action, actor, necessary target IDs, and a masked IP address. Keys, tokens, codes, passwords, content and full IP addresses are excluded. The final IPv4 octet is masked; IPv6 addresses retain only their first 48 bits. In each group, from the 51st on, the oldest records are removed. Recording failures are shown in the admin screen without treating a successful operation as failed.
 
 Logs and MCP state live in the data directory's `security/` folder. `events.jsonl.php` contains a PHP access-denial guard followed by JSON Lines records. Apache access rules and the front controller also protect the data directory. Servers serving static files without passing them through PHP must deny web access to the entire data directory. Backups including that directory also contain activity records and must be stored securely. These records do not detect tampering by someone able to modify server files.
 

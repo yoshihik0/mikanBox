@@ -85,8 +85,10 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-security-controls-') as tempor
                 check(any(row['event']=='page_status' for row in rows),'publication state audited')
                 rendered=request(admin)[1];check('&lt;script&gt;audit&lt;/script&gt;' in rendered,'audit UI escapes stored actor')
                 php(site,'for($i=0;$i<120;$i++)mikanBoxAudit("login_failed");')
-                check(len((site/'mikanData/security/events.jsonl.php').read_text().splitlines())==51,'only the latest 50 events are stored')
-                count=int(php(site,'echo count(mikanBoxAuditRecent());'));check(count==50,'latest 50 events retained')
+                rows=[json.loads(line) for line in (site/'mikanData/security/events.jsonl.php').read_text().splitlines()[1:]]
+                check(sum(row['event']=='login_failed' for row in rows)==50,'only the latest 50 failed sign-ins are stored')
+                check(any(row['event']=='page_status' for row in rows),'a run of failed sign-ins does not push out other records')
+                count=int(php(site,'echo count(mikanBoxAuditRecent());'));check(count==len(rows),'all stored events are shown')
                 event_path=site/'mikanData/security/events.jsonl.php';saved_log=event_path.with_name('saved-events.php');event_path.rename(saved_log);event_path.mkdir()
                 try:
                     status,body=post({'save_action':'set_mcp_enabled','mcp_enabled':'1'})

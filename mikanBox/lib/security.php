@@ -281,6 +281,24 @@ function mikanBoxMaskedIp(): string {
     return '';
 }
 if (!defined('MIKANBOX_AUDIT_KEEP')) define('MIKANBOX_AUDIT_KEEP', 50);
+// Records are kept in three groups of MIKANBOX_AUDIT_KEEP each, so a run of failed sign-ins
+// (or of page edits) never pushes out the important ones (MCP keys, devices, recovery, restores).
+function mikanBoxAuditGroup(string $event): string {
+    if ($event === 'login_failed') return 'login';
+    if ($event === 'page_status') return 'edit';
+    return 'important';
+}
+function mikanBoxAuditTrim(array $lines): array {
+    // $lines: JSON lines, oldest first. Keep the newest MIKANBOX_AUDIT_KEEP of each group.
+    $count=[]; $keep=[];
+    for ($i=count($lines)-1;$i>=0;$i--) {
+        $row=json_decode($lines[$i],true);
+        $g=mikanBoxAuditGroup(is_array($row)?(string)($row['event'] ?? ''):'');
+        $count[$g]=($count[$g] ?? 0)+1;
+        if ($count[$g] <= MIKANBOX_AUDIT_KEEP) $keep[]=$lines[$i];
+    }
+    return array_reverse($keep);
+}
 function mikanBoxAudit(string $event, array $details = []): void {
     $events = ['mcp_enabled','mcp_disabled','mcp_key_issued','mcp_key_rotated','page_status','login_failed','device_registered','device_revoked','code_issued','invite_issued','recovery','accounts_reset','user_deleted','system_restored'];
     if (!in_array($event, $events, true)) return;
@@ -288,7 +306,7 @@ function mikanBoxAudit(string $event, array $details = []): void {
     $entry = ['at'=>gmdate('c'), 'event'=>$event, 'actor'=>substr((string)$actor,0,80), 'ip'=>mikanBoxMaskedIp()];
     foreach (['target','from','to'] as $key) if (isset($details[$key]) && is_string($details[$key]) && preg_match('/\A[A-Za-z0-9_\/.:-]{0,200}\z/', $details[$key])) $entry[$key]=$details[$key];
     $ok = mikanBoxSecurityLocked(function($dir) use ($entry) {
-        // Only the latest MIKANBOX_AUDIT_KEEP events are kept: the same number the site screen shows.
+        // Only the latest MIKANBOX_AUDIT_KEEP events of each group are kept.
         $path=$dir.'/events.jsonl.php';
         $line=json_encode($entry,JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE);
         clearstatcache(true,$path);
@@ -298,7 +316,7 @@ function mikanBoxAudit(string $event, array $details = []): void {
             $lines=array_values(array_filter(array_slice(explode("\n",$content),1),fn($l)=>trim($l)!==''));
         }
         $lines[]=$line;
-        $lines=array_slice($lines,-MIKANBOX_AUDIT_KEEP);
+        $lines=mikanBoxAuditTrim($lines);
         $ok=@file_put_contents($path,MIKANBOX_SECURITY_GUARD.implode("\n",$lines)."\n",LOCK_EX)!==false;
         @chmod($path,0600); return $ok;
     });
@@ -314,7 +332,7 @@ function mikanBoxAuditRecent(): array {
         $f=@fopen($path,'rb'); if (!$f) return [];
         fgets($f); // PHP access-denial guard
         $lines=array_values(array_filter(explode("\n",stream_get_contents($f)),fn($l)=>trim($l)!==''));fclose($f);
-        return array_reverse(array_values(array_filter(array_map(fn($line)=>json_decode($line,true),array_slice($lines,-MIKANBOX_AUDIT_KEEP)),fn($row)=>is_array($row)&&isset($row['event'],$row['at']))));
+        return array_reverse(array_values(array_filter(array_map(fn($line)=>json_decode($line,true),mikanBoxAuditTrim($lines)),fn($row)=>is_array($row)&&isset($row['event'],$row['at']))));
     });
     return is_array($rows) ? $rows : [];
 }
