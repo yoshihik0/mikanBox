@@ -455,6 +455,11 @@ body {
     margin-top: 60px; /* 🍊 Unified 60px separation */
 }
 
+/* End of the Site screen: brings the gap before the Design heading to the same
+   120px as the gaps after the Pages and Design lists (15px tight margin + 65px here
+   = the 60px + 20px below a list, plus the 40px above the next heading). */
+.main .section-end-gap { height: 65px; }
+
 /* 🍊 Utility group (Memo, SSG, Settings, Backup, AI) */
 .main .section-tight {
     margin-bottom: 15px; /* 🍊 Restored tight rhythm */

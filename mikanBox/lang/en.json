@@ -907,7 +907,7 @@
     "transfer_stats_database": "Database",
     "integrity_btn": "Check for tampering",
     "integrity_checking": "Checking…",
-    "integrity_hint": "Compares public files, the program and stored data with the state mikanBox knows to be right. Page views are not affected.",
+    "integrity_hint": "Compares the files of the public site, the stored data and the program with the state on record.",
     "integrity_ok": "No tampering found (%s)",
     "integrity_found": "Changes that are not in the history were found (%s). If they are not yours, consider changing the password and reinstalling the program.",
     "integrity_sec_public": "Public files",

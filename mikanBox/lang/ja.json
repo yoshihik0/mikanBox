@@ -907,7 +907,7 @@
     "transfer_stats_database": "データベース",
     "integrity_btn": "改ざんをチェック",
     "integrity_checking": "チェックしています…",
-    "integrity_hint": "公開ファイル・プログラム・保存したデータを、mikanBoxが知っている正しい状態と照らし合わせます。ページの表示には影響しません。",
+    "integrity_hint": "公開サイトのファイル、保存したデータ、プログラムを、記録している正しい状態と照らし合わせます。",
     "integrity_ok": "改ざんは見つかりませんでした（%s）",
     "integrity_found": "操作記録にない変更が見つかりました（%s）。自分の変更でなければ、パスワードの変更とプログラムの再インストールを検討してください。",
     "integrity_sec_public": "公開ファイル",

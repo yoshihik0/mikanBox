@@ -5,7 +5,7 @@
                 <?= csrfField() ?>
                 <input type="hidden" name="save_action" value="integrity_check">
                 <button type="button" class="btn btn-gray btn-small" id="integrity-run"><?= t('integrity_btn') ?></button>
-                <small class="sub-text"><?= t('integrity_hint') ?></small>
+                <small class="sub-text sub-text-block"><?= t('integrity_hint') ?></small>
             </form>
             <div id="integrity-output" aria-live="polite"></div>
         </div>

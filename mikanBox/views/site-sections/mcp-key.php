@@ -13,6 +13,7 @@ unset($_SESSION['mikanbox_mcp_new_key']);
                     </h2>
                 </summary>
                 <div class="editor-container editor-container-sub">
+                <div class="panel-card">
                     <small class="sub-text sub-text-intro"><?= t('mcp_key_hint') ?></small>
                     <form method="post" class="mt-10" data-ajax>
                         <?= csrfField() ?><input type="hidden" name="save_action" value="set_mcp_enabled">
@@ -56,6 +57,7 @@ unset($_SESSION['mikanbox_mcp_new_key']);
                         <input type="hidden" name="save_action" value="generate_mcp_key">
                         <button type="submit" class="btn btn-blue btn-small"><?= getIcon('sparkles') ?> <?= t('btn_generate_mcp_key') ?></button>
                     </form>
+                </div>
                 </div>
             </details>
         </div>

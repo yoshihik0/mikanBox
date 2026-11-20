@@ -121,3 +121,5 @@
 <?php require __DIR__ . '/site-sections/site-settings.php'; ?>
 
 <?php require __DIR__ . '/device-accounts.php'; ?>
+
+    <div class="section-end-gap" aria-hidden="true"></div>
