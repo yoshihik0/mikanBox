@@ -1286,7 +1286,6 @@ if (defined('MIKANBOX_ADMIN_MCP_ROUTE')
         // The actor carries the key's name, so the history shows which AI tool or machine acted.
         $GLOBALS['mikanbox_audit_actor'] = $matchedKey['name'] !== '' ? 'MCP (' . $matchedKey['name'] . ')' : 'MCP';
         mikanBoxMcpUsed($matchedKey['id']);
-        mikanBoxMcpKeyUpgrade();   // a key an older version stored in plain text
         if ($method === 'initialize') {
             $initializeError = mcpValidateInitialize($request);
             if ($initializeError !== null) {

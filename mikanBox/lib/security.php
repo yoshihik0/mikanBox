@@ -258,9 +258,9 @@ function mikanBoxMcpSetEnabled(bool $enabled): bool {
 }
 // MCP API keys. Each key has a name (the AI tool or machine it is for) and is stored only as its
 // fingerprint ("sha256:" + hex); the key itself is shown once, when it is issued.
-// They are kept in the setting `mcp_api_key`, as a list of ['name','hash','created']. An older
-// version stored one key there as a string (the fingerprint, or even the plain key): it reads as one key
-// without a name, and becomes the first list entry when a key is added or revoked. An empty string means no key.
+// They are kept in the setting `mcp_api_key`, as a list of ['name','hash','created']. Version 2.28 kept one
+// key there as a string (its fingerprint): it reads as one key without a name, and becomes the first list entry
+// when a key is added or revoked. An empty string means no key.
 const MIKANBOX_MCP_KEY_LIMIT = 20;
 const MIKANBOX_MCP_KEY_NAME_MAX = 40;
 function mikanBoxMcpKeyStore(string $key): string {
@@ -269,8 +269,7 @@ function mikanBoxMcpKeyStore(string $key): string {
 /** The sha256 of the key, from what settings hold ('' when there is no key). */
 function mikanBoxMcpKeyDigest(string $stored): string {
     if ($stored === '') return '';
-    if (preg_match('/\Asha256:([0-9a-f]{64})\z/', $stored, $m)) return $m[1];
-    return hash('sha256', $stored);
+    return preg_match('/\Asha256:([0-9a-f]{64})\z/', $stored, $m) ? $m[1] : '';
 }
 /** The keys the settings hold: a list of ['id','name','hash','created'] (id: the first 16 hex digits of the sha256). */
 function mikanBoxMcpKeyList(array $settings): array {
@@ -316,14 +315,6 @@ function mikanBoxMcpKeyRevoke(array &$settings, string $id): bool {
     if (count($rest) === count($list)) return false;
     $settings['mcp_api_key'] = mikanBoxMcpKeyStoreList($rest);
     return true;
-}
-/** Replaces a key an older version stored in plain text with its fingerprint. The key itself keeps working. */
-function mikanBoxMcpKeyUpgrade(): void {
-    $settings = loadSettings();
-    $stored = $settings['mcp_api_key'] ?? '';
-    if (!is_string($stored) || $stored === '' || str_starts_with($stored, 'sha256:')) return;
-    $settings['mcp_api_key'] = mikanBoxMcpKeyStore($stored);
-    if (saveSettings($settings)) $GLOBALS['mikanbox_settings'] = $settings;
 }
 /** $id: the key's id. The usage record keeps when each key was last used, at most once an hour. */
 function mikanBoxMcpUsed(string $id): void {

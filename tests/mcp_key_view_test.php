@@ -18,7 +18,6 @@ function csrfField(): string { return '<input type="hidden" name="csrf" value="t
 const MIKANBOX_MCP_KEY_NAME_MAX = 40;
 function mikanBoxMcpEnabled(): bool { return true; }
 function mikanBoxMcpLastUsed(string $id): int { return 0; }
-function mikanBoxMcpKeyUpgrade(): void {}
 function mikanBoxMcpKeyList(array $settings): array {
     $list = [];
     foreach ((array)($settings['keys'] ?? []) as $i => $k) $list[] = ['id' => 'id' . $i, 'name' => $k['name'], 'hash' => 'sha256:x', 'created' => $k['created'] ?? 0];
@@ -45,8 +44,9 @@ function checkMcpKeyView($condition, string $message): void {
 // The accordion is collapsed and keys are issued over AJAX: the place the new key is shown, and the
 // form that issues it, are always in the markup, so the first key has somewhere to appear.
 $html = renderMcpKeySection([]);
-checkMcpKeyView((bool)preg_match('/id="mcp-key-issued" style="display:none;"/', $html), 'the issued block exists, hidden');
-checkMcpKeyView(str_contains($html, 'id="mcp-key-display"') && str_contains($html, 'value="" readonly'), 'the key field exists and starts empty');
+checkMcpKeyView(str_contains($html, 'id="mcp-key-display"') && str_contains($html, 'value="" placeholder="mcp_key_issued_placeholder" readonly'), 'the key field is always there, empty, saying that the key appears there');
+checkMcpKeyView((bool)preg_match('/id="mcp-key-once" style="display:none;"/', $html), 'the shown-once note is hidden until a key is issued');
+checkMcpKeyView(strpos($html, 'id="mcp-key-generate"') < strpos($html, 'id="mcp-url-display"') && strpos($html, 'id="mcp-url-display"') < strpos($html, 'id="mcp-key-display"'), 'the form, then the connection URL, then the key');
 checkMcpKeyView(str_contains($html, 'name="mcp_key_name"') && str_contains($html, 'value="generate_mcp_key"'), 'the issue form has a name field');
 checkMcpKeyView(str_contains($html, 'mcp_key_none') && !str_contains($html, 'revoke_mcp_key'), 'with no keys there is a note and nothing to revoke');
 

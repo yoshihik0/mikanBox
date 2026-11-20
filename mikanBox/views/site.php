@@ -95,8 +95,6 @@
     <!-- Language Section -->
 <?php require __DIR__ . '/site-sections/language.php'; ?>
 
-    <!-- MCP API Key Section -->
-<?php require __DIR__ . '/site-sections/mcp-key.php'; ?>
 
     <!-- CSV Import Section -->
 <?php require __DIR__ . '/site-sections/csv-import.php'; ?>
@@ -121,5 +119,8 @@
 <?php require __DIR__ . '/site-sections/site-settings.php'; ?>
 
 <?php require __DIR__ . '/device-accounts.php'; ?>
+
+    <!-- MCP API keys: after the devices and users (SQLite) or the password (flat) -->
+<?php require __DIR__ . '/site-sections/mcp-key.php'; ?>
 
     <div class="section-end-gap" aria-hidden="true"></div>

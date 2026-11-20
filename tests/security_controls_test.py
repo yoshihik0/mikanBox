@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-security-controls-') as tempor
             if (name=='index.php' or name.startswith('mikanBox/')) and source.is_file():
                 target=site/name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,target)
         key=secrets.token_hex(24);password=secrets.token_hex(16)
-        php(site,'saveSettings(["mcp_api_key"=>'+json.dumps(key)+((',"password_hash"=>password_hash('+json.dumps(password)+',PASSWORD_DEFAULT)') if edition=='flat' else '')+']);')
+        php(site,'saveSettings(["mcp_api_key"=>"sha256:".hash("sha256",'+json.dumps(key)+')'+((',"password_hash"=>password_hash('+json.dumps(password)+',PASSWORD_DEFAULT)') if edition=='flat' else '')+']);')
         with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
         base='http://127.0.0.1:'+str(port);jar=http.cookiejar.CookieJar();browser=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
         def request(path,data=None,headers=None,opener=browser):
@@ -62,8 +62,7 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-security-controls-') as tempor
                 state=site/'mikanData/security/mcp.json.php';check(not state.exists(),'failed key does not record usage')
                 check(mcp()[0]==200,'existing key remains enabled by default')
                 stored=php(site,'echo loadSettings()["mcp_api_key"];').strip()
-                check(stored.startswith('sha256:') and key not in stored,'a key stored in plain text by an older version is kept only as its fingerprint after use')
-                check(mcp()[0]==200,'the converted key keeps working')
+                check(stored.startswith('sha256:') and key not in stored,'the key is held only as its fingerprint')
                 original=state.read_text();check(key not in original,'usage file has no raw key')
                 check(mcp()[0]==200 and state.read_text()==original,'usage is throttled')
                 post({'save_action':'set_mcp_enabled'})

@@ -6,7 +6,7 @@ define('MIKANBOX', true);
 $path = is_file(dirname(__DIR__) . '/mikanBox/lib/security.php') ? dirname(__DIR__) . '/mikanBox/lib/security.php' : dirname(__DIR__) . '/lib/security.php';
 $source = (string)file_get_contents($path);
 $start = strpos($source, 'const MIKANBOX_MCP_KEY_LIMIT');
-$end = strpos($source, '/** Replaces a key an older version stored in plain text');
+$end = strpos($source, '/** $id: the key\'s id.');
 eval(substr($source, $start, $end - $start));
 
 $failures = [];
@@ -24,11 +24,11 @@ check(mikanBoxMcpKeyRevoke($s, $list[0]['id']) && mikanBoxMcpKeyFind($s, $k1) ==
 check(mikanBoxMcpKeyRevoke($s, $list[1]['id']) && $s['mcp_api_key'] === '', 'revoking the last key leaves an empty setting');
 check(!mikanBoxMcpKeyRevoke($s, 'nope'), 'an unknown id revokes nothing');
 
-// A key an older version stored: as a fingerprint, or in plain text.
+// The key version 2.28 stored: a fingerprint string. (A plain-text key, from before 2.28, is not accepted.)
 $old = ['mcp_api_key' => mikanBoxMcpKeyStore('legacy')];
 check(mikanBoxMcpKeyFind($old, 'legacy') !== null && mikanBoxMcpKeyList($old)[0]['name'] === '', 'an old single key still works, without a name');
 $plain = ['mcp_api_key' => 'plainkey'];
-check(mikanBoxMcpKeyFind($plain, 'plainkey') !== null, 'an old plain-text key still works');
+check(mikanBoxMcpKeyFind($plain, 'plainkey') === null && mikanBoxMcpKeyList($plain) === [], 'a plain-text key is not accepted');
 $k3 = mikanBoxMcpKeyAdd($old, 'New');
 check(count(mikanBoxMcpKeyList($old)) === 2 && mikanBoxMcpKeyFind($old, 'legacy') !== null && mikanBoxMcpKeyFind($old, $k3) !== null, 'adding to an old single key keeps it');
 

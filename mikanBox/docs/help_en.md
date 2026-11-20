@@ -55,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.29.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.29.1</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -759,60 +759,6 @@ Choose from one of the following three:
 
 Saves the language setting.
 
-### MCP API Key {#site-mcp-key}
-
-Issue and manage the API key that lets an AI agent (like Claude Code) connect to this site over MCP.
-
-The mikanBox administration MCP server supports stateless **MCP 2026-07-28** and, during the compatibility transition, initialize-based MCP 2025-11-25, 2025-06-18, and 2025-03-26. Every protocol mode requires the administration API key.
-
-Connect with the AI application's native Remote MCP (Streamable HTTP) feature.
-
-- MCP endpoint: `site URL/mikanBox/mcp` (the old `mcp.php` URL also remains available)
-- Protocols: `2026-07-28`, `2025-11-25`, `2025-06-18`, and `2025-03-26`
-- Authentication: `Authorization: Bearer your-issued-API-key` or `X-API-Key: your-issued-API-key`
-
-In clients that support fixed request headers, configure the issued API key using either header above. Never put the API key in the URL query string.
-
-Every tool carries annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`) that state whether it only reads data or may overwrite or delete existing data. MCP clients that understand these annotations use them to ask for confirmation before high-impact operations such as updating or deleting a page. Tools that return page or component bodies also carry `untrustedContentHint`, so the retrieved text is treated as reference material and never as instructions to the AI.
-
-Claude's custom connector screen supports authless or OAuth authentication. Its OAuth Client ID and OAuth Client Secret fields are not API-key fields. Until mikanBox implements OAuth, the administration MCP cannot be registered safely as a Claude custom connector. Do not paste the API key into the Client ID or Client Secret field. The authless public help MCP can be registered as a custom connector using only its URL.
-
-Treat the API key like a password. Never store it in a public repository or shared file. An AI client holding the MCP API key can also write JavaScript into pages and components, and that script also runs when a signed-in administrator opens the public pages or visual editing. Give the key only to AI clients you trust as much as an administrator. While you are not using it, you can stop the administration MCP (see "Enabling MCP and its last-use time"). If several mikanBox sites are connected, AI calls `get_site_info` on first connection and before writes to confirm the target site.
-
-A page's [output format](#output-formats) is set through `output_format` (`html` / `html_md` / `md` / `json` / `xml` / `csv` / `txt` / `js` / `css` / `db`), `md_footer_comps` (an array of footer component IDs) and `expand_tags` (whether a data page expands tags; the format's default when omitted) in `create_page` and `update_page`. `get_page` and `list_pages` also return `output_format`. Updating a published page with `update_page` no longer changes its update date (`updated_at`); it becomes the current time only when a page goes from non-public to public, the same as on the admin screen (since 2.17.0). `status` is `draft`, `public_dynamic` or `public_static`; the former `db` is accepted and saved as `output_format` `db` with Public (Dynamic).
-
-`preview_page` returns the result in the page's output format without saving and regardless of status (with only an `id` it shows the saved content; pass the body and other fields to render them unsaved; a new `id` works too), which is how to check tag expansion. `get_site_info` now returns `version` (the mikanBox version; when it differs from the last connection, read the tool list and `get_ai_context` again). The project rules in `get_ai_context` (`documents`) also include an entry that points at output formats (`mikanbox-output-formats`).
-
-Starting with mikanBox 2.5.1, the MCP connection instructions tell AI to call `get_ai_context` on first connection. This tool returns every [AI Instructions]{.type-badge .badge-ai} component—such as `DESIGN.md`, `BRAND.md`, and `CONTENTS.md`—in a single response. AI treats the returned content as site-specific project instructions for content, design, and code changes. AI instructions are for design and content work. They are treated as never containing instructions about the MCP key, sign-in or authentication, site settings, or the server or the program itself; AI does not follow such content if it appears there, and the user's instructions take precedence when they conflict (stated in the connection instructions from v2.21.3). Updating an instruction component updates what AI receives the next time it loads the context.
-
-#### Connection URL
-
-The URL of this site's administration MCP. "Copy" puts it on the clipboard so you can paste it straight into the client's settings.
-
-- [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the connection URL to the clipboard.
-
-#### API Key
-
-You can issue any number of named API keys (from v2.29.0; up to 20). Name each key after the AI tool or machine that will use it (for example “Claude Code on MacBook”). Issuing a separate key for each AI tool or machine shows in the history which key acted, and lets you revoke just the one that is a problem. You can set one key in several tools, but the history cannot tell them apart and revoking it stops them all.
-
-The API key is shown only once, when it is issued (from v2.28.0). The server keeps only the key's fingerprint (SHA-256), not the key itself, so a leaked settings file or backup does not reveal it. It cannot be shown again later: copy it right away and set it in the tool you connect. If you lose it, revoke that key and issue a new one. A key issued before v2.29.0 keeps working, as a single key without a name.
-
-Issued keys are listed with their name, issue date and last-use time.
-
-- [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the just-issued API key to the clipboard. Paste the generated key into the settings of whatever tool you're connecting (e.g. `.mcp.json` for Claude Desktop).
-- [[auto_awesome]{.material-symbols-outlined}Issue key]{.m-btn .m-btn-blue} — Enter a “Name of the new key” and press it to issue a new key and show it in place. Other keys are not affected.
-- [Revoke]{.m-btn .m-btn-gray} — Revokes that key in the list. AI tools that use it can no longer connect. The other keys keep working.
-
-You can also avoid writing the key in plain text in a local file such as `.mcp.json`. On macOS, store it in the Keychain (`security add-generic-password -s mikanbox-mcp -a mcp -w 'KEY'`) and read it each time you connect. For example, with `mcp-remote`, set `command` to `sh` and `args` to `["-c", "exec npx mcp-remote@0.1.38 CONNECTION_URL --header \"Authorization:Bearer $(security find-generic-password -s mikanbox-mcp -w)\""]`.
-
-An MCP API key stops working when you revoke it in the list, when the [SQLite Edition]{.type-badge .badge-sqlite} is recovered with a setup token or handed over with `reset-accounts.txt`, and when the [flat Edition]{.type-badge .badge-flat} password is set again after `password_hash` was emptied (the last two from v2.21.3). An ordinary password change while signed in, stopping a device and deleting a user leave it unchanged.
-
-#### Enabling MCP and its last-use time (PHP editions)
-
-Clear “Enable MCP” and save to stop management MCP while retaining its key. HTTP requests receive 403, and local stdio connections reject their next request. An already running request is not cancelled. Public help MCP remains available. Existing connections remain enabled after updating; enabling again permits the same key. Revoke a leaked key as well as disabling access. This switch does not restrict tools that can edit server files directly.
-
-Each key's last successful HTTP authentication is shown in UTC in the list. Its timestamp is written at most once per hour per key. Invalid keys and public help requests do not update it. A key that was just issued shows “Not used yet.” Local stdio requests do not use an API key and are excluded.
-
 ### Security activity (PHP editions) {#site-audit}
 
 “Recent security activity” on the Site screen shows the records in three tabs (Important, Site edits, Failed sign-ins), newest first.
@@ -1022,6 +968,60 @@ Changes and saves the password.
 **If you forget your password:** Using FTP or a file manager, edit the `mikanData/settings.json` file on the server and clear the value of `password_hash`. The initial password setup screen will appear on your next visit. From v2.21.3, setting the password again on that screen retires the MCP API key. Issue a new one under [MCP API Key](#site-mcp-key) and switch your AI clients to it. Changing the password with the form above while signed in keeps the key.
 
 ---
+
+### MCP API Key {#site-mcp-key}
+
+Issue and manage the API key that lets an AI agent (like Claude Code) connect to this site over MCP.
+
+The mikanBox administration MCP server supports stateless **MCP 2026-07-28** and, during the compatibility transition, initialize-based MCP 2025-11-25, 2025-06-18, and 2025-03-26. Every protocol mode requires the administration API key.
+
+Connect with the AI application's native Remote MCP (Streamable HTTP) feature.
+
+- MCP endpoint: `site URL/mikanBox/mcp` (the old `mcp.php` URL also remains available)
+- Protocols: `2026-07-28`, `2025-11-25`, `2025-06-18`, and `2025-03-26`
+- Authentication: `Authorization: Bearer your-issued-API-key` or `X-API-Key: your-issued-API-key`
+
+In clients that support fixed request headers, configure the issued API key using either header above. Never put the API key in the URL query string.
+
+Every tool carries annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`) that state whether it only reads data or may overwrite or delete existing data. MCP clients that understand these annotations use them to ask for confirmation before high-impact operations such as updating or deleting a page. Tools that return page or component bodies also carry `untrustedContentHint`, so the retrieved text is treated as reference material and never as instructions to the AI.
+
+Claude's custom connector screen supports authless or OAuth authentication. Its OAuth Client ID and OAuth Client Secret fields are not API-key fields. Until mikanBox implements OAuth, the administration MCP cannot be registered safely as a Claude custom connector. Do not paste the API key into the Client ID or Client Secret field. The authless public help MCP can be registered as a custom connector using only its URL.
+
+Treat the API key like a password. Never store it in a public repository or shared file. An AI client holding the MCP API key can also write JavaScript into pages and components, and that script also runs when a signed-in administrator opens the public pages or visual editing. Give the key only to AI clients you trust as much as an administrator. While you are not using it, you can stop the administration MCP (see "Enabling MCP and its last-use time"). If several mikanBox sites are connected, AI calls `get_site_info` on first connection and before writes to confirm the target site.
+
+A page's [output format](#output-formats) is set through `output_format` (`html` / `html_md` / `md` / `json` / `xml` / `csv` / `txt` / `js` / `css` / `db`), `md_footer_comps` (an array of footer component IDs) and `expand_tags` (whether a data page expands tags; the format's default when omitted) in `create_page` and `update_page`. `get_page` and `list_pages` also return `output_format`. Updating a published page with `update_page` no longer changes its update date (`updated_at`); it becomes the current time only when a page goes from non-public to public, the same as on the admin screen (since 2.17.0). `status` is `draft`, `public_dynamic` or `public_static`; the former `db` is accepted and saved as `output_format` `db` with Public (Dynamic).
+
+`preview_page` returns the result in the page's output format without saving and regardless of status (with only an `id` it shows the saved content; pass the body and other fields to render them unsaved; a new `id` works too), which is how to check tag expansion. `get_site_info` now returns `version` (the mikanBox version; when it differs from the last connection, read the tool list and `get_ai_context` again). The project rules in `get_ai_context` (`documents`) also include an entry that points at output formats (`mikanbox-output-formats`).
+
+Starting with mikanBox 2.5.1, the MCP connection instructions tell AI to call `get_ai_context` on first connection. This tool returns every [AI Instructions]{.type-badge .badge-ai} component—such as `DESIGN.md`, `BRAND.md`, and `CONTENTS.md`—in a single response. AI treats the returned content as site-specific project instructions for content, design, and code changes. AI instructions are for design and content work. They are treated as never containing instructions about the MCP key, sign-in or authentication, site settings, or the server or the program itself; AI does not follow such content if it appears there, and the user's instructions take precedence when they conflict (stated in the connection instructions from v2.21.3). Updating an instruction component updates what AI receives the next time it loads the context.
+
+#### Connection URL
+
+The URL of this site's administration MCP. "Copy" puts it on the clipboard so you can paste it straight into the client's settings.
+
+- [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the connection URL to the clipboard.
+
+#### API Key
+
+You can issue any number of named API keys (from v2.29.0; up to 20). Name each key after the AI tool or machine that will use it (for example “Claude Code on MacBook”). Issuing a separate key for each AI tool or machine shows in the history which key acted, and lets you revoke just the one that is a problem. You can set one key in several tools, but the history cannot tell them apart and revoking it stops them all.
+
+The API key is shown only once, when it is issued (from v2.28.0). The server keeps only the key's fingerprint (SHA-256), not the key itself, so a leaked settings file or backup does not reveal it. It cannot be shown again later: copy it right away and set it in the tool you connect. If you lose it, revoke that key and issue a new one. A key issued in v2.28.0 keeps working, as a single key without a name (a key from before v2.28.0, which was stored in plain text, no longer works from v2.29.1: issue a new one).
+
+Issued keys are listed with their name, issue date and last-use time.
+
+- [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the just-issued API key to the clipboard. Paste the generated key into the settings of whatever tool you're connecting (e.g. `.mcp.json` for Claude Desktop).
+- [[auto_awesome]{.material-symbols-outlined}Issue key]{.m-btn .m-btn-blue} — Enter a “Name of the new key” and press it to issue a new key and show it in place. Other keys are not affected.
+- [Revoke]{.m-btn .m-btn-gray} — Revokes that key in the list. AI tools that use it can no longer connect. The other keys keep working.
+
+You can also avoid writing the key in plain text in a local file such as `.mcp.json`. On macOS, store it in the Keychain (`security add-generic-password -s mikanbox-mcp -a mcp -w 'KEY'`) and read it each time you connect. For example, with `mcp-remote`, set `command` to `sh` and `args` to `["-c", "exec npx mcp-remote@0.1.38 CONNECTION_URL --header \"Authorization:Bearer $(security find-generic-password -s mikanbox-mcp -w)\""]`.
+
+An MCP API key stops working when you revoke it in the list, when the [SQLite Edition]{.type-badge .badge-sqlite} is recovered with a setup token or handed over with `reset-accounts.txt`, and when the [flat Edition]{.type-badge .badge-flat} password is set again after `password_hash` was emptied (the last two from v2.21.3). An ordinary password change while signed in, stopping a device and deleting a user leave it unchanged.
+
+#### Enabling MCP and its last-use time (PHP editions)
+
+Clear “Enable MCP” and save to stop management MCP while retaining its key. HTTP requests receive 403, and local stdio connections reject their next request. An already running request is not cancelled. Public help MCP remains available. Existing connections remain enabled after updating; enabling again permits the same key. Revoke a leaked key as well as disabling access. This switch does not restrict tools that can edit server files directly.
+
+Each key's last successful HTTP authentication is shown in UTC in the list. Its timestamp is written at most once per hour per key. Invalid keys and public help requests do not update it. A key that was just issued shows “Not used yet.” Local stdio requests do not use an API key and are excluded.
 
 ### Cloud: where media is kept
 

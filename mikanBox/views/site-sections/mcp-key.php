@@ -1,5 +1,4 @@
 <?php defined('MIKANBOX') or die();
-mikanBoxMcpKeyUpgrade();   // a key an older version stored in plain text is kept only as its fingerprint
 $mcpKeys = mikanBoxMcpKeyList($settings);   // fingerprints only: a key is never shown again after it is issued
 ?>
     <div id="mcp-api-key">
@@ -18,6 +17,16 @@ $mcpKeys = mikanBoxMcpKeyList($settings);   // fingerprints only: a key is never
                         <label><input type="checkbox" name="mcp_enabled" value="1" <?= mikanBoxMcpEnabled() ? 'checked' : '' ?>> <?= t('mcp_enable_label') ?></label>
                         <button type="submit" class="btn btn-gray btn-small"><?= t('btn_save') ?></button>
                     </form>
+                    <form method="post" class="mt-10" id="mcp-key-generate" data-ajax data-refresh="#mcp-key-list">
+                        <?= csrfField() ?>
+                        <input type="hidden" name="save_action" value="generate_mcp_key">
+                        <div class="form-group">
+                            <label for="mcp-key-name"><?= t('mcp_key_name_label') ?></label>
+                            <small class="sub-text sub-text-block"><?= t('mcp_key_split_hint') ?></small>
+                            <input type="text" id="mcp-key-name" name="mcp_key_name" maxlength="<?= MIKANBOX_MCP_KEY_NAME_MAX ?>" autocomplete="off" style="max-width:300px;">
+                        </div>
+                        <button type="submit" class="btn btn-blue btn-small"><?= getIcon('sparkles') ?> <?= t('btn_generate_mcp_key') ?></button>
+                    </form>
                     <?php
                           // The admin MCP endpoint sits beside admin.php: {site URL}/{admin folder}/mcp
                           $mcpHttps = !empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off';
@@ -30,16 +39,14 @@ $mcpKeys = mikanBoxMcpKeyList($settings);   // fingerprints only: a key is never
                             <button type="button" class="btn btn-gray btn-small" onclick="navigator.clipboard.writeText(document.getElementById('mcp-url-display').value).then(()=>showToast('<?= t('msg_copied') ?>'))"><?= getIcon('copy') ?> <?= t('btn_copy') ?></button>
                         </div>
                     </div>
-                    <?php // The new key is shown here once, in place: reloading would collapse this accordion and hide it. ?>
-                    <div id="mcp-key-issued" style="display:none;">
-                        <div class="form-group mt-10">
-                            <label for="mcp-key-display"><?= t('mcp_key_label') ?></label>
-                            <div class="copy-row">
-                                <input type="text" id="mcp-key-display" value="" readonly>
-                                <button type="button" class="btn btn-gray btn-small" onclick="navigator.clipboard.writeText(document.getElementById('mcp-key-display').value).then(()=>showToast('<?= t('msg_copied') ?>'))"><?= getIcon('copy') ?> <?= t('btn_copy') ?></button>
-                            </div>
-                            <small class="sub-text" id="mcp-key-once"><?= t('mcp_key_once_note') ?></small>
+                    <?php // The new key appears here, once, in place: reloading would collapse this accordion and hide it. ?>
+                    <div id="mcp-key-issued" class="form-group mt-10">
+                        <label for="mcp-key-display"><?= t('mcp_key_label') ?></label>
+                        <div class="copy-row">
+                            <input type="text" id="mcp-key-display" value="" placeholder="<?= htmlspecialchars(t('mcp_key_issued_placeholder'), ENT_QUOTES, 'UTF-8') ?>" readonly>
+                            <button type="button" class="btn btn-gray btn-small" onclick="navigator.clipboard.writeText(document.getElementById('mcp-key-display').value).then(()=>showToast('<?= t('msg_copied') ?>'))"><?= getIcon('copy') ?> <?= t('btn_copy') ?></button>
                         </div>
+                        <small class="sub-text" id="mcp-key-once" style="display:none;"><?= t('mcp_key_once_note') ?></small>
                     </div>
                     <div id="mcp-key-list" class="mt-10">
                         <?php if (!$mcpKeys): ?>
@@ -69,16 +76,6 @@ $mcpKeys = mikanBoxMcpKeyList($settings);   // fingerprints only: a key is never
                             </table>
                         <?php endif; ?>
                     </div>
-                    <form method="post" class="mt-10" id="mcp-key-generate" data-ajax data-refresh="#mcp-key-list">
-                        <?= csrfField() ?>
-                        <input type="hidden" name="save_action" value="generate_mcp_key">
-                        <div class="form-group">
-                            <label for="mcp-key-name"><?= t('mcp_key_name_label') ?></label>
-                            <input type="text" id="mcp-key-name" name="mcp_key_name" maxlength="<?= MIKANBOX_MCP_KEY_NAME_MAX ?>" placeholder="<?= htmlspecialchars(t('mcp_key_name_placeholder'), ENT_QUOTES, 'UTF-8') ?>" autocomplete="off" style="max-width:300px;">
-                            <small class="sub-text"><?= t('mcp_key_split_hint') ?></small>
-                        </div>
-                        <button type="submit" class="btn btn-blue btn-small"><?= getIcon('sparkles') ?> <?= t('btn_generate_mcp_key') ?></button>
-                    </form>
                     <script>
                     (() => {
                         const form = document.getElementById('mcp-key-generate');
@@ -87,7 +84,7 @@ $mcpKeys = mikanBoxMcpKeyList($settings);   // fingerprints only: a key is never
                             const key = event.detail && event.detail.mcp_api_key;
                             if (!key) return;
                             document.getElementById('mcp-key-display').value = key;
-                            document.getElementById('mcp-key-issued').style.display = '';
+                            document.getElementById('mcp-key-once').style.display = '';
                             const name = document.getElementById('mcp-key-name');
                             if (name) name.value = '';
                         });
