@@ -879,7 +879,7 @@
     "transfer_contents_media": "画像だけ",
     "transfer_contents_database": "データベース",
     "transfer_match_filter": "絞り込み状態にあわせる",
-    "transfer_match_filter_hint": "ページ・コンポーネント・画像を、それぞれ一覧で絞り込んでいる（カテゴリや検索など）ときは、その分だけを書き出します。データベース（SQL）には関係しません。",
+    "transfer_match_filter_hint": "ページを絞り込んだ場合は、対象ページと使用している部品・メディアを書き出します。画像だけのときは、メディア一覧の絞り込みを使います。",
     "transfer_include_revisions": "ページの履歴を含める",
     "transfer_btn_export": "ダウンロード",
     "transfer_import_title": "読み込み",

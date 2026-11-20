@@ -879,7 +879,7 @@
     "transfer_contents_media": "Media only",
     "transfer_contents_database": "Database",
     "transfer_match_filter": "Match the filtered lists",
-    "transfer_match_filter_hint": "When the pages, components or media lists are filtered (by category, search and so on), only what each list shows is saved. The database (SQL) is not affected.",
+    "transfer_match_filter_hint": "When the page list is filtered, save matching pages and the components and media they use. Media-only exports follow the media list filters.",
     "transfer_include_revisions": "Include page history",
     "transfer_btn_export": "Download",
     "transfer_import_title": "Read",

@@ -107,6 +107,89 @@ function mikanBoxTransferMediaFilter(?array $filter, array $names): array {
     }));
 }
 
+/** Find literal local media references without resolving links to other pages. */
+function mikanBoxTransferCollectMedia(string $text, array &$used, bool $script = false): void {
+    preg_match_all(<<<'REGEX'
+~(?:\b(?:src|poster)\s*=\s*|<link\b[^>]*?\bhref\s*=\s*|\burl\(\s*|!\[[^\]\n]*\]\(\s*)["']?([^\s"'<>\)]+)|\{\{\s*(?:IMAGE|AUDIO|VIDEO):\s*([^}\s]+)\s*\}\}~i
+REGEX, $text, $matches, PREG_SET_ORDER | PREG_UNMATCHED_AS_NULL);
+    foreach ($matches as $match) {
+        mikanBoxTransferMediaReference($match[1] ?? $match[2], $used);
+    }
+    if ($script) {
+        preg_match_all(<<<'REGEX'
+~["']((?:\{\{\s*(?:SITE_URL|BASE_URL)\s*\}\}/|(?:\.{1,2}/)*|/)media/[^"'\s<>]+)["']~i
+REGEX, $text, $literals);
+        foreach ($literals[1] as $literal) mikanBoxTransferMediaReference($literal, $used);
+    }
+    preg_match_all('~\bsrcset\s*=\s*(["\'])(.*?)\1~is', $text, $sets);
+    foreach ($sets[2] as $set) {
+        foreach (explode(',', $set) as $candidate) {
+            mikanBoxTransferMediaReference(preg_split('~\s+~', trim($candidate))[0], $used);
+        }
+    }
+}
+
+function mikanBoxTransferMediaReference(string $path, array &$used): void {
+    $path = preg_replace('~^\{\{\s*(?:SITE_URL|BASE_URL)\s*\}\}/~i', '/', trim($path));
+    $path = rawurldecode(preg_split('~[?#]~', $path, 2)[0]);
+    if (preg_match('~^(?:(?:\.{1,2}/)*(?:(?:media|images)/)?|/(?:[A-Za-z0-9_.-]+/)*(?:media|images)/|/)([A-Za-z0-9_.-]+)$~', $path, $match)
+        && preg_match('~\.(?:jpe?g|png|gif|webp|svg|mp3|m4a|mp4|js|css)$~i', $match[1])) {
+        $used[$match[1]] = true;
+    }
+}
+
+/** Collect components and media used directly by the selected pages. Do not traverse page links. */
+function mikanBoxTransferPageAssets(array $pages, array $settings): array {
+    $components = [];
+    $media = [];
+    $seen = [];
+    $scan = function (string $body) use (&$load, &$media): void {
+        $body = preg_replace('~^[ \t]{0,3}(`{3,}|\~{3,})[^\n]*\n.*?(?:^[ \t]{0,3}\1[`\~]*[ \t]*$|\z)|`[^`\n]*`|<!--.*?-->~ms', '', $body);
+        mikanBoxTransferCollectMedia($body, $media);
+        preg_match_all('~\{\{\s*(COMPONENT|NAV_CARDS|SEARCH_RESULTS)\s*((?::[^}]*)?)\}\}~', $body, $tags, PREG_SET_ORDER);
+        foreach ($tags as [, $tag, $args]) {
+            $parts = $args === '' ? [] : array_map('trim', explode(':', substr($args, 1)));
+            if ($tag === 'NAV_CARDS') {
+                $parts = array_values(array_filter($parts, fn($part) => !preg_match('~^(?:sort|limit|sep)=~', $part)));
+                $load(($parts[1] ?? '') ?: '_nav_card');
+            } elseif ($tag === 'SEARCH_RESULTS' && function_exists('searchPosts')) {
+                $load(($parts[0] ?? '') ?: '_search_result_item');
+            } elseif ($tag === 'COMPONENT') {
+                $load($parts[0] ?? '');
+            }
+        }
+    };
+    $load = function (string $id) use (&$seen, &$components, &$media, $scan): bool {
+        if ($id === '' || $id === '__none' || mikanBoxValidateNewId($id, 'component') !== null) return false;
+        if (isset($seen[$id])) return isset($components[$id]);
+        $seen[$id] = true;
+        $part = loadData(COMPONENTS_DIR, $id);
+        if (!is_array($part) || !empty($part['is_ai_doc'])) return false;
+        $components[$id] = $part;
+        $scan((string)($part['html'] ?? ''));
+        foreach (['css', 'js'] as $field) mikanBoxTransferCollectMedia((string)($part[$field] ?? ''), $media, $field === 'js');
+        return true;
+    };
+    if ($pages) mikanBoxTransferMediaReference((string)($settings['ogp_image'] ?? ''), $media);
+    foreach ($pages as $page) {
+        $format = mikanBoxPageOutputFormat($page);
+        if ($format === 'html' || $format === 'html_md') {
+            $wrapper = (string)($page['wrapper_comp'] ?? '_layout');
+            if ($wrapper !== '__none' && !$load($wrapper)) $load('_layout');
+            if (empty($page['exclude_tracking']) && empty($settings['tracking_id']) && empty($settings['tracking_head_code']) && empty($settings['tracking_body_code'])) {
+                $load((string)($settings['tracking_component'] ?? ''));
+            }
+            foreach (['css', 'js'] as $field) mikanBoxTransferCollectMedia((string)($page[$field] ?? ''), $media, $field === 'js');
+        }
+        if ($format === 'html_md' || $format === 'md') {
+            foreach (mikanBoxNormalizeFooterComponents($page['md_footer_comps'] ?? []) as $id) $load($id);
+        }
+        mikanBoxTransferMediaReference((string)($page['ogp_image'] ?? ''), $media);
+        $scan((string)($page['content_md'] ?? ''));
+    }
+    return [$components, $media];
+}
+
 /** Builds the ZIP (contents: both|data|media) in the data folder. Null when there is nothing to save or it fails. */
 function mikanBoxTransferBuildZip(string $contents, bool $withHistory, ?array $filter = null): ?string {
     if (!in_array($contents, ['both', 'data', 'media'], true) || !class_exists('ZipArchive')) return null;
@@ -114,12 +197,16 @@ function mikanBoxTransferBuildZip(string $contents, bool $withHistory, ?array $f
     $zip = new ZipArchive();
     if ($zip->open($tmp, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) return null;
     $json = fn($value) => json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    $assets = null;
     if ($contents !== 'media') {
-        $zip->addFromString('data/settings.json', $json((object)mikanBoxTransferSettings(loadSettings())));
+        $settings = mikanBoxTransferSettings(loadSettings());
+        $zip->addFromString('data/settings.json', $json((object)$settings));
         $pageIds = mikanBoxTransferPageIds($filter);
+        $pages = [];
         foreach ($pageIds ?? getFileList(POSTS_DIR) as $id) {
             $data = loadData(POSTS_DIR, $id);
             if (!is_array($data)) continue;
+            if ($pageIds !== null) $pages[] = $data;
             $zip->addFromString('data/posts/' . $id . '.json', $json($data));
             if ($withHistory && mikanBoxTransferHasHistory()) {
                 $items = [];
@@ -130,15 +217,22 @@ function mikanBoxTransferBuildZip(string $contents, bool $withHistory, ?array $f
                 if ($items) $zip->addFromString('data/revisions/' . $id . '.json', $json($items));
             }
         }
-        $componentIds = getFileList(COMPONENTS_DIR);
-        if ($filter !== null && $filter['components'] !== null) $componentIds = array_values(array_intersect($componentIds, $filter['components']));
-        foreach ($componentIds as $id) {
-            $data = loadData(COMPONENTS_DIR, $id);
-            if (is_array($data)) $zip->addFromString('data/components/' . $id . '.json', $json($data));
+        if ($pageIds !== null) {
+            [$parts, $assets] = mikanBoxTransferPageAssets($pages, $settings);
+            foreach ($parts as $id => $data) $zip->addFromString('data/components/' . $id . '.json', $json($data));
+        } else {
+            $componentIds = getFileList(COMPONENTS_DIR);
+            if ($filter !== null && $filter['components'] !== null) $componentIds = array_values(array_intersect($componentIds, $filter['components']));
+            foreach ($componentIds as $id) {
+                $data = loadData(COMPONENTS_DIR, $id);
+                if (is_array($data)) $zip->addFromString('data/components/' . $id . '.json', $json($data));
+            }
         }
     }
     if ($contents !== 'data') {
-        foreach (mikanBoxTransferMediaFilter($filter, mikanBoxTransferMediaNames()) as $name) $zip->addFile(MEDIA_DIR . '/' . $name, 'media/' . $name);
+        $names = mikanBoxTransferMediaNames();
+        $names = $assets === null ? mikanBoxTransferMediaFilter($filter, $names) : array_values(array_filter($names, fn($name) => isset($assets[$name])));
+        foreach ($names as $name) $zip->addFile(MEDIA_DIR . '/' . $name, 'media/' . $name);
     }
     if ($zip->numFiles === 0) { $zip->close(); @unlink($tmp); return null; }   // nothing to save (no media yet)
     if (!$zip->close() || !is_file($tmp)) { @unlink($tmp); return null; }

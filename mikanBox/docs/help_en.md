@@ -55,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.30.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.30.2</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -825,7 +825,7 @@ Choose the contents and press "Download".
 | Database [SQLite and Cloud editions]{.type-badge .badge-sqlite} | The database file in the SQLite edition; the D1 SQL file in Cloud. Page history is included. |
 
 - **Include page history** (SQLite and Cloud): the history of each page (the last 10 entries) is saved too. It is off at first. The flat edition has no page history.
-- **Match the filtered lists** (from v2.30.0): when checked, the pages, components and media are each saved as the lists show them now, filtered as they are. Pages follow category, output format and search; media follow category, type and search; components follow the type filter and the search. A list that is not filtered is saved whole. The settings are always saved, and the database (SQL) is not affected. Off at first.
+- **Filtered exports** (behavior from v2.30.2). When **Match the filtered lists** is checked and the page list is filtered by category, output format, or search, the export includes the matching pages and their layout components, parts, and literal local media references. It follows parts embedded inside other parts. Linked pages, pages listed by navigation, other pages embedded as content, and references assembled at runtime by JavaScript are outside this selection. With no page filter, or when saving media only, the applicable list filters still apply. Content settings are included in JSON exports. Database exports are unaffected.
 - The file also holds what is not public, such as drafts and notes: keep it somewhere safe and do not share it.
 - Users, devices, passwords and the MCP API key are not included. Only the content settings (site name, description, categories and the like) are saved; the site ID and the publishing settings are not.
 - Inside the ZIP: `data/settings.json`, `data/posts/pageID.json`, `data/components/ID.json`, `data/revisions/pageID.json` (history) and `media/filename`. The layout is the same in all three editions, so the file can be read into a site of another edition.
