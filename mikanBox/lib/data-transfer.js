@@ -182,7 +182,7 @@
           return found.media.has(name) ? { bytes: new Uint8Array(await (await found.media.get(name)()).arrayBuffer()) } : null;
         };
         try { await window.MikanTransferPublish(source, pending); } catch (error) { throw new Error(say('transfer_publish_failed') + ' ' + (error.message || '')); }
-        if (pending.length) total.media += (await send(form, 'transfer_record_media', { media: pending })).recorded;
+        if (pending.length) total.media += (await send(form, 'transfer_record_media', { media: pending, mode })).recorded;
       }
       progress('');
       const summary = say('transfer_done', { pages: total.pages, components: total.components, media: total.media, skipped: total.skipped, deleted });

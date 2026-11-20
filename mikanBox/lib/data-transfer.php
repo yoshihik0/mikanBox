@@ -183,6 +183,9 @@ function mikanBoxTransferImportData(string $mode, array $part): array {
     $history = mikanBoxTransferHasHistory();
     $editor = $_SESSION['admin_username'] ?? 'admin';
     $added = [];
+    // One record for the reading (repeated parts merge into it), not a line per page.
+    $GLOBALS['mikanbox_audit_quiet'] = true;
+    try {
     if ($mode !== 'add' && isset($part['settings']) && is_array($part['settings'])) {
         $settings = loadSettings();
         foreach (mikanBoxTransferSettings($part['settings']) as $key => $value) {
@@ -212,6 +215,10 @@ function mikanBoxTransferImportData(string $mode, array $part): array {
             if ($kind === 'pages' && !$exists) $added[$id] = true;
         }
     }
+    } finally {
+        $GLOBALS['mikanbox_audit_quiet'] = false;
+    }
+    if ($result['pages'] || $result['components'] || $result['settings']) mikanBoxAudit('data_imported', ['target' => $mode]);
     // History from the file (sent in the same part as its page): for pages the file adds, and for every page when replacing.
     if ($history) {
         foreach (($part['revisions'] ?? []) as $item) {
@@ -232,7 +239,9 @@ function mikanBoxTransferImportMedia(string $mode, string $name, string $tmpPath
     if (!mikanBoxTransferMayWrite($mode, is_file($target))) return 'skipped';
     if (strtolower(pathinfo($name, PATHINFO_EXTENSION)) === 'svg') $content = sanitizeSvgContent($content);
     if (!is_dir(MEDIA_DIR)) mkdir(MEDIA_DIR, 0777, true);
-    return file_put_contents($target, $content) !== false ? 'saved' : t('err_upload_failed');
+    if (file_put_contents($target, $content) === false) return t('err_upload_failed');
+    mikanBoxAudit('data_imported', ['target' => $mode]);
+    return 'saved';
 }
 
 /**

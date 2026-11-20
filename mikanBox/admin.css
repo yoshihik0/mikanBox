@@ -2071,7 +2071,7 @@ body.data-tool-open { overflow: hidden; }
 .audit-tabs>input{position:absolute;opacity:0;pointer-events:none}
 .audit-tab-labels{display:flex;gap:4px;border-bottom:1px solid var(--border,#ddd);margin-bottom:10px;flex-wrap:wrap}
 .audit-tab-labels label{padding:6px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
-.audit-panel{display:none}
+.audit-panel{display:none;max-height:70vh;overflow:auto}
 .audit-tabs>input:nth-of-type(1):checked~.audit-tab-labels label:nth-child(1),.audit-tabs>input:nth-of-type(2):checked~.audit-tab-labels label:nth-child(2),.audit-tabs>input:nth-of-type(3):checked~.audit-tab-labels label:nth-child(3){border-bottom-color:currentColor;font-weight:700}
 .audit-tabs>input:nth-of-type(1):checked~.audit-panel:nth-of-type(2),.audit-tabs>input:nth-of-type(2):checked~.audit-panel:nth-of-type(3),.audit-tabs>input:nth-of-type(3):checked~.audit-panel:nth-of-type(4){display:block}
 .audit-tabs>input:focus-visible~.audit-tab-labels{outline:2px solid currentColor}

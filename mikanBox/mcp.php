@@ -986,7 +986,9 @@ function toolUploadMedia($args) {
 
     $resolvedName = resolveMediaSaveName($filename, $category);
     $dest = MEDIA_DIR . '/' . $resolvedName;
+    $before = mikanBoxAuditFileHash($dest);
     if (file_put_contents($dest, $content)) {
+        mikanBoxAuditMedia('media_uploaded', $resolvedName, $before);
         return ['success' => true, 'filename' => $resolvedName, 'message' => t('mcp_success_media_uploaded', $resolvedName)];
     }
     return ['error' => t('mcp_err_file_save_failed')];

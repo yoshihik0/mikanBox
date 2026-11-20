@@ -1509,6 +1509,7 @@ function mediaChangeExisting(string $filename, string $targetName, bool $convert
         if ($settingsWritten) $GLOBALS['mikanbox_settings'] = $siteAfter;
         // References and the replacement are committed before withdrawing the old image.
         @unlink($source);
+        mikanBoxAuditMedia('media_changed', $targetName, $sourceHash, $filename);
         return ['filename'=>$targetName,'updated'=>count($changes)];
     } catch (Throwable $error) {
         if ($transaction) $db->exec('ROLLBACK');

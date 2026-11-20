@@ -82,13 +82,12 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-security-controls-') as tempor
                 raw=(site/'mikanData/security/events.jsonl.php').read_text();rows=[json.loads(line) for line in raw.splitlines()[1:]]
                 for secret in [key,password,'NEVER_LOG_THIS','PRIVATE TITLE','192.0.2.123']:check(secret not in raw,'secret or full IP absent')
                 check(any(row['ip']=='192.0.2.0/24' for row in rows),'IPv4 masked')
-                check(any(row['event']=='page_status' for row in rows),'publication state audited')
+                check(any(row['event']=='page_created' and row.get('to')=='public_dynamic' for row in rows),'publication state audited')
                 rendered=request(admin)[1];check('&lt;script&gt;audit&lt;/script&gt;' in rendered,'audit UI escapes stored actor')
                 php(site,'for($i=0;$i<120;$i++)mikanBoxAudit("login_failed");')
-                rows=[json.loads(line) for line in (site/'mikanData/security/events.jsonl.php').read_text().splitlines()[1:]]
-                check(sum(row['event']=='login_failed' for row in rows)==50,'only the latest 50 failed sign-ins are stored')
-                check(any(row['event']=='page_status' for row in rows),'a run of failed sign-ins does not push out other records')
-                count=int(php(site,'echo count(mikanBoxAuditRecent());'));check(count==len(rows),'all stored events are shown')
+                rows=json.loads(php(site,'echo json_encode(mikanBoxAuditRecent());'))
+                check(sum(row['event']=='login_failed' for row in rows)==50,'only the latest 50 failed sign-ins are kept')
+                check(any(row['event']=='page_created' for row in rows),'a run of failed sign-ins does not push out other records')
                 event_path=site/'mikanData/security/events.jsonl.php';saved_log=event_path.with_name('saved-events.php');event_path.rename(saved_log);event_path.mkdir()
                 try:
                     status,body=post({'save_action':'set_mcp_enabled','mcp_enabled':'1'})

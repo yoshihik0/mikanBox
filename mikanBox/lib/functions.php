@@ -578,7 +578,7 @@ function getSortedPostIds() {
  * @param string $id Record/File ID
  * @return bool
  */
-function deleteData($dir, $id) {
+function mikanBoxStorageDeleteData($dir, $id) {
     $id = ltrim($id, '/\\');
     $id = preg_replace('/[^a-zA-Z0-9_\-\/\.]/', '', $id);
     if (empty($id)) return false;

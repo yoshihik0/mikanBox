@@ -553,6 +553,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                     $targetPath = MEDIA_DIR . '/' . $resolvedName;
                     
                     if (!is_dir(MEDIA_DIR)) mkdir(MEDIA_DIR, 0777, true);
+                    $auditBefore = mikanBoxAuditFileHash($targetPath);
                     if (move_uploaded_file($tmpPath, $targetPath)) {
                         if ($ext === 'svg') {
                             file_put_contents($targetPath, sanitizeSvgContent(file_get_contents($targetPath)));
@@ -568,6 +569,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                             $resolvedName = $processed['filename'];
                             $targetPath = MEDIA_DIR . '/' . $resolvedName;
                         }
+                        mikanBoxAuditMedia('media_uploaded', $resolvedName, $auditBefore);
                         if (!empty($processed['skipped'])) {
                             $message = t('msg_media_optimize_skipped', $resolvedName);
                         } elseif (!empty($processed['changed'])) {
@@ -599,7 +601,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     elseif ($_POST['save_action'] === 'delete_media') {
         $name = basename($_POST['filename']);
         $path = MEDIA_DIR . '/' . $name;
+        $auditBefore = mikanBoxAuditFileHash($path);
         if (file_exists($path) && unlink($path)) {
+            mikanBoxAuditMedia('media_deleted', $name, $auditBefore);
             $message = t('msg_media_deleted', $name);
         } else {
             $message = t('err_delete_failed');
@@ -635,6 +639,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                         $newWidth = (int)($srcW * ($newHeight / $srcH));
                     }
                     
+                    $auditBefore = mikanBoxAuditFileHash($targetPath);
                     $dstImg = imagecreatetruecolor($newWidth, $newHeight);
                     
                     switch ($type) {
@@ -659,6 +664,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                             case IMAGETYPE_GIF: imagegif($dstImg, $targetPath); break;
                             case IMAGETYPE_WEBP: if (function_exists('imagewebp')) imagewebp($dstImg, $targetPath); break;
                         }
+                        mikanBoxAuditMedia('media_changed', $name, $auditBefore);
                         $message = t('msg_media_resized', $name);
                     }
                 }

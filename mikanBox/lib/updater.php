@@ -489,6 +489,7 @@ function mikanBoxInstallUpdateLocked(
     mikanBoxUpdateRemoveRetiredTests($siteRoot);   // tests/ left from a hand-installed ZIP (best effort)
     // The site-root .htaccess belongs to the site owner and is never replaced; only the
     // charset block for static text files is appended once when it is missing.
+    if (function_exists('mikanBoxAudit')) mikanBoxAudit('system_updated', ['from' => $currentVersion, 'to' => (string)$newVersion]);
     return ['success' => true, 'version' => $newVersion, 'htaccess' => mikanBoxEnsureSiteHtaccessCharset($siteRoot)];
 }
 

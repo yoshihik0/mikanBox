@@ -67,6 +67,6 @@ $mcpDisplayKey = (string)($settings['mcp_api_key'] ?? '');
 <?php if (!$events): ?><p><?= t('audit_empty') ?></p><?php else: ?>
 <table><thead><tr><th><?= t('audit_time') ?></th><th><?= t('audit_action') ?></th><th><?= t('audit_actor') ?></th><th><?= t('audit_target') ?></th><th>IP</th></tr></thead><tbody>
 <?php foreach ($events as $event): ?>
-<tr><?php foreach ([$event['at'] ?? '', t('audit_event_' . ($event['event'] ?? '')), $event['actor'] ?? '', (($event['target'] ?? '') . (isset($event['from'],$event['to']) ? ' (' . $event['from'] . ' → ' . $event['to'] . ')' : '')), $event['ip'] ?? ''] as $value): ?><td><?= htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') ?></td><?php endforeach; ?></tr>
+<tr><?php foreach ([$event['at'] ?? '', t('audit_event_' . ($event['event'] ?? '')), $event['actor'] ?? '', mikanBoxAuditTargetText($event), $event['ip'] ?? ''] as $value): ?><td><?= htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') ?></td><?php endforeach; ?></tr>
 <?php endforeach; ?></tbody></table><?php endif; ?></div><?php endforeach; ?>
 </div></div></details></div>

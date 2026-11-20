@@ -280,51 +280,110 @@ function mikanBoxMaskedIp(): string {
     if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) return inet_ntop(substr(inet_pton($ip), 0, 6) . str_repeat("\0", 10)) . '/48';
     return '';
 }
-if (!defined('MIKANBOX_AUDIT_KEEP')) define('MIKANBOX_AUDIT_KEEP', 50);
-// Records are kept in three groups of MIKANBOX_AUDIT_KEEP each, so a run of failed sign-ins
-// (or of page edits) never pushes out the important ones (MCP keys, devices, recovery, restores).
+if (!defined('MIKANBOX_AUDIT_KEEP')) define('MIKANBOX_AUDIT_KEEP', 50);            // important operations, failed sign-ins
+if (!defined('MIKANBOX_AUDIT_KEEP_EDIT')) define('MIKANBOX_AUDIT_KEEP_EDIT', 500);  // site edits
+if (!defined('MIKANBOX_AUDIT_TRIM_BYTES')) define('MIKANBOX_AUDIT_TRIM_BYTES', 400000);
+if (!defined('MIKANBOX_AUDIT_MERGE_SECONDS')) define('MIKANBOX_AUDIT_MERGE_SECONDS', 600);
+// Records are kept in three groups, so a run of failed sign-ins (or of site edits) never pushes
+// out the important ones (MCP keys, devices, recovery, restores, program updates).
+// Every change to pages, components, media and settings is recorded as a site edit, whichever
+// way it was made (admin screen, visual editing, MCP, data import), with the content's sha256
+// before and after, so a change can later be checked against what is stored.
+const MIKANBOX_AUDIT_EDIT_EVENTS = ['page_status','page_created','page_updated','page_deleted','component_created','component_updated','component_deleted','media_uploaded','media_changed','media_deleted','settings_changed','data_imported'];
+// Repeated saves of the same item by the same person within MIKANBOX_AUDIT_MERGE_SECONDS become one
+// record (keeping the first "before"), so saving a page many times while editing it is one line.
+const MIKANBOX_AUDIT_MERGED_EVENTS = ['page_updated','component_updated','media_changed','settings_changed','data_imported'];
 function mikanBoxAuditGroup(string $event): string {
     if ($event === 'login_failed') return 'login';
-    if ($event === 'page_status') return 'edit';
+    if (in_array($event, MIKANBOX_AUDIT_EDIT_EVENTS, true)) return 'edit';
     return 'important';
 }
+function mikanBoxAuditKeep(string $group): int {
+    return $group === 'edit' ? MIKANBOX_AUDIT_KEEP_EDIT : MIKANBOX_AUDIT_KEEP;
+}
 function mikanBoxAuditTrim(array $lines): array {
-    // $lines: JSON lines, oldest first. Keep the newest MIKANBOX_AUDIT_KEEP of each group.
+    // $lines: JSON lines, oldest first. Keep the newest of each group.
     $count=[]; $keep=[];
     for ($i=count($lines)-1;$i>=0;$i--) {
         $row=json_decode($lines[$i],true);
         $g=mikanBoxAuditGroup(is_array($row)?(string)($row['event'] ?? ''):'');
         $count[$g]=($count[$g] ?? 0)+1;
-        if ($count[$g] <= MIKANBOX_AUDIT_KEEP) $keep[]=$lines[$i];
+        if ($count[$g] <= mikanBoxAuditKeep($g)) $keep[]=$lines[$i];
     }
     return array_reverse($keep);
 }
+/** sha256 of stored content (null when there is none). */
+function mikanBoxAuditHash($data): string {
+    if ($data === null) return '';
+    return hash('sha256', is_string($data) ? $data : json_encode($data, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_INVALID_UTF8_SUBSTITUTE));
+}
+/** sha256 of a media file ('' when missing or too large to read quickly). */
+function mikanBoxAuditFileHash(string $path): string {
+    clearstatcache(true, $path);
+    return is_file($path) && filesize($path) <= 50000000 ? (string)hash_file('sha256', $path) : '';
+}
+/** A media change: $name is the file in the media folder now (or the one removed). */
+function mikanBoxAuditMedia(string $event, string $name, string $before = '', string $from = ''): void {
+    if (!defined('MEDIA_DIR')) return;
+    $details=['target'=>$name,'before'=>$before,'after'=>$event === 'media_deleted' ? '' : mikanBoxAuditFileHash(MEDIA_DIR.'/'.$name)];
+    if ($from !== '' && $from !== $name) $details['from']=$from;
+    mikanBoxAudit($event, $details);
+}
 function mikanBoxAudit(string $event, array $details = []): void {
-    $events = ['mcp_enabled','mcp_disabled','mcp_key_issued','mcp_key_rotated','page_status','login_failed','device_registered','device_revoked','code_issued','invite_issued','recovery','accounts_reset','user_deleted','system_restored'];
+    $events = array_merge(['mcp_enabled','mcp_disabled','mcp_key_issued','mcp_key_rotated','login_failed','device_registered','device_revoked','code_issued','invite_issued','recovery','accounts_reset','user_deleted','system_restored','system_updated','data_restored'], MIKANBOX_AUDIT_EDIT_EVENTS);
     if (!in_array($event, $events, true)) return;
+    // A bulk operation records one summary instead of a line per item.
+    if (!empty($GLOBALS['mikanbox_audit_quiet']) && mikanBoxAuditGroup($event) === 'edit' && $event !== 'data_imported') return;
     $actor = $GLOBALS['mikanbox_audit_actor'] ?? (!empty($_SESSION['admin_logged_in']) ? ($_SESSION['admin_username'] ?? 'admin') : 'system');
     $entry = ['at'=>gmdate('c'), 'event'=>$event, 'actor'=>substr((string)$actor,0,80), 'ip'=>mikanBoxMaskedIp()];
-    foreach (['target','from','to'] as $key) if (isset($details[$key]) && is_string($details[$key]) && preg_match('/\A[A-Za-z0-9_\/.:-]{0,200}\z/', $details[$key])) $entry[$key]=$details[$key];
+    foreach (['target','from','to'] as $key) if (isset($details[$key]) && is_string($details[$key]) && preg_match('/\A[A-Za-z0-9_\/.:,-]{0,200}\z/', $details[$key])) $entry[$key]=$details[$key];
+    foreach (['before','after'] as $key) if (isset($details[$key]) && is_string($details[$key]) && preg_match('/\A[0-9a-f]{64}\z/', $details[$key])) $entry[$key]=$details[$key];
     $ok = mikanBoxSecurityLocked(function($dir) use ($entry) {
-        // Only the latest MIKANBOX_AUDIT_KEEP events of each group are kept.
         $path=$dir.'/events.jsonl.php';
-        $line=json_encode($entry,JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE);
         clearstatcache(true,$path);
-        $lines=[];
-        if (is_file($path)) {
-            $content=@file_get_contents($path); if ($content===false) return false;
-            $lines=array_values(array_filter(array_slice(explode("\n",$content),1),fn($l)=>trim($l)!==''));
+        $exists=is_file($path);
+        $f=@fopen($path, $exists ? 'r+b' : 'x+b'); if (!$f) return false;
+        if (!$exists) fwrite($f, MIKANBOX_SECURITY_GUARD);
+        // Merge with the last line when it is the same change continuing (see MIKANBOX_AUDIT_MERGED_EVENTS).
+        $size=fstat($f)['size']; $cut=$size;
+        if ($exists && in_array($entry['event'], MIKANBOX_AUDIT_MERGED_EVENTS, true) && $size > strlen(MIKANBOX_SECURITY_GUARD)) {
+            $tail=min($size, 8192);
+            fseek($f, $size-$tail); $chunk=(string)fread($f, $tail);
+            $trimmed=rtrim($chunk, "\n"); $pos=strrpos($trimmed, "\n");
+            $last=json_decode($pos === false ? $trimmed : substr($trimmed, $pos+1), true);
+            if ($pos !== false && is_array($last) && ($last['event'] ?? '') === $entry['event'] && ($last['target'] ?? '') === ($entry['target'] ?? '')
+                && ($last['actor'] ?? '') === $entry['actor'] && ($last['ip'] ?? '') === $entry['ip']
+                && time()-(int)strtotime((string)($last['at'] ?? '')) <= MIKANBOX_AUDIT_MERGE_SECONDS) {
+                if (isset($last['before'])) $entry['before']=$last['before']; else unset($entry['before']);
+                if (isset($last['from'])) $entry['from']=$last['from'];
+                $cut=$size-$tail+$pos+1;
+            }
         }
-        $lines[]=$line;
-        $lines=mikanBoxAuditTrim($lines);
-        $ok=@file_put_contents($path,MIKANBOX_SECURITY_GUARD.implode("\n",$lines)."\n",LOCK_EX)!==false;
-        @chmod($path,0600); return $ok;
+        $line=json_encode($entry,JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE)."\n";
+        $ok=ftruncate($f,$cut) && fseek($f,$cut)===0 && fwrite($f,$line)===strlen($line);
+        fclose($f); @chmod($path,0600);
+        // Old records are removed now and then, not on every write.
+        clearstatcache(true,$path);
+        if ($ok && filesize($path) > MIKANBOX_AUDIT_TRIM_BYTES) {
+            $content=@file_get_contents($path); if ($content===false) return false;
+            $lines=mikanBoxAuditTrim(array_values(array_filter(array_slice(explode("\n",$content),1),fn($l)=>trim($l)!=='')));
+            $ok=@file_put_contents($path,MIKANBOX_SECURITY_GUARD.implode("\n",$lines)."\n",LOCK_EX)!==false;
+        }
+        return $ok;
     });
     $GLOBALS['mikanbox_audit_unavailable']=$ok !== true;
     if (session_status() === PHP_SESSION_ACTIVE) {
         if ($ok !== true) $_SESSION['mikanbox_audit_unavailable']=true;
         else unset($_SESSION['mikanbox_audit_unavailable']);
     }
+}
+/** The "target" column: the item, with a status change (from → to) or a rename (old → new). */
+function mikanBoxAuditTargetText(array $event): string {
+    $target=(string)($event['target'] ?? ''); $from=(string)($event['from'] ?? ''); $to=(string)($event['to'] ?? '');
+    if ($from !== '' && $to !== '') return trim($target . ' (' . $from . ' → ' . $to . ')');
+    if ($to !== '') return trim($target . ' (' . $to . ')');
+    if ($from !== '') return $from . ' → ' . $target;
+    return str_replace(',', ', ', $target);
 }
 function mikanBoxAuditRecent(): array {
     $rows=mikanBoxSecurityLocked(function($dir) {
@@ -336,18 +395,54 @@ function mikanBoxAuditRecent(): array {
     });
     return is_array($rows) ? $rows : [];
 }
+// Settings that change by themselves (not an edit) and the MCP key (recorded on its own).
+const MIKANBOX_AUDIT_SETTINGS_IGNORED = ['last_build','mcp_api_key'];
 if (!function_exists("saveSettings")) {
 function saveSettings($settings) {
     $previous=loadSettings(); $ok=mikanBoxStorageSaveSettings($settings);
     if ($ok && !empty($settings['mcp_api_key']) && ($previous['mcp_api_key'] ?? '') !== $settings['mcp_api_key']) mikanBoxAudit(empty($previous['mcp_api_key'])?'mcp_key_issued':'mcp_key_rotated');
+    if ($ok && is_array($previous) && is_array($settings)) {
+        $changed=[];
+        foreach (array_unique(array_merge(array_keys($previous),array_keys($settings))) as $key) {
+            if (in_array($key, MIKANBOX_AUDIT_SETTINGS_IGNORED, true) || !preg_match('/\A[A-Za-z0-9_]{1,40}\z/', (string)$key)) continue;
+            if (($previous[$key] ?? null) !== ($settings[$key] ?? null)) $changed[]=$key;
+        }
+        sort($changed);
+        if ($changed) {
+            $strip=fn($all)=>array_diff_key($all, array_flip(MIKANBOX_AUDIT_SETTINGS_IGNORED));
+            mikanBoxAudit('settings_changed',['target'=>substr(implode(',',$changed),0,200),'before'=>mikanBoxAuditHash($strip($previous)),'after'=>mikanBoxAuditHash($strip($settings))]);
+        }
+    }
     return $ok;
 }
 }
+/** What is stored for an item (null when it does not exist). */
+function mikanBoxAuditStored($dir, $id) {
+    return function_exists('mikanBoxLoadDataRaw') ? mikanBoxLoadDataRaw($dir, $id) : loadData($dir, $id);
+}
 if (!function_exists("saveData")) {
 function saveData($dir,$id,$data) {
-    $before=$dir===POSTS_DIR?loadData($dir,$id):null;
+    $kind=$dir===POSTS_DIR ? 'page' : ($dir===COMPONENTS_DIR ? 'component' : '');
+    $before=$kind!=='' ? mikanBoxAuditStored($dir,$id) : null;
     $ok=mikanBoxStorageSaveData($dir,$id,$data);
-    if ($ok && $dir===POSTS_DIR && ($before['status'] ?? '') !== ($data['status'] ?? '') && ($before !== null || in_array($data['status'] ?? '',['public_static','public_dynamic'],true))) mikanBoxAudit('page_status',['target'=>$id,'from'=>$before['status'] ?? '', 'to'=>$data['status'] ?? '']);
+    if (!$ok || $kind==='') return $ok;
+    $after=mikanBoxAuditStored($dir,$id);
+    $content=fn($d)=>is_array($d) ? array_diff_key($d, ['updated_at'=>1,'status'=>1]) : $d;
+    if ($before === null) {
+        mikanBoxAudit($kind.'_created',['target'=>$id,'after'=>mikanBoxAuditHash($after)] + ($kind==='page' ? ['to'=>(string)($data['status'] ?? '')] : []));
+        return $ok;
+    }
+    if ($kind==='page' && ($before['status'] ?? '') !== ($data['status'] ?? '')) mikanBoxAudit('page_status',['target'=>$id,'from'=>$before['status'] ?? '', 'to'=>$data['status'] ?? '']);
+    if ($content($before) !== $content($after)) mikanBoxAudit($kind.'_updated',['target'=>$id,'before'=>mikanBoxAuditHash($before),'after'=>mikanBoxAuditHash($after)]);
+    return $ok;
+}
+}
+if (!function_exists("deleteData")) {
+function deleteData($dir,$id) {
+    $kind=$dir===POSTS_DIR ? 'page' : ($dir===COMPONENTS_DIR ? 'component' : '');
+    $before=$kind!=='' ? mikanBoxAuditStored($dir,$id) : null;
+    $ok=mikanBoxStorageDeleteData($dir,$id);
+    if ($ok && $before !== null) mikanBoxAudit($kind.'_deleted',['target'=>$id,'before'=>mikanBoxAuditHash($before)]);
     return $ok;
 }
 }
