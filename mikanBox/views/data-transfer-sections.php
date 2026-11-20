@@ -30,6 +30,8 @@ $hasDatabase = function_exists('mikanBoxDownloadDatabase');
                         <?php if (mikanBoxTransferHasHistory()): ?>
                         <label class="transfer-field transfer-revisions"><input type="checkbox" name="include_revisions" value="1"> <?= htmlspecialchars(t('transfer_include_revisions')) ?></label>
                         <?php endif; ?>
+                        <label class="transfer-field transfer-match-filter" title="<?= htmlspecialchars(t('transfer_match_filter_hint')) ?>"><input type="checkbox" name="match_filter" value="1"> <?= htmlspecialchars(t('transfer_match_filter')) ?></label>
+                        <input type="hidden" name="filter_json" value="">
                         <button type="submit" class="btn btn-gray btn-small"><?= getIcon('download') ?> <?= htmlspecialchars(t('transfer_btn_export')) ?></button>
                     </div>
                 </form>
@@ -48,7 +50,7 @@ $hasDatabase = function_exists('mikanBoxDownloadDatabase');
                         <label><input type="radio" name="mode" value="replace"> <?= htmlspecialchars(t('transfer_mode_replace')) ?></label>
                     </fieldset>
                     <p class="sub-text"><?= htmlspecialchars(t('transfer_import_note')) ?></p>
-                    <button type="submit" class="btn btn-orange btn-small"><?= getIcon('upload') ?> <?= htmlspecialchars(t('transfer_btn_import')) ?></button>
+                    <button type="submit" class="btn btn-blue btn-small"><?= getIcon('upload') ?> <?= htmlspecialchars(t('transfer_btn_import')) ?></button>
                     <span data-transfer-status role="status"></span>
                 </form>
             </section>

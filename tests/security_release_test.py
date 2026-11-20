@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-auth-audit-') as td:
    if src.is_file() and (name=='index.php' or name.startswith('mikanBox/') or name.startswith('setup-token/')):
     dst=site/name;dst.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(src,dst)
   key=secrets.token_hex(24)
-  php(site,'saveSettings(["mcp_api_key"=>'+json.dumps(key)+',"memo"=>"SITE_PRIVATE_MARKER"]);saveData(POSTS_DIR,"private-audit",["title"=>"test","status"=>"draft","memo"=>"PAGE_PRIVATE_MARKER"]);saveData(COMPONENTS_DIR,"private-audit",["html"=>"test","memo"=>"COMPONENT_PRIVATE_MARKER"]);')
+  php(site,'saveSettings(["mcp_api_key"=>"sha256:".hash("sha256",'+json.dumps(key)+'),"memo"=>"SITE_PRIVATE_MARKER"]);saveData(POSTS_DIR,"private-audit",["title"=>"test","status"=>"draft","memo"=>"PAGE_PRIVATE_MARKER"]);saveData(COMPONENTS_DIR,"private-audit",["html"=>"test","memo"=>"COMPONENT_PRIVATE_MARKER"]);')
   with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
   url='http://127.0.0.1:'+str(port);admin=url+'/mikanBox/admin.php?view=site'
   with tempfile.TemporaryFile(mode='w+') as log:
@@ -40,7 +40,7 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-auth-audit-') as td:
      a.post(admin,{'login_action':'set_initial_password','new_password':password})
      # Setting the password while password_hash is empty retires a key left from before (2.21.3); issue one again.
      assert php(site,'echo empty(loadSettings()["mcp_api_key"]) ? "no" : "yes";') == 'no'
-     php(site,'$s=loadSettings();$s["mcp_api_key"]='+json.dumps(key)+';saveSettings($s);')
+     php(site,'$s=loadSettings();$s["mcp_api_key"]="sha256:".hash("sha256",'+json.dumps(key)+');saveSettings($s);')
      b.req(admin,{'login_action':'login','password':password})
      assert 'class="page-top-links"' in b.req(admin)[1]
      a.post(admin,{'save_action':'save_settings','current_password':password,'new_password':newpass})
@@ -62,7 +62,7 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-auth-audit-') as td:
      assert php(site,'echo empty(loadSettings()["mcp_api_key"]) ? "no" : "yes";') == 'no'
      status,out=Browser().req(url+'/mikanBox/mcp.php',{'jsonrpc':'2.0','id':1,'method':'tools/list'},{'Content-Type':'application/json','Authorization':'Bearer '+key})
      assert status in [401,403]
-     php(site,'$s=loadSettings();$s["mcp_api_key"]='+json.dumps(key)+';saveSettings($s);')
+     php(site,'$s=loadSettings();$s["mcp_api_key"]="sha256:".hash("sha256",'+json.dumps(key)+');saveSettings($s);')
      print('sqlite: recovery with no active devices revokes old key')
     for tool,args,marker in [('get_page',{'id':'private-audit'},'PAGE_PRIVATE_MARKER'),('get_component',{'id':'private-audit'},'COMPONENT_PRIVATE_MARKER'),('get_settings',{},'SITE_PRIVATE_MARKER')]:
      status,out=Browser().req(url+'/mikanBox/mcp.php',{'jsonrpc':'2.0','id':1,'method':'tools/call','params':{'name':tool,'arguments':args}},{'Content-Type':'application/json','Authorization':'Bearer '+key})

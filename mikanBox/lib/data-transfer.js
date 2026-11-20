@@ -197,4 +197,25 @@
       window.MikanUI?.toast(error.message, true);
     } finally { if (button) button.disabled = false; }
   }, true);
+
+  // "Match the filtered lists" (Save): what the lists on this screen show now. The pages and the media are
+  // filtered by the address (cat, q, fmt, q_media, media_type, media_all), the components by the rows the list
+  // still shows. The server applies the same rules (lib/data-transfer.php, src/data-transfer.ts).
+  window.MikanTransferFilter = () => {
+    const params = new URLSearchParams(window.location.search);
+    const rows = [...document.querySelectorAll('#design tr[data-component-id]')];
+    const hidden = rows.some(row => row.classList.contains('component-filter-hidden'));
+    return {
+      cat: params.get('cat') || '', q: params.get('q') || '', fmt: params.get('fmt') || '',
+      q_media: params.get('q_media') || '', media_type: params.get('media_type') || '', media_all: params.get('media_all') === '1',
+      components: hidden ? rows.filter(row => !row.classList.contains('component-filter-hidden')).map(row => row.dataset.componentId) : null,
+    };
+  };
+  // The PHP editions send the Save form as an ordinary POST: the filter goes in a hidden field.
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!form || !form.classList || !form.classList.contains('transfer-export-form') || form.dataset.transfer === 'export') return;
+    const box = form.querySelector('[name="match_filter"]'), field = form.querySelector('[name="filter_json"]');
+    if (field) field.value = box && box.checked ? JSON.stringify(window.MikanTransferFilter()) : '';
+  }, true);
 })();

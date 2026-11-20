@@ -876,7 +876,7 @@ function mikanBoxPageIsListed($pageData): bool {
 /** Markdown versions use absolute URLs, so they need a site URL. Only a relative export without one lacks it. */
 function mikanBoxMarkdownAvailable(array $settings): bool {
     $isRelativeExport = ($settings['ssg_mode'] ?? 'server') === 'export'
-        && ($settings['ssg_link_mode'] ?? 'absolute') === 'relative';
+        && ($settings['ssg_link_mode'] ?? 'relative') === 'relative';
     return !$isRelativeExport || trim((string)($settings['ssg_root_url'] ?? '')) !== '';
 }
 

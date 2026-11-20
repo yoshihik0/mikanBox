@@ -2082,7 +2082,7 @@ body.data-tool-open { overflow: hidden; }
 .audit-tabs>input:focus-visible~.audit-tab-labels{outline:2px solid currentColor}
 .audit-unusual>td{background:rgba(245,158,11,.16)}
 .audit-unusual>td:first-child{box-shadow:inset 3px 0 0 rgba(245,158,11,.9)}
-.integrity-box{font-size:.88em;padding:6px 2px}
+.integrity-box{font-size:.88em}
 .integrity-box .integrity-result{margin-top:8px}
 .integrity-box h4{margin:12px 0 4px;font-size:1em}
 .integrity-ok{color:#15803d}
@@ -2095,14 +2095,19 @@ body.data-tool-open { overflow: hidden; }
 .integrity-unusual{width:100%;border-collapse:collapse}
 .integrity-unusual td{padding:3px 8px;border-bottom:1px solid var(--border,#ddd)}
 
-/* Tables in the history and the MCP key list use the same size and spacing as the devices and users tables. */
-.mcp-key-table, .audit-panel table { width: 100%; min-width: 0; border-collapse: collapse; }
-.mcp-key-table th, .audit-panel th { border-bottom: 2px solid #e2e8f0; padding: 8px 4px; font-size: .8rem; color: #475569; text-align: left; }
-.mcp-key-table td, .audit-panel td { border-bottom: 1px solid #f1f5f9; padding: 8px 4px; font-size: .85rem; vertical-align: middle; }
-.mcp-key-table th:last-child { text-align: right; }
-.mcp-key-table td:last-child { text-align: right; }
-.mcp-key-table form { margin: 0; }
-.mcp-key-table .btn { padding: 3px 9px; font-size: .75rem; line-height: 1.4; border-bottom-width: 0; }
+/* The history table uses the size and spacing of the devices and users tables. */
+.audit-panel table { width: 100%; min-width: 0; border-collapse: collapse; }
+.audit-panel th { border-bottom: 2px solid #e2e8f0; padding: 8px 4px; font-size: .8rem; color: #475569; text-align: left; }
+.audit-panel td { border-bottom: 1px solid #f1f5f9; padding: 8px 4px; font-size: .85rem; vertical-align: middle; }
+
+/* Helper text under a heading or an input is quiet gray, like the version line. */
+.sub-text { color: var(--text-sub, #64748b); }
+
+/* SSG: the output folder and the structure sit on one line, controls the same height, no step between them. */
+#ssg-form .flex-row.items-end { align-items: flex-end; }
+#ssg-form .flex-row .form-group input[type="text"],
+#ssg-form .flex-row .form-group input[type="url"],
+#ssg-form .flex-row .form-group select { height: 38px; box-sizing: border-box; margin-bottom: 0; }
 
 /* The box around a section's content (memo, Cloudflare settings, ...) has no color of its own:
    the cards inside carry the white, so nothing white shows up in the gaps when scrolling. */

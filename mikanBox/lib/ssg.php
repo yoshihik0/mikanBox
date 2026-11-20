@@ -24,7 +24,7 @@ class MikanBoxSSG {
             'structure' => $settings['ssg_structure'] ?? 'directory',
             'selected_pages' => [],
             'output_mode' => $defaultOutputMode,
-            'link_mode' => $settings['ssg_link_mode'] ?? 'absolute',
+            'link_mode' => $settings['ssg_link_mode'] ?? 'relative',
             'copy_media' => $defaultOutputMode === 'export',
             'record_baseline' => true,   // false for a build into a temporary folder (a download), which is not the public site
         ], $options);
@@ -113,7 +113,7 @@ class MikanBoxSSG {
         $settings = $GLOBALS['mikanbox_settings'] ?? [];
         $markdownAvailable = mikanBoxMarkdownAvailable(array_merge($settings, [
             'ssg_mode' => $this->options['output_mode'] ?? 'server',
-            'ssg_link_mode' => $this->options['link_mode'] ?? 'absolute',
+            'ssg_link_mode' => $this->options['link_mode'] ?? 'relative',
             'ssg_root_url' => $this->renderer->getConfiguredSiteUrl(),
         ]));
 
@@ -130,7 +130,7 @@ class MikanBoxSSG {
         $dataHashes = [];
         foreach ($dataPages as $pageId) {
             $format = mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId));
-            $this->renderer->setStaticMode(true, substr_count($pageId, '/'), $this->options['structure'] ?? 'directory', $this->options['link_mode'] ?? 'absolute');
+            $this->renderer->setStaticMode(true, substr_count($pageId, '/'), $this->options['structure'] ?? 'directory', $this->options['link_mode'] ?? 'relative');
             $this->renderer->setDataHashes($dataHashes);
             $output = $this->renderer->renderData($pageId);
             if ($output === null) continue;
@@ -153,7 +153,7 @@ class MikanBoxSSG {
             if (mikanBoxFormatHasMarkdown($format)) {
                 if ($markdownAvailable) {
                     // Markdown versions use absolute URLs, so their depth does not matter.
-                    $this->renderer->setStaticMode(true, substr_count($pageId, '/'), $this->options['structure'] ?? 'directory', $this->options['link_mode'] ?? 'absolute');
+                    $this->renderer->setStaticMode(true, substr_count($pageId, '/'), $this->options['structure'] ?? 'directory', $this->options['link_mode'] ?? 'relative');
                     $markdown = $this->renderer->renderMarkdown($pageId);
                     if ($markdown !== null) $results[] = $this->writeOutputFile($this->outputDir . '/' . $pageId . '.md', $markdown);
                 } else {
@@ -174,7 +174,7 @@ class MikanBoxSSG {
                 true,
                 $depth,
                 $this->options['structure'] ?? 'directory',
-                $this->options['link_mode'] ?? 'absolute'
+                $this->options['link_mode'] ?? 'relative'
             );
             $html = $this->renderer->render($pageId);
 

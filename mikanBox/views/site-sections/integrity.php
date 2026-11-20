@@ -1,6 +1,6 @@
 <?php defined('MIKANBOX') or die(); ?>
     <div class="section-container section-tight">
-        <div class="integrity-box" id="integrity-box">
+        <div class="integrity-box panel-card" id="integrity-box">
             <form method="post" id="integrity-form" onsubmit="return false;">
                 <?= csrfField() ?>
                 <input type="hidden" name="save_action" value="integrity_check">

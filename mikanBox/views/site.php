@@ -45,7 +45,6 @@
     $updateBackup = mikanBoxGetUpdateBackup(DATA_DIR);
     if (!mikanBoxUpdateBackupMatchesVersion($updateBackup, $installedVersion)) $updateBackup = null;
     ?>
-<?php require __DIR__ . '/site-sections/integrity.php'; ?>
     <div class="section-container section-tight">
         <div id="version-row"<?= $latestVersion ? '' : ' data-failed="' . htmlspecialchars(t('version_latest') . ': ' . t('version_check_failed'), ENT_QUOTES) . '"' ?> style="font-size:0.82em; color:var(--text-sub,#888); padding:6px 2px; display:flex; gap:1.5em; align-items:center; flex-wrap:wrap;">
             <span><?= t('version_current') ?>: <?= htmlspecialchars($installedVersion) ?></span>
@@ -88,6 +87,9 @@
             <?php endif; ?>
         </div>
     </div>
+
+    <!-- Tamper check: under the version and update row -->
+<?php require __DIR__ . '/site-sections/integrity.php'; ?>
 
     <!-- SSG Build Section -->
 <?php require __DIR__ . '/site-sections/ssg.php'; ?>

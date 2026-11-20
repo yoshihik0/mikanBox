@@ -55,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.29.1</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.30.0</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -773,7 +773,7 @@ Records contain the time, action, actor, necessary target IDs, a masked IP addre
 
 Logs and MCP state live in the data directory's `security/` folder. `events.jsonl.php` contains a PHP access-denial guard followed by JSON Lines records. Apache access rules and the front controller also protect the data directory. Servers serving static files without passing them through PHP must deny web access to the entire data directory. Backups including that directory also contain activity records and must be stored securely. Changes made by editing server files directly, without the admin screen or MCP, are not in these records. Finding those is what “Check for tampering” below is for.
 
-“Check for tampering”, above the version display on the Site screen, looks for changes that are not in the history and shows the result under the button. It runs only when you press it, so page views are not affected. It checks three things.
+“Check for tampering”, under the version and update display on the Site screen, looks for changes that are not in the history and shows the result under the button. It runs only when you press it, so page views are not affected. It checks three things.
 
 - **Public files**: the text files the site generation wrote (HTML and so on) and the media js, css, svg and html files, against the fingerprints taken when mikanBox wrote them. It lists files that changed, unknown files that appeared, and files that disappeared. Images, audio and video are not checked.
 - **Program**: the official release of the installed version is fetched from GitHub and compared with the program files. When GitHub cannot be reached (for example on a local site), the state recorded on this server at the last update or acceptance is used instead, and the result says which was used. Files that an earlier version used and the current one no longer does are listed separately as “Files left from an earlier version”; the next update removes them (from v2.28.1).
@@ -825,6 +825,7 @@ Choose the contents and press "Download".
 | Database [SQLite and Cloud editions]{.type-badge .badge-sqlite} | The database file in the SQLite edition; the D1 SQL file in Cloud. Page history is included. |
 
 - **Include page history** (SQLite and Cloud): the history of each page (the last 10 entries) is saved too. It is off at first. The flat edition has no page history.
+- **Match the filtered lists** (from v2.30.0): when checked, the pages, components and media are each saved as the lists show them now, filtered as they are. Pages follow category, output format and search; media follow category, type and search; components follow the type filter and the search. A list that is not filtered is saved whole. The settings are always saved, and the database (SQL) is not affected. Off at first.
 - The file also holds what is not public, such as drafts and notes: keep it somewhere safe and do not share it.
 - Users, devices, passwords and the MCP API key are not included. Only the content settings (site name, description, categories and the like) are saved; the site ID and the publishing settings are not.
 - Inside the ZIP: `data/settings.json`, `data/posts/pageID.json`, `data/components/ID.json`, `data/revisions/pageID.json` (history) and `media/filename`. The layout is the same in all three editions, so the file can be read into a site of another edition.
@@ -1003,14 +1004,14 @@ The URL of this site's administration MCP. "Copy" puts it on the clipboard so yo
 
 #### API Key
 
-You can issue any number of named API keys (from v2.29.0; up to 20). Name each key after the AI tool or machine that will use it (for example “Claude Code on MacBook”). Issuing a separate key for each AI tool or machine shows in the history which key acted, and lets you revoke just the one that is a problem. You can set one key in several tools, but the history cannot tell them apart and revoking it stops them all.
+You can issue any number of named API keys (from v2.29.0; up to 20). Open “Add an API key”, and in “Key name (AI tool, machine name, etc.)” enter the name of the AI tool or machine that will use it (for example “Claude Code on MacBook”), then issue it. Issuing a separate key for each AI tool or machine shows in the history which key acted, and lets you revoke just the one that is a problem. You can set one key in several tools, but the history cannot tell them apart and revoking it stops them all.
 
 The API key is shown only once, when it is issued (from v2.28.0). The server keeps only the key's fingerprint (SHA-256), not the key itself, so a leaked settings file or backup does not reveal it. It cannot be shown again later: copy it right away and set it in the tool you connect. If you lose it, revoke that key and issue a new one. A key issued in v2.28.0 keeps working, as a single key without a name (a key from before v2.28.0, which was stored in plain text, no longer works from v2.29.1: issue a new one).
 
-Issued keys are listed with their name, issue date and last-use time.
+Issued keys are listed under “Issued API keys” with their name, issue date and last-use time. “Enable MCP” and its Save button form one box.
 
 - [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the just-issued API key to the clipboard. Paste the generated key into the settings of whatever tool you're connecting (e.g. `.mcp.json` for Claude Desktop).
-- [[auto_awesome]{.material-symbols-outlined}Issue key]{.m-btn .m-btn-blue} — Enter a “Name of the new key” and press it to issue a new key and show it in place. Other keys are not affected.
+- [[auto_awesome]{.material-symbols-outlined}Issue key]{.m-btn .m-btn-blue} — Enter a “Key name” and press it to issue a new key and show it in the “API key” field below it (the connection URL is in the same box). Other keys are not affected.
 - [Revoke]{.m-btn .m-btn-gray} — Revokes that key in the list. AI tools that use it can no longer connect. The other keys keep working.
 
 You can also avoid writing the key in plain text in a local file such as `.mcp.json`. On macOS, store it in the Keychain (`security add-generic-password -s mikanbox-mcp -a mcp -w 'KEY'`) and read it each time you connect. For example, with `mcp-remote`, set `command` to `sh` and `args` to `["-c", "exec npx mcp-remote@0.1.38 CONNECTION_URL --header \"Authorization:Bearer $(security find-generic-password -s mikanbox-mcp -w)\""]`.

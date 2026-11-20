@@ -33,7 +33,7 @@ $boxSummaryStyle = 'padding: 10px 15px; cursor: pointer; display: flex; align-it
 $boxBodyStyle = 'padding: 15px; border-top: 1px solid #e2e8f0; background: #fff; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;';
 ?>
     <!-- Devices and Users Section -->
-    <div id="users-mgmt" class="section-large-bottom">
+    <div id="users-mgmt">
         <div class="section-container section-tight">
             <details class="section-accordion"<?= $issued ? ' open' : '' ?>>
                 <summary class="header section-header accordion-summary">

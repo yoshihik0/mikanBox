@@ -45,8 +45,70 @@ function mikanBoxTransferMediaNames(): array {
     return $names;
 }
 
+/**
+ * The lists' filters as the browser read them (address: cat, q, fmt, q_media, media_type, media_all; and the
+ * component IDs the list still shows). Each kind is saved on its own filter; with none set, all of it.
+ * Returns null when the input is not usable.
+ */
+function mikanBoxTransferFilter($raw): ?array {
+    $input = is_string($raw) ? json_decode($raw, true) : $raw;
+    if (!is_array($input)) return null;
+    $text = fn($key) => is_string($input[$key] ?? null) ? trim($input[$key]) : '';
+    $components = null;
+    if (is_array($input['components'] ?? null)) {
+        $components = array_values(array_filter($input['components'], fn($id) => is_string($id) && $id !== ''));
+    }
+    return [
+        'cat' => $text('cat'), 'q' => $text('q'), 'fmt' => $text('fmt'),
+        'q_media' => $text('q_media'), 'media_type' => $text('media_type'), 'media_all' => !empty($input['media_all']),
+        'components' => $components,
+    ];
+}
+
+/** The page IDs the page list shows with these filters (null: no filter, all pages). */
+function mikanBoxTransferPageIds(?array $filter): ?array {
+    if ($filter === null || ($filter['cat'] === '' && $filter['q'] === '' && $filter['fmt'] === '')) return null;
+    $ids = getFileList(POSTS_DIR);
+    if ($filter['q'] !== '' && function_exists('searchPosts')) {
+        $found = array_column(searchPosts($filter['q'], true), 'id');
+        $ids = array_values(array_filter($ids, fn($id) => in_array($id, $found, true)));
+    }
+    return array_values(array_filter($ids, function ($id) use ($filter) {
+        $data = loadData(POSTS_DIR, $id);
+        if (!is_array($data)) return false;
+        if ($filter['fmt'] !== '') {
+            $format = mikanBoxPageOutputFormat($data);
+            if ($filter['fmt'] === 'data' ? !mikanBoxIsDataFormat($format) : $format !== $filter['fmt']) return false;
+        }
+        if ($filter['cat'] !== '') {
+            $cats = array_filter(array_map('trim', explode(',', (string)($data['category'] ?? ''))));
+            if (!in_array($filter['cat'], $cats, true)) return false;
+        }
+        return true;
+    }));
+}
+
+/** The media names the media list shows with these filters (null: no filter, all media). */
+function mikanBoxTransferMediaFilter(?array $filter, array $names): array {
+    if ($filter === null) return $names;
+    $category = $filter['media_all'] ? '' : $filter['cat'];
+    if ($category === '' && $filter['q_media'] === '' && $filter['media_type'] === '') return $names;
+    $types = ['image' => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'], 'audio' => ['mp3', 'm4a'], 'video' => ['mp4'], 'js' => ['js'], 'css' => ['css']];
+    return array_values(array_filter($names, function ($name) use ($filter, $category, $types) {
+        if ($filter['media_type'] !== '' && isset($types[$filter['media_type']])
+            && !in_array(strtolower(pathinfo($name, PATHINFO_EXTENSION)), $types[$filter['media_type']], true)) return false;
+        if ($filter['q_media'] !== '' && stripos($name, $filter['q_media']) === false) return false;
+        if ($category !== '' && !(mediaIsCodeAsset($name) || strpos($name, 'g_') === 0)) {
+            $parts = explode('_', $name);
+            array_pop($parts);
+            if (!in_array($category, $parts, true)) return false;
+        }
+        return true;
+    }));
+}
+
 /** Builds the ZIP (contents: both|data|media) in the data folder. Null when there is nothing to save or it fails. */
-function mikanBoxTransferBuildZip(string $contents, bool $withHistory): ?string {
+function mikanBoxTransferBuildZip(string $contents, bool $withHistory, ?array $filter = null): ?string {
     if (!in_array($contents, ['both', 'data', 'media'], true) || !class_exists('ZipArchive')) return null;
     $tmp = DATA_DIR . '/transfer_' . bin2hex(random_bytes(8)) . '.zip';
     $zip = new ZipArchive();
@@ -54,7 +116,8 @@ function mikanBoxTransferBuildZip(string $contents, bool $withHistory): ?string 
     $json = fn($value) => json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
     if ($contents !== 'media') {
         $zip->addFromString('data/settings.json', $json((object)mikanBoxTransferSettings(loadSettings())));
-        foreach (getFileList(POSTS_DIR) as $id) {
+        $pageIds = mikanBoxTransferPageIds($filter);
+        foreach ($pageIds ?? getFileList(POSTS_DIR) as $id) {
             $data = loadData(POSTS_DIR, $id);
             if (!is_array($data)) continue;
             $zip->addFromString('data/posts/' . $id . '.json', $json($data));
@@ -67,13 +130,15 @@ function mikanBoxTransferBuildZip(string $contents, bool $withHistory): ?string 
                 if ($items) $zip->addFromString('data/revisions/' . $id . '.json', $json($items));
             }
         }
-        foreach (getFileList(COMPONENTS_DIR) as $id) {
+        $componentIds = getFileList(COMPONENTS_DIR);
+        if ($filter !== null && $filter['components'] !== null) $componentIds = array_values(array_intersect($componentIds, $filter['components']));
+        foreach ($componentIds as $id) {
             $data = loadData(COMPONENTS_DIR, $id);
             if (is_array($data)) $zip->addFromString('data/components/' . $id . '.json', $json($data));
         }
     }
     if ($contents !== 'data') {
-        foreach (mikanBoxTransferMediaNames() as $name) $zip->addFile(MEDIA_DIR . '/' . $name, 'media/' . $name);
+        foreach (mikanBoxTransferMediaFilter($filter, mikanBoxTransferMediaNames()) as $name) $zip->addFile(MEDIA_DIR . '/' . $name, 'media/' . $name);
     }
     if ($zip->numFiles === 0) { $zip->close(); @unlink($tmp); return null; }   // nothing to save (no media yet)
     if (!$zip->close() || !is_file($tmp)) { @unlink($tmp); return null; }
@@ -81,8 +146,8 @@ function mikanBoxTransferBuildZip(string $contents, bool $withHistory): ?string 
 }
 
 /** Saves one ZIP and sends it. Returns only when there is nothing to send. */
-function mikanBoxTransferExport(string $contents, bool $withHistory): void {
-    $tmp = mikanBoxTransferBuildZip($contents, $withHistory);
+function mikanBoxTransferExport(string $contents, bool $withHistory, ?array $filter = null): void {
+    $tmp = mikanBoxTransferBuildZip($contents, $withHistory, $filter);
     if ($tmp === null) return;
     $label = ['both' => 'backup', 'data' => 'data', 'media' => 'media'][$contents];
     header('Content-Type: application/zip');
@@ -277,7 +342,8 @@ function mikanBoxTransferHandle(string $action): void {
     if ($action === 'transfer_export') {
         $contents = (string)($_POST['contents'] ?? 'both');
         if ($contents === 'database' && function_exists('mikanBoxDownloadDatabase')) mikanBoxDownloadDatabase();
-        mikanBoxTransferExport($contents, ($_POST['include_revisions'] ?? '') === '1');
+        $filter = ($_POST['match_filter'] ?? '') === '1' ? mikanBoxTransferFilter($_POST['filter_json'] ?? '') : null;   // "match the filtered lists"
+        mikanBoxTransferExport($contents, ($_POST['include_revisions'] ?? '') === '1', $filter);
         $_SESSION['admin_message'] = $contents === 'media' && !mikanBoxTransferMediaNames() ? t('transfer_nothing_to_save') : t('error_save_failed');
         header('Location: admin.php#backup');
         exit;

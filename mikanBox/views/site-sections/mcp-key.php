@@ -1,4 +1,8 @@
 <?php defined('MIKANBOX') or die();
+$boxStyle = 'margin-top: 15px; margin-bottom: 15px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fafafa;';
+$boxSummaryStyle = 'padding: 10px 15px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; border-bottom: none; background: transparent;';
+$boxBodyStyle = 'padding: 15px; border-top: 1px solid #e2e8f0; background: #fff; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;';
+$headingStyle = 'font-size: 0.95rem; margin: 18px 0 12px; color: var(--text); border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;';
 $mcpKeys = mikanBoxMcpKeyList($settings);   // fingerprints only: a key is never shown again after it is issued
 ?>
     <div id="mcp-api-key">
@@ -10,70 +14,88 @@ $mcpKeys = mikanBoxMcpKeyList($settings);   // fingerprints only: a key is never
                     </h2>
                 </summary>
                 <div class="editor-container editor-container-sub">
-                <div class="panel-card">
                     <small class="sub-text sub-text-intro"><?= t('mcp_key_hint') ?></small>
-                    <form method="post" class="mt-10" data-ajax>
-                        <?= csrfField() ?><input type="hidden" name="save_action" value="set_mcp_enabled">
-                        <label><input type="checkbox" name="mcp_enabled" value="1" <?= mikanBoxMcpEnabled() ? 'checked' : '' ?>> <?= t('mcp_enable_label') ?></label>
-                        <button type="submit" class="btn btn-gray btn-small"><?= t('btn_save') ?></button>
-                    </form>
-                    <form method="post" class="mt-10" id="mcp-key-generate" data-ajax data-refresh="#mcp-key-list">
-                        <?= csrfField() ?>
-                        <input type="hidden" name="save_action" value="generate_mcp_key">
-                        <div class="form-group">
-                            <label for="mcp-key-name"><?= t('mcp_key_name_label') ?></label>
-                            <small class="sub-text sub-text-block"><?= t('mcp_key_split_hint') ?></small>
-                            <input type="text" id="mcp-key-name" name="mcp_key_name" maxlength="<?= MIKANBOX_MCP_KEY_NAME_MAX ?>" autocomplete="off" style="max-width:300px;">
-                        </div>
-                        <button type="submit" class="btn btn-blue btn-small"><?= getIcon('sparkles') ?> <?= t('btn_generate_mcp_key') ?></button>
-                    </form>
-                    <?php
-                          // The admin MCP endpoint sits beside admin.php: {site URL}/{admin folder}/mcp
-                          $mcpHttps = !empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off';
-                          $mcpUrl = ($mcpHttps ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
-                                  . rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/mikanBox/admin.php')), '/') . '/mcp'; ?>
-                    <div class="form-group mt-10">
-                        <label for="mcp-url-display"><?= t('mcp_url_label') ?></label>
-                        <div class="copy-row">
-                            <input type="text" id="mcp-url-display" value="<?= htmlspecialchars($mcpUrl) ?>" readonly>
-                            <button type="button" class="btn btn-gray btn-small" onclick="navigator.clipboard.writeText(document.getElementById('mcp-url-display').value).then(()=>showToast('<?= t('msg_copied') ?>'))"><?= getIcon('copy') ?> <?= t('btn_copy') ?></button>
-                        </div>
+                    <div class="panel-card">
+                        <form method="post" data-ajax>
+                            <?= csrfField() ?><input type="hidden" name="save_action" value="set_mcp_enabled">
+                            <label><input type="checkbox" name="mcp_enabled" value="1" <?= mikanBoxMcpEnabled() ? 'checked' : '' ?>> <?= t('mcp_enable_label') ?></label>
+                            <button type="submit" class="btn btn-gray btn-small"><?= t('btn_save') ?></button>
+                        </form>
                     </div>
-                    <?php // The new key appears here, once, in place: reloading would collapse this accordion and hide it. ?>
-                    <div id="mcp-key-issued" class="form-group mt-10">
-                        <label for="mcp-key-display"><?= t('mcp_key_label') ?></label>
-                        <div class="copy-row">
-                            <input type="text" id="mcp-key-display" value="" placeholder="<?= htmlspecialchars(t('mcp_key_issued_placeholder'), ENT_QUOTES, 'UTF-8') ?>" readonly>
-                            <button type="button" class="btn btn-gray btn-small" onclick="navigator.clipboard.writeText(document.getElementById('mcp-key-display').value).then(()=>showToast('<?= t('msg_copied') ?>'))"><?= getIcon('copy') ?> <?= t('btn_copy') ?></button>
+
+                    <!-- Add a key: the same box as "Add a device" -->
+                    <details class="section-accordion" style="<?= $boxStyle ?>">
+                        <summary class="header section-header accordion-summary" style="<?= $boxSummaryStyle ?>">
+                            <h3 style="font-size: 0.95rem; margin: 0; color: var(--text); display: inline-flex; align-items: center; gap: 8px; pointer-events: none;">
+                                <?= getIcon('add') ?> <?= t('mcp_key_add_summary') ?>
+                            </h3>
+                            <span class="accordion-arrow" style="font-size: 0.75rem; opacity: 0.5;">▼</span>
+                        </summary>
+                        <div style="<?= $boxBodyStyle ?>">
+                            <form method="post" id="mcp-key-generate" data-ajax data-refresh="#mcp-key-list">
+                                <?= csrfField() ?>
+                                <input type="hidden" name="save_action" value="generate_mcp_key">
+                                <div class="form-group">
+                                    <label for="mcp-key-name"><?= t('mcp_key_name_label') ?></label>
+                                    <input type="text" id="mcp-key-name" name="mcp_key_name" maxlength="<?= MIKANBOX_MCP_KEY_NAME_MAX ?>" autocomplete="off" style="max-width:300px;">
+                                </div>
+                                <button type="submit" class="btn btn-blue btn-small"><?= getIcon('sparkles') ?> <?= t('btn_generate_mcp_key') ?></button>
+                            </form>
+                            <?php
+                                  // The admin MCP endpoint sits beside admin.php: {site URL}/{admin folder}/mcp
+                                  $mcpHttps = !empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off';
+                                  $mcpUrl = ($mcpHttps ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
+                                          . rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/mikanBox/admin.php')), '/') . '/mcp'; ?>
+                            <div class="form-group mt-10">
+                                <label for="mcp-url-display"><?= t('mcp_url_label') ?></label>
+                                <div class="copy-row">
+                                    <input type="text" id="mcp-url-display" value="<?= htmlspecialchars($mcpUrl) ?>" readonly>
+                                    <button type="button" class="btn btn-gray btn-small" onclick="navigator.clipboard.writeText(document.getElementById('mcp-url-display').value).then(()=>showToast('<?= t('msg_copied') ?>'))"><?= getIcon('copy') ?> <?= t('btn_copy') ?></button>
+                                </div>
+                            </div>
+                            <?php // The new key appears here, once, in place: reloading would collapse this accordion and hide it. ?>
+                            <div id="mcp-key-issued" class="form-group mt-10">
+                                <label for="mcp-key-display"><?= t('mcp_key_label') ?></label>
+                                <div class="copy-row">
+                                    <input type="text" id="mcp-key-display" value="" placeholder="<?= htmlspecialchars(t('mcp_key_issued_placeholder'), ENT_QUOTES, 'UTF-8') ?>" readonly>
+                                    <button type="button" class="btn btn-gray btn-small" onclick="navigator.clipboard.writeText(document.getElementById('mcp-key-display').value).then(()=>showToast('<?= t('msg_copied') ?>'))"><?= getIcon('copy') ?> <?= t('btn_copy') ?></button>
+                                </div>
+                                <small class="sub-text" id="mcp-key-once" style="display:none;"><?= t('mcp_key_once_note') ?></small>
+                            </div>
                         </div>
-                        <small class="sub-text" id="mcp-key-once" style="display:none;"><?= t('mcp_key_once_note') ?></small>
-                    </div>
-                    <div id="mcp-key-list" class="mt-10">
+                    </details>
+
+                    <div id="mcp-key-list">
+                        <h3 style="<?= $headingStyle ?>"><?= t('mcp_key_list_title') ?></h3>
                         <?php if (!$mcpKeys): ?>
                             <p class="sub-text"><?= t('mcp_key_none') ?></p>
                         <?php else: ?>
-                            <table class="mcp-key-table">
-                                <thead><tr><th><?= t('mcp_key_col_name') ?></th><th><?= t('mcp_key_col_created') ?></th><th><?= t('mcp_key_col_last_used') ?></th><th></th></tr></thead>
-                                <tbody>
-                                <?php foreach ($mcpKeys as $mcpKey):
-                                    $mcpUsedAt = mikanBoxMcpLastUsed($mcpKey['id']);
-                                    $mcpKeyName = $mcpKey['name'] !== '' ? $mcpKey['name'] : t('mcp_key_unnamed'); ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($mcpKeyName, ENT_QUOTES, 'UTF-8') ?></td>
-                                        <td><?= $mcpKey['created'] ? htmlspecialchars(gmdate('Y-m-d', $mcpKey['created']), ENT_QUOTES, 'UTF-8') : '—' ?></td>
-                                        <td><?= $mcpUsedAt ? htmlspecialchars(gmdate('Y-m-d H:i', $mcpUsedAt) . ' UTC', ENT_QUOTES, 'UTF-8') : t('mcp_never_used') ?></td>
-                                        <td>
-                                            <form method="post" data-ajax data-refresh="#mcp-key-list" data-confirm="<?= htmlspecialchars(t('mcp_key_revoke_confirm', $mcpKeyName), ENT_QUOTES, 'UTF-8') ?>">
-                                                <?= csrfField() ?>
-                                                <input type="hidden" name="save_action" value="revoke_mcp_key">
-                                                <input type="hidden" name="mcp_key_id" value="<?= htmlspecialchars($mcpKey['id'], ENT_QUOTES, 'UTF-8') ?>">
-                                                <button type="submit" class="btn btn-gray btn-small"><?= t('btn_revoke_mcp_key') ?></button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                                </tbody>
-                            </table>
+                            <div class="account-user">
+                                <div class="account-table-wrap">
+                                    <table class="account-table">
+                                        <thead><tr><th><?= t('mcp_key_col_name') ?></th><th><?= t('mcp_key_col_created') ?></th><th><?= t('mcp_key_col_last_used') ?></th><th></th></tr></thead>
+                                        <tbody>
+                                        <?php foreach ($mcpKeys as $mcpKey):
+                                            $mcpUsedAt = mikanBoxMcpLastUsed($mcpKey['id']);
+                                            $mcpKeyName = $mcpKey['name'] !== '' ? $mcpKey['name'] : t('mcp_key_unnamed'); ?>
+                                            <tr>
+                                                <td><?= htmlspecialchars($mcpKeyName, ENT_QUOTES, 'UTF-8') ?></td>
+                                                <td><?= $mcpKey['created'] ? htmlspecialchars(gmdate('Y-m-d', $mcpKey['created']), ENT_QUOTES, 'UTF-8') : '—' ?></td>
+                                                <td><?= $mcpUsedAt ? htmlspecialchars(gmdate('Y-m-d H:i', $mcpUsedAt) . ' UTC', ENT_QUOTES, 'UTF-8') : t('mcp_never_used') ?></td>
+                                                <td class="account-actions">
+                                                    <form method="post" data-ajax data-refresh="#mcp-key-list" data-confirm="<?= htmlspecialchars(t('mcp_key_revoke_confirm', $mcpKeyName), ENT_QUOTES, 'UTF-8') ?>">
+                                                        <?= csrfField() ?>
+                                                        <input type="hidden" name="save_action" value="revoke_mcp_key">
+                                                        <input type="hidden" name="mcp_key_id" value="<?= htmlspecialchars($mcpKey['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                                        <button type="submit" class="btn btn-gray btn-small"><?= t('btn_revoke_mcp_key') ?></button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         <?php endif; ?>
                     </div>
                     <script>
@@ -90,7 +112,6 @@ $mcpKeys = mikanBoxMcpKeyList($settings);   // fingerprints only: a key is never
                         });
                     })();
                     </script>
-                </div>
                 </div>
             </details>
         </div>
