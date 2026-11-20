@@ -84,8 +84,8 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-security-controls-') as tempor
                 check(any(row['ip']=='192.0.2.0/24' for row in rows),'IPv4 masked')
                 check(any(row['event']=='page_status' for row in rows),'publication state audited')
                 rendered=request(admin)[1];check('&lt;script&gt;audit&lt;/script&gt;' in rendered,'audit UI escapes stored actor')
-                php(site,'for($i=0;$i<7500;$i++)mikanBoxAudit("login_failed");')
-                check((site/'mikanData/security/events.jsonl.php').stat().st_size<=1048576,'log size bounded')
+                php(site,'for($i=0;$i<120;$i++)mikanBoxAudit("login_failed");')
+                check(len((site/'mikanData/security/events.jsonl.php').read_text().splitlines())==51,'only the latest 50 events are stored')
                 count=int(php(site,'echo count(mikanBoxAuditRecent());'));check(count==50,'latest 50 events retained')
                 event_path=site/'mikanData/security/events.jsonl.php';saved_log=event_path.with_name('saved-events.php');event_path.rename(saved_log);event_path.mkdir()
                 try:

@@ -8,6 +8,7 @@
                     </h2>
                 </summary>
                 <div class="editor-container editor-container-sub">
+                <div class="panel-card">
                     <form method="post" id="ssg-form">
                         <input type="hidden" name="save_action" value="ssg_build">
                         <?= csrfField() ?>
@@ -27,7 +28,6 @@
                         <input type="hidden" name="ssg_server_structure" value="<?= htmlspecialchars($ssgServerStructure, ENT_QUOTES) ?>">
                         <input type="hidden" name="ssg_export_structure" value="<?= htmlspecialchars($ssgExportStructure, ENT_QUOTES) ?>">
                         <div class="form-group">
-                            <label class="sub-label"><?= t('label_ssg_mode') ?></label>
                             <label style="display:block; margin:6px 0;">
                                 <input type="radio" name="ssg_mode" value="server" <?= $ssgMode === 'server' ? 'checked' : '' ?>>
                                 <?= t('label_ssg_mode_server') ?>
@@ -72,7 +72,6 @@
                         <div class="flex-row gap-10" style="margin-top:15px;">
                             <button type="submit" name="save_action" value="ssg_build" class="btn btn-blue"><?= getIcon('sparkles') ?> <?= t('btn_ssg_save_build') ?></button>
                         </div>
-                        <small class="sub-text sub-text-hint"><?= t('ssg_hint') ?></small>
                     </form>
                     <script>
                     (() => {
@@ -156,6 +155,7 @@
                         refresh();
                     })();
                     </script>
+                </div>
                 </div>
             </details>
         </div>

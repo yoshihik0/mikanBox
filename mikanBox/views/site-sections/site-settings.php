@@ -15,6 +15,7 @@ $siteEnvironment = (string)($settings['site_environment'] ?? 'unspecified');
                     </h2>
                 </summary>
                 <div class="editor-container editor-container-sub">
+                <div class="panel-card">
                     <form method="post" class="site-settings-form">
                         <input type="hidden" name="save_action" value="save_settings">
                         <?= csrfField() ?>
@@ -119,6 +120,7 @@ $siteEnvironment = (string)($settings['site_environment'] ?? 'unspecified');
                         </div>
                         <button type="submit" class="btn btn-blue mt-10"><?= getIcon('save') ?> <?= t('btn_save') ?></button>
                     </form>
+                </div>
                 </div>
             </details>
         </div>

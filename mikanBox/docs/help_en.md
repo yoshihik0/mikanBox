@@ -55,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.25.0</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.25.1</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -809,9 +809,9 @@ The current key's last successful HTTP authentication is shown in UTC. Its times
 
 ### Security activity (PHP editions) {#site-audit}
 
-“Recent security activity” on the Site screen shows the latest 50 events. Both PHP editions record MCP key issuance/regeneration, enabling/disabling MCP, page publication-state changes, and failed sign-ins. SQLite also records device registration/stopping, enrollment/invitation code issuance, user deletion, recovery and account reset. The flat edition records "Recovery" when setting the password again retires the MCP API key. Successful program rollbacks are recorded too.
+“Recent security activity” on the Site screen shows the latest 50 events, and only those 50 are kept. Both PHP editions record MCP key issuance/regeneration, enabling/disabling MCP, page publication-state changes, and failed sign-ins. SQLite also records device registration/stopping, enrollment/invitation code issuance, user deletion, recovery and account reset. The flat edition records "Recovery" when setting the password again retires the MCP API key. Successful program rollbacks are recorded too.
 
-Records contain the time, action, actor, necessary target IDs, and a masked IP address. Keys, tokens, codes, passwords, content and full IP addresses are excluded. The final IPv4 octet is masked; IPv6 addresses retain only their first 48 bits. Oldest records are removed above approximately 1 MB. Recording failures are shown in the admin screen without treating a successful operation as failed.
+Records contain the time, action, actor, necessary target IDs, and a masked IP address. Keys, tokens, codes, passwords, content and full IP addresses are excluded. The final IPv4 octet is masked; IPv6 addresses retain only their first 48 bits. From the 51st on, the oldest records are removed. Recording failures are shown in the admin screen without treating a successful operation as failed.
 
 Logs and MCP state live in the data directory's `security/` folder. `events.jsonl.php` contains a PHP access-denial guard followed by JSON Lines records. Apache access rules and the front controller also protect the data directory. Servers serving static files without passing them through PHP must deny web access to the entire data directory. Backups including that directory also contain activity records and must be stored securely. These records do not detect tampering by someone able to modify server files.
 
@@ -871,16 +871,16 @@ Files you can choose:
 - A WordPress XML export (Tools > Export). Posts and pages are read; published posts become public, pending ones pending, and the rest drafts. The HTML is converted to basic Markdown.
 - Media files
 
-Choose what happens when the same item exists:
+Choose what happens when data with the same ID exists:
 
 | Choice | What happens |
 |---|---|
 | Do not overwrite (add only what is missing) | Only what the site does not have is added. Pages and components with the same ID and media with the same name are skipped. Settings are not read. This is the default. |
-| Overwrite items with the same ID | Items with the same ID or name are replaced by the file's. What the file does not have stays. The previous content of a page is kept in its history (SQLite and Cloud). |
+| Overwrite | Items with the same ID or name are replaced by the file's. What the file does not have stays. The previous content of a page is kept in its history (SQLite and Cloud). |
 | Replace everything (what the file lacks is deleted) | The site becomes the file's contents; what the file does not have is deleted. You are asked before it runs. |
 
 - Only the kinds the file holds (pages, components, media) change. Replacing with a file of pages only leaves the components and media as they are.
-- Settings are read only when overwriting or replacing. Users, devices, the site ID and the MCP API key stay as they are.
+- When overwriting or replacing everything, settings such as the site settings are also read and overwritten. Users, devices, the site ID and the MCP API key stay as they are.
 - When replacing, the page history also becomes the file's; a file saved without history leaves the history empty.
 - IDs that a new page or component could not have (such as a page ID starting with a reserved folder name) are not read and are listed in the result.
 - Media are checked as on upload (name and type); SVG files are cleaned of scripts as on upload. A single file larger than the server's upload limit cannot be read and is listed in the result.
@@ -889,9 +889,9 @@ Choose what happens when the same item exists:
 
 #### Export the public site {#site-export}
 
-Downloads the public site as it is now, as a ZIP. In the PHP editions, pages published dynamically are included as files too.
+Downloads the current public site as a single ZIP file. In the PHP editions, pages published dynamically are included as files too.
 
-- **Use relative paths**: links between pages and to images are written from each file's own position, so they keep working when the site moves to another address or folder. The PHP editions write pages as `pageID.html`.
+- **Convert to relative paths**: links between pages and to images are written from each file's own position, so they keep working when the site moves to another address or folder. The PHP editions write pages as `pageID.html`.
 - Without it, links start with the site's address.
 - Server files such as `.htaccess` are not included.
 

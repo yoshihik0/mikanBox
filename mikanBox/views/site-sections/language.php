@@ -8,6 +8,7 @@
                     </h2>
                 </summary>
                 <div class="editor-container editor-container-sub">
+                <div class="panel-card">
                     <form method="post">
                         <input type="hidden" name="save_action" value="save_settings">
                         <?= csrfField() ?>
@@ -20,6 +21,7 @@
                         </div>
                         <button type="submit" class="btn btn-blue btn-small"><?= getIcon('save') ?> <?= t('btn_save') ?></button>
                     </form>
+                </div>
                 </div>
             </details>
         </div>

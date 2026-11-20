@@ -8,6 +8,7 @@
                     </h2>
                 </summary>
                 <div class="editor-container editor-container-sub">
+                <div class="panel-card">
                     <small class="sub-text sub-text-intro"><?= t('csv_hint') ?></small>
                     <div class="mt-10">
                         <input type="file" id="csv-file-input" accept=".csv,text/csv">
@@ -15,6 +16,7 @@
                     <div class="mt-10">
                         <button type="button" class="btn btn-gray btn-small" onclick="csvConvertAndCopy()" id="csv-copy-btn"><?= getIcon('copy') ?> <?= t('btn_csv_convert') ?></button>
                     </div>
+                </div>
                 </div>
             </details>
         </div>

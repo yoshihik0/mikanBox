@@ -280,6 +280,7 @@ function mikanBoxMaskedIp(): string {
     if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) return inet_ntop(substr(inet_pton($ip), 0, 6) . str_repeat("\0", 10)) . '/48';
     return '';
 }
+if (!defined('MIKANBOX_AUDIT_KEEP')) define('MIKANBOX_AUDIT_KEEP', 50);
 function mikanBoxAudit(string $event, array $details = []): void {
     $events = ['mcp_enabled','mcp_disabled','mcp_key_issued','mcp_key_rotated','page_status','login_failed','device_registered','device_revoked','code_issued','invite_issued','recovery','accounts_reset','user_deleted','system_restored'];
     if (!in_array($event, $events, true)) return;
@@ -287,16 +288,18 @@ function mikanBoxAudit(string $event, array $details = []): void {
     $entry = ['at'=>gmdate('c'), 'event'=>$event, 'actor'=>substr((string)$actor,0,80), 'ip'=>mikanBoxMaskedIp()];
     foreach (['target','from','to'] as $key) if (isset($details[$key]) && is_string($details[$key]) && preg_match('/\A[A-Za-z0-9_\/.:-]{0,200}\z/', $details[$key])) $entry[$key]=$details[$key];
     $ok = mikanBoxSecurityLocked(function($dir) use ($entry) {
-        $path=$dir.'/events.jsonl.php'; $limit=1048576;
-        $line=json_encode($entry,JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE)."\n";
+        // Only the latest MIKANBOX_AUDIT_KEEP events are kept: the same number the site screen shows.
+        $path=$dir.'/events.jsonl.php';
+        $line=json_encode($entry,JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE);
         clearstatcache(true,$path);
-        if (!is_file($path) && @file_put_contents($path,MIKANBOX_SECURITY_GUARD,LOCK_EX)===false) return false;
-        if (filesize($path)+strlen($line)>$limit) {
-            $handle=@fopen($path,'rb'); if (!$handle) return false;
-            fseek($handle,-min(filesize($path),intdiv($limit,2)),SEEK_END);
-            fgets($handle); $content=stream_get_contents($handle); fclose($handle);
-            $ok=@file_put_contents($path,MIKANBOX_SECURITY_GUARD.$content.$line,LOCK_EX)!==false;
-        } else $ok=@file_put_contents($path,$line,FILE_APPEND|LOCK_EX)!==false;
+        $lines=[];
+        if (is_file($path)) {
+            $content=@file_get_contents($path); if ($content===false) return false;
+            $lines=array_values(array_filter(array_slice(explode("\n",$content),1),fn($l)=>trim($l)!==''));
+        }
+        $lines[]=$line;
+        $lines=array_slice($lines,-MIKANBOX_AUDIT_KEEP);
+        $ok=@file_put_contents($path,MIKANBOX_SECURITY_GUARD.implode("\n",$lines)."\n",LOCK_EX)!==false;
         @chmod($path,0600); return $ok;
     });
     $GLOBALS['mikanbox_audit_unavailable']=$ok !== true;
@@ -309,10 +312,9 @@ function mikanBoxAuditRecent(): array {
     $rows=mikanBoxSecurityLocked(function($dir) {
         $path=$dir.'/events.jsonl.php'; if (!is_file($path)) return [];
         $f=@fopen($path,'rb'); if (!$f) return [];
-        if (filesize($path)>1048576) fseek($f,-1048576,SEEK_END);
-        fgets($f); // PHP access-denial guard, or a partial line after seeking
-        $lines=explode("\n",stream_get_contents($f));fclose($f);
-        return array_reverse(array_values(array_filter(array_map(fn($line)=>json_decode($line,true),array_slice($lines,-51)),fn($row)=>is_array($row)&&isset($row['event'],$row['at']))));
+        fgets($f); // PHP access-denial guard
+        $lines=array_values(array_filter(explode("\n",stream_get_contents($f)),fn($l)=>trim($l)!==''));fclose($f);
+        return array_reverse(array_values(array_filter(array_map(fn($line)=>json_decode($line,true),array_slice($lines,-MIKANBOX_AUDIT_KEEP)),fn($row)=>is_array($row)&&isset($row['event'],$row['at']))));
     });
     return is_array($rows) ? $rows : [];
 }
