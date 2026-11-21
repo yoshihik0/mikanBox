@@ -13,21 +13,20 @@
                 $pageFormatFilter = (string)($_GET['fmt'] ?? '');
                 if (!in_array($pageFormatFilter, ['', 'html', 'html_md', 'md', 'data', 'db'], true)) $pageFormatFilter = '';
                 ?><span class="component-filter-control"><select class="select-auto list-filter-select" id="page-format-filter" aria-label="<?= t('label_output_format') ?>"><?php foreach (['' => t('page_format_filter_all'), 'html' => t('output_format_html'), 'html_md' => t('output_format_html_md'), 'md' => t('output_format_md'), 'data' => t('output_format_data_group'), 'db' => t('output_format_db')] as $_fmtValue => $_fmtLabel): ?><option value="<?= $_fmtValue ?>" <?= $pageFormatFilter === $_fmtValue ? 'selected' : '' ?>><?= htmlspecialchars($_fmtLabel) ?></option><?php endforeach; ?></select></span><?php
+                $searchQuery = is_string($_GET['q'] ?? null) ? trim($_GET['q']) : '';
                 $pageSort = (string)($_GET['sort'] ?? '');
                 if (!in_array($pageSort, ['', 'updated_desc', 'updated_asc', 'id', 'title'], true)) $pageSort = '';
                 ?><span class="component-filter-control"><select class="select-auto list-filter-select" id="page-sort-order" aria-label="<?= t('page_sort_label') ?>" title="<?= htmlspecialchars(t('page_sort_hint')) ?>"><?php foreach (['' => t('page_sort_display'), 'updated_desc' => t('page_sort_updated_desc'), 'updated_asc' => t('page_sort_updated_asc'), 'id' => t('page_sort_id'), 'title' => t('page_sort_title')] as $_sortValue => $_sortLabel): ?><option value="<?= $_sortValue ?>" <?= $pageSort === $_sortValue ? 'selected' : '' ?>><?= htmlspecialchars($_sortLabel) ?></option><?php endforeach; ?></select></span>
             </h1>
 
-            <?php if (function_exists('searchPosts')): ?>
             <!-- Admin page search: live (AJAX), the browser's own clear button only -->
             <form method="get" action="admin.php#pages" class="search-bar-wrap" role="search">
                 <input type="hidden" name="view" value="pages"><input type="hidden" name="cat" value="<?= htmlspecialchars($selectedCat ?? '') ?>"><input type="hidden" name="fmt" value="<?= htmlspecialchars($pageFormatFilter) ?>"><input type="hidden" name="sort" value="<?= htmlspecialchars($pageSort) ?>">
                 <div class="admin-search">
-                    <input type="search" name="q" id="admin-page-search" class="admin-search-input" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>" placeholder="<?= t('search_placeholder') ?>" aria-label="<?= t('search_placeholder') ?>">
+                    <input type="search" name="q" id="admin-page-search" class="admin-search-input" value="<?= htmlspecialchars($searchQuery) ?>" placeholder="<?= t('search_placeholder') ?>" aria-label="<?= t('search_placeholder') ?>">
                     <span id="admin-page-search-icon" class="admin-search-icon"><?= getIcon('search') ?></span>
                 </div>
             </form>
-            <?php endif; ?>
         </div>
 
         <div class="table-responsive" id="pages-table-wrap">
@@ -43,27 +42,22 @@
                 $pageDataAll[] = ['id' => $pid, 'data' => $d];
             }
             
-            // Search Filtering
-            $searchQuery = $_GET['q'] ?? '';
-            if (function_exists('searchPosts') && $searchQuery !== '') {
-                $searchResults = searchPosts($searchQuery, true); // true = admin search
-                $searchIds = array_column($searchResults, 'id');
-                $pageDataAll = array_filter($pageDataAll, function($p) use ($searchIds) {
-                    return in_array($p['id'], $searchIds);
-                });
+            if ($searchQuery !== '') {
+                $pageDataAll = array_filter($pageDataAll, fn($p) => mikanBoxAdminPageMatches($p['id'], $p['data'] ?? [], $searchQuery));
             }
 
-            // Order. Default ("display order") = the order of the lists on the public side:
-            // display order, then newest update first, then ID; pending pages (SQLite) come first.
-            // The other orders are exactly that order; index always stays first.
-            $isPendingPage = fn($p) => function_exists('getPreviewToken') && (($p['data']['status'] ?? 'draft') === 'pending');
+            // Only the default order gives index and pending pages priority.
+            $isPendingPage = fn($p) => ($p['data']['status'] ?? 'draft') === 'pending';
             $updatedTs = fn($p) => (int)strtotime((string)($p['data']['updated_at'] ?? '')) ?: 0;
             $collator = class_exists('Collator') ? new Collator('ja') : null;
-            $titleKey = fn($p) => (string)(($p['data']['title'] ?? '') !== '' ? $p['data']['title'] : $p['id']);
+            $titleKey = function ($p) {
+                $title = trim((string)($p['data']['title'] ?? ''));
+                return $title !== '' ? $title : $p['id'];
+            };
             usort($pageDataAll, function($a, $b) use ($pageSort, $isPendingPage, $updatedTs, $collator, $titleKey) {
-                if ($a['id'] === 'index' && $b['id'] !== 'index') return -1;
-                if ($b['id'] === 'index' && $a['id'] !== 'index') return 1;
                 if ($pageSort === '') {
+                    if ($a['id'] === 'index' && $b['id'] !== 'index') return -1;
+                    if ($b['id'] === 'index' && $a['id'] !== 'index') return 1;
                     $pa = $isPendingPage($a); $pb = $isPendingPage($b);
                     if ($pa !== $pb) return $pa ? -1 : 1;
                     $sa = (int)($a['data']['sort_order'] ?? 0);
@@ -239,6 +233,28 @@
         if (hidden) hidden.value = sortSelect.value;
         if (typeof refreshPageList === 'function') refreshPageList(); else window.location.assign(url.href);
     });
+    const search = document.getElementById('admin-page-search');
+    if (search) {
+        let timer;
+        function searchPages() {
+            clearTimeout(timer);
+            const url = new URL(window.location.href);
+            const keyword = search.value.trim();
+            if (keyword) url.searchParams.set('q', keyword); else url.searchParams.delete('q');
+            url.searchParams.delete('p_pages');
+            url.searchParams.set('view', 'pages');
+            history.replaceState(null, '', url.pathname + url.search + url.hash);
+            if (typeof refreshPageList === 'function') refreshPageList(); else window.location.assign(url.href);
+        }
+        search.addEventListener('input', function () {
+            clearTimeout(timer);
+            timer = setTimeout(searchPages, 250);
+        });
+        search.form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            searchPages();
+        });
+    }
     if (!filter) return;
     filter.addEventListener('change', function () {
         const url = new URL(window.location.href);

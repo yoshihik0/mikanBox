@@ -459,6 +459,9 @@ class MikanBoxSSG {
             return false;
         }
         $ok = @unlink($file);
+        if (!$ok && (is_file($file) || is_link($file))) {
+            $this->refused[] = 'Error: Could not remove ' . $this->displayPath($file);
+        }
         if ($ok && ($relative = $this->relativeOutput($file)) !== null) { $this->removed[$relative] = true; unset($this->written[$relative]); }
         return $ok;
     }
@@ -665,4 +668,20 @@ class MikanBoxSSG {
         
         return "$count files removed." . ($this->refused ? ' / ' . implode(', ', $this->refused) : '');
     }
+}
+
+/** Remove a page's generated files from the configured output folder. */
+function mikanBoxRemovePageOutput(string $id, string $format, array $settings): bool {
+    $dir = $settings['ssg_dir'] ?? $settings['last_ssg_dir'] ?? '';
+    if ($dir === '' && ($settings['ssg_mode'] ?? '') === 'export') $dir = 'export';
+    $output = dirname(CORE_DIR) . ($dir !== '' ? '/' . ltrim($dir, '/') : '');
+    $ssg = new MikanBoxSSG(null, $output);
+    $ssg->deletePage($id, $format);
+    return !$ssg->refusals();
+}
+
+/** Check output before deleting the source so a failed removal can be retried. */
+function mikanBoxRemovePublishedPageOutput(string $id, ?array $page, array $settings): bool {
+    if (($page['status'] ?? '') !== 'public_static' || mikanBoxIdIsReserved($id)) return true;
+    return mikanBoxRemovePageOutput($id, mikanBoxPageOutputFormat($page), $settings);
 }

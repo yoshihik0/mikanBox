@@ -355,17 +355,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
 
         $updatedAt = $_POST['updated_at'] ?? date('Y-m-d H:i:s');
 
-        // Auto-set the update date to "now" when a page transitions from non-public
-        // (draft/db) to public, so it reflects the actual publish moment rather than
-        // whatever was left in the (manually editable) date field while still a draft.
-        // Once public, further edits keep whatever date is already in that field
-        // (nothing here bumps it automatically), so minor fixes don't move the date.
         $existingPageData = loadData(POSTS_DIR, $oldId ?: $id);
-        $wasPublic = $existingPageData && in_array($existingPageData['status'] ?? 'draft', ['public_dynamic', 'public_static'], true);
-        $isPublicNow = in_array($status, ['public_dynamic', 'public_static'], true);
-        if (!$wasPublic && $isPublicNow) {
-            $updatedAt = date('Y-m-d H:i:s');
-        }
 
         $data = [
             'title' => $_POST['title'] ?? '',
@@ -389,6 +379,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             'expand_tags' => isset($_POST['expand_tags_present']) ? isset($_POST['expand_tags']) : null,
         ], $existingPageData ?: null);
         $data = mikanBoxNormalizeLegacyPage($data); // a "db" status from an old form means output format "mikanBox DB"
+        $data = mikanBoxApplyPageDates($data, $existingPageData ?: null);
+        $updatedAt = $data['updated_at'];
         $oldFormat = mikanBoxPageOutputFormat($existingPageData);
         
         // Save revision of current page state before saving new data
@@ -459,9 +451,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $newStatus = $_POST['status'];
         $data = loadData(POSTS_DIR, $id);
         if ($data) {
+            $previous = $data;
             $data['status'] = $newStatus;
-            $data = mikanBoxNormalizeLegacyPage($data);
-            saveData(POSTS_DIR, $id, $data);
+            $data = mikanBoxApplyPageDates(mikanBoxNormalizeLegacyPage($data), $previous);
+            if (!saveData(POSTS_DIR, $id, $data)) {
+                mikanBoxAdminDone('admin.php?view=pages#pages', t('err_save_failed'), [], false);
+            }
             
             // Sync SSG if needed
             require_once __DIR__ . '/lib/ssg.php';
@@ -476,9 +471,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     }
     elseif ($_POST['save_action'] === 'delete_page') {
         $id = $_POST['id'];
-        // index has no special protection: a missing page (including index) already falls
-        // back to the 404 page in MikanBoxRenderer::render(), so there's nothing unsafe
-        // about deleting it like any other page.
+        require_once __DIR__ . '/lib/ssg.php';
+        if (!mikanBoxRemovePublishedPageOutput($id, loadData(POSTS_DIR, $id), $settings)) {
+            mikanBoxAdminDone('admin.php?view=pages', t('err_page_output_delete'), [], false);
+        }
         if (deleteData(POSTS_DIR, $id)) {
             if (function_exists('mbv_hist_forget')) mbv_hist_forget($id);   // ビジュアル編集の履歴
             deleteRevisionsOfPost($id); // Clean up revisions
@@ -1009,8 +1005,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $status = $_POST['status'];
         $data = loadData(POSTS_DIR, $id);
         if ($data) {
+            $previous = $data;
             $data['status'] = $status;
-            $data = mikanBoxNormalizeLegacyPage($data);
+            $data = mikanBoxApplyPageDates(mikanBoxNormalizeLegacyPage($data), $previous);
             if (saveData(POSTS_DIR, $id, $data)) {
                 require_once __DIR__ . '/lib/ssg.php';
                 $ssgOpts = [
@@ -2274,14 +2271,7 @@ function getIcon($name) {
                 const json = await res.json().catch(()=>({}));
                 showToast(json.message || '<?= t('msg_update_success') ?? '保存しました' ?>');
                 
-                // Update class color dynamically without reload
-                const selectEl = document.querySelector(`select[onchange*="'${id}'"]`);
-                if (selectEl) {
-                    selectEl.classList.remove('static', 'dynamic', 'draft');
-                    if (newStatus === 'public_static') selectEl.classList.add('static');
-                    else if (newStatus === 'public_dynamic') selectEl.classList.add('dynamic');
-                    else selectEl.classList.add('draft');
-                }
+                await refreshPageList();
             } else {
                 showToast('<?= t('err_save_failed') ?>', true);
             }
@@ -3153,40 +3143,6 @@ function getIcon($name) {
         document.head.appendChild(style);
     }
 
-    // Admin page search inline logic (AJAX driven, no page reload)
-    function initAdminPageSearch() {
-        const searchInput = document.getElementById('admin-page-search');
-        if (!searchInput) return;
-        // The magnifier hides itself while typing (CSS); the browser's own clear
-        // button empties the field and fires "input", which searches again.
-        let debounceTimer;
-        searchInput.addEventListener('input', function() {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                triggerAdminSearch(searchInput.value);
-            }, 250);
-        });
-        searchInput.form?.addEventListener('submit', function(event) {
-            event.preventDefault();
-            triggerAdminSearch(searchInput.value);
-        });
-    }
-
-    function triggerAdminSearch(keyword) {
-        const url = new URL(window.location.href);
-        if (keyword) {
-            url.searchParams.set('q', keyword);
-        } else {
-            url.searchParams.delete('q');
-        }
-        url.searchParams.delete('p_pages'); // reset pagination
-        
-        // Update URL without reload and without triggering hash jumps
-        history.pushState(null, '', url.pathname + url.search + url.hash);
-        
-        refreshPageList();
-    }
-
     // Global revisions selector handler
     function spaChangeRevision(select) {
         if (!select || !select.value) return;
@@ -3196,8 +3152,6 @@ function getIcon($name) {
         spaOpenEditor('page', editId, revId);
     }
 
-    // Run initialization
-    initAdminPageSearch();
     </script>
 </div>
 

@@ -204,6 +204,7 @@ if ($isApi) {
                     'exclude_tracking' => false, 'sort_order' => 0,
                 ];
             }
+            unset($data['first_published_at']);
             $data['status'] = 'draft'; $data['updated_at'] = date('Y-m-d H:i:s');
             if (!saveData(POSTS_DIR, $id, $data)) mbv_json(['error' => t('visual_err_save')], 500);
             mbv_json(['ok' => true, 'id' => $id]);

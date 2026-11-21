@@ -727,6 +727,30 @@ function mikanBoxIsApiFormat($format): bool {
     return $format === 'db';
 }
 
+function mikanBoxAdminPageMatches(string $id, array $page, string $query): bool {
+    if ($query === '') return true;
+    foreach ([$id, $page['title'] ?? '', $page['content_md'] ?? '', $page['description'] ?? ''] as $field) {
+        if (mb_stripos((string)$field, $query, 0, 'UTF-8') !== false) return true;
+    }
+    return false;
+}
+
+/** Preserve the first publication through withdrawals, renames and edits. */
+function mikanBoxApplyPageDates(array $page, ?array $previous): array {
+    $now = date('Y-m-d H:i:s');
+    $page['updated_at'] = ($page['updated_at'] ?? '') ?: (($previous['updated_at'] ?? '') ?: $now);
+    $publicStatuses = ['public_dynamic', 'public_static', 'public', 'db'];
+    $firstPublished = $previous['first_published_at'] ?? '';
+    if ($firstPublished === '' && in_array($previous['status'] ?? '', $publicStatuses, true)) {
+        $firstPublished = ($previous['updated_at'] ?? '') ?: $now;
+    }
+    if ($firstPublished === '' && in_array($page['status'] ?? '', $publicStatuses, true)) {
+        $page['updated_at'] = $firstPublished = $now;
+    }
+    if ($firstPublished !== '') $page['first_published_at'] = $firstPublished;
+    return $page;
+}
+
 /**
  * Pages saved before 2.18.0 with the status "db" read as output format "db" + public.
  * Applied when pages are loaded, saved, and received over MCP.

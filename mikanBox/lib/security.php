@@ -528,7 +528,7 @@ function saveData($dir,$id,$data) {
     $after=mikanBoxAuditStored($dir,$id);
     // A bulk operation (data import) records no line per item; the integrity check is told what it wrote.
     if (!empty($GLOBALS['mikanbox_audit_quiet'])) $GLOBALS['mikanbox_audit_quiet_after'][$kind.':'.$id]=mikanBoxAuditDataHash($after);
-    $content=fn($d)=>is_array($d) ? array_diff_key($d, ['updated_at'=>1,'status'=>1]) : $d;
+    $content=fn($d)=>is_array($d) ? array_diff_key($d, ['updated_at'=>1,'status'=>1,'first_published_at'=>1]) : $d;
     if ($before === null) {
         mikanBoxAudit($kind.'_created',['target'=>$id,'after'=>mikanBoxAuditDataHash($after)] + ($kind==='page' ? ['to'=>(string)($data['status'] ?? '')] : []));
         return $ok;

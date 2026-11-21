@@ -101,8 +101,12 @@ function mbv_history_move(string $id, string $kind): bool {
     $snap = array_pop($list);
     $data = json_decode((string)file_get_contents($snap), true);
     if (!is_array($data)) return false;
-    $cur = loadData(POSTS_DIR, $id); if ($cur) mbv_hist_put($id, $to, $cur);
-    if (!saveData(POSTS_DIR, $id, $data)) return false;
+    $cur = loadData(POSTS_DIR, $id);
+    if (!$cur) return false;
+    mbv_hist_put($id, $to, $cur);
+    $data['status'] = $cur['status'];
+    $data['updated_at'] = $cur['updated_at'] ?? '';
+    if (!saveData(POSTS_DIR, $id, mikanBoxApplyPageDates($data, $cur))) return false;
     unlink($snap);
     return true;
 }
@@ -112,6 +116,6 @@ function mbv_point_restore(string $id, string $pid, string $sid): bool {
     if (!$data || !$cur) return false;
     mbv_snapshot($id, $sid);
     $data['status'] = $cur['status'] ?? ($data['status'] ?? 'draft');
-    $data['updated_at'] = date('Y-m-d H:i:s');
-    return (bool)saveData(POSTS_DIR, $id, $data);
+    $data['updated_at'] = $cur['updated_at'] ?? '';
+    return (bool)saveData(POSTS_DIR, $id, mikanBoxApplyPageDates($data, $cur));
 }

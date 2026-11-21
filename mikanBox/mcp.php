@@ -394,7 +394,7 @@ function toolDefinitions() {
         ],
         [
             'name' => 'update_page',
-            'description' => '既存ページを更新する。指定したフィールドのみ上書きされる。更新日（updated_at）は、非公開から公開に切り替えたときだけ現在時刻になり、公開済みページの編集では変わらない。',
+            'description' => '既存ページを更新する。指定したフィールドのみ上書きされる。更新日（updated_at）は、ページを初めて公開したときに自動で現在時刻になる。以後の編集や再公開では自動更新しない。',
             'inputSchema' => [
                 'type' => 'object',
                 'properties' => [
@@ -679,7 +679,7 @@ function toolCreatePage($args) {
     // Same rule as the admin screen and visual editing: refused, never silently rewritten.
     if (($idError = mikanBoxValidateNewId($id, 'page')) !== null) return ['error' => $idError];
 
-    $data = buildPageData($args);
+    $data = mikanBoxApplyPageDates(buildPageData($args), null);
     if (($formatError = mikanBoxValidatePageSave($id, '', $data, $GLOBALS['mcp_settings'] ?? [])) !== null) {
         return ['error' => $formatError];
     }
@@ -709,13 +709,7 @@ function toolUpdatePage($args) {
     if (($formatError = mikanBoxValidatePageSave($id, $id, $existing, $GLOBALS['mcp_settings'] ?? [])) !== null) {
         return ['error' => $formatError];
     }
-    // Same rule as the admin screen: the date moves to "now" only when a page goes from
-    // non-public to public. Editing a published page keeps its date, so fixing an old
-    // notice does not bring it to the top of sort=new lists.
-    $wasPublic = in_array($before['status'] ?? 'draft', ['public_dynamic', 'public_static'], true);
-    $isPublicNow = in_array($existing['status'] ?? 'draft', ['public_dynamic', 'public_static'], true);
-    if (!$wasPublic && $isPublicNow) $existing['updated_at'] = date('Y-m-d H:i:s');
-    elseif (empty($existing['updated_at'])) $existing['updated_at'] = date('Y-m-d H:i:s');
+    $existing = mikanBoxApplyPageDates($existing, $before);
 
     if (saveData(POSTS_DIR, $id, $existing)) {
         $oldFormat = mikanBoxPageOutputFormat($before);
@@ -734,7 +728,10 @@ function toolDeletePage($id) {
     if ($err = mcpRequireId($id)) return $err;
     $deleting = loadData(POSTS_DIR, $id);
     if ($deleting === null) return ['error' => t('mcp_err_page_not_found', $id)];
-    if (($deleting['status'] ?? '') === 'public_static') mcpDeleteStaticPageFiles($id, mikanBoxPageOutputFormat($deleting));
+    require_once __DIR__ . '/lib/ssg.php';
+    if (!mikanBoxRemovePublishedPageOutput($id, $deleting, $GLOBALS['mcp_settings'] ?? [])) {
+        return ['error' => t('err_page_output_delete')];
+    }
 
     if (deleteData(POSTS_DIR, $id)) {
         return ['success' => true, 'message' => t('mcp_success_page_deleted', $id)];
@@ -1050,13 +1047,8 @@ function buildPageData($args) {
 
 /** Remove the static files a page's previous output format produced (e.g. /id.json). */
 function mcpDeleteStaticPageFiles($id, $format) {
-    $settings = $GLOBALS['mcp_settings'] ?? [];
-    require_once __DIR__ . '/lib/renderer.php';
     require_once __DIR__ . '/lib/ssg.php';
-    $ssgDir = $settings['ssg_dir'] ?? ($settings['last_ssg_dir'] ?? '');
-    $siteRoot = dirname(CORE_DIR);
-    $absPath = !empty($ssgDir) ? $siteRoot . '/' . ltrim($ssgDir, '/') : $siteRoot;
-    (new MikanBoxSSG(new MikanBoxRenderer($settings), $absPath))->deletePage($id, $format);
+    mikanBoxRemovePageOutput($id, $format, $GLOBALS['mcp_settings'] ?? []);
 }
 
 function executeTool($name, $args, $settings) {

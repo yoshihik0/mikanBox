@@ -69,13 +69,9 @@ function mikanBoxTransferFilter($raw): ?array {
 function mikanBoxTransferPageIds(?array $filter): ?array {
     if ($filter === null || ($filter['cat'] === '' && $filter['q'] === '' && $filter['fmt'] === '')) return null;
     $ids = getFileList(POSTS_DIR);
-    if ($filter['q'] !== '' && function_exists('searchPosts')) {
-        $found = array_column(searchPosts($filter['q'], true), 'id');
-        $ids = array_values(array_filter($ids, fn($id) => in_array($id, $found, true)));
-    }
     return array_values(array_filter($ids, function ($id) use ($filter) {
         $data = loadData(POSTS_DIR, $id);
-        if (!is_array($data)) return false;
+        if (!is_array($data) || !mikanBoxAdminPageMatches($id, $data, $filter['q'])) return false;
         if ($filter['fmt'] !== '') {
             $format = mikanBoxPageOutputFormat($data);
             if ($filter['fmt'] === 'data' ? !mikanBoxIsDataFormat($format) : $format !== $filter['fmt']) return false;
