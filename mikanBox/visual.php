@@ -216,7 +216,7 @@ if ($isApi) {
                 $items[] = ['name' => $f, 't' => (int)@filemtime(MEDIA_DIR . '/' . $f)];
             }
             usort($items, static fn($a, $b) => $b['t'] <=> $a['t'] ?: strcmp($a['name'], $b['name']));
-            mbv_json(['items' => array_slice($items, 0, 500), 'base' => mbv_site_base() . 'media/']);
+            mbv_json(['items' => array_slice($items, 0, 500), 'base' => mikanBoxConfiguredMediaUrl() ?: mbv_site_base() . 'media/']);
         }
         case 'upload': {   // 画像の貼り付け・ドラッグ・選択（png / jpg / gif / webp）。本体の画像保存の決まり（ファイル名・保存名）を通す
             if (!$post) mbv_json(['error' => 'method'], 405);

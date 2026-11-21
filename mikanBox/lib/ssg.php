@@ -130,7 +130,7 @@ class MikanBoxSSG {
         $dataHashes = [];
         foreach ($dataPages as $pageId) {
             $format = mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId));
-            $this->renderer->setStaticMode(true, substr_count($pageId, '/'), $this->options['structure'] ?? 'directory', $this->options['link_mode'] ?? 'relative');
+            $this->renderer->setStaticMode(true, substr_count($pageId, '/'), $this->options['structure'], $this->options['link_mode'], !empty($this->options['copy_media']));
             $this->renderer->setDataHashes($dataHashes);
             $output = $this->renderer->renderData($pageId);
             if ($output === null) continue;
@@ -153,7 +153,7 @@ class MikanBoxSSG {
             if (mikanBoxFormatHasMarkdown($format)) {
                 if ($markdownAvailable) {
                     // Markdown versions use absolute URLs, so their depth does not matter.
-                    $this->renderer->setStaticMode(true, substr_count($pageId, '/'), $this->options['structure'] ?? 'directory', $this->options['link_mode'] ?? 'relative');
+                    $this->renderer->setStaticMode(true, substr_count($pageId, '/'), $this->options['structure'], $this->options['link_mode'], !empty($this->options['copy_media']));
                     $markdown = $this->renderer->renderMarkdown($pageId);
                     if ($markdown !== null) $results[] = $this->writeOutputFile($this->outputDir . '/' . $pageId . '.md', $markdown);
                 } else {
@@ -174,7 +174,8 @@ class MikanBoxSSG {
                 true,
                 $depth,
                 $this->options['structure'] ?? 'directory',
-                $this->options['link_mode'] ?? 'relative'
+                $this->options['link_mode'] ?? 'relative',
+                !empty($this->options['copy_media'])
             );
             $html = $this->renderer->render($pageId);
 
@@ -278,8 +279,11 @@ class MikanBoxSSG {
 
         $source = $this->normalizePath(realpath(MEDIA_DIR) ?: MEDIA_DIR);
         $destination = $this->normalizePath($this->outputDir . '/media');
-        if ($source === $destination) {
-            return ['Error: Media source and export destination are the same directory.'];
+        $realDestination = realpath($destination) ?: (realpath(dirname($destination)) ?: dirname($destination)) . '/media';
+        $sourceRoot = self::lowerPath($source) . '/';
+        $destinationRoot = self::lowerPath($realDestination) . '/';
+        if (str_starts_with($sourceRoot, $destinationRoot) || str_starts_with($destinationRoot, $sourceRoot)) {
+            return ['Error: Media source and export destination overlap.'];
         }
         if (!$this->permitted($this->outputDir . '/media/.mikanbox-check')) {
             return ['Error: Refused to write a protected location: media'];

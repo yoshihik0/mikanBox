@@ -55,7 +55,7 @@
 }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.30.2</small>
+# 🍊mikanBox User Manual <small class="manual-version">v2.30.3</small>
 
 🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
 
@@ -158,6 +158,31 @@ To change the data directory name, create `local-config.php` inside the admin/co
 From v2.21.2, opening the admin screen (`admin.php`) or visual editing with `http://` moves to the same address on `https://` (only when a page is opened, never in the middle of a submission). PHP's built-in server (`php -S`) and addresses opened as `localhost`, `127.0.0.1` or `[::1]` are not moved. Where a front server (proxy) handles HTTPS without telling PHP, the move happens only once, so you are never locked out (the address ends with `https=1`). On a server without HTTPS, add `?https=1` to the address to open the screen as before, or write `define('MIKANBOX_HTTPS_REDIRECT', false);` in `local-config.php` to turn the move off.
 
 Right after installation (before any page or component data exists), the first visit will automatically load sample content matching the visitor's browser language (Japanese or English).
+
+#### Separate administration, public pages, and media {#php-media-location}
+
+On the PHP editions, you can set the media storage directory and public media URL independently in `mikanBox/local-config.php`. By default, uploads are stored in `media/` alongside the `mikanBox/` directory and served at the site's `media/` URL.
+
+This example protects the admin host with authentication and serves static files on the public host. Both hosts run on the same server.
+
+| Role | URL | Server path |
+| --- | --- | --- |
+| Admin and preview | `https://admin.example.com/` | `/srv/mikanbox/admin/` (contains `index.php` and `mikanBox/`) |
+| Public pages | `https://www.example.com/` | `/srv/mikanbox/public/` (static build output) |
+| Media | `https://www.example.com/media/` | `/srv/mikanbox/assets/` (map `/media/` to this directory in the web server) |
+
+1. Require HTTPS and authentication across the admin host. If you use the management MCP endpoint, keep it on that host as well.
+2. Serve static files on the public host with PHP and CGI execution disabled. Create a dedicated media directory and disable directory listing. Apply the media directory's `.htaccess` rules for SVG, or configure the server to send the same `Content-Security-Policy: sandbox` header for SVG. Give the admin PHP process write access to the output and media directories. Give the public service the read access it needs to serve files. Keep application code, site data, and setup tokens outside the public host's served paths.
+3. Add the following to the admin host's `mikanBox/local-config.php`. Start a new file with `<?php`. Use the absolute path to an existing dedicated directory. On an existing site, move the files from the old `media/` directory before switching.
+
+   ```php
+   define('MIKANBOX_MEDIA_DIR', '/srv/mikanbox/assets');
+   define('MIKANBOX_MEDIA_URL', 'https://www.example.com/media/');
+   ```
+
+4. Select “Generate static pages on this server,” set the output directory to `../public` and the published root URL to `https://www.example.com`, then build. Check that a signed-out visitor can open a public page and its images, and that the admin host prompts for authentication.
+
+Uploads become publicly accessible in this setup as soon as they are uploaded. Keep private draft assets elsewhere. The HTML build can reference the files in place.
 
 #### Running it locally
 
@@ -698,8 +723,8 @@ Static site generation never writes into, or deletes files from, the admin folde
 
 #### Static Site Build Method
 
-- **Generate static pages on this server** — Normally writes HTML into the site root. Specify an output directory only when a different location is needed.
-- **Create an upload-ready folder (for local operation)** — Writes HTML and a copy of `media/` into a dedicated output folder. For safety, the site root, the mikanBox core, and the existing media folder cannot be selected as that destination.
+- **Generate static pages on this server** — Normally writes HTML into the site root. Specify an output directory only when a different location is needed. When a [public media URL](#php-media-location) is configured, the build uses it.
+- **Create an upload-ready folder (for local operation)** — Writes HTML and a copy of the configured media directory into a dedicated output folder. The exported pages reference the bundled `media/`. For safety, the site root, the mikanBox core, and the existing media folder cannot be selected as that destination.
 
 For an upload-ready folder, links can be written as portable relative paths (recommended), or fixed to a published URL. Relative links keep working when the folder is moved.
 

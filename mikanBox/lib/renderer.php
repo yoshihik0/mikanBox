@@ -20,6 +20,7 @@ class MikanBoxRenderer {
     private $depthSetManually = false;
     private $ssgStructure = 'directory';
     private $ssgLinkMode = 'absolute';
+    private $bundledMedia = false;
     private $currentPageData = []; // DATA blocks of current page
     // Output formats (2.17.0): 'html' renders the page, 'md' its Markdown version,
     // 'data' the body of a data-format page (json, xml, csv, txt, js, css).
@@ -82,12 +83,13 @@ class MikanBoxRenderer {
         ];
     }
 
-    public function setStaticMode($enabled, $depth = 0, $structure = 'directory', $linkMode = 'absolute') {
+    public function setStaticMode($enabled, $depth = 0, $structure = 'directory', $linkMode = 'absolute', $bundledMedia = false) {
         $this->staticMode = $enabled;
         $this->depth = $depth;
         $this->depthSetManually = true; // Use manual depth (from SSG)
         $this->ssgStructure = $structure;
         $this->ssgLinkMode = in_array($linkMode, ['absolute', 'relative'], true) ? $linkMode : 'absolute';
+        $this->bundledMedia = $enabled && $bundledMedia;
     }
 
     /**
@@ -312,9 +314,10 @@ class MikanBoxRenderer {
         // 8. Process CSS Buffer
         foreach ($this->globalCssBuffer as &$cssLine) {
             $cssLine = $this->replaceBasicTags($cssLine, $pageData, $pageTitle, $pageDesc, $pageKeywords, $ogpImage);
-            $cssMediaBase = $this->isRelativeStaticMode()
-                ? $this->getStaticRootPrefix() . 'media/'
+            $cssMediaBase = mikanBoxConfiguredMediaUrl() !== '' || $this->bundledMedia || $this->isRelativeStaticMode()
+                ? $this->getMediaBaseUrl()
                 : $this->getSiteBasePath() . 'media/';
+            $cssLine = $this->rewriteAbsoluteCssMedia($cssLine);
             $cssLine = preg_replace_callback(
                 '/url\(\s*(["\']?)(?:images|media)\/([^)"\']+)\1\s*\)/i',
                 fn($m) => 'url(' . $m[1] . $cssMediaBase . $m[2] . $m[1] . ')',
@@ -687,9 +690,47 @@ class MikanBoxRenderer {
         return rtrim($this->getSiteUrl(), '/') . '/' . ltrim($url, '/');
     }
 
+    public function getMediaBaseUrl(): string {
+        if ($this->isRelativeStaticMode()) return $this->getStaticRootPrefix() . 'media/';
+        $configured = mikanBoxConfiguredMediaUrl();
+        if (!$this->bundledMedia && $configured !== '') return $configured;
+        return rtrim($this->getSiteUrl(), '/') . '/media/';
+    }
+
+    private function rewriteAbsoluteMediaUrl(string $url): string {
+        $configured = mikanBoxConfiguredMediaUrl();
+        $bases = [$configured];
+        if ($configured !== '' || $this->isRelativeStaticMode()) {
+            foreach ([$this->getSiteUrl(), mikanBoxDynamicSiteUrl($this->siteSettings), $this->siteSettings['site_url'] ?? '', $this->getConfiguredSiteUrl()] as $root) {
+                if ($root !== '') $bases[] = rtrim($root, '/') . '/media/';
+            }
+        }
+        foreach (array_unique($bases) as $base) {
+            if ($base === '' || !str_starts_with($url, $base)) continue;
+            $name = substr($url, strlen($base));
+            if (preg_match('/\A[A-Za-z0-9_.-]+(?:[?#][^\s]*)?\z/', $name)) {
+                return $this->getMediaBaseUrl() . $name;
+            }
+        }
+        return $url;
+    }
+
+    private function rewriteAbsoluteCssMedia(string $css): string {
+        return preg_replace_callback('/url\(\s*(["\']?)(https?:\/\/[^)"\'\s]+)\1\s*\)/i',
+            fn($m) => 'url(' . $m[1] . $this->rewriteAbsoluteMediaUrl($m[2]) . $m[1] . ')', $css);
+    }
+
+    private function rewriteAbsoluteMediaAttributes(string $text): string {
+        if (mikanBoxConfiguredMediaUrl() === '') return $text;
+        return preg_replace_callback('~(<(?:a|img|video|audio|source|script|link)\b[^>]*?\s(?:src|href|poster)\s*=\s*)(["\'])(https?://[^"\']+)\2~i',
+            fn($m) => $m[1] . $m[2] . $this->rewriteAbsoluteMediaUrl($m[3]) . $m[2], $text);
+    }
+
     private function resolveMediaUrl($url) {
         if (empty($url)) return $url;
-        if (preg_match('/^(?:https?:\/\/|data:)/i', $url)) return $url;
+        if (preg_match('/^(?:https?:\/\/|data:)/i', $url)) return $this->rewriteAbsoluteMediaUrl($url);
+        $path = ltrim($url, '/');
+        if (str_starts_with($path, 'media/')) return $this->getMediaBaseUrl() . substr($path, 6);
         if ($this->isRelativeStaticMode()) {
             return $this->getStaticRootPrefix() . ltrim($url, '/');
         }
@@ -757,9 +798,7 @@ class MikanBoxRenderer {
         }
 
         // Media Tags (Direct expansion, though applyPathCompletion also handles standard tags)
-        $mediaBase = $this->isRelativeStaticMode()
-            ? $this->getStaticRootPrefix() . 'media/'
-            : rtrim($this->getSiteUrl(), '/') . '/media/';
+        $mediaBase = $this->getMediaBaseUrl();
         $html = preg_replace('/\{\{VIDEO:([a-zA-Z0-9_\-\.]+)\}\}/', '<video src="' . $mediaBase . '$1" controls style="max-width:100%; height:auto;"></video>', $html);
         $html = preg_replace_callback('/\{\{IMAGE:([a-zA-Z0-9_\-\.]+)\}\}/', function($m) use ($mediaBase) {
             return '<img src="' . $mediaBase . $m[1] . '" style="max-width:100%; height:auto;"' . mediaImgAttrs($m[1]) . '>';
@@ -912,8 +951,7 @@ class MikanBoxRenderer {
 
         // Uploaded code assets use explicit media/ URLs.
         $html = preg_replace_callback('~(<(?:script|link)\b[^>]*\b(?:src|href)\s*=\s*)(["\'])(?:\./)?media/([A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:js|css)(?:[?#][^"\']*)?)\2~i', function($m) {
-            $root = $this->isRelativeStaticMode() ? $this->getStaticRootPrefix() : rtrim($this->getSiteUrl(), '/') . '/';
-            return $m[1] . $m[2] . $root . 'media/' . $m[3] . $m[2];
+            return $m[1] . $m[2] . $this->getMediaBaseUrl() . $m[3] . $m[2];
         }, $html);
 
         // 1. Rewrite internal links to be root-relative (e.g. /pages/p3/)
@@ -929,28 +967,14 @@ class MikanBoxRenderer {
         $html = preg_replace('/href=["\']\.\/["\']/', 'href="' . $siteUrl . '"', $html);
 
         // 2. Rewrite media paths to full URLs (e.g. https://example.com/mikanbox/media/...)
-        $mediaBase = $this->isRelativeStaticMode()
-            ? $this->getStaticRootPrefix() . 'media/'
-            : rtrim($siteUrl, '/') . '/media/';
-        $mediaRoots = array_filter(array_unique([rtrim($this->getSiteUrl(), '/'), rtrim((string)($this->siteSettings['site_url'] ?? ''), '/'), $this->getConfiguredSiteUrl()]));
-        $portableMedia = function($url) use ($mediaBase, $mediaRoots) {
-            if (!$this->isRelativeStaticMode()) return $url;
-            foreach ($mediaRoots as $root) {
-                $prefix = $root . '/media/';
-                if (str_starts_with($url, $prefix)) {
-                    $name = substr($url, strlen($prefix));
-                    if (preg_match('/\A[A-Za-z0-9_.-]+(?:[?#][^\s]*)?\z/', $name)) return $mediaBase . $name;
-                }
-            }
-            return $url;
-        };
-        $html = preg_replace_callback('/<(img|video|audio|source)\b([^>]*)\bsrc=["\']([^"\'\s>]+)["\']/i', function($m) use ($mediaBase, $portableMedia) {
+        $mediaBase = $this->getMediaBaseUrl();
+        $html = preg_replace_callback('/<(img|video|audio|source)\b([^>]*)\bsrc=["\']([^"\'\s>]+)["\']/i', function($m) use ($mediaBase) {
             $tag = $m[1];
             $attrs = $m[2];
             $src = $m[3];
 
             if (preg_match('/^(?:https?:\/\/|data:)/i', $src)) {
-                $rewritten = $portableMedia($src);
+                $rewritten = $this->rewriteAbsoluteMediaUrl($src);
                 return $rewritten === $src ? $m[0] : "<{$tag}{$attrs}src=\"{$rewritten}\"";
             }
 
@@ -958,7 +982,7 @@ class MikanBoxRenderer {
             $filename = basename($src);
             return "<{$tag}{$attrs}src=\"{$mediaBase}{$filename}\"";
         }, $html);
-        $html = preg_replace_callback('/url\(\s*(["\']?)(https?:\/\/[^)"\'\s]+)\1\s*\)/i', fn($m) => 'url(' . $m[1] . $portableMedia($m[2]) . $m[1] . ')', $html);
+        $html = $this->rewriteAbsoluteCssMedia($this->rewriteAbsoluteMediaAttributes($html));
         return preg_replace_callback(
             '/url\(\s*(["\']?)(?:images|media)\/([^)"\']+)\1\s*\)/i',
             fn($m) => 'url(' . $m[1] . $mediaBase . $m[2] . $m[1] . ')',
@@ -1365,7 +1389,7 @@ class MikanBoxRenderer {
         self::$hashStack[] = $pageId;
         try {
             $builder = new self($this->siteSettings);
-            $builder->setStaticMode(true, substr_count($pageId, '/'), $this->ssgStructure, $this->ssgLinkMode);
+            $builder->setStaticMode(true, substr_count($pageId, '/'), $this->ssgStructure, $this->ssgLinkMode, $this->bundledMedia);
             $builder->setDataHashes($this->dataHashes);
             $output = mikanBoxIsApiFormat(mikanBoxPageOutputFormat($pageData)) ? $builder->renderApi($pageId) : $builder->renderData($pageId);
         } finally {
@@ -1535,7 +1559,7 @@ class MikanBoxRenderer {
         $text = $this->replaceBasicTags($text, $pageData, ...$this->pageMeta($pageData));
         $text = $this->replaceNavTags($text);
         $text = $this->replaceTextContentTags($text, $depth);
-        $text = $this->completeMarkdownLinks($text);
+        $text = $this->rewriteAbsoluteMediaAttributes($this->completeMarkdownLinks($text));
         // Removed tags can leave runs of empty lines; code blocks are still protected here.
         $text = preg_replace("/\n[ \t]*\n(?:[ \t]*\n)+/", "\n\n", $text);
         // Restore in reverse order: a comment may contain a code placeholder.
@@ -1637,9 +1661,11 @@ class MikanBoxRenderer {
         $origin = preg_match('~\A(https?://[^/]+)~i', $siteUrl, $o) ? $o[1] : $siteUrl;
         return preg_replace_callback('/(!?)\[((?:\\\\.|[^\[\]\n\\\\])*)\]\(\s*([^)\s]+)((?:\s+"[^"\n]*")?)\s*\)/u', function($m) use ($allPosts, $siteUrl, $origin) {
             $url = $m[3];
-            if (preg_match('/^(?:[a-z][a-z0-9+.\-]*:|\/\/|#)/i', $url)) return $m[0];
-            if ($m[1] === '!') {
-                $resolved = rtrim($this->getSiteUrl(), '/') . '/media/' . basename(parse_url($url, PHP_URL_PATH) ?: $url);
+            if (preg_match('/^(?:[a-z][a-z0-9+.\-]*:|\/\/|#)/i', $url)) {
+                $resolved = $this->rewriteAbsoluteMediaUrl($url);
+                if ($resolved === $url) return $m[0];
+            } elseif ($m[1] === '!') {
+                $resolved = $this->getMediaBaseUrl() . basename(parse_url($url, PHP_URL_PATH) ?: $url);
             } else {
                 $resolved = $this->resolveInternalLink($url, $allPosts);
                 if ($resolved === null) {

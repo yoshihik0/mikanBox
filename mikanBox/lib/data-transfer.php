@@ -127,6 +127,8 @@ REGEX, $text, $literals);
 
 function mikanBoxTransferMediaReference(string $path, array &$used): void {
     $path = preg_replace('~^\{\{\s*(?:SITE_URL|BASE_URL)\s*\}\}/~i', '/', trim($path));
+    $mediaUrl = mikanBoxConfiguredMediaUrl();
+    if ($mediaUrl !== '' && str_starts_with($path, $mediaUrl)) $path = substr($path, strlen($mediaUrl));
     $path = rawurldecode(preg_split('~[?#]~', $path, 2)[0]);
     if (preg_match('~^(?:(?:\.{1,2}/)*(?:(?:media|images)/)?|/(?:[A-Za-z0-9_.-]+/)*(?:media|images)/|/)([A-Za-z0-9_.-]+)$~', $path, $match)
         && preg_match('~\.(?:jpe?g|png|gif|webp|svg|mp3|m4a|mp4|js|css)$~i', $match[1])) {

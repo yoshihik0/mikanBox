@@ -122,7 +122,7 @@
                 foreach ($filesPage as $file):
                     $fname = basename($file);
                     $ext = strtolower(pathinfo($fname, PATHINFO_EXTENSION));
-                    $webPath = '../media/' . $fname;
+                    $webPath = (mikanBoxConfiguredMediaUrl() ?: '../media/') . rawurlencode($fname);
                     $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']);
                     // gif is intentionally absent: GD reads only the first frame,
                     // so resizing an animated gif would silently flatten it.
@@ -141,7 +141,7 @@
             <div class="media-card">
                 <div class="media-card-thumb">
                     <?php if ($isImage): ?>
-                        <img src="<?= $webPath ?>" alt="<?= $fname ?>" loading="lazy">
+                        <img src="<?= htmlspecialchars($webPath, ENT_QUOTES) ?>" alt="<?= htmlspecialchars($fname, ENT_QUOTES) ?>" loading="lazy">
                     <?php elseif ($isVideo): ?>
                         <div class="media-card-icon"><?= getIcon('video') ?></div>
                     <?php elseif ($isAudio): ?>
@@ -174,7 +174,7 @@
                     <div class="media-card-action-container media-action-border">
                         <?php if ($isCode): ?>
                         <div class="flex-row flex-row-wrap mb-10">
-                            <button type="button" class="btn btn-gray btn-small" onclick="copyToClipboard(new URL('../media/<?= rawurlencode($fname) ?>', location.href).href)"><?= t('media_copy_url') ?></button>
+                            <button type="button" class="btn btn-gray btn-small" onclick="copyToClipboard(new URL(this.dataset.url, location.href).href)" data-url="<?= htmlspecialchars($webPath, ENT_QUOTES) ?>"><?= t('media_copy_url') ?></button>
                             <button type="button" class="btn btn-gray btn-small" onclick="copyToClipboard(<?= htmlspecialchars(json_encode($embedTag), ENT_QUOTES) ?>)"><?= t('media_copy_tag') ?></button>
                         </div>
                         <?php endif; ?>

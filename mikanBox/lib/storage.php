@@ -4,6 +4,37 @@ if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVE
 // mikanBox Storage Location & Migration
 // ==========================================
 
+function mikanBoxResolveMediaDirectory($configured, string $core, string $data): string {
+    $site = dirname($core);
+    if ($configured === null) return $site . '/media';
+    $path = is_string($configured) && preg_match('~^(?:/|[A-Za-z]:/)~', str_replace('\\', '/', $configured))
+        ? realpath($configured) : false;
+    if ($path === false || !is_dir($path)) {
+        throw new RuntimeException('MIKANBOX_MEDIA_DIR must be an existing absolute directory.');
+    }
+    $normalize = fn($value) => strtolower(rtrim(str_replace('\\', '/', $value), '/')) . '/';
+    $media = $normalize($path);
+    if (str_starts_with($normalize(realpath($site) ?: $site), $media)) {
+        throw new RuntimeException('MIKANBOX_MEDIA_DIR must be a dedicated media directory.');
+    }
+    foreach ([$core, $data, $site . '/setup-token'] as $private) {
+        $private = $normalize(realpath($private) ?: $private);
+        if (str_starts_with($media, $private) || str_starts_with($private, $media)) {
+            throw new RuntimeException('MIKANBOX_MEDIA_DIR must be separate from private mikanBox directories.');
+        }
+    }
+    return rtrim($path, '/\\');
+}
+
+function mikanBoxNormalizeMediaUrl($configured): string {
+    if ($configured === null || $configured === '') return '';
+    if (!is_string($configured) || !filter_var($configured, FILTER_VALIDATE_URL)
+        || !preg_match('~\Ahttps?://(?:[a-z0-9.-]+|\[[0-9a-f:.]+\])(?::[0-9]+)?(?:/[a-z0-9._%/-]*)?\z~i', $configured)) {
+        throw new RuntimeException('MIKANBOX_MEDIA_URL must be an absolute HTTP(S) URL without credentials, query or fragment.');
+    }
+    return rtrim($configured, '/') . '/';
+}
+
 /**
  * Keep the configurable data directory inside the site root.
  * Only a single directory name is accepted; paths and traversal are rejected.

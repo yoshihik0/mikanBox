@@ -3,12 +3,14 @@ if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVE
 // ==========================================
 // mikanBox Basic Settings
 // ==========================================
-define('MIKANBOX_VERSION', '2.30.2');
+define('MIKANBOX_VERSION', '2.30.3');
 if (!defined('CORE_DIR')) define('CORE_DIR', __DIR__);
 
 // Site-specific options survive self-updates because local-config.php is not
 // part of the update package. Example:
 // define('MIKANBOX_DATA_DIR_NAME', 'mikanData');
+// define('MIKANBOX_MEDIA_DIR', '/srv/example/media');
+// define('MIKANBOX_MEDIA_URL', 'https://www.example.com/media/');
 if (!defined('MIKANBOX_CONFIG_LOADING')) define('MIKANBOX_CONFIG_LOADING', true);
 $localConfigFile = __DIR__ . '/local-config.php';
 if (is_file($localConfigFile)) require_once $localConfigFile;
@@ -23,7 +25,7 @@ define(
     )
 );
 
-// Data and media are siblings of the core directory, wherever index.php lives.
+// Data and the default media folder are siblings of the core directory.
 // Existing core/data sites are migrated atomically, or kept in place on failure.
 define(
     'DATA_DIR',
@@ -31,7 +33,10 @@ define(
 );
 define('POSTS_DIR', DATA_DIR . '/posts');
 define('COMPONENTS_DIR', DATA_DIR . '/components');
-define('MEDIA_DIR', dirname(__DIR__) . '/media');
+define('MEDIA_DIR', mikanBoxResolveMediaDirectory(
+    defined('MIKANBOX_MEDIA_DIR') ? MIKANBOX_MEDIA_DIR : null, CORE_DIR, DATA_DIR
+));
+define('MEDIA_BASE_URL', mikanBoxNormalizeMediaUrl(defined('MIKANBOX_MEDIA_URL') ? MIKANBOX_MEDIA_URL : null));
 define('SETTINGS_FILE', DATA_DIR . '/settings.json');
 define('DB_FILE', DATA_DIR . '/mikanBox.sqlite');
 

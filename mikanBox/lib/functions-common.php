@@ -1130,15 +1130,20 @@ function generateRssXml($settings) {
     return $xml;
 }
 
+function mikanBoxConfiguredMediaUrl(): string {
+    return defined('MEDIA_BASE_URL') ? MEDIA_BASE_URL : '';
+}
+
 function generatePodcastXml($settings) {
     $renderer  = new MikanBoxRenderer($settings);
     $siteUrl   = rtrim($renderer->getSiteUrl(), '/');
+    $mediaUrl  = $renderer->getMediaBaseUrl();
     $siteTitle = htmlspecialchars($settings['site_name'] ?? 'mikanBox');
     $siteDesc  = htmlspecialchars($settings['description'] ?? '');
     $author    = $siteTitle;
     $ogpImage  = $settings['ogp_image'] ?? '';
     if (!empty($ogpImage) && !preg_match('/^https?:\/\//', $ogpImage)) {
-        $ogpImage = $siteUrl . '/media/' . ltrim($ogpImage, '/');
+        $ogpImage = $mediaUrl . ltrim($ogpImage, '/');
     }
     $allPosts = getSortedPostIds();
     $items = [];
@@ -1169,7 +1174,7 @@ function generatePodcastXml($settings) {
         };
         $audioFile   = $dataGet('AUDIO_FILE');
         if (empty($audioFile)) continue;
-        if (!preg_match('/^https?:\/\//', $audioFile)) $audioFile = $siteUrl . '/media/' . $audioFile;
+        if (!preg_match('/^https?:\/\//', $audioFile)) $audioFile = $mediaUrl . $audioFile;
         $duration    = $dataGet('DURATION');
         $fileSize    = (int)$dataGet('FILE_SIZE');
         $episodeNum  = $dataGet('EPISODE_NUM');
@@ -1179,7 +1184,7 @@ function generatePodcastXml($settings) {
         $explicit    = $dataGet('EXPLICIT') ?: 'false';
         $epImage     = $dataGet('EPISODE_IMAGE');
         if (!empty($epImage) && !preg_match('/^https?:\/\//', $epImage)) {
-            $epImage = $siteUrl . '/media/' . $epImage;
+            $epImage = $mediaUrl . $epImage;
         }
         $ext     = strtolower(pathinfo($audioFile, PATHINFO_EXTENSION));
         $mime    = ['mp3' => 'audio/mpeg', 'm4a' => 'audio/mp4', 'ogg' => 'audio/ogg', 'wav' => 'audio/wav'][$ext] ?? 'audio/mpeg';
