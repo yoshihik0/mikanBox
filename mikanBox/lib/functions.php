@@ -942,8 +942,10 @@ function getRevisionData($revisionId) {
     $res = $stmt->execute();
     $row = $res ? $res->fetchArray(SQLITE3_ASSOC) : null;
     
-    if (!$row) return null;
-    
+    return $row ? mikanBoxDecodeRevisionPage($row) : null;
+}
+
+function mikanBoxDecodeRevisionPage(array $row): array {
     $data = json_decode($row['data'], true) ?: [];
     
     // Merge core columns
@@ -956,13 +958,37 @@ function getRevisionData($revisionId) {
     return $data;
 }
 
+/** The Cloud-compatible history result for an exact, existing page ID. */
+function mikanBoxMcpPageRevisions(string $postId): ?array {
+    $stmt = getDb()->prepare(
+        'SELECT r.* FROM posts p LEFT JOIN post_revisions r ON r.post_id = p.id
+         WHERE p.id = :id ORDER BY r.created_at DESC, r.id DESC LIMIT 10'
+    );
+    $stmt->bindValue(':id', $postId, SQLITE3_TEXT);
+    $result = $stmt->execute();
+    if (!$result || !($row = $result->fetchArray(SQLITE3_ASSOC))) return null;
+    if ($row['id'] === null) return [];
+
+    $revisions = [];
+    do {
+        $revisions[] = [
+            'id' => (int)$row['id'],
+            'post_id' => $row['post_id'],
+            'data' => json_encode(mikanBoxDecodeRevisionPage($row), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
+            'created_at' => $row['created_at'],
+            'editor_id' => $row['editor_id'],
+        ];
+    } while ($row = $result->fetchArray(SQLITE3_ASSOC));
+    return $revisions;
+}
+
 /**
  * Delete revisions associated with a page.
  */
-function deleteRevisionsOfPost($postId) {
+function deleteRevisionsOfPost($postId): bool {
     $db = getDb();
     $stmt = $db->prepare("DELETE FROM post_revisions WHERE post_id = :post_id");
     $stmt->bindValue(':post_id', $postId, SQLITE3_TEXT);
-    $stmt->execute();
+    return $stmt->execute() !== false;
 }
 

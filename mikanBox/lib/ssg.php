@@ -170,7 +170,7 @@ class MikanBoxSSG {
                 !empty($this->options['copy_media'])
             );
             $html = $this->renderer->render($pageId);
-            if (str_contains($html, 'data-mikanbox-ai-question')) $includeAiQuestionAsset = true;
+            if (MikanBoxRenderer::hasAiQuestionWidget($html)) $includeAiQuestionAsset = true;
 
             if ($pageId === 'index') {
                 $targetFile = $this->outputDir . '/index.html';

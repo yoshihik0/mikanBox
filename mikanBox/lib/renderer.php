@@ -285,6 +285,7 @@ class MikanBoxRenderer {
 
         // 6. Expand Navigation/Special Tags
         $html = $this->replaceSpecialTags($html);
+        $html = $this->insertAiQuestionScript($html);
 
         // 7. Final path completion
         $html = $this->applyPathCompletion($html);
@@ -814,37 +815,42 @@ class MikanBoxRenderer {
         return str_replace(array_keys($codeMap), array_values($codeMap), $content);
     }
 
+    public static function hasAiQuestionWidget(string $html): bool {
+        return preg_match('/<[A-Za-z][^<>]*\sdata-mikanbox-ai-question(?=[\s=>])/i', $html) === 1;
+    }
+
+    private function insertAiQuestionScript(string $html): string {
+        if (!self::hasAiQuestionWidget($html)) return $html;
+
+        $coreName = defined('CORE_DIR') ? basename(CORE_DIR) : 'mikanBox';
+        $scriptFile = defined('CORE_DIR') ? CORE_DIR . '/' . self::AI_QUESTION_ASSET : '';
+        $scriptVersion = $scriptFile !== '' && is_file($scriptFile) ? (string)@filemtime($scriptFile) : '';
+        $scriptPath = rawurlencode($coreName) . '/' . self::AI_QUESTION_ASSET;
+        $scriptUrl = $this->bundledMedia ? $this->getStaticRootPrefix() . $scriptPath
+            : rtrim($this->getSiteBasePath(), '/') . '/' . $scriptPath;
+        if ($scriptVersion !== '') $scriptUrl .= '?v=' . rawurlencode($scriptVersion);
+        $attributes = $this->bundledMedia ? ' data-webmcp="off"' : '';
+        if (!$this->notFound && in_array($this->currentPageInfo['status'] ?? '', ['public_dynamic', 'public_static'], true)) {
+            $attributes .= $this->isRelativeStaticMode() ? ' data-current-page'
+                : ' data-page-url="' . htmlspecialchars($this->buildPageUrl($this->currentPageId), ENT_QUOTES) . '"';
+        }
+        $script = '<script src="' . htmlspecialchars($scriptUrl, ENT_QUOTES) . '"' . $attributes . ' defer></script>';
+        $bodyEnd = strripos($html, '</body>');
+        return $bodyEnd === false ? $html . $script : substr_replace($html, $script, $bodyEnd, 0);
+    }
+
     private function replaceSpecialTags($html) {
         $aiQuestion = '/\{\{\s*AI_QUESTION\s*(?::\s*(?:sources\s*=([^{}\r\n]*)|([A-Za-z0-9_-]+))\s*)?\}\}/u';
-        if (preg_match($aiQuestion, $html)) {
-            $publicPage = !$this->notFound
-                && in_array($this->currentPageInfo['status'] ?? '', ['public_dynamic', 'public_static'], true);
-            $html = preg_replace_callback($aiQuestion, function($matches) use ($publicPage) {
-                $section = $matches[2] ?? '';
-                $attributes = '';
-                if ($section !== '') {
-                    $attributes = ' data-section="' . htmlspecialchars($section, ENT_QUOTES) . '"';
-                } elseif (isset($matches[1])) {
-                    $attributes = ' data-sources="' . htmlspecialchars(trim($matches[1]), ENT_QUOTES) . '"';
-                } elseif ($publicPage) {
-                    $attributes = $this->isRelativeStaticMode()
-                        ? ' data-current-page'
-                        : ' data-page-url="' . htmlspecialchars($this->buildPageUrl($this->currentPageId), ENT_QUOTES) . '"';
-                }
-                return '<div data-mikanbox-ai-question' . $attributes . '></div>';
-            }, $html);
-            $coreName = defined('CORE_DIR') ? basename(CORE_DIR) : 'mikanBox';
-            $scriptFile = defined('CORE_DIR') ? CORE_DIR . '/' . self::AI_QUESTION_ASSET : '';
-            $scriptVersion = $scriptFile !== '' && is_file($scriptFile) ? (string)@filemtime($scriptFile) : '';
-            $scriptPath = rawurlencode($coreName) . '/' . self::AI_QUESTION_ASSET;
-            $scriptUrl = $this->bundledMedia ? $this->getStaticRootPrefix() . $scriptPath
-                : rtrim($this->getSiteBasePath(), '/') . '/' . $scriptPath;
-            if ($scriptVersion !== '') $scriptUrl .= '?v=' . rawurlencode($scriptVersion);
-            $script = '<script src="' . htmlspecialchars($scriptUrl, ENT_QUOTES) . '"'
-                . ($this->bundledMedia ? ' data-webmcp="off"' : '') . ' defer></script>';
-            $bodyEnd = strripos($html, '</body>');
-            $html = $bodyEnd === false ? $html . $script : substr_replace($html, $script, $bodyEnd, 0);
-        }
+        $html = preg_replace_callback($aiQuestion, function($matches) {
+            $section = $matches[2] ?? '';
+            $attributes = '';
+            if ($section !== '') {
+                $attributes = ' data-section="' . htmlspecialchars($section, ENT_QUOTES) . '"';
+            } elseif (isset($matches[1])) {
+                $attributes = ' data-sources="' . htmlspecialchars(trim($matches[1]), ENT_QUOTES) . '"';
+            }
+            return '<div data-mikanbox-ai-question' . $attributes . '></div>';
+        }, $html);
 
         // 3. Navigation Tags: {{NAV_LINKS:category}}, {{NAV_CARDS:category:template}}
         //    with named options :sort=new|old, :limit=N, :sep=text, and the @same selector.
@@ -1580,7 +1586,9 @@ class MikanBoxRenderer {
             $footers = [];
             foreach (mikanBoxNormalizeFooterComponents($pageData['md_footer_comps'] ?? []) as $componentId) {
                 $component = loadData(COMPONENTS_DIR, $componentId);
-                $footer = trim($this->markdownText((string)($component['html'] ?? ''), $pageData));
+                $html = (string)($component['html'] ?? '');
+                if (self::hasAiQuestionWidget($html)) continue;
+                $footer = trim($this->markdownText($html, $pageData));
                 if ($footer !== '') $footers[] = $footer;
             }
 
@@ -1653,7 +1661,9 @@ class MikanBoxRenderer {
             if (in_array($m[1], $visited, true)) return '';
             $component = loadData(COMPONENTS_DIR, $m[1]);
             if (!$component || !empty($component['is_ai_doc'])) return '';
-            return $this->includeComponentsAsText((string)($component['html'] ?? ''), array_merge($visited, [$m[1]]));
+            $html = (string)($component['html'] ?? '');
+            if (self::hasAiQuestionWidget($html)) return '';
+            return $this->includeComponentsAsText($html, array_merge($visited, [$m[1]]));
         }, $text);
     }
 

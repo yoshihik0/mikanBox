@@ -250,15 +250,16 @@ function mcpRequireId($id) {
 }
 
 function toolContent($data) {
-    return [
+    $result = [
         'resultType' => 'complete',
         'content' => [[
             'type' => 'text',
             'text' => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
         ]],
-        'structuredContent' => $data,
         'isError' => is_array($data) && array_key_exists('error', $data),
     ];
+    if (is_array($data) && array_values($data) !== $data) $result['structuredContent'] = $data;
+    return $result;
 }
 
 // ==========================================
@@ -279,6 +280,7 @@ function mcpToolAnnotations(): array {
         'get_settings'     => ['readOnlyHint' => true, 'untrustedContentHint' => false],
         'list_pages'       => ['readOnlyHint' => true, 'untrustedContentHint' => true],
         'get_page'         => ['readOnlyHint' => true, 'untrustedContentHint' => true],
+        'get_revisions'    => ['readOnlyHint' => true, 'untrustedContentHint' => true],
         'preview_page'     => ['readOnlyHint' => true, 'untrustedContentHint' => true],
         'list_components'  => ['readOnlyHint' => true, 'untrustedContentHint' => true],
         'get_component'    => ['readOnlyHint' => true, 'untrustedContentHint' => true],
@@ -294,6 +296,7 @@ function mcpToolAnnotations(): array {
         'update_page'      => ['readOnlyHint' => false, 'destructiveHint' => true,  'idempotentHint' => true],
         'delete_page'      => ['readOnlyHint' => false, 'destructiveHint' => true,  'idempotentHint' => true],
         'update_component' => ['readOnlyHint' => false, 'destructiveHint' => true,  'idempotentHint' => true],
+        'delete_component' => ['readOnlyHint' => false, 'destructiveHint' => true,  'idempotentHint' => true],
         'update_ai_doc'    => ['readOnlyHint' => false, 'destructiveHint' => true,  'idempotentHint' => true],
         // resolveMediaSaveName() が連番で重複を避けるため既存ファイルを上書きしない。
         // 同じ画像を2回送ると別名で2つ保存されるので非冪等。
@@ -479,6 +482,15 @@ function toolDefinitions() {
             ],
         ],
         [
+            'name' => 'delete_component',
+            'description' => '指定したIDと完全に一致するコンポーネントを削除する。',
+            'inputSchema' => [
+                'type' => 'object',
+                'properties' => ['id' => ['type' => 'string']],
+                'required' => ['id'],
+            ],
+        ],
+        [
             'name' => 'get_settings',
             'description' => 'サイト設定を取得する（パスワードなど機密項目は除外）。',
             'inputSchema' => $noProps,
@@ -536,6 +548,18 @@ function toolDefinitions() {
             ],
         ],
     ];
+
+    if (function_exists('mikanBoxMcpPageRevisions')) {
+        $tools[] = [
+            'name' => 'get_revisions',
+            'description' => 'ページの保存履歴を新しい順に最大10件取得する。',
+            'inputSchema' => [
+                'type' => 'object',
+                'properties' => ['id' => ['type' => 'string']],
+                'required' => ['id'],
+            ],
+        ];
+    }
 
     $annotations = mcpToolAnnotations();
     foreach ($tools as &$tool) {
@@ -693,12 +717,25 @@ function toolUpdatePage($args) {
     $id = $args['id'] ?? '';
     if ($err = mcpRequireId($id)) return $err;
 
-    $existing = loadData(POSTS_DIR, $id);
-    if ($existing === null) {
-        return ['error' => t('mcp_err_page_not_found_for_update', $id)];
-    }
+    $save = fn() => mcpSavePageUpdate($id, $args);
+    $result = function_exists('mikanBoxMcpPageRevisions') ? mikanBoxWithEditorPageWrite($save) : $save();
+    if (!isset($result['data'])) return ['error' => $result['error'] ?? t('mcp_err_page_save_failed')];
 
-    $before = $existing;
+    $before = $result['before'];
+    $existing = $result['data'];
+    $oldFormat = mikanBoxPageOutputFormat($before);
+    if (($before['status'] ?? '') === 'public_static'
+        && ($oldFormat !== $existing['output_format'] || ($existing['status'] ?? '') !== 'public_static')) {
+        mcpDeleteStaticPageFiles($id, $oldFormat);
+    }
+    return ['success' => true, 'id' => $id, 'message' => t('mcp_success_page_updated', $id)];
+}
+
+function mcpSavePageUpdate($id, $args) {
+    $before = loadData(POSTS_DIR, $id);
+    if ($before === null) return ['error' => t('mcp_err_page_not_found_for_update', $id)];
+
+    $existing = $before;
     foreach (['title', 'content_md', 'status', 'description', 'keywords', 'category', 'wrapper_comp', 'is_html', 'exclude_tracking', 'sort_order', 'css', 'js', 'ogp_image'] as $f) {
         if (array_key_exists($f, $args)) $existing[$f] = $args[$f];
     }
@@ -711,21 +748,21 @@ function toolUpdatePage($args) {
     }
     $existing = mikanBoxApplyPageDates($existing, $before);
 
-    if (saveData(POSTS_DIR, $id, $existing)) {
-        $oldFormat = mikanBoxPageOutputFormat($before);
-        $wasStatic = ($before['status'] ?? '') === 'public_static';
-        // Leaving "Public (Static)" or changing the format removes the files the old state built,
-        // so a stale static file never shadows (or keeps publishing) the page.
-        if ($wasStatic && ($oldFormat !== $existing['output_format'] || ($existing['status'] ?? '') !== 'public_static')) {
-            mcpDeleteStaticPageFiles($id, $oldFormat);
-        }
-        return ['success' => true, 'id' => $id, 'message' => t('mcp_success_page_updated', $id)];
-    }
-    return ['error' => t('mcp_err_page_save_failed')];
+    if (function_exists('createRevision')
+        && !createRevision($id, $GLOBALS['mikanbox_audit_actor'] ?? 'MCP')) return ['error' => t('mcp_err_page_save_failed')];
+    if (!saveData(POSTS_DIR, $id, $existing)) return ['error' => t('mcp_err_page_save_failed')];
+    return ['before' => $before, 'data' => $existing];
 }
 
 function toolDeletePage($id) {
     if ($err = mcpRequireId($id)) return $err;
+
+    $delete = fn() => mcpDeletePageData($id);
+    $result = function_exists('mikanBoxMcpPageRevisions') ? mikanBoxWithEditorPageWrite($delete) : $delete();
+    return isset($result['data']) ? $result['data'] : ['error' => $result['error'] ?? t('mcp_err_page_delete_failed')];
+}
+
+function mcpDeletePageData($id) {
     $deleting = loadData(POSTS_DIR, $id);
     if ($deleting === null) return ['error' => t('mcp_err_page_not_found', $id)];
     require_once __DIR__ . '/lib/ssg.php';
@@ -733,10 +770,15 @@ function toolDeletePage($id) {
         return ['error' => t('err_page_output_delete')];
     }
 
-    if (deleteData(POSTS_DIR, $id)) {
-        return ['success' => true, 'message' => t('mcp_success_page_deleted', $id)];
-    }
-    return ['error' => t('mcp_err_page_delete_failed')];
+    if (!deleteData(POSTS_DIR, $id)
+        || (function_exists('deleteRevisionsOfPost') && !deleteRevisionsOfPost($id))) return ['error' => t('mcp_err_page_delete_failed')];
+    return ['data' => ['success' => true, 'message' => t('mcp_success_page_deleted', $id)]];
+}
+
+function toolGetRevisions($id) {
+    if ($id === '') return ['error' => t('mcp_err_id_required')];
+    if (!function_exists('mikanBoxMcpPageRevisions')) return ['error' => t('mcp_err_tool_not_found', 'get_revisions')];
+    return mikanBoxMcpPageRevisions($id) ?? [];
 }
 
 function toolListComponents() {
@@ -804,6 +846,15 @@ function toolUpdateComponent($args) {
         return ['success' => true, 'id' => $id, 'message' => t('mcp_success_component_updated', $id)];
     }
     return ['error' => t('mcp_err_component_save_failed')];
+}
+
+function toolDeleteComponent($id) {
+    if ($id === '') return ['error' => t('mcp_err_id_required')];
+    if (($idError = mikanBoxValidateNewId($id, 'component')) !== null) return ['error' => $idError];
+    if (in_array($id, getFileList(COMPONENTS_DIR), true) && !deleteData(COMPONENTS_DIR, $id)) {
+        return ['error' => t('err_comp_delete')];
+    }
+    return ['deleted' => $id];
 }
 
 function toolListAiDocs() {
@@ -1063,10 +1114,12 @@ function executeTool($name, $args, $settings) {
         'create_page'      => toolCreatePage($args),
         'update_page'      => toolUpdatePage($args),
         'delete_page'      => toolDeletePage($args['id'] ?? ''),
+        'get_revisions'    => toolGetRevisions($args['id'] ?? ''),
         'list_components'  => toolListComponents(),
         'get_component'    => toolGetComponent($args['id'] ?? ''),
         'create_component' => toolCreateComponent($args),
         'update_component' => toolUpdateComponent($args),
+        'delete_component' => toolDeleteComponent($args['id'] ?? ''),
         'get_ai_context'   => toolGetAiContext(),
         'list_ai_docs'     => toolListAiDocs(),
         'get_ai_doc'       => toolGetAiDoc($args['id'] ?? ''),
