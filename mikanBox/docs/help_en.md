@@ -4,30 +4,34 @@
 
 - <a href="#concept">Concept &amp; Features</a>
 - <a href="#design-philosophy">Design Philosophy</a>
+- <a href="#security-policy">Security Policy</a>
 - <a href="#setup-dist">Setup &amp; Distribution</a>
 - <a href="#overview">Overview</a>
+- <a href="#common">Common</a>
 - <a href="#page-mgmt">Pages</a>
 - <a href="#page-edit">Page Edit</a>
 - <a href="#visual-edit">Visual Editing</a>
 - <a href="#site">Site</a>
 - <a href="#design-mgmt">Design</a>
-- <a href="#design-edit">Design Edit</a>
+- <a href="#design-edit">Design editor</a>
 - <a href="#media-mgmt">Media</a>
 - <a href="#markdown">Markdown</a>
-- <a href="#components">Components (Custom Tags)</a>
-- <a href="#tags">Available Tags</a>
-- <a href="#init-comps">Bundled Components</a>
-- <a href="#data-embedding">Embedding, Loading &amp; API</a>
-- <a href="#output-formats">Output Formats (Markdown &amp; Data)</a>
-- <a href="#catalog-pager">Catalogs &amp; Page Lists</a>
-- <a href="#site-mapfeed">Sitemap, RSS &amp; API</a>
-- <a href="#podcast">Podcast</a>
-- <a href="#ai-guide">Publishing an AI-generated Design</a>
+- <a href="#components">Components (custom tags)</a>
+- <a href="#tags">Available tags</a>
+- <a href="#init-comps">Initial components</a>
+- <a href="#data-embedding">Embedding and loading data, and the API</a>
+- <a href="#output-formats">Output formats (Markdown version and data)</a>
+- <a href="#catalog-pager">Create a paginated list with catalog data</a>
+- <a href="#podcast">Podcast publishing</a>
+- <a href="#site-mapfeed">Sitemap, RSS, and API</a>
+- <a href="#ai-guide">Publish AI-generated designs</a>
 - <a href="#announcement">Announcement</a>
 - <a href="#license">License</a>
 
 </nav>
 <main>
+
+<div class="manual-editions" role="group" aria-label="Edition"><strong>Edition</strong> <button type="button" data-edition-choice="flat">flat</button> <button type="button" data-edition-choice="sqlite">sqlite</button> <button type="button" data-edition-choice="cloud">cloud</button> <button type="button" data-edition-choice="all">all</button> <label><input type="checkbox" id="manual-details"> Show details</label></div>
 
 <style>
 .manual-version {
@@ -49,1296 +53,1980 @@
 .badge-page { background:#c9e8d7; color:#2d6a4f; border:1px solid #a8d4be; }
 .badge-part { background:#dde3ea; color:#1e293b; border:1px solid #c4cdd6; }
 .badge-ai { background:#fce7f3; color:#9d174d; border:1px solid #fbcfe8; }
+body[data-edition="flat"] nav.sidebar a.cloud,
+body[data-edition="sqlite"] nav.sidebar a.cloud {
+  display: none;
+}
 .mat-icon {
   vertical-align: -0.2em;
   font-size: 1em;
 }
-</style>
 
-# 🍊mikanBox User Manual <small class="manual-version">v2.30.4</small>
+# 🍊mikanBox User Manual <small class="manual-version">flat・SQLite v2.30.5 / Cloud v0.21.3</small>
 
-🍊mikanBox comes in two versions: **🍊mikanBox** [SQLite Edition]{.type-badge .badge-sqlite}, which uses a SQLite database, and **🍊mikanBox flat** [flat Edition]{.type-badge .badge-flat}, a JSON file-based edition with no database. The basic usage is shared between both, so this help document covers both. Where the content differs between versions, the badges above are used to mark the difference.
+🍊mikanBox comes in three editions: **🍊mikanBox** (the SQLite edition), which uses an SQLite database; **🍊mikanBox flat** (the flat edition), which uses JSON files without a database; and **🍊mikanBox Cloud** (the Cloud edition), which uses Cloudflare for both management and publication. Their basic usage is shared, so this help covers all three. Use the buttons at the top of the page (flat / sqlite / cloud / all) to select an edition. Badges identify content that differs by edition.
 
-## Concept &amp; Features {#concept}
+## Concept & Features {#concept}
 
-🍊mikanBox is a "lightweight, AI-era, parts-assembly CMS." There are two editions: 🍊mikanBox flat (JSON edition), designed to build and run sites of a few to a few dozen pages as fast and safely as possible, and 🍊mikanBox (SQLite edition), which can comfortably run larger sites.
+🍊mikanBox is an ultra-lightweight, component-based CMS for the AI era, designed to build and operate websites of a few to a few dozen pages quickly and securely. Choose 🍊mikanBox flat (the JSON edition), which is also convenient for building static sites locally; 🍊mikanBox (the SQLite edition), for comfortably managing larger sites; or 🍊mikanBox Cloud, which runs on Cloudflare.
 
-- File-based (JSON) — No database required. Just place it on any PHP-capable server [flat Edition]{.type-badge .badge-flat}
-- SQLite (single-file DB) — All data lives in a single DB file; just place it on any PHP-capable server [SQLite Edition]{.type-badge .badge-sqlite}
-- Modeless UI — No page transitions; every task completes on a single screen for a snappy feel
-- Markdown support — Easy to edit content, also works well as a content archive
-- Filter by category — Filter pages and images by category; can be used as a workspace
-- Show images by filename only — Paste images without worrying about file paths
-- Component structure — Reusable, combinable page templates and parts
-- Component-scoped CSS — Write CSS in a small scope without worrying about interference
-- Drop in AI-generated code directly — Works even without any manual design work
-- AI agent integration (MCP) — AI can understand your site's structure and design conventions and read/write files directly
-- Manage DESIGN.md — Keep your instructions to AI on the site itself, so you can hand them to AI whenever needed
-- Multimodal AI support — AI can generate images and send/place them directly into the media folder
-- Static (SSG), dynamic, or a mix of both — Fast static sites, or a mix of static and dynamic, are both possible
-- DB Less DB — Embed data in a page and output it via API; can even act as a headless CMS
-- Podcast — Auto-generates an RSS feed so you can distribute a podcast too
+- File-based (JSON) — no database required; just place it on a server running PHP {.flat}
+- SQLite (single-file database) — all data is stored in one SQLite database file; just place it on a server running PHP {.sqlite}
+- Runs on Cloudflare — edit your site and publish a static site on Cloudflare. No R2 is needed for images, so you can start on the free tier with a Cloudflare account {.cloud}
+- Modeless UI — complete work on one screen without page transitions
+- Markdown support — edit content easily and use it as an information archive
+- Category filters — filter pages and images by category and use categories as workspaces
+- Display images by filename alone — insert images without worrying about file paths
+- Component structure — combine page templates and parts
+- Component-level CSS — write CSS for a small scope without worrying about interference
+- Place AI-generated code directly — run a site without designing it by hand
+- AI agent integration (MCP) — AI can understand the site structure and design direction and read and write files directly
+- Manage DESIGN.md — manage instructions for AI on the site and share them with AI
+- Multimodal AI — AI can generate images and send them directly to the media folder
+- Static (SSG), dynamic, or both — mix static and dynamic content {.flat .sqlite}
+- Greater security by separating the public site from the management site {.cloud}
+- Check for tampering and easily review operation history
+- DB Less DB — embed data in pages and output it through an API; also use it as a headless CMS
+- Podcasts — automatically generate RSS for podcast distribution
 
 ---
 
 ## Design Philosophy {#design-philosophy}
 
-### 🍊mikanBox flat: Deliberately Scoped [flat Edition]{.type-badge .badge-flat}
+### 🍊mikanBox flat: For Small Sites {.flat}
 
-🍊mikanBox flat isn't meant for sites with thousands of pages. If you only have a handful of pages but still want to keep the content up to date, why introduce a heavy DB-backed system? By deliberately not using a database, it delivers:
+🍊mikanBox flat is not intended for sites with thousands of pages. A small site whose information needs updating does not necessarily need a heavy database system. By deliberately avoiding a database, it offers:
 
-- Easy setup
-- A simple, easy-to-learn structure
+- Easy installation
+- A simple structure that is easy to learn
 - Easy backup and server migration
 
-### 🍊mikanBox: Handles Larger Sites Too [SQLite Edition]{.type-badge .badge-sqlite}
+🍊mikanBox flat is also easy to run on your own computer. Open the site folder as an AI working folder and AI can read and write the JSON files directly, create the site, and upload it to a hosting server or Cloudflare. Because only exported static files need to be placed on the public server, you can keep the admin panel and work-in-progress data on your computer.
 
-🍊mikanBox (SQLite edition) is here for when you want to run a somewhat larger site. And since it's still a single SQLite file, it keeps nearly all of that same simplicity.
+### 🍊mikanBox: For Sites with More Pages {.sqlite}
 
-- Easy setup
+🍊mikanBox (the SQLite edition) also supports somewhat larger sites. Its single-file SQLite database retains most of the simplicity:
+
+- Easy installation
 - Easy backup and server migration
-- Handles sites with a large number of pages
-- Supports multi-user editing and an approval workflow
-- Supports revision history management
+- Support for sites with more pages
+- Multi-user editing and an approval system
+- Editing history
+
+### 🍊mikanBox Cloud: Run on Cloudflare {.cloud}
+
+🍊mikanBox Cloud is for running a site on Cloudflare. Articles and settings are stored in D1 and edited from registered browsers. Separate Workers handle management and publication, and the public Worker serves the built static files.
+
+- Run on fast, secure Cloudflare
+- Manage a static site online with multiple editors
+- Visitors do not use the admin Worker or D1 after publication
+- No R2 required, so you can start on the free tier without registering a payment method
 
 ### Flexible Design
 
-Pages and components are tied directly to their CSS, so the structure is easy to follow and you don't need to worry about interference between parts. Depending on how you use components, you can design your site as freely and flexibly as you like.
+Pages and components are associated with their own CSS, making the structure easy to understand and avoiding interference. You can create flexible site designs by combining components.
 
-- Pages and components can each hold their own CSS and JavaScript
-- CSS is scoped, preventing interference
-- Components can be nested
-- Something like a WordPress theme is easy to build — and AI can build it too
-- Paths to media files (images, etc.) are resolved automatically
-- Data can be embedded into a page easily
-- Data can be loaded and used from other pages and other sites
-- Data can be stored in a variety of shapes, opening up many possible uses
+- Pages and components can have CSS and JavaScript
+- Scope CSS to prevent interference
+- Nest components
+- Easily create the equivalent of a WordPress theme, including with AI
+- Media paths are resolved automatically
+- Easily embed data in pages
+- Load and use data from other pages and sites
+- Store data in various forms for many uses
 
 ### AI-Friendly
 
-- AI-generated pages can be pasted in and used as-is. Even elaborate designs can go live with very little extra work
-- The code is compact and simple, so AI understands it easily — making it easy to have AI build pages and designs around a custom data structure
-- Through MCP, you can let AI remote-control everything from writing articles to designing pages
-- You can manage your instructions to AI (like DESIGN.md) on the site itself, have AI read them, or even have AI generate a design system from an existing design
-- By using the `{{EXT_MD:url}}` tag to source content from an external Markdown file (e.g. on GitHub), you can adopt a workflow where simply telling an AI agent to update the repository is enough to update the website — no need to even open the admin panel
-- Because the codebase is small and easy for AI to understand, you add features by having AI rewrite the source directly, rather than relying on plugins
+- Use MCP to let AI remotely control everything from writing articles to design
+- Manage AI instructions such as DESIGN.md and let AI read them, or have AI generate a design system from a design
+- Compact, simple code is easy for AI to understand, making it easy to create pages and designs using the data structure
+- Paste in AI-generated pages and publish elaborate designs with little additional work
+- Use `{{EXT_MD:url}}` to source external Markdown, such as GitHub files, so an AI agent can update a repository and thereby update the site without opening the admin panel {.flat .sqlite}
+- The small codebase is easy for AI to understand, so AI can modify the source to add features instead of using plugins
 
-The official demo is a dedicated flat sample site frozen at v2.16.9. The product itself (v2.16.10 and later) has no demo feature. In the demo, MCP settings remain visible to demonstrate where configuration lives, but the displayed key is a non-functional dummy. Issuing, regenerating or enabling a key has no effect. Management MCP is unavailable over both HTTP and stdio. The system update and restore buttons are shown, but pressing them does nothing, even for a signed-in administrator. Never copy real data or production credentials into a demo.
+---
 
-### Keeping Security Simple
+## Security Policy {#security-policy}
 
-Static site support means the design doesn't have to expand its attack surface.
+### Reduce Stored Information and Public Entry Points
 
-- No database (no SQL attack surface) [flat Edition]{.type-badge .badge-flat}
-- All DB operations use prepared statements, preventing SQL injection [SQLite Edition]{.type-badge .badge-sqlite}
-- Small codebase
-- No complex dependencies like plugins
-- Not the kind of attack target large-scale CMSes tend to be
+🍊mikanBox is intended for small informational sites. It has no visitor registration or payment features, so you can minimize the information your site holds by not collecting personal data. It has no system for installing feature plugins or themes and keeps external library dependencies low.
 
-## Setup &amp; Distribution {#setup-dist}
+### Admin Access and Authentication
 
-🍊mikanBox is ready to use as soon as you upload it to any PHP-capable server.
+The admin panel includes CSRF protection against writes from other sites. In a public environment, HTTP access to the admin panel redirects to HTTPS to protect communications. Repeated incorrect passwords or device registration codes temporarily restrict further attempts.
 
-### Requirements
+- **flat password authentication.** When installed on a server, someone with the setup token sets the admin password. The password is stored as a hash. See [Initial Setup and Sign-in](#first-setup). {.flat}
+- **SQLite and Cloud device authentication.** Devices are authenticated instead of using a password. The key is stored in the browser, and only its hash remains on the server. Issue a single-use code to add another device. A lost device can be disabled from another registered device. See [Devices and Users](#site-users). {.sqlite .cloud}
 
-The minimum runtime remains PHP 8.0. For new installations and Internet-facing sites, use the latest patched release of supported PHP 8.4 or 8.5. [SQLite Edition]{.type-badge .badge-sqlite} additionally requires the SQLite3 extension to be enabled (this is enabled by default on most shared hosting).
+### Separate Editing and Publication
 
-The web server is assumed to be Apache with `.htaccess` enabled, because `.htaccess` is what keeps the data folder and similar files from being opened directly in a browser. Environments without `.htaccess` (such as Nginx) are not supported. From v2.21.3, the admin screen checks the protection of the data folder when it opens, and shows a warning at the top if files inside it can be read directly from a browser (the check uses `protection-check.txt`, a small file with fixed content inside the data folder).
+With the flat and SQLite editions, you can edit and preview on your computer, export a static site locally, and send the files to a hosting server or Cloudflare. Open the local folder as an AI working folder to let AI create content including images, build pages, and transfer files to the public destination. Only exported files are placed on the public server, so the admin panel and work-in-progress data stay private and PHP does not run for visitors. See [Static Site Generation](#site-ssg). {.flat .sqlite}
 
-The server is assumed to support HTTPS (except when you run mikanBox on your own computer with `php -S` / `localhost`), so that sign-in details, setup tokens and the MCP API key are never read on the way. For what happens when the admin screen is opened with `http://`, see the move to HTTPS described under "Installation" below.
+In the Cloud edition, access to the admin panel, MCP, and D1 is confined to the admin Worker; a separate public Worker serves static files at a different address. {.cloud}
 
-### Installation
+#### Example: Authenticate the Admin Side on the Same Server {#php-separated-publishing .flat .sqlite}
 
-Upload the `mikanBox` folder into the same directory as `index.php`. This folder name can be changed — doing so is recommended for security, since it makes the location of the admin panel (`admin.php`) harder to guess. If you rename it, update `$core_dir` near the top of `index.php` accordingly. From 2.6.4 on that setting survives system updates, because the updater writes back the folder it is running from. Up to 2.6.3 every update discarded it and the site stopped rendering; if you are in that state, running a system update from the admin panel repairs it. This document refers to it as the `mikanBox` directory throughout.
+If the admin panel is at `example.com/blog/mikanBox/admin.php` and the site is published under `/blog/`, configure web-server authentication for `/blog/mikanBox/`. Public pages and the sibling `/blog/media/` folder can be served without authentication.
 
-Site-specific data is created on first access in a `mikanData` folder beside `index.php`. If the legacy `mikanBox/data` directory exists, it is migrated automatically only when it can be moved safely. If the destination already exists or conflicts with a page URL, mikanBox keeps using the legacy location instead of switching to empty data.
+To separate publication under `example.com/pub/`, use `/blog/` only for administration and preview, protect the entire host or path with authentication, and serve only static files from `/pub/`. Keep the admin MCP on the admin side as well.
 
-To change the data directory name, create `local-config.php` inside the admin/core directory; this file is excluded from self-updates. Add `define('MIKANBOX_DATA_DIR_NAME', 'your-folder-name');`. The value must be one directory name containing only letters, numbers, hyphens, and underscores. If data already exists, move the physical directory to the same name before changing this setting.
-
-From v2.21.2, opening the admin screen (`admin.php`) or visual editing with `http://` moves to the same address on `https://` (only when a page is opened, never in the middle of a submission). PHP's built-in server (`php -S`) and addresses opened as `localhost`, `127.0.0.1` or `[::1]` are not moved. Where a front server (proxy) handles HTTPS without telling PHP, the move happens only once, so you are never locked out (the address ends with `https=1`). On a server without HTTPS, add `?https=1` to the address to open the screen as before, or write `define('MIKANBOX_HTTPS_REDIRECT', false);` in `local-config.php` to turn the move off.
-
-Right after installation (before any page or component data exists), the first visit will automatically load sample content matching the visitor's browser language (Japanese or English). The home page and most sample pages are public. In Pages, edit the home page (ID `index`) and switch unused samples to draft or delete them.
-
-#### Separate administration, public pages, and media {#php-media-location}
-
-On the PHP editions, you can set the media storage directory and public media URL independently in `mikanBox/local-config.php`. By default, uploads are stored in `media/` alongside the `mikanBox/` directory and served at the site's `media/` URL.
-
-This example protects the admin host with authentication and serves static files on the public host. Both hosts run on the same server.
-
-| Role | URL | Server path |
+| Purpose | Public address | Example file locations |
 | --- | --- | --- |
-| Admin and preview | `https://admin.example.com/` | `/srv/mikanbox/admin/` (contains `index.php` and `mikanBox/`) |
-| Public pages | `https://www.example.com/` | `/srv/mikanbox/public/` (static build output) |
-| Media | `https://www.example.com/media/` | `/srv/mikanbox/assets/` (map `/media/` to this directory in the web server) |
+| Administration and preview | `https://example.com/blog/` | `index.php` and `mikanBox/` in `/srv/www/blog/` |
+| Public pages | `https://example.com/pub/` | Static build output in `/srv/www/pub/` |
+| Media | `https://example.com/pub/media/` | Uploaded files in `/srv/www/pub/media/` |
 
-1. Require HTTPS and authentication across the admin host. If you use the management MCP endpoint, keep it on that host as well.
-2. Serve static files on the public host with PHP and CGI execution disabled. Create a dedicated media directory and disable directory listing. Apply the media directory's `.htaccess` rules for SVG, or configure the server to send the same `Content-Security-Policy: sandbox` header for SVG. Give the admin PHP process write access to the output and media directories. Give the public service the read access it needs to serve files. Keep application code, site data, and setup tokens outside the public host's served paths.
-3. To keep media within the public folder, serve `public/media/` directly and use [Place media in the output folder](#ssg-media-in-output). To keep it in a separate folder as shown in the table, move existing media to the new location and add the following to the admin host's `mikanBox/local-config.php`. Start a new file with `<?php`.
+Select “Generate static pages on the server,” set the output directory to `../pub` and the public root URL to `https://example.com/pub`, and select [Place media in the output media/ directory](#ssg-media-in-output). If `pub.example.com` serves the same public folder, set the public root URL to `https://pub.example.com`.
 
-   ```php
-   define('MIKANBOX_MEDIA_DIR', '/srv/mikanbox/assets');
-   define('MIKANBOX_MEDIA_URL', 'https://www.example.com/media/');
-   ```
+Disable PHP and CGI execution and directory listings on the public side. Give admin-side PHP permission to write to the public and media destinations, and give the public side the read access needed to serve them. Keep the admin program, data, and setup token outside the public serving area. Apply the media `.htaccess` to SVGs or an equivalent `Content-Security-Policy: sandbox`. In a signed-out browser, check that public pages and images open and that the admin side requires authentication. Media placed on the public side is served as soon as it is uploaded.
 
-4. Select “Generate static pages on this server,” set the output directory to `../public` and the published root URL to `https://www.example.com`, then build. Check that a signed-out visitor can open a public page and its images, and that the admin host prompts for authentication.
+### Protect Data, Uploads, and AI Integration
 
-Uploads become publicly accessible in this setup as soon as they are uploaded. Keep private draft assets elsewhere. The HTML build can reference the files in place.
+- **Data folder.** The PHP editions protect the data folder with Apache access-denial settings and the 🍊mikanBox entry point. If a warning appears in the admin panel, change the configuration so the folder cannot be read over the web. The flat edition uses JSON files; the SQLite edition separates SQL statements from input values with prepared statements. {.flat .sqlite}
+- **Uploads.** Scripts and similar content are removed from SVGs on upload. JS and CSS are also checked for format and content requirements. Check the source and contents of code before using it on public pages. See [Media](#media-mgmt).
+- **Admin MCP.** An API key is shown only once when issued; only its hash is stored on the server. Use separate keys for each AI tool so you can identify their activity in the operation log and disable only keys that are no longer needed. You can also disable admin MCP entirely when it is not in use. See [MCP API Key](#site-mcp-key).
 
-#### Running it locally
+### Verify Update Sources and Trace Changes
 
-You can run mikanBox on your own computer instead of uploading it to a server. This is the basis of the operating style where no admin panel is published at all — you upload only the generated static files — and it also makes the site folder a working directory for an AI coding tool.
+PHP system updates and Cloud GitHub updates resolve the commit pointed to by a public release tag before fetching it. Updates from the Cloud admin panel verify the official release tag and commit and check the distribution files' SHA-256 before applying them. In the 🍊mikanBox development repositories, configured Git hooks check for secrets before a push.
 
-PHP is the only requirement. No database, no build tooling, no Node.js.
+[Recent Activity](#site-audit) shows changes to pages, components, media, and settings made through the admin panel, MCP, and other interfaces. Run [Check for Tampering](#site-integrity) to compare public files and stored data with their recorded state and investigate differences that cannot be explained by recorded operations. In the PHP editions, program files are checked too.
 
-1. Check whether PHP is installed. Run `php -v` in a terminal; check the version and use the latest patched PHP 8.4 or 8.5 for a new installation.
-2. If it is missing, install it. macOS no longer ships PHP, so install [Homebrew](https://brew.sh/) and run `brew install php`. On Windows, download it from [windows.php.net](https://windows.php.net/download/). On Linux, run `sudo apt install php` (Debian family) or `sudo dnf install php` (Fedora family).
-3. Extract `index.php` and the `mikanBox` folder into any folder.
-4. Change into that folder and run `php -S localhost:8000 index.php`. This is the server bundled with PHP; nothing else is needed. Do not leave out the final `index.php`: without it, the data folder (with secrets such as the MCP API key) can be read from a browser. From v2.21.3 the admin screen shows a warning in that case.
-5. Open `http://localhost:8000/mikanBox/admin.php` in a browser and complete the first-time setup. See [Initial Setup and Sign-in](#first-setup).
+---
 
-The `mikanData` and `media` folders are created on first access, exactly as they are on a server. To stop the server, press Control+C in the terminal that started it.
+## Setup & Distribution {#setup-dist}
 
-Open this folder in an AI coding tool and the agent can read and write your pages' Markdown and JSON directly. The admin MCP server works against the same site. Because the content is plain files, you can open them afterwards and check what the agent wrote.
+This section explains how to install 🍊mikanBox and access the admin panel. After installation, update it under **Site → Version** in the admin panel (see [Updating](#setup-update)).
 
-For local use, the flat edition is recommended. Content is stored as JSON files that an AI can read and write directly, the whole folder is easy to copy as a backup, and fewer PHP extensions are needed.
+### Requirements {#requirements .flat .sqlite}
 
-The admin MCP can also connect locally over stdio, without an API key. The stdio connection works in both the flat and SQLite editions: the AI tool launches `php /path/to/site/mikanBox/mcp.php`. In Claude Code's `.mcp.json`, write:
+- PHP 8.0 or later (for a new installation, use the latest supported PHP version). The SQLite edition also needs the SQLite3 extension, which is standard on many hosting services.
+- Apache with `.htaccess` enabled, to prevent browser access to the data folder. The admin panel is not designed to run on nginx or similar servers, though they can serve exported static files.
+- HTTPS. It is not needed when running as `localhost` on your computer.
 
-```json
-{
-  "mcpServers": {
-    "mikanbox-local": {
-      "command": "php",
-      "args": ["/path/to/site/mikanBox/mcp.php"]
-    }
-  }
-}
+### Install a PHP Edition on a Server {#php-install .flat .sqlite}
+
+#### 1. Obtain the Distribution
+
+From the GitHub releases page ([mikanBox-flat releases](https://github.com/yoshihik0/mikanBox-flat/releases) for flat, or [mikanBox releases](https://github.com/yoshihik0/mikanBox/releases) for SQLite), download the latest **Source code (zip)** and extract it.
+
+The extracted folder contains:
+
+| Name | Contents | Place on server? |
+|---|---|---|
+| `index.php` | Entry point for public pages | Yes |
+| `mikanBox/` | Admin panel and program | Yes |
+| `setup-token/` | File for the setup token | Yes, for initial setup |
+| `README.md` and others | Documentation and license | Not required |
+
+`mikanData/`, which holds articles and settings, and `media/`, which holds images and other files, are not included. They are created automatically on first access.
+
+#### 2. Write a Setup Token
+
+The setup token prevents someone else from becoming the administrator immediately after installation. It is used once during initial setup.
+
+1. Create a random string of at least 20 characters. A string consisting of repeated identical characters cannot be used. A password generator is a reliable way to create one.
+2. Open `setup-token/setup-token.txt` and write the string on one line below the explanatory lines beginning with `#`. Save it as UTF-8 without a BOM.
+3. Keep a copy of the string; you will enter it in the admin panel.
+
+#### 3. Upload to the Server
+
+Upload `index.php`, the `mikanBox` folder, and the `setup-token` folder to the same location on the server using FTP or another method. Place them in the document root for a site at the domain root, or in a `blog` folder for `https://example.com/blog/`.
+
+- You may rename the admin folder to a less guessable name. If you do, change `$core_dir` near the top of `index.php` to the same name.
+- Write permission: PHP must be able to write to the location containing `index.php`, where it creates `mikanData` and `media`.
+
+#### 4. Open the Admin Panel and Complete Initial Setup
+
+Open `https://example.com/mikanBox/admin.php` in a browser, using the renamed folder if applicable. On first access, `mikanData` is created with sample pages and components, followed by the initial setup screen.
+
+- **flat** — Enter the setup token and an admin password of at least seven characters ([Set the First Password](#flat-setup)). {.flat}
+- **SQLite** — Enter the setup token, username, display name, and device name to register this device ([Register the First Device](#device-setup)). {.sqlite}
+
+After setup, `setup-token.txt` contains only its explanatory lines again. The token is no longer used. A site-root `.htaccess` is created if one does not already exist.
+
+#### 5. Check That the Data Folder Is Protected
+
+Each time the admin panel opens, it checks whether files inside the data folder are readable from a browser. If they are, a warning appears at the top of the screen. Settings, drafts, MCP API keys, and other information may be exposed in this state, so fix it before publishing.
+
+- Check that the server uses Apache and has `.htaccess` enabled. Consult your hosting control panel or server administrator.
+- If `.htaccess` cannot be used, configure the server to deny access to the data folder (`mikanData`), or move to a server where `.htaccess` is enabled.
+- Reopen the admin panel and confirm that the warning has disappeared.
+
+#### 6. First Steps After Installation
+
+1. Under [Site Settings](#site-settings) on the Site screen, enter and save the site name. Change the admin panel language under [Language](#site-lang).
+2. Review the sample pages on the Pages screen. The home page and most samples are **Public (Dynamic)** and visible to everyone immediately after installation. Edit the home page (ID `index`) and delete or make drafts of samples you do not need. The embeddable `sample_md` starts as a draft.
+3. Check the publication status of pages you intend to publish. **Public (Static)** pages do not become files until you press **Build Static Site** ([Static Site Generation](#site-ssg)).
+4. To operate the site from AI, issue an [MCP API key](#site-mcp-key).
+5. To edit with other people, issue an invitation code under [Devices and Users](#site-users). {.sqlite}
+
+#### Run on Your Computer {#php-local .flat .sqlite}
+
+You can also run mikanBox on your computer without installing it on a server. Only PHP is required. You can build locally and send only exported static files to the public server.
+
+1. Extract the distribution. `setup-token` is not used.
+2. In a terminal, go to the folder containing `index.php` and run:
+
+```sh
+php -v                            # Check that it is 8.0 or later
+php -S localhost:8000 index.php
 ```
 
-Replace `/path/to/site` with your actual site folder. This connection also follows the "Enable MCP" setting. We recommend not auto-approving destructive tools such as `delete_page` in your AI tool, so that each call asks for confirmation.
+3. Open `http://localhost:8000/mikanBox/admin.php` in a browser. A setup token is not required when accessing it from the same computer. In flat, set a password; in SQLite, register with a username and display name.
+4. Press Ctrl+C in the terminal to stop.
 
-To publish, upload the folder that static generation produces. In this style there is no PHP, no data and no admin panel on the public side, so there is nothing to tamper with.
+Do not omit `index.php` at the end of the command. If omitted, the data folder becomes readable from a browser and a warning appears in the admin panel. This simple server is for use on your own computer. To share the site, [export a static site](#site-ssg) and publish it.
 
-### Initial Setup and Sign-in {#first-setup}
+If you open the folder in an AI coding tool, AI can read and write page and component data directly. {.flat}
 
-[flat Edition]{.type-badge .badge-flat}: whoever opens `mikanBox/admin.php` first sets the admin password (at least 7 characters). Its hash (a one-way converted value) is stored in `mikanData/settings.json`. After a password change, sign-ins in other browsers expire.
+### Initial Setup and Sign-in {#first-setup .flat .sqlite}
 
-#### Set the first password {#flat-setup}
+#### Set the First Password {#flat-setup .flat}
 
-[flat Edition only]{.type-badge .badge-flat}
+Enter the setup token and a password of at least seven characters in the admin panel. On your own computer, only the password is needed. Thereafter, sign in with that password. Change it under [Change Password](#site-password) on the Site screen.
 
-On a server, a setup token is required so that nobody else can set the password first (v2.16.8 and later).
+#### Register the First Device {#device-setup .sqlite}
 
-1. Make a random string (at least 20 characters). It is used only once, so keep a copy until setup is done.
-2. Open `setup-token.txt` in the `setup-token` folder and write that string on a single line below the instructions.
-3. Upload the `mikanBox` folder, `index.php` and the `setup-token` folder.
-4. Open `mikanBox/admin.php`, then enter the token and a password. The used token is removed from `setup-token.txt`.
+The SQLite edition has no password; a registered browser serves as the key. Open the admin panel in **the browser you normally use**, enter the setup token, username (ASCII letters, digits, `_`, and `-`), display name, and device name, and press **Register this device**. You can then open the admin panel in that browser. To use another browser or computer, [add a device](#add-device).
 
-If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the setup screen is not shown. The token is needed only when setting the first password; it is not needed on a site that is already set up.
+#### Upgrade from 2.8.x {#upgrade-to-devices .sqlite .detail}
 
-Save `setup-token.txt` as UTF-8 text without a BOM (byte order mark). From v2.21.2, a file that starts with a BOM or contains control characters is not read (it counts as holding no token).
+The old password and security-question answer are deleted during the update. Usernames, display names, pages, designs, and MCP API keys are retained.
 
-When you run mikanBox on your own computer with PHP's built-in server (`php -S localhost:8000 index.php`, see "Running it locally") and open it as `localhost` from that same computer, no token is needed; a password is enough. If mikanBox runs on a web server such as Apache or nginx, the token is required, even on your own machine. Do not expose a site running on PHP's built-in server to the Internet through a reverse proxy or a tunnel: depending on how the connection is forwarded, the exemption can also apply to visitors from outside. To publish a site, set it up on a web server and use the token.
+1. Before updating, prepare a setup token in `setup-token/setup-token.txt` from the distribution.
+2. After updating, open the admin panel and register the first device using the token, an existing username, and a device name.
+3. Issue [addition codes](#add-device) for other users from a registered device.
 
-[SQLite Edition]{.type-badge .badge-sqlite} (v2.9.0 and later) has no passwords. Only registered devices (browsers) can open the admin screen. A device's key (a random token) lives in that browser's cookie, and the server stores only its hash. A leaked database cannot reveal the key, and there is no password to reuse or leak. Even if someone guesses the admin URL, they get no further than the sign-in screen without a key.
+If you used shared URLs for pages awaiting approval, send the new URLs after updating.
 
-#### Registering the First Device {#device-setup}
+#### If All Devices Are Lost {#device-recovery .sqlite}
 
-[SQLite Edition only]{.type-badge .badge-sqlite}
+1. Write a new setup token to `setup-token/setup-token.txt` and upload it. A previously used value cannot be reused.
+2. Open **Recovery (all devices lost)** on the sign-in screen and enter the new token, an existing username, and a device name.
 
-1. Make a random string (at least 20 characters). Keep a copy. It is used only once, so you do not need to remember it for long.
-2. Open `setup-token.txt` in the `setup-token` folder and write that string on a single line below the instructions.
-3. Upload the `mikanBox` folder, `index.php` and the `setup-token` folder.
-4. Open `mikanBox/admin.php`, enter the token you kept, a username, a display name and a name for this device (for example, "Work laptop"), then press "Register this device".
-5. When registration succeeds, this browser stores the device's key and you are taken straight into the admin screen. A token works only once.
+Recovery invalidates all previous devices, unused codes, shared preview URLs, and MCP API keys. Issue replacements as needed.
 
-If `setup-token.txt` holds no token, one shorter than 20 characters, or one made of a few repeated characters, the registration screen is not shown. Only a notice reading "The installation method has changed. Please see this page." appears. Nobody becomes the admin just by visiting first. When you run mikanBox with PHP's built-in server (`php -S localhost:8000 index.php`) and open it as `localhost` from the same computer, no token is needed to register the first device: enter a username and a display name (leaving the device name empty makes it "This computer"). If mikanBox runs on a web server such as Apache or nginx, the token is required, even on your own machine. Do not expose a site running on PHP's built-in server to the Internet through a reverse proxy or a tunnel (depending on how the connection is forwarded, the exemption can also apply to visitors from outside). Recovery after every device is lost needs the token even locally.
+### Install and Publish the Cloud Edition {#cloud-install .cloud}
 
-Save `setup-token.txt` as UTF-8 text without a BOM (byte order mark). From v2.21.2, a file that starts with a BOM or contains control characters is not read (it counts as holding no token).
+The Cloud edition creates an admin panel (admin Worker), public site (public Worker), and database for articles and settings (D1) on Cloudflare. You need:
 
-After you clear cookies, or when you sign in from another browser or computer, that device is unregistered. Add it as follows.
+- A Cloudflare account (you can start on the free plan)
+- Node.js 22 or later, npm, and a terminal on your working computer
+- Proposed addresses for the admin panel and public site. You can start with `workers.dev` addresses and switch to custom domains later.
 
-#### Adding a Device
+There are two installation methods. To update an existing site, use [Version (Cloud)](#site-version-cloud).
 
-[SQLite Edition only]{.type-badge .badge-sqlite}
+#### Ask AI to Install
 
-On a registered device, open Site → "Devices and users" → "Add a device" → "Issue a code". The code is shown right under the button (an invite code under "Issue an invite code"; it is valid for 6 hours). Open the admin screen on the new device and enter the code and a device name. A code has 10 characters, is valid for 3 hours and works once. Keep it private. After 10 wrong entries from the same address (IP), entry from that address is blocked for 15 minutes.
+1. Open an AI coding tool such as Claude Code in an empty working folder.
+2. Ask it to install on Cloudflare from `https://github.com/yoshihik0/mikanBox-cloud`.
+3. Follow its instructions to sign in to Cloudflare and press **Authorize** on the authorization screen. Answer when asked about custom domains and names for the admin panel and public site.
+4. When installation is complete, AI gives you the admin address and the location of the file containing the setup token (`SETUP_TOKEN`). Open the admin panel in **the browser you normally use**, enter the token, and [register the first device](#cloud-auth). Do not paste the token into chat. Registering in the AI tool's built-in browser would register that browser as the device.
+5. Save an API token under [Cloudflare Publish Settings](#cloudflare-publish-settings) on the Site screen. The field explains how to obtain one.
+6. Press **Build Static Site** on the Pages screen and leave it open until the build finishes. Open the public site and verify that public pages and images appear and that drafts and pages awaiting approval cannot be opened.
 
-To invite another editor, use "Invite someone" in the same place: issue an invite code and hand it over. The invited person chooses their own user ID and display name when they first sign in. A device added with an add code is registered as the same user as whoever issued the code.
+#### Install with Commands {#cloud-install-commands .cloud .detail}
 
-#### When Every Device Is Lost (Recovery) {#device-recovery}
+Prepare Cloudflare and GitHub accounts, an internet connection, Node.js 22 or later, npm, and a terminal. If using a custom domain, first make sure it can be connected in Cloudflare.
 
-[SQLite Edition only]{.type-badge .badge-sqlite}
+1. Download and extract **Source code (zip)** for the desired version from [Cloud releases](https://github.com/yoshihik0/mikanBox-cloud/releases), then go to the extracted folder in a terminal.
+2. Install the required tools with `npm ci`.
+3. Sign in to Cloudflare with `npx wrangler login`. Check the target account on the authorization screen and press **Authorize**. Back in the terminal, confirm the target with `npx wrangler whoami`.
+4. Create a D1 database with `npx wrangler d1 create mikanbox-cloud` and note the displayed ID.
+5. Copy `wrangler.production.example.json` to `wrangler.production.json` (admin) and `wrangler.public.example.json` to `wrangler.public.json` (public), then change the [configuration values](#cloud-install-config).
+6. Confirm the publication target and deploy a placeholder with `npx wrangler deploy --config wrangler.public.json`. **Run this only once for a new installation.** Running it on an existing site replaces the public site with the placeholder.
+7. Use the [secret-file creation command](#cloud-install-secrets) to save installation-specific `JWT_SECRET` and `SETUP_TOKEN` values in `.env.production.secrets`.
+8. Prepare D1 with `npx wrangler d1 migrations apply DB --remote --config wrangler.production.json`.
+9. Deploy the admin panel with `npm run deploy:cloud`.
+10. Open the admin `/admin` in your usual browser and enter the `SETUP_TOKEN` from `.env.production.secrets` to [register the first device](#cloud-auth).
+11. Save an API token with Workers Scripts Edit permission limited to the target account under [Cloudflare Publish Settings](#cloudflare-publish-settings).
+12. Press **Build Static Site** and leave the screen open until it finishes. Verify that public pages and images appear and that drafts and pages awaiting approval cannot be opened.
 
-1. Make a new token, write it to `setup-token.txt` in the `setup-token` folder and upload it. A value that was used before does not work.
-2. On the sign-in screen, open "Recovery (all devices lost)" and enter the token, an existing username and a device name.
+Record the admin and public Worker names, Cloudflare account ID, and D1 ID. Configuration and secret files are needed for updates and recovery. Keep them safe and do not publish them on GitHub or elsewhere.
 
-Recovery stops every registered device and clears unused codes, edit locks and the MCP API key. From v2.21.4, share links for pages awaiting approval issued before then also stop working. Create a new key under "MCP API Key".
+##### Configuration Values {#cloud-install-config}
 
-#### Updating from 2.8.x {#upgrade-to-devices}
+| Field | Value |
+|---|---|
+| `account_id` in both files and admin `vars.CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID displayed by `whoami` |
+| Admin `name` and `vars.CLOUDFLARE_WORKER_NAME` | Admin Worker name |
+| Public `name` and admin `vars.CLOUDFLARE_PUBLIC_WORKER_NAME` | Public Worker name, different from the admin Worker name |
+| Admin `vars.CLOUDFLARE_D1_ID` and `d1_databases[0].database_id` | D1 ID recorded in step 4 |
+| Admin `vars.PUBLIC_SITE_URL` | Public site's HTTPS address, without a path |
 
-[SQLite Edition only]{.type-badge .badge-sqlite}
+With `workers.dev`, for example, the admin panel might be `https://admin.example-sub.workers.dev/admin` and the public site `https://mikan.example-sub.workers.dev/`. The subdomain is part of the public address. Do not use part of your email address or login ID.
 
-Updating to v2.9.0 deletes passwords and security answers, so you can no longer sign in with a password. Usernames and display names are kept. The MCP API key does not change.
+##### Command to Create the Secrets File {#cloud-install-secrets}
 
-- Register the first device with a token. Visiting the new site creates the `setup-token` folder automatically (if it does not, upload the `setup-token` folder from the package). Write a token as in steps 1 and 2 above, then enter the token, your existing username and a device name on `admin.php` (no display name is needed). If you update over FTP, preparing the `setup-token` folder and token beforehand is the safe way.
-- After the update, the sign-in screen explains the change: "This site no longer uses passwords (device authentication). You cannot sign in with a password; …".
-- Other users ask a registered device to issue an add code.
-- Preview URLs of pending-approval pages stop working after the update because the signing secret changes.
+Create two cryptographically random values and save them to a file. The command stops if the file already exists.
 
-### Signing In to Multiple Installations {#multi-site-login}
+```sh
+node -e "const fs=require('node:fs'),c=require('node:crypto'); fs.writeFileSync('.env.production.secrets', 'JWT_SECRET='+c.randomBytes(32).toString('hex')+'\nSETUP_TOKEN='+c.randomBytes(32).toString('hex')+'\n', {flag:'wx',mode:0o600})"
+```
 
-Starting with v2.8.6, login state, logout and CSRF tokens are separate for each installation, even on the same domain or when flat and SQLite editions are mixed. Logging into one site does not log you into another. Moving the installation directory on the server also requires a new login. Different URLs pointing to the same real directory are treated as the same installation.
+##### Change the Public Site URL {#cloud-change-public-url}
 
-From v2.21.0, a sign-in lasts until 24 hours pass without activity. From v2.21.3 the server also checks these 24 hours on every request and ends an expired sign-in right away (in the SQLite edition the registered device signs in again). Closing the browser signs you out. Sign-ins are stored in the data folder's `sessions/` (blocked from the Web and left out of backups). Because the storage location changes, everyone signs in once more after updating to v2.21.0 (in the SQLite edition, a registered device signs in automatically). From v2.21.1, opening a screen shown before you sign in creates no sign-in record; one is created only when a sign-in succeeds. Among those screens, the flat edition's initial password setup and the SQLite edition's device registration, recovery, add-code entry and invitation screens cannot be sent more than 2 hours after they were opened; reload the screen. The admin screens you use after signing in (editing pages and designs, site settings, media and so on) have no such limit.
+1. Connect the new domain to the public Worker.
+2. Change `PUBLIC_SITE_URL` in the admin `wrangler.production.json`.
+3. Redeploy the admin Worker with `npm run deploy:cloud`.
+4. Press **Build Static Site** in the admin panel.
+5. Check pages, images, sitemap, and RSS at the new URL. Migrate external links and search results as needed.
 
-If your sign-in expires while you are editing, pressing Save or a similar button shows "Your sign-in has expired" and nothing is sent. What you typed stays on the screen. Sign in to the admin screen in another tab, then save again on the original screen. The screen no longer switches to the login page and loses your input, and an action that did not run is no longer reported as done.
+Changing the admin panel URL may also require devices to be authenticated again.
 
-[SQLite Edition]{.type-badge .badge-sqlite}: the name of the device-key cookie also differs per installation, and the key's hash exists only in that installation's database. A key from another site does not work.
+<a id="cloud-device-auth"></a>
 
-#### Saved Passwords [flat Edition only]{.type-badge .badge-flat}
+### Device Authentication {#cloud-auth .cloud}
 
-Browser-saved passwords and server login state are separate. Editing a saved password in your browser does not change the server password. Submitting a password change in the admin panel changes that site's password. The current password is verified and the new password needs at least seven characters.
+The Cloud edition has no password; a registered browser serves as the key. Open the admin panel (`/admin`) in **the browser you normally use**, enter the installation `SETUP_TOKEN`, username, display name, and device name, and press **Register this device**. Enter `SETUP_TOKEN` directly in the admin panel. A value used to register cannot be reused. To use another browser or computer, [add a device](#add-device).
 
-Setup, login and password-change forms show a read-only “Site ID for password saving”, using the admin URL path (for example, `/shiro/mikanBox/admin.php`). This is a hint to help password managers distinguish saved entries, not an additional credential. Check that this ID matches the intended site when saving or updating a password. Review saved entries if you move the site URL.
+#### If All Devices Are Lost {#cloud-device-recovery .cloud}
 
-Forms identify username, current-password and new-password fields, but the browser or password manager decides how entries are stored or overwritten. The app cannot guarantee separate saved entries or automatically migrate existing ones.
+1. Set the admin Worker's `SETUP_TOKEN` to a new value. To do this with a command, run `npx wrangler secret put SETUP_TOKEN --config wrangler.production.json` in the installation folder and enter the new value. {.detail}
+2. Use **Recovery** on the sign-in screen to register a device with the new token and an existing username.
 
-This separation prevents accidental shared authentication. It does not provide complete isolation from other apps or scripts on the same origin.
+Previous devices and unused codes become unusable, and MCP API keys are deleted. Issue replacements as needed.
 
-#### Distributing to Others
+### Add a Device or Invite Someone {#add-device .sqlite .cloud}
 
-If you deliver a site to someone else — including your own custom design and content — the steps for letting them set up a new admin account on their own environment differ by edition.
+In a registered browser, open [Devices and Users](#site-users) on the Site screen.
 
-- [SQLite Edition]{.type-badge .badge-sqlite}: Create an empty file named `mikanData/reset-accounts.txt` on the server (0 bytes: no content and no BOM; from v2.21.2 a file with content is ignored). On the next visit, all registered users, devices and unused codes are deleted and the initial setup screen appears. From v2.21.3, edit locks and the MCP API key are cleared at the same time. From v2.21.4, share links for pages awaiting approval issued before then also stop working. This file is deleted automatically afterward, so there's no risk of accidentally leaving it in place. The recipient then follows [Registering the First Device](#device-setup) with a token of their own.
-- [flat Edition]{.type-badge .badge-flat}: Clear the value of `"password_hash"` inside the `mikanData/settings.json` file. When the recipient sets a new password, the MCP API key stops working (from v2.21.3).
+| Goal | Action | Code validity |
+|---|---|---|
+| Add another browser or computer of your own | Issue a code with **Add a device** and enter it on the new device's sign-in screen | 3 hours |
+| Invite someone else | Issue and share a code with **Invite someone**. The invitee chooses a username and display name | 6 hours |
 
-In both editions, the MCP API key used before the hand-over no longer connects. The recipient issues a key of their own under [MCP API Key](#site-mcp-key) when they need one.
+Each code can be used only once. Before clearing browser cookies, make sure you have another usable device. If a device is lost, disable it from another registered device.
 
-#### Security
+Register using your usual browser and profile. If you register in private mode, device information may be lost when the window closes.
 
-Files other than `admin.php` (such as the JSON files inside the `data` folder) are blocked from direct browser access (via `.htaccess`). The program inside the admin folder (`lib`, `views`, `lang`) cannot be opened directly from a browser either.
+### Updating {#setup-update}
+
+Check **Version** on the Site screen in the admin panel to see whether a new version is available.
+
+- **flat and SQLite** — Press **Update** under Version to replace only the program. Articles, settings, and images are untouched ([Version](#site-version-php)). {.flat .sqlite}
+- **Cloud** — Review the changes on Site and press **Update** ([Version (Cloud)](#site-version-cloud)). Before updating, export and save your data under Data Management. {.cloud}
+
+### Signing In to Multiple Sites {#multi-site-login .flat .sqlite}
+
+When multiple sites are installed on the same domain, sign in separately to each. If your sign-in expires while editing, sign in on another tab, then save again on the original screen.
+
+#### Details: Passwords Saved in the Browser {.flat .detail}
+
+When saving a password in your browser, the storage site ID under **Change Password** on the Site screen helps distinguish which site it belongs to.
+
+### Share Designs or Content with Others {.flat .sqlite}
+
+When giving someone a copy of a site, prepare it so the recipient can complete initial setup themselves.
+
+- **flat** — Clear `password_hash` in the copy's `mikanData/settings.json`. The recipient [sets their own password](#flat-setup). {.flat}
+- **SQLite** — Place an empty `reset-accounts.txt` in the copy's `mikanData`. Existing users and devices are removed on the next access. The recipient [registers the first device](#device-setup) with their own token. {.sqlite}
+
+If using MCP, the recipient issues their own [MCP API key](#site-mcp-key).
 
 ---
 
 ## Overview {#overview}
 
-mikanBox builds and manages a site across these four parts.
+🍊mikanBox builds and manages a site through four sections.
 
 ### [description]{.material-symbols-outlined .mat-icon}Pages
 
-Manages the pages that make up the actual substance of the site. You decide the URL (ID), set the title and SEO information, and write the body content (Markdown/HTML).
+Manage the pages that make up the site. Set a URL (ID), title, and SEO information, and write the body in Markdown or HTML.
 
 ### [save]{.material-symbols-outlined .mat-icon}Site
 
-Groups together the settings and management tools for running the site as a whole: the admin memo, Static Site Generation (SSG), language, the MCP API key, CSV import, data management, common site settings, devices and users (SQLite Edition), and changing your password (flat Edition).
+Manage site-wide settings and administration, including system updates, tampering checks, and data backups.
 
 ### [widgets]{.material-symbols-outlined .mat-icon}Design
 
-There are three types of components: [Page]{.type-badge .badge-page}, which sets the design for an entire page; [Part]{.type-badge .badge-part}, which builds shared building blocks; and [AI Instructions]{.type-badge .badge-ai}, for writing instructions aimed at an AI agent. Anything shared across the site, like a header, footer, or navigation, is worth building as a Part so it can be reused anywhere. This screen's main role is managing these design elements (components).
+Manage three component types: [Page]{.type-badge .badge-page} for a page's overall design, [Part]{.type-badge .badge-part} for shared elements, and [AI Instructions]{.type-badge .badge-ai} for instructions to AI agents. Create headers, footers, navigation, and other shared elements as parts to use them anywhere. This section primarily manages design elements (components).
 
 ### [image]{.material-symbols-outlined .mat-icon}Media
 
-In Cloud, use “Resize▼”, “Rename▼”, and “Convert to WebP” in that order. WebP conversion appears only for JPEG/PNG. WebP conversion automatically uses the `.webp` extension and updates references in page content, CSS, JavaScript, OGP images, components and the common site OGP image. Published HTML requires rebuilding and publication. Media follows the category selection at the top of the admin page, showing matching filename prefixes and shared `g_` images. Uploads receive the selected category prefix unless the name already starts with an alphanumeric prefix. Filename search operates within that selection.
+Manage primarily images: inspect, search, resize, and copy filenames for insertion. JS and CSS files uploaded as files are also managed here. The flat and SQLite editions also support video and audio uploads.
 
-Manages image, video, and audio files. You can quickly upload, browse the list, resize, and copy a filename ready to paste elsewhere.
+#### Side Menu
 
----
+The left side of the screen has icons for the four sections: [[description]{.material-symbols-outlined} Pages]{.m-btn .m-btn-gray}, [[save]{.material-symbols-outlined} Site]{.m-btn .m-btn-gray}, [[widgets]{.material-symbols-outlined} Design]{.m-btn .m-btn-gray}, and [[image]{.material-symbols-outlined} Media]{.m-btn .m-btn-gray}. Press one to open its screen and move among them as you edit. A feature of 🍊mikanBox is that you can work by scrolling within one screen.
 
-## Common Elements
-
-#### Preview
-
-Opens the site's top page (in a new tab).
-
-The browser tab shows "🍊site name" (the sign-in screen shows "🍊site name - Sign in").
-
-#### How actions work (no full-page reloads)
-
-Admin actions run without reloading the whole screen, and the result appears as a message at the bottom right. Confirmations (such as deleting) are shown inside the screen, never in the browser's own dialog. Opening and closing editors always looks the same: opening scrolls to the top of the editor, and closing fades the editor out in place and glides up to the top of the list, keeping the filters, search and list page. The screen reloads only when what the screen is changes: system update and restore, switching the language, signing in and out, first setup, and stopping this device (which signs you out). Visual Editing's Undo and Redo reload because the rendered page itself changes.
-
-#### Logout
-
-Logs you out of the system.
-
-#### Help (next to each section's heading)
-
-Opens this help page (in a new tab).
-
-#### Ask AI
-
-Shown next to each Help button. It opens a question field and lets you launch GPT or Claude in a new tab. Only the question, current page and Help section, and the public information source needed for the answer are passed to the external AI. The administration MCP API key, admin memo, private pages, and site settings are never included.
-
-The prompt is also copied to the clipboard in case the service does not prefill its input. GPT is directed to the official public manual for the current Help section. Japanese pages use the Japanese manual (`https://yoshihiko.com/mikanbox/help_ja.html`); all other page languages use the English manual.
-
-Claude is not given an HTML manual URL. It is directed only to the anonymous, read-only public MCP at `https://yoshihiko.com/mikanbox/mcp`. Before using the Claude button, add that URL as the remote MCP server under Settings > Connectors > Add > Add custom connector.
-
-The prompt begins by stating that it only requests guidance from official public information and does not request actions on external services or access to personal or private information.
-
-WebMCP and the public MCP endpoint are optional capabilities for in-browser agents and structured retrieval. The public endpoint is `site URL/mcp`; it is anonymous and read-only. It is separate from the administration endpoint at `site URL/mikanBox/mcp` and never exposes API keys, admin memos, private pages, site settings, or write tools. GPT uses the official public manual URL; Claude uses the public MCP.
-
-`/mcp` is the HTTP endpoint for Remote MCP clients. WebMCP tools on the page use the same public endpoint and expose only `search_help`, `get_help_section`, `get_product_info`, and `get_agent_instructions`. The old `mikanBox/public-mcp.php` URL remains available for compatibility.
-
-In addition to stateless MCP 2026-07-28 requests, the public endpoint accepts initialize-based Streamable HTTP connections for MCP 2025-11-25, 2025-06-18, and 2025-03-26 for Remote MCP client compatibility. Every mode remains anonymous and read-only, exposes only the same four tools, and requires neither OAuth nor an API key.
-
-The GPT bootstrap prompt includes the human-readable official manual URL. The Claude prompt contains no HTML manual URL and instead instructs the connected public MCP to use `search_help`, `get_help_section`, `get_product_info`, and `get_agent_instructions`. Neither prompt embeds the full manual.
-
-The public MCP sources are the published CMS pages `help_ja` and `help_en`. Their content is split by heading only when the page status is `public_dynamic` or `public_static`; drafts and all other pages are excluded. If a designated page does not exist, mikanBox falls back to its packaged read-only manual.
-
-To place the same question box on a public or product-introduction page, add `{{COMPONENT:_ai_question}}` to the page body. The `_ai_question` component calls the `{{AI_QUESTION}}` tag internally, so you can edit the component HTML or placement when needed. For the advanced case of explicitly selecting a Help section, place a tag such as `{{AI_QUESTION:page-edit}}` directly.
-
-The question is sent to the selected external AI and may be stored in that service's history. Do not enter API keys, passwords, personal information, or unpublished content.
+[[edit]{.material-symbols-outlined} Edit]{.m-btn .m-btn-gray} is added only while editing a page or design. Press its **×** on the right to close the editor and return to the list.
 
 ---
-## Pages {#page-mgmt}
 
-A screen for reviewing and managing all pages you've created, in a list.
+## Common {#common}
 
-#### [add]{.material-symbols-outlined} Create New{.m-btn .m-btn-blue}
+These elements appear at the top of each section, described in screen order.
 
-Creates a new page. Clicking opens the page-edit area. If you create a new page while a category filter is active, the page-edit screen opens with that category already filled in.
+#### Admin Panel Tab
+
+The browser tab displays “🍊 + site name.” The 🍊 identifies the admin panel.
+
+#### Preview {.flat .sqlite}
+
+At the top right of the screen. Opens the site's home page in a new tab.
+
+#### Logout {.flat}
+
+Signs out of the system.
+
+#### Help
+
+Next to each section heading. Opens the official help page in a new tab.
+
+#### Ask AI {#ask-ai}
+
+Next to each section heading. Ask an external AI about operation or settings with the public help relevant to the open section as a reference.
+
+1. Press **Ask AI** and enter your question.
+2. Check the question and references in the displayed prompt.
+3. Press **Copy Prompt**.
+4. Press **Open ChatGPT** or **Open Claude**, paste the prompt into the AI input field, and send it.
+
+For questions about mechanisms or limitations, the prompt includes an instruction to consult the specification in the same language from the public help. Do not enter API keys, passwords, personal information, or similar information in your question.
 
 ### Filtering by Category
 
-Above the page list, registered categories are shown as a tag cloud. Click one to narrow the list down to only pages in that category.
+Registered categories appear as a cloud of tags at the top of the screen. Use them to filter page and media lists. Categories are set in the page editor; each page can have multiple categories.
 
-#### Category:
+You can continue editing while filtered, using a category as a workspace. This makes even information-rich sites comfortable to edit. The selected category also applies when exporting data.
 
-- [All]{.m-btn .m-btn-gray} — Clears the filter and shows every page.
-- [Category name]{.m-btn .m-btn-gray} — Clicking narrows the list to pages that include that category. In delete mode, clicking the "×" in the tag's corner, or the category name itself, removes that category from every page in one go (when pages use it, a confirmation shows how many).
-- [[add]{.material-symbols-outlined}New]{.m-btn .m-btn-blue} — Type a new category name directly and add it. Even a category not yet assigned to any page will show up in the cloud right away.
-- [[delete]{.material-symbols-outlined}Delete]{.m-btn .m-btn-gray} — Switches to "delete mode," where an "×" appears on every category tag for removal.
+Categories beginning with `_`, such as `_nav` and `_sample`, mark categories used for site structure. They appear dimmed after ordinary categories in the list. See [Category](#page-edit-category) in the page editor for details.
 
-Categories that start with "_" (`_nav`, `_sample` and so on) are structural markers for building the site. The cloud shows them dimmed, after the ordinary categories. See [Category](#page-edit) in Page Editing.
+#### All{.m-btn .m-btn-gray}
 
-### Keyword Search [SQLite Edition only]{.type-badge .badge-sqlite}
+Clears the filter and shows all pages.
 
-#### Search box
+#### Category Name{.m-btn .m-btn-gray}
 
-Search titles, body content, and more with the field at the right of the heading row. The list updates as you type. The × in the field clears the search.
+Click to show only pages with that category. The same filter applies to the media list. Files can be categorized using a `category_` filename prefix. See [Media category filter state](#media-category-state) for filenames and clearing the filter.
 
-### Page List
+#### [add]{.material-symbols-outlined} New{.m-btn .m-btn-gray}
 
-#### Edit / Preview
+Enter a new category name directly to add it. It appears in the cloud immediately, even if no pages use it yet.
 
-The select to the right of "Ask AI" in the heading filters the list by output format (HTML, HTML + Markdown, Markdown, data, mikanBox DB), in the same place and style as the type filter on the Design screen. It combines with the category filter and the search, and stays when you open and close the page editor.
+#### [delete]{.material-symbols-outlined} Delete{.m-btn .m-btn-gray}
 
-To the right of the output-format select there is a sort-order select (Display order, Newest update first, Oldest update first, By ID, By title). The default, "Display order", matches the lists on the public side (`{{NAV_LINKS}}`, `{{NAV_CARDS}}`): smaller display-order numbers first, then the newest update first, then by ID (the SQLite edition shows pending pages first). Whichever order you choose, `index` always stays first. The Updated date is set when a page is created and renewed when it changes from private to public (editing a public page does not change it). The chosen order is kept like the category, output-format filter, search and list page, and sorting happens before paging, so page 2 onward follow the same order.
-
-- [[edit]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — The pencil button. Opens the edit screen for that page.
-- [[edit_square]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — Opens the page in [Visual Editing](#visual-edit).
-- [[language]{.material-symbols-outlined}]{.m-btn .m-btn-blue} — The globe button. Opens a published page at its real site address in a new tab (Markdown-only and data pages at `/ID.extension`, mikanBox DB at `/api/ID.json`, Public (Static) at the built file). Drafts and pending pages show it greyed out.
-
-The page editor preview and this globe work as follows.
-
-|Status|Page editor preview (shown through the admin screen)|Globe in the page list (the real site address)|
-|---|---|---|
-|Draft|What you are editing|None (greyed out)|
-|Pending (SQLite)|What you are editing|None (greyed out; the review link is in the editor)|
-|Public (Dynamic)|What you are editing (check it before saving)|The real site (shows the saved content)|
-|Public (Static), before a build|What you are editing|The real site (the previous content until you build, or nothing yet)|
-|Public (Static), after a build|What you are editing|The real site (the same as the saved content)|
-
-- For a page with "Pending approval" status, this instead opens a preview share URL (with a preview token). [SQLite Edition only]{.type-badge .badge-sqlite}
-
-#### Status
-
-A dropdown for switching each page's publication status. Changes are saved immediately.
-
-- **Draft** — Private. Not accessible to anyone but the admin.
-- **Pending approval** — [SQLite Edition only]{.type-badge .badge-sqlite} Private, but anyone who knows the unguessable preview URL (`?preview=token`, valid for 7 days) can view it. Useful for sending a page to a reviewer for approval. Pages pending approval are shown at the top of the list.
-- **Public (Dynamic)** — Rendered dynamically by PHP.
-- **Public (Static)** — Published as a static HTML file, following the directory/file settings configured under Static Site Generation (SSG) on the Site screen.
-
-If you switch a page that was set to Public (Static) to any other status, its static HTML file is deleted.
-
-#### ID
-
-The identifier (slug) that becomes the page's URL. For example, setting this to `news` gives it a URL of `/news`.
-
-#### Title
-
-The page's title. Clicking it opens the edit screen.
-
-#### Updated
-
-Set when the page is created. The date/time can be changed.
-
-#### Order
-
-Controls display priority in lists like navigation. Within `NAV_LINKS`/`NAV_CARDS` output, and within this page list, lower numbers appear earlier (higher up). Anything below 0 is excluded from list output.
-
-#### Category
-
-Shows the categories assigned to the page. Used for filtering via things like `{{NAV_LINKS:category}}`. Categories that start with "_" are shown dimmed.
-
-#### Output format labels
-
-Pages whose output format is not HTML show a small label beside the title: `+MD` for HTML + Markdown, `MD` for Markdown, and `JSON`, `JS` and so on for data formats. The globe button opens published pages at their real site address. The Visual Editing button is greyed out and cannot be pressed on pages that do not publish HTML.
-
-### Static Site Build Button
-
-#### [auto_awesome]{.material-symbols-outlined} Build Static Site{.m-btn .m-btn-blue}
-
-Found at the bottom of the page list. Under the button you see how many "Public (Static)" pages changed since the last build ("N page(s) have changes not on the public site." or "The public site is up to date."), when the last build ran, and where the static site is (the output folder in export mode). Changes to components or settings alone are not counted. This is the same display as in the Cloud edition. It writes out every page whose status is "Public (Static)" as static HTML files. After editing a Public (Static) page, other pages can end up out of sync, so it's a good idea to rebuild the whole site here.
+Switches to deletion mode, showing an **×** on each category tag. Click the **×** or category name to remove that category from all pages at once. When pages use it, the number of affected pages is displayed.
 
 ---
 
-## Page Edit {#page-edit}
+## Pages {#page-mgmt}
 
-A screen for editing a page's content and settings in detail. Opens when you click "Create New," a page's title, or its Edit button.
+This screen lists and manages your pages.
 
-The [[edit_square]{.material-symbols-outlined} Visual edit]{.m-btn .m-btn-blue} button at the top right opens the page in [Visual Editing](#visual-edit).
+#### [add]{.material-symbols-outlined} Create New{.m-btn .m-btn-blue}
 
-#### History [SQLite Edition only]{.type-badge .badge-sqlite}
+Creates a page and opens the page editor. When a category filter is active, the editor opens with that category already selected.
 
-A dropdown marked with a <span class="material-symbols-outlined mat-icon">history</span> icon. Every time you save, up to 10 past versions are kept automatically, selectable along with the date/time and editor name (when multiple users are involved). Selecting a past revision loads its content into the form and shows a "Viewing Past Revision" warning banner. Pressing [[save]{.material-symbols-outlined}Save]{.m-btn .m-btn-blue} at that point restores that revision as the current version. Selecting the top entry ("Latest Version (Current)") again returns you to the latest content.
+#### Filter by output format
 
-#### Updated
+Filter the page list by output format. You can combine this with category filters and search. The filter remains in place when you open or close the editor.
 
-Set when the page is created. The date/time can be changed. When a page moves from a private status (draft, pending approval, etc.) to "Public (Dynamic)" or "Public (Static)," this is automatically updated to the actual moment of publication (simply editing an already-published page does not change it).
+- All output formats
+- HTML
+- HTML + Markdown
+- Markdown
+- Data
+- mikanBox DB
 
-#### Title
+#### Page order
 
-The page's title. Required. Available inside components as `{{TITLE}}` or `{{FULL_TITLE}}` (formatted as "Page Title - Site Name").
+Choose how to sort the page list. The default, Display order, puts the home page (`index`) first, followed by pages awaiting approval. The remaining pages are ordered by ascending sort order, then most recent update, then ID. Other choices sort all pages by the selected criterion.
 
-#### Status
+- Display order (default)
+- Newest update first
+- Oldest update first
+- By ID
+- By title
 
-Choose the page's publication status via radio buttons.
+#### Keyword search
 
-- **Draft** — Private. Not accessible to anyone but the admin.
-- **Pending approval** — [SQLite Edition only]{.type-badge .badge-sqlite} Private, but an unguessable preview share URL (`?preview=token`, valid for 7 days) is generated automatically and shown right on this screen. You can just send the URL to a reviewer so they can check the content without ever logging into the admin panel.
-- **Public (Dynamic)** — Rendered dynamically by PHP.
-- **Public (Static)** — Published as a static HTML file, following the directory/file settings configured under Static Site Generation (SSG) on the Site screen.
+Search page IDs, titles, body text, and descriptions. You can also search while filtering by category or output format.
 
-If you switch a page that was set to Public (Static) to any other status, its static HTML file is deleted.
+### Page list
 
-#### Preview Share URL [SQLite Edition only]{.type-badge .badge-sqlite}
+#### Edit / Preview
 
-Shown when status is set to "Pending approval." A text box holds the URL, with a [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} button next to it to copy it to the clipboard.
+Each page row has three icon buttons.
 
-From mikanBox 2.9.5, this URL is valid for 7 days. An expired URL no longer opens, so reopen this screen to get a new URL and send it again. The same URL is shown throughout a given day. URLs issued before 2.9.5 stop working after the update. Pages opened through the preview URL are served without a referrer, are marked not to be indexed by search engines, and are not cached.
+- [[edit]{.material-symbols-outlined}]{.m-btn .m-btn-blue} **Edit** — Opens <a href="#page-edit">Page Edit</a>.
+- [[edit_square]{.material-symbols-outlined}]{.m-btn .m-btn-blue} **Visual Edit** — Opens <a href="#visual-edit">Visual Edit</a>. Available only for pages that output HTML; disabled for other formats.
+- [[language]{.material-symbols-outlined}]{.m-btn .m-btn-blue} **Open the public page** — Opens the published page in a new tab. Disabled for unpublished pages (drafts and pages awaiting approval).
 
-#### Memo
+Use [Preview](#page-preview) in the page editor to check work in progress. See [Page Edit](#page-edit) for details.
 
-A private note visible only to admins. Free-form space for anything you want to remember or hand off to someone else. It is excluded from public pages and APIs. Authenticated management MCP clients, including AI, can read it as working context. Reading a note does not grant permission to copy it into published content.
+In the PHP editions, [[language]{.material-symbols-outlined}]{.m-btn .m-btn-blue} is available for pages set to Public (Dynamic) or Public (Static). {.flat .sqlite}
+
+##### Globe icon in Cloud {.cloud}
+
+| Status | Published site | Globe | What opens |
+|---|---|---|---|
+| Published | Built with the latest changes | Blue | Latest published page |
+| Published | No file | Gray | Cannot open |
+| Published | File exists, with changes not yet published | Gray | Currently published page |
+| Draft or pending approval | Whether or not a file exists | Gray | Cannot open |
+
+#### Publication status {#page-list-status}
+
+Choosing a status saves it immediately. Set pages you do not want to publish to Draft.
+
+In SQLite and Cloud, you can set a page under review to Pending approval. {.sqlite .cloud}
+
+In SQLite, you can share a [preview URL](#page-review-url) for a page awaiting approval. {.sqlite}
+
+In the PHP editions, Public (Dynamic) displays the saved content. Switching a page to Public (Static) in the list builds it and writes it to the output directory. Changing it from Public (Static) to another status immediately deletes its generated file from the output directory. {.flat .sqlite}
+
+In Cloud, [build](#static-build-button) after changing the status to publish or remove a page on the public site. A published file remains until the next build even if its page is changed to Draft or Pending approval. {.cloud}
+
+For details, see [Publication status](#page-edit-status) under Page Edit.
 
 #### ID
 
-The identifying slug that becomes part of the page's URL. Letters, digits, hyphens and underscores are allowed. A dot (`.`) is not allowed; the extension comes from the [output format](#output-formats). Other characters and a leading, trailing or doubled "/" are not allowed either (from v2.21.2 the save is refused instead of silently removing them). IDs starting with the admin folder, the data folder, `media`, `api` or `setup-token` (in any letter case) overlap system locations and cannot be used. Saved pages stay viewable, editable and deletable as long as their ID is not changed. The page's URL takes the form `siteURL/ID`. The home page uses the ID `index`. To switch home pages, change the current page’s ID first, then assign `index` to the new page. You can also use "/" within an ID. On a static site, any "/" in the ID is treated as a directory boundary; on a dynamic site, a pseudo directory structure is created the same way. For example, an ID of `news/2024` produces a URL like `siteURL/news/2024`.
+The identifier (slug) used in the page URL. For example, `news` produces a URL such as `/news`.
 
-When you save with an ID that is already in use, a confirmation appears. Choose “Change ID” to return to the ID field and keep your edits. Choose “Overwrite” to replace the page at that ID with your edits. If you changed an existing page’s ID, the page at its original ID is removed.
+See [ID](#page-edit-id) under Page Edit.
 
-#### Output format
+#### Title
 
-Choose one output format: HTML, HTML + Markdown, Markdown, or a data format (JSON, XML, CSV, Text, JavaScript, CSS, [mikanBox DB](#mikanbox-db)). The default is HTML. The URL the page will be published at (for example `https://example.com/news-list.json`) is shown right below. Fields the chosen format does not use are hidden (for Markdown, the design component and the page CSS and JS; for data formats, also the OGP image, description and keywords). See [Output Formats](#output-formats).
+The page title. Click it to open the editor. Pages with output other than HTML show a format label to the right: `+MD` for HTML + Markdown, `MD` for Markdown, or `JSON`, `JS`, and so on for data formats.
 
-#### Design Component
+See [Title](#page-edit-title) under Page Edit.
 
-Choose which page component to use for this page's layout. Any component with "Use as a Page Component" checked, on the Design screen, appears as an option here.
+#### Updated
 
-#### Markdown version footer components
+Shows the date of the page's update timestamp. The initial value is its creation time; it changes to the current time when the page is first published.
 
-Shown for HTML + Markdown and Markdown. Enter, comma-separated and in order, the IDs of the components to add to the end of the [Markdown version](#markdown-version). Leave it empty for none. Page components (wrappers) and AI instructions cannot be used.
-
-#### Expand tags
-
-Shown for data formats. Switches whether `{{ }}` tags in the body are expanded. On by default for JSON, XML, CSV and Text; off for JavaScript and CSS. Values are escaped for the format ([Data Formats](#data-formats)).
-
-#### Category (comma separated)
-
-Freely enter, comma-separated, the categories this page belongs to. Categories currently in use are shown below the field. A category listing page is not generated automatically; if you need one, create a page and place `{{NAV_LINKS:category}}` or `{{NAV_CARDS:category:componentID}}` in it.
-
-Categories that start with "_" (`_nav`, `_sample`, `_temp` and so on) are treated as structural markers for building the site. One character tells them apart from practical categories such as `coffee`, and a page can have any number of them. They work in explicit selections such as `{{NAV_LINKS:_nav}}`, but are not used by [`@same`](#navigation), `{{CATEGORY}}` or the `categories` of the [Markdown version](#markdown-version) (`{{CATEGORY:all}}` includes them). Category names that start with "@" are reserved, to keep them apart from selectors such as `@same`.
+See [Updated](#page-editor-date) under Page Edit.
 
 #### Order
 
-Controls the sort order in things like navigation. Lower numbers come first. Anything below 0 is excluded from list output.
+The page's priority in navigation and other lists. Lower numbers appear earlier in `NAV_LINKS`, `NAV_CARDS`, and this page list. Numbers below zero are excluded from `NAV_LINKS` and `NAV_CARDS` lists.
+
+See [Order](#page-edit-sort-order) under Page Edit.
+
+#### Category
+
+Shows the page's categories. They can be used for filtering, for example with `{{NAV_LINKS:category}}`. Categories beginning with `_` are used for site administration and appear dimmed.
+
+See [Category](#page-edit-category) under Page Edit.
+
+### Pagination
+
+When the list spans multiple pages, page numbers and counts appear below it. Use [Previous]{.m-btn .m-btn-gray} and [Next]{.m-btn .m-btn-gray} to move between pages. Change the number shown per page in <a href="#site-settings">Site Settings</a>.
+
+### Build static site {#static-build-button}
+
+#### [auto_awesome]{.material-symbols-outlined} Build Static Site{.m-btn .m-btn-blue}
+
+Build the static site to apply edits to pages set to Public (Static). {.flat .sqlite}
+
+Build the static site to apply page edits to the public site. {.cloud}
+
+Information below the button includes:
+
+- Whether there are unpublished changes and the number of affected pages, or whether the public site is up to date.
+- The date and time of the last build.
+- The publication destination (the output folder in export mode).
+
+Changes only to components or site settings are not included in the page count.
+
+Cloud sends changed files to the public Worker. Keep the screen open until the build finishes. If asked to configure the public Worker, check [Connecting the public Worker](#public-worker). {.cloud}
+
+---
+## Page Edit {#page-edit}
+
+Use this screen to edit a page's content and settings. It opens when you click **Create New**, a page title, or its edit button.
+
+The SQLite and Cloud editions restrict editing of pages opened by another editor. {.sqlite .cloud}
+
+The fields displayed depend on the selected [output format](#page-edit-output-format). Fields that vary by format state the applicable formats below their headings. Fields without such a note appear for every format.
+
+| Field | HTML | HTML + Markdown | Markdown | Data formats and mikanBox DB |
+|---|:-:|:-:|:-:|:-:|
+| Design Component | Yes | Yes | — | — |
+| Markdown version footer components | — | Yes | Yes | — |
+| Expand tags | — | — | — | Yes (except mikanBox DB) |
+| Thumbnail / OGP Image | Yes | Yes | Yes | — |
+| Keywords | Yes | Yes | Yes | — |
+| Page description | Yes | Yes | Yes | — |
+| Content | Yes | Yes | Yes | Yes |
+| Raw HTML | Yes | Yes | — | — |
+| Custom CSS | Yes | Yes | — | — |
+| Page JavaScript | Yes | Yes | — | — |
+
+#### Updated {#page-editor-date}
+
+Initially this is the creation date and time. It automatically changes to the date and time when the page is first published. It is retained when republishing a withdrawn page or editing a published page. You can change it manually here.
+
+#### History {.sqlite .cloud}
+
+Each save automatically retains up to ten previous versions, selectable by date and time and, on multi-user sites, editor name. Selecting an old revision loads it into the form and displays a **Viewing Past Revision** warning banner. Press [[save]{.material-symbols-outlined} Save]{.m-btn .m-btn-blue} to restore its contents as the current version. Select the first option, **Latest Version (Current)**, again to return to the latest contents.
+
+In the SQLite edition, this appears only when saved history exists. {.sqlite}
+
+#### [edit_square]{.material-symbols-outlined} Visual edit{.m-btn .m-btn-blue}
+
+Opens [Visual Editing](#visual-edit). It is available only for pages that output HTML; for other formats it is gray and disabled.
+
+In visual editing, you can also edit destination pages by following links written with the public site's address. You can navigate to draft HTML pages too. {.cloud}
+
+#### Title {#page-edit-title}
+
+The page title is required. Components can output it with `{{TITLE}}` or `{{FULL_TITLE}}` (in the form “Page title - Site name”).
+
+#### Status {#page-edit-status}
+
+Choose the publication status:
+
+- **Draft** — Private; only administrators can access it.
+- **Pending approval** — Private, but an unguessable review share URL (`?preview=token`, valid for seven days) is generated automatically and displayed here. Give the URL to a reviewer to let them check the content without signing in to the admin panel. {.sqlite}
+- **Pending approval** — Private; only signed-in editors can preview it. This label indicates work status and has the same viewing permissions as a draft. {.cloud}
+- **Public (Dynamic)** — Displayed dynamically using PHP. {.flat .sqlite}
+- **Public (Static)** — Published as a static HTML file using the directory and file settings under Static Site Generation (SSG) on the Site screen. {.flat .sqlite}
+- **Public** — A build creates files according to the output format (HTML, Markdown, JSON, and so on) and serves them as static files. {.cloud}
+
+Changing **Public (Static)** to another status and saving deletes the generated static HTML file. {.flat .sqlite}
+
+If a published page is changed to Draft or Pending Approval, it is removed from the public site when you [build](#static-build-button). {.cloud}
+
+#### Preview Share URL (for internal review) {#page-review-url .sqlite}
+
+Shown only when Status is Pending Approval. The URL appears in a text box.
+
+Press [[content_copy]{.material-symbols-outlined} Copy]{.m-btn .m-btn-gray} to copy it to the clipboard. For a new page, the URL becomes valid after the first save.
+
+The URL expires after seven days. Once expired, reopen this screen to find a new URL and share it again. The same URL is displayed throughout the same day. Review pages are configured not to send referrers, appear in search engines, or be cached.
+
+#### Memo
+
+A private note visible only to administrators. Use it for reminders or handoff notes. It is not displayed on the site or public API. AI can read it for context through authenticated admin MCP.
+
+#### ID {#page-edit-id}
+
+The page identifier (slug) used in its URL. ASCII letters, digits, hyphens, and underscores are allowed. A dot (`.`) is not allowed; the extension comes from the [output format](#output-formats).
+
+An ID may contain `/`, but not at the beginning or end or consecutively. A `/` represents a hierarchy. For example, `news/2024` produces a URL like `site URL/news/2024`. IDs that overlap system paths cannot be used.
+
+In the flat edition, changing the JSON folder structure also changes the ID. {.flat}
+
+If you save with an ID already in use, a confirmation appears. Choose **Change ID** to return to the ID field without losing your input. Choose **Overwrite** to replace the page at that ID with the content being edited. If you changed an existing page's ID, the page at the original ID is removed.
+
+**Keep the previous page as a draft** is selected by default. If left selected, overwriting keeps the destination page as a draft under a different ID. For example, the saved copy of `news` becomes `news-bk`, or `news-bk-2` if that is already used. Clear the checkbox to overwrite without creating a draft.
+
+The home page ID is `index`. To replace the home page, change the current page's ID first, then give the new page the ID `index`.
+
+In the PHP editions, the installation's admin and data folders and names such as `media`, `api`, and `setup-token` are reserved. {.flat .sqlite}
+
+In the Cloud edition, names including `admin`, `mcp`, and `public-mcp` are also reserved. {.cloud}
+
+#### Output format {#page-edit-output-format}
+
+Choose one output format: HTML, HTML + Markdown, Markdown, or data (JSON, XML, CSV, text, JavaScript, CSS, or [mikanBox DB](#mikanbox-db)). HTML is the default. The actual output URL, such as `https://example.com/news-list.json`, appears immediately below.
+
+The selected output format changes which settings are available; unused settings are hidden (see the table at the start of [Page Edit](#page-edit)). For details, see [Output Formats](#output-formats). The `404` page uses HTML.
+
+**This setting controls the output format. Even if you enter Markdown in the content field, choose HTML if you want it converted to and displayed as HTML.**
+
+For example, publish a list of recent articles as JSON and load it with JavaScript from pages to update the list without editing the content of the page displaying it. In Cloud, a build is required to reflect JSON changes on the public site.
+
+#### Category (comma-separated) {#page-edit-category}
+
+Enter page categories freely, separated by commas. Categories currently in use appear below the field. Category list pages are not created automatically. If needed, create a page and place `{{NAV_LINKS:category}}` or `{{NAV_CARDS:category:component ID}}` on it.
+
+Categories beginning with `_`, such as `_nav`, `_sample`, and `_temp`, mark classifications used to operate the site. They are distinguished from content categories such as `coffee` by one character, and you can assign any number. They work in explicit selectors such as `{{NAV_LINKS:_nav}}`, but are excluded from [`@same`](#navigation), `{{CATEGORY}}`, and the `categories` field of the [Markdown version](#markdown-version). They are included in `{{CATEGORY:all}}`. Names beginning with `@` are reserved to distinguish special selectors such as `@same` and cannot be used as categories.
+
+#### Design Component
+
+Shown only for HTML and HTML + Markdown output formats.
+
+Select the page component used for the page layout. Components whose Type is Page in Design Edit are available.
+
+##### Do not load tracking tags on this page {#page-edit-no-tracking}
+
+Shown only when tracking tags are configured in Site Settings and the output format is HTML or HTML + Markdown. Select this to omit tracking tags on this page only. See [Common Loading](#common-loading) in Site Settings for configuration.
+
+#### Markdown version footer components
+
+Shown only for HTML + Markdown and Markdown output formats.
+
+Enter the IDs of components to append to the [Markdown version](#markdown-version), separated by commas in the order they should appear. Leave blank to append nothing. Only parts can be used; page components and AI instructions cannot.
+
+Use this to add related information or similar content to Markdown.
+
+#### Expand tags
+
+Shown only for JSON, XML, CSV, text, JavaScript, and CSS output formats; not shown for mikanBox DB.
+
+Choose whether to expand `{{ }}` tags in the content. It is enabled by default for JSON, XML, CSV, and text, and disabled by default for JavaScript and CSS. Values are escaped for the format ([Data Formats](#data-formats)).
+
+#### Order {#page-edit-sort-order}
+
+Controls the order in navigation and similar lists. Lower numbers come first. Pages with values below zero do not appear in page lists.
 
 #### Thumbnail / OGP Image
 
-Specify the filename (e.g. `ogp.jpg`) of the image shown when shared on social media, or in card lists. Output as the `meta` tag's `og:image`. Available inside components as `{{OGP_IMAGE}}`.
+Shown only for HTML, HTML + Markdown, and Markdown output formats.
+
+Specify the image filename, such as `ogp.jpg`, to display in social shares and card lists. It is output as `og:image` in a `meta` tag. Use `{{OGP_IMAGE}}` in components.
 
 #### Keywords
 
-Enter comma-separated keywords (meta keywords) used for the page's search visibility. Output inside components as `{{KEYWORDS}}`.
+Shown only for HTML, HTML + Markdown, and Markdown output formats.
+
+Enter search keywords (meta keywords) separated by commas. Components output them with `{{KEYWORDS}}`.
 
 #### Description (meta description)
 
-Set a summary description for the page. Output via `{{DESCRIPTION}}`, and used as the blurb shown under the title in search results. It's displayed with no gap right after the body field, so you can edit both as a single continuous block.
+Shown only for HTML, HTML + Markdown, and Markdown output formats.
+
+Set a description of the page. It is output with `{{DESCRIPTION}}` and used as the introduction shown under the title in search results.
 
 #### Content
 
-Write the page's main content using Markdown syntax or HTML. Markdown and HTML can be mixed freely. Complex HTML generated by AI can be pasted in as-is and will still work correctly. See the guide at the bottom of the edit screen for the available Markdown syntax and custom tags — or for more detail, see [Markdown](#markdown) and [Components (Custom Tags)](#components).
+Write the page's main content in Markdown or HTML; the two can be mixed. Complex AI-generated HTML can be pasted directly and used. See the guide at the bottom of the editor for supported Markdown and custom tags, or see [Markdown](#markdown) and [Components (Tags)](#components).
 
-The field heading follows the output format: "Content (Markdown or HTML)", "Content (Markdown)", "Content (JSON)" and so on. In data formats the body is published as it is ([Data Formats](#data-formats)).
+This field appears for every output format. Its heading changes with the format, such as **Content (Markdown or HTML)**, **Content (Markdown)**, or **Content (JSON)**. For data formats, the content is output as entered ([Data Formats](#data-formats)).
+
+##### Raw HTML
+
+Shown only for HTML and HTML + Markdown output formats.
+
+Select this to display the content as HTML without Markdown conversion. Use it when pasting a complete HTML page generated by AI or similar content directly.
+
+**To use complete HTML as-is**
+
+1. Set Design Component to **None (use the content HTML directly)**.
+2. Paste the complete HTML into Content.
+3. Select **Raw HTML**.
+
+To use the site's shared header and footer as well, choose a page component such as `_layout` in step 1. The pasted HTML is inserted at the content position in that layout.
+
+If tracking tags are configured under Common Loading in Site Settings, they are automatically inserted even on pages using complete HTML directly (inside `head` and immediately after the opening `body` tag). Select **Do not load tracking tags on this page** only on pages where they should be omitted.
+
+For automatic completion of site-wide information such as the description and OGP image, see the details below.
+
+###### Details: What Is Added to Pasted HTML {.detail}
+
+Missing elements are supplied as follows. Items already present in the HTML are not overwritten.
+
+- Missing `html`, `head`, and `body` elements are supplied.
+- If missing from `head`, a UTF-8 character encoding declaration, mobile viewport setting, and title are added. The title takes the form “Page name - Site name.”
+- If missing from `head`, a description (`description`) and OGP image (`og:image`) are supplied. Values from Description and Thumbnail / OGP Image in Page Edit are used if present; otherwise the shared site description and shared OGP image in Site Settings are used. If neither has a value, nothing is added.
 
 #### Custom CSS
 
-Write styles that should apply only to this page. This is automatically scoped, so it never affects other pages or anything outside the body content. Custom tags can also be used inside this CSS.
+Shown only for HTML and HTML + Markdown output formats.
 
-To intentionally style an element outside the page scope, wrap the entire selector in `:global(...)`. For example, `:global(.hero_box) { display: none; }` applies the rule to `.hero_box` outside the scoped page content, while ordinary selectors remain limited to this page's body content.
+Write styles for this page only. They are automatically scoped, so they do not affect other pages or areas outside the content. Basic information tags such as `{{SITE_URL}}` and `{{PAGE_URL:ID}}` can be expanded in CSS.
+
+To deliberately style elements outside the scope, such as the layout, wrap the entire selector in `:global(...)`. For example, `:global(.hero_box) { display: none; }` applies a style to `.hero_box` outside the scope. Ordinary selectors continue to apply only within this page's content.
 
 #### Page JavaScript
 
-Available in mikanBox 2.6.10 and later. Write JavaScript without `<script>` tags in the collapsible field, whose heading uses the same bold weight as the CSS field. The field opens automatically when it contains code. The CMS inserts scripts at the end of the page body, normally just before `</body>`; HTML without closing tags receives them at the end. The page code is output once, following component JavaScript. This works in dynamic pages, previews, and static HTML.
+Shown only for HTML and HTML + Markdown output formats.
 
-CSS scoping does not apply to JavaScript. JS fields are used as code, without Markdown conversion, custom-tag expansion, or automatic URL completion. Existing `<script>` tags in the HTML body remain supported. Handle dependencies on external libraries and any required loading order in your code.
+Write JavaScript without `<script>` tags. The field opens expanded when it contains code. The CMS automatically inserts the script at the end of the page body, normally just before `</body>`, or at the end of HTML without a closing tag. This page's code is output once, after component JavaScript. It works in dynamic display, preview, and static HTML.
+
+CSS scoping does not apply to JavaScript. Markdown conversion, custom tag expansion, and automatic URL completion are not performed in this field; the code is used as entered. `<script>` written directly in HTML content remains available. Specify any necessary load order, including external library dependencies, in the code.
 
 #### [save]{.material-symbols-outlined} Save{.m-btn .m-btn-blue}
 
-Saves everything about the page.
+Saves all page content.
 
-#### [open_in_new]{.material-symbols-outlined} Preview{.m-btn .m-btn-blue}
+Changes to published pages do not appear on the public site until you [build](#static-build-button). {.cloud}
 
-Shows what you are editing in a new tab, without saving ("Shows what you are editing (nothing is saved)." appears next to the button). It works for every output format and status, and for new pages. A Public (Dynamic) page goes live the moment you save, so use this preview to check it first. Pages that publish HTML show as pages; Markdown-only, data and mikanBox DB pages show the text or JSON they publish, in UTF-8. The preview is shown cut off from the admin screen (its scripts run, but cannot touch the admin screen). To open the real site address, use the globe in the page list (see the table under [Pages](#page-mgmt)).
+If the same page is updated from another screen or AI (MCP) while you edit it, saving is stopped. Copy any input you need to keep, reload the screen, and check the latest content. {.cloud}
+
+#### [visibility]{.material-symbols-outlined} Preview{#page-preview .m-btn .m-btn-blue}
+
+Displays the current edits in a new tab without saving. A note beside the button explains that the edits are displayed but not saved. This works with all output formats and statuses, including new pages. Pages that output HTML are displayed as pages; Markdown-only pages, data formats, and mikanBox DB display the actual output text or JSON in UTF-8. The preview is isolated from the admin panel: scripts run, but cannot access the panel. To open the actual site address, use [[language]{.material-symbols-outlined}]{.m-btn .m-btn-blue} in the page list (see the table in <a href="#page-mgmt">Pages</a>).
+
+In Cloud, the current edits are retained for preview for 30 minutes. Up to four previews per person are retained, and only their creator can open them. Links written with the public site URL open the public site. Use [Visual Editing](#visual-edit) to navigate between draft HTML pages. {.cloud}
 
 #### [arrow_back]{.material-symbols-outlined} Back to List{.m-btn .m-btn-gray}
 
-Returns to the page list (the editor fades out in place and the view moves to the top of the list), with the category and output-format filters, the sort order, the search and the list page kept (opening the editor scrolls to its top). Note that unsaved changes will be lost.
+Returns to the page list. If there are unsaved changes, the following choices appear:
+
+- [[save]{.material-symbols-outlined} Save and Close]{.m-btn .m-btn-blue} — Save and return to the list.
+- [[delete]{.material-symbols-outlined} Discard and Close]{.m-btn .m-btn-red} — Discard changes and return to the list.
+- [Cancel]{.m-btn .m-btn-gray} — Continue editing.
 
 #### [delete]{.material-symbols-outlined} Delete{.m-btn .m-btn-red}
 
 Permanently deletes the page. This cannot be undone.
 
-At the bottom of the edit screen, a quick reference for Markdown syntax and the list of available tags (tag guide) appears collapsed. Click to expand it.
+In the PHP editions, deleting a page removes it from the public site immediately. For Public (Static), it also deletes the static file in the current output destination. {.flat .sqlite}
 
-## Visual Editing {#visual-edit}
+In Cloud, a deleted published page is removed from the public site when you [build](#static-build-button). The Delete button is not shown for the home page (`index`). {.cloud}
 
-Open a page **exactly as it looks** and edit its body and page CSS right there. Your layout, CSS and images are shown as they are, so you can rewrite the Markdown while watching the result. It uses the same login as the admin screen; if you are not logged in, you are sent to the admin login. It is not available on public demo (demo mode) sites.
+#### Markdown Syntax and Tag Guide
 
-Visual Editing works only on pages that publish HTML (output format HTML or HTML + Markdown). On Markdown-only and data pages the button is greyed out and cannot be pressed, and such pages are not listed in the Visual Editing page picker.
-
-#### How to open it
-
-- The [[edit_square]{.material-symbols-outlined}]{.m-btn .m-btn-blue} button in the page list (between the pencil and the preview button).
-- The [[edit_square]{.material-symbols-outlined} Visual edit]{.m-btn .m-btn-blue} button at the top right of the page edit screen.
-- Open `visual.php` in the admin folder (next to `admin.php`) directly. A page picker appears.
-
-#### Click text to edit it in place
-
-From v2.22.0, **clicking text** in the body puts an input box right where the text is, so you can change it in place. The font and color stay as they are, and the cursor lands where you clicked.
-
-- You can edit headings, paragraphs, list items, table cells, bold and italic text, link labels, code blocks and text inside HTML. A dotted frame appears when you point at them.
-- Save with ⌘/Ctrl+Enter (or ⌘/Ctrl+S, or [[check]{.material-symbols-outlined}]{.m-btn} on the bar); cancel with Esc. Saving updates the body at once, and ↶ at the bottom right takes it back. In single-line text, Enter does not add a line break (in a code block of several lines, Shift+Enter does).
-- **Links, buttons and the headings of collapsible sections** work as usual when clicked. To change their wording, **Shift+click** them.
-- A small bar appears next to the input box. [[add_row_above]{.material-symbols-outlined}]{.m-btn} [[add_row_below]{.material-symbols-outlined}]{.m-btn} add a paragraph **right before or after** that paragraph or heading, and [[delete]{.material-symbols-outlined}]{.m-btn} deletes it (after showing what will be removed and asking). For a paragraph written inside HTML such as a `<div>`, the new one goes inside it. An element written in HTML (such as `<li>`) is added wrapped in the same tag. The new one says "(new paragraph)" and is ready for typing. On an item of a Markdown list, these add or delete an item (indented items under it go with it). Inside a table, they act on the whole table.
-- [[edit_note]{.material-symbols-outlined}]{.m-btn} on the bar moves to the "Body" panel below, keeping what you typed.
-- What you type is saved **as plain text**. Typing `**` or `<b>` shows those symbols as they are. To make text bold, add a link or add a line break, use the "Body" panel.
-- Only text whose place in the body can be confirmed is editable in place. Elsewhere, for example in a block containing a `{{…}}` tag, a click opens the "Body" panel below at that part.
-- **Alt-click** (⌥-click) opens that element in the "Body" panel below. While the "Body" panel is open, a plain click also selects the element you clicked.
-- All of this works inside the screen-width check as well.
-- [[edit]{.material-symbols-outlined}]{.m-btn} (pencil) at the bottom right turns click-to-edit off, leaving **browsing only** (for example, to try parts of the page that react to clicks). The setting is remembered in the browser. If you click elsewhere with unsaved input, you are asked whether to discard it.
-
-#### Editing in the "Body" panel below (pick with Alt-click or the magnifier)
-
-For larger rewrites, or to change tags and Markdown symbols, use **the "Body" panel that opens from the bottom**. Only the part you picked is **cut out** into the input box, so you can focus on it. The page stays visible while you edit, changes show on it as you type, and the place you are changing gets a frame.
-
-- Clicking a link follows it as usual. Links within the site open in that page's **visual editor**, so you can look around. Links that lead outside the editor, such as other sites, open in a new tab and show a note when you touch them.
-- To pick a place, **Alt-click** (⌥-click) it, or click it with the [[search]{.material-symbols-outlined} Inspect]{.m-btn} (magnifier) at the bottom right. With the magnifier, on a selector row, **click the path (such as `.pillar`)** or press [[edit_note]{.material-symbols-outlined}]{.m-btn}: the "Body" panel opens with **only that element** in the input box. The element also gets a frame on the page, and the page scrolls by itself so the picked place is visible. The cut-out part corresponds to that place in the whole body, and saving saves the whole body.
-- Changes appear on the page right away (also inside the screen-width check, so you can edit **at phone width**). Save with ⌘/Ctrl+Enter or the Save button at the top right of the panel. The page is not reloaded after saving. "Unsaved" is shown until you save.
-- Live updates are made in the browser (nothing is sent to the server). Only blocks with parts the server completes, such as `{{…}}` tags, links within the site and images, and changes that regroup the blocks around them (opening or closing a code block, for example), are rendered by the server. Either way, the page looks as it will when published.
-- Live updates are separate from saving. If one cannot be shown (for example, the connection failed), "Could not update the page (saving still works)" appears at the top right of the panel; you can still save.
-- While the page is open, this screen does not reload by itself when the page changes elsewhere (the management screen, AI through MCP, and so on). If it changed, saving stops and tells you (what you typed stays). Do not edit the same page in two places at once.
-- There is no mode to switch after picking. The **target bar** in the panel shows which element is selected, such as `nav › div › a`, with its line numbers in the whole body. [[close]{.material-symbols-outlined}]{.m-btn} stops the cut-out and shows everything.
-- If you pick a place that is not a body block (for example the layout), the body button is disabled and the reason is shown. If you pick the page title (the title shown by the layout), it says so and links to the page settings where you change it. If the page has no body block to pick, a note appears at the bottom of the screen. "Raw HTML" pages can be picked in the same way. For a page that is a whole document with `<html>` and `<body>`, you pick by following the tag hierarchy, such as `html › body › main › section › p` (text inside the page's `<script>` and `<style>` is not read as tags).
-- When the target is a container such as `<div>` or `<ul>`, the [[subdirectory_arrow_right]{.material-symbols-outlined}]{.m-btn} button on the bar lets you **pick an inner element** (the badge number is how many inner elements there are). With one inner element it goes straight in; with several you pick by number, such as "1 `<li>` …". [[arrow_back]{.material-symbols-outlined}]{.m-btn} goes back out one level (the part in the input box changes accordingly). Element ranges are split by **character position**, not by line, so HTML written on a single line, or elements side by side on one line, can be picked.
-- A Markdown paragraph written inside HTML such as a `<div>` (a run of lines separated by blank lines) is cut out on its own when you pick it on the page. Adding, duplicating or deleting next to it treats it as an ordinary paragraph (not wrapped in a tag).
-- [[add_row_above]{.material-symbols-outlined}]{.m-btn} [[add_row_below]{.material-symbols-outlined}]{.m-btn} on the bar add a paragraph above or below the selected element (for an inner element, wrapped in the same tag), [[content_copy]{.material-symbols-outlined}]{.m-btn} duplicates it and [[delete]{.material-symbols-outlined}]{.m-btn} deletes it (press **twice** to confirm). These change things outside the cut-out part, so they are undone one by one with [[undo]{.material-symbols-outlined}]{.m-btn} on the bar, not with ⌘/Ctrl+Z in the input box. ⌘/Ctrl+Z still works in the input box for typing.
-- The bar above the box inserts headings, bold, italic, links, bulleted and numbered lists, quotes, code and images (⌘/Ctrl+B, I and K also work).
-- The [[image]{.material-symbols-outlined}]{.m-btn} button on that bar opens a **list of the images** in the `media` folder (newest first, filterable by name). Picking one inserts Markdown `![](filename)` at the cursor. "Add" in the list uploads a new image. You can also **paste** (or drag) an image into the box (png, jpg, gif, webp, up to 10 MB).
-- An HTML block is picked as **one unit** even when it contains blank lines before its tags are closed.
-- Picking a part built by a `{{…}}` tag, such as navigation cards, selects the single tag line. The text and images of the cards come from the linked pages' settings, so they cannot be edited here.
-
-#### Whole body and page CSS
-
-- "Body" at the bottom right opens the whole body without picking anything.
-- "CSS" edits this page's own CSS. It applies as you type; save with ⌘/Ctrl+Enter. Closing with unsaved changes reverts them. The [[palette]{.material-symbols-outlined}]{.m-btn} button on a magnifier selector row shows a **list of the CSS rules** related to that row's element as numbered choices, such as `1 .a-mikan`, `2 .a-mikan p`. "applies" means the rule really applies to the element (including ones with `:hover`), and "mentions it" means the selector contains the element's class name or id (such as `.a-mikan p`, which applies to elements inside it). The rule you choose is cut out into the CSS panel. Each choice shows its condition such as `@media`, its line in the CSS and its first declaration (such as `padding: 12px 0`), so rules with the same selector in several places can be told apart. "applies" comes first, then "mentions it". The list is about **the first element of the row you pressed** (the same level as when picking the body: for the row `div.profile div.rows ul li` it is `div.profile`; to see the rules of the `li`, press the `li` row). [[arrow_upward]{.material-symbols-outlined}]{.m-btn} [[arrow_downward]{.material-symbols-outlined}]{.m-btn} on the bar move to the other choices and [[close]{.material-symbols-outlined}]{.m-btn} shows everything. Names inside CSS comments or strings are ignored. If nothing is listed, the rule may be in the site CSS or a part's CSS rather than the page CSS.
-
-#### Undo and redo
-
-- The ↶ ↷ buttons at the bottom right (⌘/Ctrl+Z, ⌘/Ctrl+Shift+Z) undo the last 3 saves of the body and CSS. Opening the page again (moving to another page or reloading) empties this history.
-- The [[history]{.material-symbols-outlined}]{.m-btn .m-btn-blue} button opens the **edit history**. For each editing session, the state before your first save after opening the page is kept, up to 10 per page. Choose one to go back to it (you can undo that with ↶).
-- Saving never changes the status. Only creating and duplicating make a draft.
-- On the flat edition the history is stored in the data folder under `visual-history/` (it is not included in backups, and is removed when the page is deleted). On the SQLite edition it is kept in the page revisions of the admin page editor.
-
-#### Switching, creating and duplicating pages
-
-- ⌘/Ctrl+K opens a page list from the side. The page that is open comes first, then recently opened pages. Filter by title or ID.
-- "New page" and "Duplicate this page" (and the duplicate button on each row) create pages. **They are always created as drafts**; change the status in the admin screen to publish. ID rules are the same as in the admin screen.
-- Outside input boxes: `g` then `l` opens the admin page list, `g` then `e` this page's settings, `g` then `p` the page picker (the admin screen opens in another window).
-
-#### Tools for checking
-
-- Magnifier (Inspect): click an element on the page to see candidate selectors (class names, etc.). The upper rows are the clicked element, the lower rows its outer parents. Each row has [[edit_note]{.material-symbols-outlined}]{.m-btn} (same as clicking the path: select the element at that level in the "Body" panel; only for elements inside the body), [[palette]{.material-symbols-outlined}]{.m-btn} (choose among the CSS rules related to the element at that level) and [[content_copy]{.material-symbols-outlined}]{.m-btn} (copy).
-- Screen width: shows the same page at phone (375), tablet (768) and PC (1200). CSS you type shows there at once. Here too you can click text to edit it in place and pick places with Alt-click or the magnifier, edit in the "Body" panel below without closing the check, and your changes show in this view at once. "Full width" ends the check and returns to the normal screen.
-
-#### Safety rules and limits
-
-- Writes are accepted only with the admin login, a CSRF token and a same-site request check.
-- The page's own scripts (inline and external tags) do not run in this screen, so that they cannot act with the logged-in administrator's rights. This does not affect how the page looks or how you edit it. External styles, images and fonts are shown.
-- Deleting only part of some HTML can break it. If that happens, undo with ⌘/Ctrl+Z.
-- Texts on screen follow the language set in the admin screen.
-
-#### After updating
-
-When updating from 2.9.x or earlier, the visual editing files are not installed by that update, because the updater itself is replaced by it. After updating, run **[Reinstall]** once in "System Update" on the Site screen (uploading the files by FTP also works). Once the files are in place, the visual editing button appears in the page list.
+Open the brief [Markdown](#markdown) guide and [tag guide](#tags) from the bottom of the screen.
 
 ---
 
+## Visual Editing {#visual-edit}
+
+Edit the body and page CSS while viewing the page. Click [[edit_square]{.material-symbols-outlined} Visual Edit]{.m-btn .m-btn-blue} in the page list or editor. Available for HTML and HTML + Markdown pages.
+
+### Bottom-right toolbar {#visual-dock}
+
+The toolbar at the bottom right contains the visual editing controls. They appear in the following order, divided into three groups. Toggle buttons change color when on.
+
+#### Page and page settings
+
+- [[menu_open]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Switch page (⌘/Ctrl+K)** — Open the page list to open another page or create one. See <a href="#visual-pages">Open or create another page</a>.
+- [[dashboard]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Open the admin page list (g l)** — Open the admin page list in a new tab.
+- [[tune]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Open this page's settings in the admin screen (g e)** — Open the page editor in a new tab to change its title, status, and other settings.
+
+On the keyboard, press `g`, then `l` or `e` to open the corresponding screen. Pressing `g` displays a short hint.
+
+#### Undo and history
+
+- [[undo]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Undo (⌘/Ctrl+Z)** — Undo the last body or CSS save. Hover over the button to see how many saves can be undone. Disabled when there is nothing to undo.
+- [[redo]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Redo (⌘/Ctrl+Shift+Z)** — Redo a save that was undone.
+- [[history]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Edit history (go back to a state before an editing session)** — Open the history list. See <a href="#visual-save">Saving and history</a>.
+
+#### View and edit
+
+- [[devices]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Check at different screen widths** — Switch between phone, tablet, and desktop widths. See <a href="#visual-viewport">Check different screen widths</a>.
+- [[edit]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Click to edit (on/off)** — When on, click body text to edit it in place. When off, you can browse and test links and buttons. Each click displays “Click to edit: on (click text to change it)” or “Click to edit: off (browse only)”. The setting is remembered the next time you open the editor. See <a href="#visual-inline">Edit text in place</a>.
+- [[search]{.material-symbols-outlined} Inspect]{.m-btn .m-btn-gray} **Inspect** — Click a page element to inspect its selectors and CSS rules and choose where to edit its body or CSS. See <a href="#visual-inspect">Inspect and edit elements and CSS</a>.
+- [[edit_note]{.material-symbols-outlined} Body]{.m-btn .m-btn-gray} **Body** — Edit the entire body as Markdown in the panel at the bottom. See <a href="#visual-md-panel">Edit in the Body panel</a>.
+- [[palette]{.material-symbols-outlined} CSS]{.m-btn .m-btn-gray} **CSS** — Edit this page's CSS in the panel at the bottom. See <a href="#visual-css-panel">Edit page CSS</a>.
+
+### Edit text in place {#visual-inline}
+
+Click body text to edit it in place. To edit text in a link or button, **Shift-click** it.
+
+A small dark-blue inline editing bar appears near the input. On the left it shows “Cmd/Ctrl+Enter to save, Esc to cancel”. The buttons on the right are, from left to right:
+
+- [[add_row_above]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Add a paragraph above** — Add a paragraph before the current one, or an item above when editing a list.
+- [[add_row_below]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Add a paragraph below** — Add a paragraph after the current one, or an item below when editing a list.
+- [[delete]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Delete this block** — Delete the current paragraph or list item.
+- [[edit_note]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Edit this part in "Body"** — Open the Body panel with your input carried over.
+- [[close]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Cancel (Esc)** — Discard the input.
+- [[check]{.material-symbols-outlined}]{.m-btn .m-btn-blue} **Save (⌘/Ctrl+Enter)** — Save the input.
+
+Input is saved as text. Use the Body panel to add bold text or links, or to rewrite paragraphs.
+
+### Edit in the Body panel {#visual-md-panel}
+
+**Option-click (Alt-click)** a section to open only that section in the Body panel at the bottom. You can also select an element with [[search]{.material-symbols-outlined} Inspect]{.m-btn .m-btn-gray} and click its path. To edit the whole body, click [[edit_note]{.material-symbols-outlined} Body]{.m-btn .m-btn-gray} at the bottom right.
+
+The panel contains the following, from top to bottom.
+
+#### Panel header
+
+From left to right: “This page's body (Markdown)”, the hint “Changes show on the page as you type (save with ⌘/Ctrl+Enter)”, a status indicator, and two buttons. Changes appear on the page as you type. The status reads “● Unsaved” when changes have not been saved.
+
+- [[save]{.material-symbols-outlined}]{.m-btn .m-btn-blue} **Save (⌘/Ctrl+Enter)** — Save the body.
+- [[close]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Close** — Close the panel.
+
+#### Markdown quick actions
+
+This dark-blue bar above the input applies Markdown syntax to the selected text or current line. From left to right:
+
+- [[title]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Heading (## → ### → #### → none)** — Cycle through heading levels.
+- [[format_bold]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Bold (⌘/Ctrl+B)**
+- [[format_italic]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Italic (⌘/Ctrl+I)**
+- [[link]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Link (⌘/Ctrl+K)**
+- [[format_list_bulleted]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Bulleted list**
+- [[format_list_numbered]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Numbered list**
+- [[format_quote]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Quote**
+- [[code]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Code (inline)**
+- [[image]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Insert an image (pick from the list; paste or drag also works)** — Choose an image from Media. Add new images using “Add” in the list, by pasting, or by dragging into the input (PNG, JPEG, GIF, or WebP; up to 10 MB and 40 megapixels).
+
+#### Selection bar
+
+When a section is selected in the Body panel, this bar appears below the quick actions. It shows the selected location (tag hierarchy and body line number) on the left, and the following buttons on the right. It does not appear when the whole body is open.
+
+- [[subdirectory_arrow_right]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Edit an inner element (pick by number if there are several)** — Move to an element inside the selected container. The button shows the number of inner elements; choose from a numbered list if there are several.
+- [[arrow_back]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Back out to the parent element** — Return to the enclosing element.
+- [[add_row_above]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Add a paragraph above** — Add a paragraph before the selection (an element inside HTML).
+- [[add_row_below]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Add a paragraph below** — Add a paragraph after the selection.
+- [[content_copy]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Duplicate this block (adds the same content below)** — Duplicate the selection immediately below it.
+- [[delete]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Delete this block** — Delete the selection. Press twice to confirm.
+- [[undo]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Undo the last add / duplicate / delete** — Undo the last such operation. The input's undo cannot undo these operations, so use this button.
+- [[close]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Stop showing only the selection and show everything** — Return to the whole body.
+
+When you select content generated by a custom tag (`{{…}}`), such as navigation cards, a note appears below the bar. Change the card titles and images in the linked pages' settings.
+
+#### Input
+
+Enter the Markdown for the selection, or for the whole body if nothing is selected. Write syntax directly when the buttons above the input do not provide it.
+
+### Edit page CSS {#visual-css-panel}
+
+Click [[palette]{.material-symbols-outlined} CSS]{.m-btn .m-btn-gray} at the bottom right to open the page CSS panel. Select an element with [[search]{.material-symbols-outlined} Inspect]{.m-btn .m-btn-gray}, then click [[palette]{.material-symbols-outlined}]{.m-btn .m-btn-gray} in the small popup to choose and open a related rule (<a href="#visual-inspect-pop">popup buttons</a>). CSS changes also appear on the page as you type.
+
+The panel has the same layout as the Body panel, with these differences:
+
+#### Panel header
+
+The title is “This page's CSS”. The buttons are the same as in the Body panel: [[save]{.material-symbols-outlined}]{.m-btn .m-btn-blue} **Save (⌘/Ctrl+Enter)** and [[close]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Close**.
+
+#### CSS rule selection bar
+
+This appears above the input only when a rule is selected. The selector and “n / total” appear on the left, and the following buttons on the right. There is no quick action bar.
+
+- [[arrow_upward]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Previous matching rule** — Move to the previous rule; disabled at the first.
+- [[arrow_downward]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Next matching rule** — Move to the next rule; disabled at the last.
+- [[close]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Stop showing only the selection and show everything** — Return to all page CSS.
+
+#### Input
+
+Enter the selected rule, or all CSS if nothing is selected.
+
+#### Popup buttons when inspecting an element {#visual-inspect-pop}
+
+Selecting an element with [[search]{.material-symbols-outlined} Inspect]{.m-btn .m-btn-gray} opens a small popup listing its selectors. Each row contains a selector, the number of matching elements, and three buttons. Clicking a selector also opens the body.
+
+- [[edit_note]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Edit the body here** — Open the element's body in the Body panel. Disabled for elements that are not body blocks.
+- [[palette]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Choose a CSS rule (ones that apply to this element or mention its name)** — Show related page CSS rules in a numbered list. Choose one to open it in the CSS panel.
+- [[content_copy]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Copy** — Copy the selector.
+
+In the rules list, use [[arrow_back]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Back to the selector list** to return.
+
+### Inspect and edit elements and CSS {#visual-inspect}
+
+Use [[search]{.material-symbols-outlined} Inspect]{.m-btn .m-btn-gray} to select an element on the page and open its body or an applicable CSS rule in an editing panel:
+
+**Step 1.** Click [[search]{.material-symbols-outlined} Inspect]{.m-btn .m-btn-gray} at the bottom right. The button changes color while on, and elements under the pointer are outlined. Links and buttons do not work during inspection.
+
+**Step 2.** Click the element to edit. A popup lists “Selectors for `<tag>`”, one per row, tracing outward through its ancestors. Each row also shows the number of matching elements.
+
+**Step 3.** Choose the button for what you want to edit. Inspect turns off automatically.
+
+- [[edit_note]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Edit the body here** — Open the element selected in the Body panel. Clicking the selector does the same. Disabled for elements outside the body, such as headers and footers.
+- [[palette]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Choose a CSS rule** — List rules that apply to the element or mention its class or ID. Choose a rule to open only that rule in the CSS panel. The numbered list includes line numbers and excerpts. Use [[arrow_back]{.material-symbols-outlined}]{.m-btn .m-btn-gray} to return to selectors.
+- [[content_copy]{.material-symbols-outlined}]{.m-btn .m-btn-gray} **Copy** — Copy the selector.
+
+**Step 4.** Edit in the panel. Changes appear as you type. In the CSS panel, use [[arrow_upward]{.material-symbols-outlined}]{.m-btn .m-btn-gray} and [[arrow_downward]{.material-symbols-outlined}]{.m-btn .m-btn-gray} to move between matching rules. Save with [[save]{.material-symbols-outlined}]{.m-btn .m-btn-blue} or ⌘/Ctrl+Enter. See <a href="#visual-md-panel">Edit in the Body panel</a> and <a href="#visual-css-panel">Edit page CSS</a>.
+
+Depending on the selection, a note may appear below the popup:
+
+- The element is outside the page body (such as a header or footer). Page CSS applies only inside the body; use a component's CSS.
+- This is not a body block (for example, it is part of the layout), so its body cannot be edited here. CSS can still be inspected.
+- This is the page title, not the body. Follow the link below the note to change Title in page settings.
+
+Press Esc to stop. If the popup is open, Esc closes it; press Esc again to turn Inspect off. You can also inspect elements while checking screen widths with [[devices]{.material-symbols-outlined}]{.m-btn .m-btn-gray}; the width preview stays open.
+
+### Saving and history {#visual-save}
+
+Save Body or CSS edits with the panel's [[save]{.material-symbols-outlined}]{.m-btn .m-btn-blue} or ⌘/Ctrl+Enter. Changes to statically published pages do not appear on the public site until you <a href="#static-build-button">build</a>.
+
+- Even if the live display cannot be updated, you can save when the panel says saving still works.
+- If the body or CSS changes in another screen while you are editing, saving stops and a warning appears. Copy your input before reopening the page.
+- Use [[undo]{.material-symbols-outlined}]{.m-btn .m-btn-gray} and [[redo]{.material-symbols-outlined}]{.m-btn .m-btn-gray} at the bottom right to undo or redo up to three recent body or CSS saves.
+- Use [[history]{.material-symbols-outlined}]{.m-btn .m-btn-gray} to open Edit history. It lists the state immediately before the first save after opening the page, once per session, with date and time. Up to ten entries are kept. Select a date and confirm with Yes to restore it; the page reloads. You can undo the restore with [[undo]{.material-symbols-outlined}]{.m-btn .m-btn-gray}. Close with [[close]{.material-symbols-outlined}]{.m-btn .m-btn-gray}.
+
+In Cloud, you cannot save while another user is editing the page. {.cloud}
+
+### Check different screen widths {#visual-viewport}
+
+Click [[devices]{.material-symbols-outlined}]{.m-btn .m-btn-gray} at the bottom right to open a width bar at the top. You can keep editing at the selected width. Its buttons, from left to right:
+
+- [[smartphone]{.material-symbols-outlined} 375]{.m-btn .m-btn-gray} **Show at 375** — Phone width.
+- [[tablet_mac]{.material-symbols-outlined} 768]{.m-btn .m-btn-gray} **Show at 768** — Tablet width.
+- [[desktop_windows]{.material-symbols-outlined} 1200]{.m-btn .m-btn-gray} **Show at 1200** — Desktop width.
+- [[width_full]{.material-symbols-outlined} Full width]{.m-btn .m-btn-gray} **Finish checking widths (full width)** — Return to the original view.
+
+A note on the right explains that you can click text to edit in place or Alt-click an element to edit it in the Body panel without leaving this view. [[close]{.material-symbols-outlined}]{.m-btn .m-btn-gray} at the far right also closes the width preview.
+
+To test links and buttons, turn off click-to-edit using [[edit]{.material-symbols-outlined}]{.m-btn .m-btn-gray} at the bottom right.
+
+Check page changes produced by JavaScript in [Page Edit preview](#page-preview) or on the public site.
+
+### Open or create another page {#visual-pages}
+
+In Cloud, links written with public-site URLs can also open their destination in Visual Editing, including draft HTML pages. Clicking a link while checking widths switches the page being edited. {.cloud}
+
+Click [[menu_open]{.material-symbols-outlined}]{.m-btn .m-btn-gray} (⌘/Ctrl+K) at the bottom right to open the page panel. From top to bottom:
+
+- **Search pages (title or ID)** — Enter a title or ID to filter the list. Close the panel with [[close]{.material-symbols-outlined}]{.m-btn .m-btn-gray} at the right.
+- [[add]{.material-symbols-outlined} New page]{.m-btn .m-btn-gray} **Create a new page** — Open fields for the page ID and title.
+- [[content_copy]{.material-symbols-outlined} Duplicate this page]{.m-btn .m-btn-gray} **Duplicate the page that is open now** — Open fields for the page ID and title.
+- **Page list** — Select a page to open it in Visual Editing. Unsaved input prompts for confirmation. Use [[content_copy]{.material-symbols-outlined}]{.m-btn .m-btn-gray} on a row to duplicate that page. Selecting the current page closes the panel.
+- **All pages (list screen)** — Open the page selection screen.
+
+The new page and duplication fields contain:
+
+- **Page ID (becomes the URL)** — For example, `about` or `news/2026`. Leave blank to assign one automatically. For a duplicate, the suggested ID adds `-copy` to the original.
+- **Title** — For a duplicate, the suggested title adds “ (copy)” to the original.
+- [[check]{.material-symbols-outlined} Create]{.m-btn .m-btn-blue} **Create** (or **Duplicate**) — Create the page as a draft.
+- [[close]{.material-symbols-outlined} Cancel]{.m-btn .m-btn-gray} **Cancel (Esc)** — Close the fields and return to the page list.
+
+New pages are drafts. Change their publication status in Page Edit to publish them.
+
+---
 ## Site {#site}
 
-A menu that groups together the settings and management tools related to running the site. Each item is collapsed into an accordion (except for the admin memo).
+This screen brings together site-wide settings and tools for operation and maintenance. Admin Memo, Version, and Check for tampering are always visible; open the other sections by selecting their headings. The descriptions below follow their screen order.
+
+### When to use each section
+
+| Purpose | Section | When to use it |
+|---|---|---|
+| Daily operation | [Admin Memo](#site-memo) | To leave handover or work notes |
+| | [Site Settings](#site-settings) | To set the site name after installation or add tracking tags |
+| | [Language](#site-lang) | To change the admin screen language |
+| | [CSV Import](#csv-import) | To add tabular data to pages |
+| Publishing | [Static Site Generation](#site-ssg) (flat and SQLite) | To choose the output location and format for static HTML |
+| | [Cloudflare publication settings](#cloudflare-publish-settings) (Cloud) | Once after installation, to enable delivery to the public site |
+| Updates and maintenance | [Version (flat and SQLite)](#site-version-php), [Version (Cloud)](#site-version-cloud) | When a new version is available |
+| | [Data Management](#site-data-mgmt) | For regular backups, migration from another site, or downloading the public site |
+| Accounts and connections | [Devices and Users](#site-users) (SQLite and Cloud) | To add a device, invite someone, or disable a lost device |
+| | [Change Password](#site-password) (flat) | To change the password |
+| | [MCP API Key](#site-mcp-key) | To let AI operate the site |
+| Inspection | [Check for tampering](#site-integrity) | To look for unfamiliar changes |
+| | [Recent operations](#site-audit) | To see who changed what and when |
 
 ### Admin Memo {#site-memo}
 
-A private note, visible only to admins, always shown at the top of the site. Free-form space for hand-off notes, work reminders, and the like.
+Leave site administration notes here. They are always displayed at the top of the Site screen. They are not included in public pages or the public API. AI can also read them through authenticated admin MCP.
+
+#### Memo field
+
+Enter handover information or work notes freely.
 
 #### [save]{.material-symbols-outlined} Save{.m-btn .m-btn-gray}
 
-Saves the memo's content.
+Save the memo.
 
-### System Update
+### Version (flat and SQLite editions) {#site-version-php .flat .sqlite}
 
-Displays the installed version and the latest version available on GitHub. When a newer version is available, use the [Update] button to update mikanBox. [Check again] fetches the latest version information again. The screen is not reloaded, and the result appears at the bottom right (from v2.22.1). Updating, reinstalling and restoring the previous version do reload the screen, which then returns to the same position.
+Update the 🍊mikanBox program to a new version. The installed version and the latest official GitHub release are shown side by side. Only the program is replaced; articles, settings, images, the database, and static output are untouched.
 
-Updates use only published stable GitHub releases. Development branches and tags without a release are excluded. Publication is verified again when the update starts, and the download is pinned to a specific commit. If verification fails, the update stops. Only one update or restore can run per site; if another operation is running, try again after it finishes.
+#### Current version / Latest version
 
-When you are already on the latest version, [Reinstall] is offered instead. It installs the program files for the same version again, and exists as a recovery path for when an update did not apply cleanly and left the program files incomplete. Your pages, settings and media are untouched.
+If the latest version cannot be retrieved, “Could not retrieve” is displayed.
 
-Only program files are replaced. Pages, settings, media, the database, and generated static files are left untouched. One generation of the previous program files is stored in a protected area on the server. A failed update attempts automatic rollback. If rollback also fails, an error is displayed and the backup is retained under `update-backups/.pending-*` in protected storage; keep it for recovery by the server administrator. After a successful update you can use the [Restore] button to return to the immediately preceding version.
+#### Update{.m-btn .m-btn-blue}
 
-After updating to v2.21.2, issue a new key under [MCP API Key](#site-mcp-key) as a precaution and switch your AI clients to it. Also check that the data folder and the `setup-token` folder contain no files you do not recognize.
+Shown only when a new version is available. Select and confirm to replace program files, reload the screen, and return to your previous position.
 
-After you confirm an update, the button changes to [Updating…] and remains disabled until the operation finishes. When the update completes, the admin screen reloads automatically and shows the newly installed version number and a completion message without a manual reload. The restore operation similarly displays [Restoring…] while it is running.
+If the update fails, the previous state is restored automatically. {.detail}
 
-### Static Site Generation (SSG) {#site-ssg}
+If automatic restoration fails, an error appears and a backup remains at `update-backups/.pending-*` on the server. Do not delete it; ask the server administrator to restore it. {.detail}
 
-mikanBox doesn't just render pages dynamically with PHP — it also has a feature (SSG: Static Site Generation) to export the entire site as "static HTML files," and the two can be mixed freely.
+#### Reinstall
 
-Static site generation never writes into, or deletes files from, the admin folder, the data folder, `media` or `setup-token`. From v2.21.2, every file it writes or removes is checked (following symbolic links and ignoring letter case); a page that would land in such a place is not written, and the build result shows it as an error.
+Shown only when already on the latest version. Reinstalls the same program version. Use this if an interrupted update left the program incomplete. Articles, settings, and images are untouched.
 
-#### Benefits of SSG
+#### Check again
 
-- **Extremely fast rendering** — Since the server doesn't need to run PHP, pages load quickly.
-- **Stronger security** — You can configure things so no PHP files or data (JSON) sit in the public area at all, minimizing the risk of tampering.
+Fetch the latest version information again. The result appears at the bottom right.
 
-#### Static Site Build Method
+#### GitHub
 
-- **Generate static pages on this server** — Normally writes HTML into the site root. Specify an output directory only when a different location is needed. When a [public media URL](#php-media-location) is configured, the build uses it.
-- **Create an upload-ready folder (for local operation)** — Writes HTML and a copy of the configured media directory into a dedicated output folder. The exported pages reference the bundled `media/`. For safety, the site root, the mikanBox core, and the existing media folder cannot be selected as that destination.
+Open this edition's repository in a new tab.
 
-For an upload-ready folder, links can be written as portable relative paths (recommended), or fixed to a published URL. Relative links keep working when the folder is moved. HTML `srcset` images and video `poster` images reference the bundled media even when you configure a separate public media URL. The same applies to the ZIP from **Export the public site**.
+#### Restore
 
-The published root URL can be entered with either link style. Give the whole root of the published site, such as `https://example.com/site`. When the published URL is already decided, as with Cloudflare Pages or Netlify, enter that URL as it is (for example `https://yoursite.pages.dev`).
+Shown only when the previous version is saved. Return to it if a problem appears after updating.
 
-The published root URL is used when building a static site. If you select [Place media in the output folder](#ssg-media-in-output), admin previews also load images from `media/` under that URL.
+### Version (Cloud edition) {#site-version-cloud .cloud}
 
-- **Fixed published URL** — Required. Used both for the links inside pages and for `sitemap.xml` and `rss.xml`.
-- **Relative links** — Optional. Not used for the links inside pages. It is used only to generate `sitemap.xml` and `rss.xml`; left blank, neither file is generated.
+Update the admin screen (admin Worker). The current version and the latest GitHub release are shown. Updating does not delete articles or images, but first export and save them using [Data Management](#site-data-mgmt).
 
-#### Output Directory
+#### Current version / Latest version
 
-Specify where the static HTML files get written, as a path relative to the site root (the location where the `mikanBox` folder lives). For example, entering `blog` writes into a `blog/` folder directly under the site root, while entering `../` writes one level above the site root. Leaving this blank writes directly into the site root.
+Shows the current version and latest Cloud release.
 
-An empty server-side output means the site root. When you select an upload-ready folder, `export` is supplied as the default output directory and can be changed to another dedicated folder.
+#### Check again
 
-#### Place media in the output folder {#ssg-media-in-output}
+Fetch the latest version information again. After updating, reopen the screen and check the current version.
 
-On the PHP editions, select “Generate static pages on this server,” enter the output directory and published root URL, and select “Place media in the output folder’s media/ directory.” Saving and building moves existing files into `media/` under the output directory. Future uploads go there as well. For example, if you administer the site at `/blog/` and publish at `/pub/`, use `../pub` and `https://example.com/pub`. Both HTML and images are served under `/pub/`.
+#### Update {#manual-update .m-btn .m-btn-blue}
 
-The destination `media/` must be empty or absent. Keep both directories on the same filesystem and give the admin PHP process permission to move the directory. Clearing the option and saving moves media back beside the application directory. Settings in `local-config.php` take precedence. Switching to “Create an upload-ready folder” preserves the upload location.
+From v0.21.0 onward, you can update from the admin screen using the API token saved in Cloudflare publication settings.
 
-#### Output Structure / URL Format
+1. Under Site, check the latest version and changes, then select Update.
+2. Progress is displayed. Keep the screen open until it finishes. If the connection is interrupted, select Resume update.
+3. When complete, reload the screen and check the current version, articles, images, and settings.
 
-Choose the format of the generated HTML files.
+If the update button is absent and you are asked to configure a token, save a token with Workers Scripts Edit permission for the admin Worker in Cloudflare publication settings. Devices added using a code can update three days after registration.
 
-- **Directory-based (folder/index.html)**: Writes as `pageID/index.html`. The URL becomes `/pageID/`.
-- **File-name based (filename.html)**: Writes as `pageID.html`. The URL becomes `/pageID.html`.
+The update changes the admin screen and database changes required by that version. To deliver changes to public pages or images, use Build Static Site.
 
-Directory-based output can be published under the exact same URL as dynamic publishing, so switching between them never breaks links. File-name based output includes the extension in the URL and results in a simpler file layout.
+Updating from the admin screen requires the standard `DB` and `ASSETS` bindings on the admin Worker and a separate public Worker. Sites with custom bindings, or releases without update files, must use the fallback procedure below. One-click updates alone do not require D1 Edit permission on the API token. {.detail}
 
-The URL style affects HTML only. Markdown versions and data pages are always written as `ID.extension`, such as `ID.md` or `ID.json`. A Markdown-only page is readable only at `/ID.md`. No `.htaccess` is written ([URL Rules](#output-urls)).
+#### Cloud release
 
-The default is directory-based for "Generate static pages on this server" and file-name based for "Create an upload-ready folder." The last selected output structure is remembered separately for each build method.
+Open the public GitHub releases in a new tab.
 
-#### [auto_awesome]{.material-symbols-outlined} Save &amp; Build Static Site{.m-btn .m-btn-blue}
+#### Updating for the first time from an older version
 
-Saves the settings, then writes out every page whose status is "Public (Static)" as static HTML files.
+For versions before v0.21.0, update once using the download procedure below or configured [GitHub Actions](#github-actions). Afterwards, Update is available under Site. Check each release's notes for any preparation required by intermediate versions.
 
-If a page ID contains a `/` (e.g. `news/2024`), it's treated as a directory structure as-is. During a static build, an actual folder is created inside the output directory (e.g. `news/2024/index.html` for directory-based output), and the file is generated inside it.
+#### Download and update
 
-The build runs in place without leaving the screen, and the number of generated files is reported in a notification. Your settings and the panel you had open stay as they are.
+1. Download and extract **Source code (zip)** from the latest [release page](https://github.com/yoshihik0/mikanBox-cloud/releases).
+2. Put the `wrangler.production.json` used at installation in the extracted folder. Use the current site's configuration, not sample values for a new installation. If it is missing, check the existing Worker configuration in Cloudflare and recreate it before proceeding.
+3. To ask AI, open a new AI conversation in the extracted folder, provide the existing admin screen URL, and ask it to update the site to the latest version. If prompted to log in to Cloudflare, select **Authorize** with the same account as the existing site.
 
-#### How the sitemap, RSS, and podcast RSS are handled
+#### Update using commands {.cloud .detail}
 
-`sitemap.xml`, `rss.xml`, and `podcast.xml` are normally generated fresh by PHP on every request (see [Sitemap, RSS &amp; API](#site-mapfeed) below). Because exported sitemap and RSS files require absolute URLs, SSG writes them when a published root URL is available. Server-side generation falls back to the current site URL when none is configured. Adding or changing pages after a build is not reflected until the static site is rebuilt.
+Run the following in order in the extracted folder. Use `whoami` to confirm that the account is the same as the existing site's account before running the final two commands.
 
-The 404 page (page ID `404`) is left out of both the sitemap and the RSS feed. It is an error response rather than content, so there is no reason to point search engines or readers at it. This applies to static and dynamic generation alike.
+```sh
+npm ci
+npx wrangler login
+npx wrangler whoami
+npx wrangler d1 migrations apply DB --remote --config wrangler.production.json
+npx wrangler deploy --config wrangler.production.json --keep-vars
+```
 
-[Data-format](#data-formats) pages are left out of the sitemap and RSS as well. Markdown-only pages are listed by their `/ID.md` URL. The sitemap always covers every "Public (Static)" page, also when only one page was built.
+Do not recreate `JWT_SECRET` or `SETUP_TOKEN` during an update. Registered devices may stop working. Do not redeploy the public `wrangler.public.json` either: this replaces the public site with its initial placeholder page. When finished, reopen the admin screen and check the version, articles, and images.
 
+#### Update with GitHub Actions {#github-actions .cloud .detail}
+
+To update with GitHub Actions, prepare `.github/workflows/update-cloud.yml` in your own Cloud edition repository. Initially, register these two values under **Settings → Secrets and variables → Actions → New repository secret** in your repository.
+
+| Name | Value |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | A Cloudflare API token restricted to the target account with **Workers Scripts Edit** and **D1 Edit**. Additional zone permissions may be needed depending on custom domains and routes. |
+| `MIKANBOX_UPDATE_CONFIG` | The complete current site's `wrangler.production.json`. Check the account, admin Worker, D1, routes, and custom domains. |
+
+Register the API token directly in GitHub Secrets. Do not put the API token, `JWT_SECRET`, or `SETUP_TOKEN` in the configuration JSON.
+
+1. Open **Actions → Update mikanBox Cloud** in your repository.
+2. Select **Run workflow**.
+3. Confirm **Success** in the results. Reopen the admin screen and check the version, articles, and images.
+
+The workflow fetches the latest official public release, including public prereleases. If you change the admin Worker's bindings or routes, update the configuration registered in GitHub too. When a correction to the workflow itself is released, incorporate it into your repository.
+
+#### Interrupted updates and rollback {#cloud-update-recovery .cloud .detail}
+
+If the connection is lost, reopen the admin screen and select Resume update if it appears. If it fails, check the screen message or failed GitHub Actions step. The D1 update may already have completed. Correct permissions or configuration and try again. Applied migrations are not applied again.
+
+Even if the admin screen cannot be opened, you can check the deployed version in the admin Worker's deployment history in the Cloudflare dashboard. Before rolling back, confirm that the previous version works with the current D1, then switch in deployment history. Switching the Worker alone does not restore D1 structure or data. If you need to [restore D1](#cloud-d1-restore) to match the previous version, edits saved after the restoration point will also be undone.
+
+### Check for tampering {#site-integrity}
+
+Check for changes to files or stored data that are absent from the operation log. Use this when you notice an unfamiliar change in appearance, see a colored entry in [Recent operations](#site-audit), or carry out a regular inspection.
+
+#### Check for tampering{.m-btn .m-btn-gray}
+
+The check runs only when pressed. Results appear below the button. If there are no problems, the time checked is displayed. It checks the following (not images, audio, or video):
+
+- **Public files** — Compares files with the record made when they were exported (published in Cloud), and reports changed or missing files. PHP editions also report unfamiliar added files. Cloud cannot find unfamiliar files added to the public site.
+- **Program** — PHP editions only. Compares the installed version with the official release on GitHub. If GitHub is unavailable, it compares with the record made at update or approval. Cloud's program is the deployed Worker itself and is not checked.
+- **Stored data** — Compares pages, components, and site settings with their last changes in the operation log. Pages created before logging began cannot be compared and are excluded.
+
+The results also include entries marked in color as unusual operations in the last 30 days.
+
+#### This is my change (approve){#site-integrity-accept .m-btn .m-btn-gray}
+
+Results can include your own changes, such as files uploaded through FTP or direct edits to D1. Selecting this makes the current state the new baseline, so the same items will not be reported next time. Colored entries also lose their highlighting. Approval is recorded under important operations in the log.
+
+If an intrusion is present in the state you approve, it becomes part of the baseline. Confirm the changes are yours before selecting this.
+
+### Static Site Generation (SSG) {#site-ssg .flat .sqlite}
+
+Configure export of pages set to “Public (static)” as static HTML files. They display quickly without executing PHP, and you can publish without placing PHP files or data in the public location. Static and dynamically published pages can coexist. Set the destination and format here; for routine exports, you can also use [Build Static Site](#static-build-button) in the page list.
+
+No files are written inside the admin folder, data folder, `media`, or `setup-token`. Pages targeting those locations are reported as errors and not exported. {.detail}
+
+#### Static site creation method
+
+- **Generate static pages on the server** — Export directly to the public location on the server, normally the site root.
+- **Create an upload folder (when running locally)** — Prepare a site created on your computer for upload to another server. HTML and `media/` are exported together to a dedicated destination. The destination cannot overlap the site root, 🍊mikanBox itself, or an existing media folder.
+
+#### Output directory
+
+Specify the destination as a path relative to the site root. `blog` means `blog/` directly under the root; `../` means one level above. Leave blank to export directly under the root. For an upload folder, the default is `export`.
+
+#### Output structure / URL format
+
+Choose the HTML file format.
+
+- **Directory (folder/index.html)** — URLs are `/page-ID/`. These match dynamic publication URLs, so switching does not break links.
+- **Filename (filename.html)** — URLs are `/page-ID.html`, giving a simple file structure.
+
+The default is directory for server generation and filename for an upload folder. This affects HTML only; Markdown and data formats are exported as `ID.extension` in either case.
+
+#### Link style
+
+Choose how page and image links are written in an upload folder.
+
+- **Relative links (portable, recommended)** — Relative to the output location, keeping links intact when the folder moves.
+- **Fixed public URL** — Fixed to the specified public URL.
+
+#### Public root URL (for SSG)
+
+Enter the root of the public site, such as `https://example.com/site`. If the public URL is known, as with Cloudflare Pages or Netlify, enter it here.
+
+- **Fixed public URL** — Required; used for page links, `sitemap.xml`, and `rss.xml`.
+- **Relative links** — Optional; used only to generate `sitemap.xml` and `rss.xml`. Neither is generated if blank.
+
+#### Place media in the output media/ folder {#ssg-media-in-output .flat .sqlite}
+
+Use this when separating the public location from the admin screen (see [an example of protecting the admin side on the same server](#php-separated-publishing)). Under server generation, enter the output directory and public root URL, select this option, and build. Existing media moves to `media/` directly under the output destination, and future uploads go there too.
+
+For example, to change the public location from `/blog/` to `/pub/`, set the output to `../pub` and the public root URL to `https://example.com/pub`. The destination `media/` must be empty or absent. Clear the option and save to return media to its original location. An upload folder includes the current media regardless of this setting. {.detail}
+
+Place source and destination on the same filesystem and give the admin PHP permission to move them. Admin previews also load images from `media/` under the public root URL. {.detail}
+
+##### Specify storage and delivery URL separately {#php-media-location .flat .sqlite .detail}
+
+To use a dedicated media folder or delivery location, create `local-config.php` in the admin folder and specify the storage location and delivery URL. This takes precedence over “Place media in the output media/ folder”. Move existing files to the new location first.
+
+```php
+<?php
+define('MIKANBOX_MEDIA_DIR', '/srv/mikanbox/assets');
+define('MIKANBOX_MEDIA_URL', 'https://example.com/media/');
+```
+
+Server-side static generation uses the specified delivery URL. Upload folders and public-site export ZIPs include files from the storage location. HTML `srcset` images and video `poster` attributes also refer to the included files.
+
+#### [auto_awesome]{.material-symbols-outlined} Save and Build Static Site{.m-btn .m-btn-blue}
+
+Save settings and export all pages set to “Public (static)” as static HTML. The screen stays in place and a notification shows the number of files generated. When pages are added or changed, published files remain unchanged until you rebuild.
+
+Pages with `/` in their IDs (such as `news/2024`) are exported into actual folders inside the output destination. `sitemap.xml`, `rss.xml`, and `podcast.xml` are generated when a public root URL is configured. They exclude the 404 page and data-format pages. See [Sitemap, RSS & API](#site-mapfeed) for details. {.detail}
 ### Language {#site-lang}
 
-Sets the display language for the admin panel.
+Set the language of the admin screen. This does not affect the language of public pages.
 
-Choose from one of the following three:
+#### Select language
 
-- **Match browser settings** — Automatically switches between Japanese and English based on your browser's language setting.
-- **Japanese (日本語)**
-- **English**
+Choose “Auto (browser setting)”, “日本語 (Japanese)”, or “English”. Auto follows your browser's language setting.
 
 #### [save]{.material-symbols-outlined} Save{.m-btn .m-btn-blue}
 
-Saves the language setting.
-
-### Security activity (PHP editions) {#site-audit}
-
-“Recent security activity” on the Site screen shows the records in three tabs (Important, Site edits, Failed sign-ins), newest first.
-
-“Site edits” records every addition, change and deletion of pages, components, media and site settings, whether it was made in the admin screen, in visual editing, through MCP or by importing data (from v2.26.0). Rewriting only the content of a page that is already public is recorded too. Saving the same item several times within 10 minutes by the same person is one line, and an import is one “Data imported” line rather than a line per page. For site settings, only the names of the settings that changed are recorded, never their values.
-
-“Important” holds, in both PHP editions, MCP key issuance/revocation, enabling/disabling MCP, program updates and rollbacks, and data restores (importing with “Replace”). Program updates are recorded when updating from v2.26.0 or later. SQLite also records device registration/stopping, enrollment/invitation code issuance, user deletion, recovery and account reset. The flat edition records "Recovery" when setting the password again retires the MCP API key.
-
-The latest 50 important operations, the latest 50 failed sign-ins and the latest 500 site edits are kept, so a run of failed sign-ins or of edits never pushes out the important records. Only writing operations are recorded, not page views, so the public site does not get slower.
-
-Records contain the time, action, actor, necessary target IDs, a masked IP address and, for pages, components, media and settings, a fingerprint (SHA-256, not shown on screen) of the content before and after the change. Keys, tokens, codes, passwords, content, setting values and full IP addresses are excluded. The final IPv4 octet is masked; IPv6 addresses retain only their first 48 bits. Beyond the limits, the oldest records are removed. Recording failures are shown in the admin screen without treating a successful operation as failed.
-
-Logs and MCP state live in the data directory's `security/` folder. `events.jsonl.php` contains a PHP access-denial guard followed by JSON Lines records. Apache access rules and the front controller also protect the data directory. Servers serving static files without passing them through PHP must deny web access to the entire data directory. Backups including that directory also contain activity records and must be stored securely. Changes made by editing server files directly, without the admin screen or MCP, are not in these records. Finding those is what “Check for tampering” below is for.
-
-“Check for tampering”, under the version and update display on the Site screen, looks for changes that are not in the history and shows the result under the button. It runs only when you press it, so page views are not affected. It checks three things.
-
-- **Public files**: the text files the site generation wrote (HTML and so on) and the media js, css, svg and html files, against the fingerprints taken when mikanBox wrote them. It lists files that changed, unknown files that appeared, and files that disappeared. Images, audio and video are not checked.
-- **Program**: the official release of the installed version is fetched from GitHub and compared with the program files. When GitHub cannot be reached (for example on a local site), the state recorded on this server at the last update or acceptance is used instead, and the result says which was used. Files that an earlier version used and the current one no longer does are listed separately as “Files left from an earlier version”; the next update removes them (from v2.28.1).
-- **Stored data**: the content of pages, components and site settings is compared with the last “after” fingerprint in the history.
-
-If nothing is found, the result says so with the time of the check. If what is found is your own change (you uploaded a file by FTP, or cleared password_hash in the settings file to recover), press “This is my change (accept)” and the present state becomes the new basis. The acceptance is recorded as an important operation. The basis for public files is made when the site is generated, and the one for media when you accept.
-
-As a limit, anyone who can rewrite server files can also rewrite the basis recorded on this server. Only the comparison with the official release lies outside the server, which makes it hard to forge. This is a clue for noticing a problem, not protection against intrusion.
-
-In the history tables, records whose person and IP range have not appeared in any earlier record, or whose person is unknown, get a light background color (there is no setting; a new site with no records yet shows no color). Such records of the last 30 days are also listed in the result as “Unusual operations”. Once you have confirmed they were yours, “This is my change (accept)” removes the color and the listing for the records up to then (from v2.28.1).
+Save the language setting.
 
 ### CSV Import {#csv-import}
 
-A tool that converts CSV data into a database-like form (DATAROW blocks) usable within the site.
+Convert a CSV created in spreadsheet software or elsewhere into data that can be pasted into a page (`DATAROW` blocks). Use this for similarly structured data such as product lists and event schedules.
 
-Find it on the Site screen in the PHP editions, or on Data migration and import in the Cloud edition.
+#### Choose file
 
-#### Choose File
+Select a CSV file. Use alphanumeric field names in the first row. The encoding (UTF-8 / Shift-JIS) is detected automatically.
 
-Select a CSV file. Encoding (UTF-8 / Shift-JIS) is detected automatically.
+#### [content_copy]{.material-symbols-outlined} Convert & Copy{.m-btn .m-btn-gray}
 
-#### [content_copy]{.material-symbols-outlined} Convert &amp; Copy{.m-btn .m-btn-gray}
+Convert each row into a `{{DATAROW:sequence-number}}` block and copy it to the clipboard. Paste it into the page body in the editor and save.
 
-Reads the first row as field names and converts every other row into a `{{DATAROW:number}}` block, copied to the clipboard. After copying, paste it into the body content of a page and save.
-
-#### Tips for Use
-
-- Write field names (the first row) using alphanumeric characters.
-- Thousands separators in prices (e.g. `1,000`) are read correctly, since Excel automatically quotes them.
-- We recommend keeping data-only pages set to **Draft**. Visitors won't see them, but they can still be referenced via `{{POST_MD:pageID#rowID:FIELD}}` or `{{NAV_CARDS}}`.
-- Publishing the page with the output format **mikanBox DB** shows nothing as a page, while its `{{DATA}}` and `{{DATAROW}}` data becomes readable as a JSON API at `siteURL/api/pageID.json` ([mikanBox DB](#mikanbox-db)).
+If you publish with the output format set to “mikanBox DB”, you can read this data as an API at `site-URL/api/page-ID.json` ([mikanBox DB](#mikanbox-db)). In the PHP editions, you can keep a data-only page as a draft and refer to it with `{{POST_MD:page-ID#row-ID:field}}` or `{{NAV_CARDS}}`. In the Cloud edition, the public site cannot refer to draft or pending data, so publish and build it.
 
 <a id="site-backup"></a>
 ### Data Management {#site-data-mgmt}
 
-Save the site's content to a file, or read a saved file or another site's data. Save the site regularly. From v2.25.0 the former "Data Import & Migration Tool" screen is part of this section.
+Save or migrate your site's content here. Use it for the following:
 
-The top of the section shows the number of pages, components and media files, and the total size of the media. The SQLite and Cloud editions also show the number of users and the size of the database.
+- **Regular backups** — Save a ZIP with “Save” and keep it somewhere safe.
+- **Migration from another site or edition, or restoration from a backup** — Use “Read” to read an exported ZIP or WordPress data.
+- **Taking a copy of the public site** — Use “Export the public site” to make a ZIP of the published pages.
+
+The top of the section shows the number of pages, components, and media files and the total media size (also the number of users and database size in SQLite and Cloud). Large sites take time, so keep the screen open until the operation finishes.
+
+#### Storage {.cloud}
+
+Pages, history, and settings are stored in the D1 database; media files are stored on the public site. These can be used within the free tier. A warning appears when D1 usage exceeds 450 MB. Media is limited to 10 MB per file and 10,000 files. The public site is the only place media is stored, so use Save to save JSON and images regularly.
 
 #### Save {#data-export}
 
-Choose the contents and press "Download".
+Save site content as a ZIP or other file.
 
-| Contents | What is saved |
+##### Contents
+
+Choose one. If unsure, choose “JSON and media”.
+
+| Contents | Details |
 |---|---|
-| JSON and media | The settings, pages and components as JSON, with the media files, in one ZIP. |
-| JSON only | A ZIP of the settings, pages and components as JSON. |
-| Media only | A ZIP of the media files. |
-| Database [SQLite and Cloud editions]{.type-badge .badge-sqlite} | The database file in the SQLite edition; the D1 SQL file in Cloud. Page history is included. |
+| JSON and media | JSON for settings, pages, and components, and media such as images, in one ZIP. |
+| JSON only | A ZIP containing only JSON for settings, pages, and components. |
+| Media only | A ZIP containing only media files. |
+| Database (SQLite and Cloud editions) | A database file for SQLite or a D1 SQL file for Cloud. Includes page history. |
 
-- **Include page history** (SQLite and Cloud): the history of each page (the last 10 entries) is saved too. It is off at first. The flat edition has no page history.
-- **Filtered exports** (behavior from v2.30.2). When **Match the filtered lists** is checked and the page list is filtered by category, output format, or search, the export includes the matching pages and their layout components, parts, and literal local media references. It follows parts embedded inside other parts. When JavaScript contains a literal string using the configured public media URL, the corresponding file is included. Linked pages, pages listed by navigation, other pages embedded as content, and references assembled at runtime by JavaScript are outside this selection. With no page filter, or when saving media only, the applicable list filters still apply. Content settings are included in JSON exports. Database exports are unaffected.
-- The file also holds what is not public, such as drafts and notes: keep it somewhere safe and do not share it.
-- Users, devices, passwords and the MCP API key are not included. Only the content settings (site name, description, categories and the like) are saved; the site ID and the publishing settings are not.
-- Inside the ZIP: `data/settings.json`, `data/posts/pageID.json`, `data/components/ID.json`, `data/revisions/pageID.json` (history) and `media/filename`. The layout is the same in all three editions, so the file can be read into a site of another edition.
+##### Include page history {.sqlite .cloud}
+
+Include the latest 10 history entries for each page. This is off by default.
+
+##### Match the filtered lists
+
+When the page list is filtered by category, output format, or search, select this to export only those pages and the layouts, parts, and media they use. Use it to transfer selected pages to another site. Linked pages and pages in navigation are not included. This does not affect database exports.
+
+Parts embedded inside other parts are included. Media files whose delivery URLs are written directly as strings in JavaScript are also included. URLs assembled by JavaScript at runtime do not add files.
+
+##### [download]{.material-symbols-outlined} Download{.m-btn .m-btn-gray}
+
+Download the selected content. It includes unpublished content such as drafts and admin notes, so keep it safe. Users, devices, passwords, MCP API keys, and the site ID are not included in the export ZIP. The ZIP format is the same across all three editions, so it can be imported into another edition.
+
+In the Cloud edition, images are collected from the public site. If the public files differ from the records, the export stops; build the site and save again. “Database” exports all of D1, including settings, accounts, and media information, as one SQL file. It does not include image files. To select it, register a token with D1 edit permission in Cloudflare publication settings. {.cloud}
 
 #### Read {#data-import}
 
-Choose files and press "Read". Their contents are recognised and the JSON and media are read; files that cannot be read are ignored. Several files can be chosen at once.
+Import exported files or data from another site into this site.
 
-Files you can choose:
+##### Choose files
 
-- A ZIP saved here (also one saved in another edition, or a ZIP from "Download data" / "Download media" of v2.23 and earlier)
-- A ZIP with `posts/` and `components/`, also inside an outer folder. The page ID comes from the folders and file name under `posts/` (`posts/coffee/menu.json` is `coffee/menu`). `__MACOSX` and `._` files made by macOS are skipped.
-- A ZIP of media files only
-- A WordPress XML export (Tools > Export). Posts and pages are read; published posts become public, pending ones pending, and the rest drafts. The HTML is converted to basic Markdown.
-- Media files
+Select files to import. You can select multiple files at once; their contents are identified and JSON and images are imported. Unreadable files are ignored. You can select:
 
-Choose what happens when data with the same ID exists:
+- ZIP files saved by Save (including ZIPs from other editions or older versions)
+- ZIP files containing `posts/` and `components/`
+- Media files such as images, or ZIPs containing only those files
+- WordPress XML exported via “Tools > Export”. Posts and pages are imported; published items remain published, pending items remain pending, and all others become drafts.
 
-| Choice | What happens |
-|---|---|
-| Do not overwrite (add only what is missing) | Only what the site does not have is added. Pages and components with the same ID and media with the same name are skipped. Settings are not read. This is the default. |
-| Overwrite | Items with the same ID or name are replaced by the file's. What the file does not have stays. The previous content of a page is kept in its history (SQLite and Cloud). |
-| Replace everything (what the file lacks is deleted) | The site becomes the file's contents; what the file does not have is deleted. You are asked before it runs. |
+##### When data with the same ID exists
 
-- Only the kinds the file holds (pages, components, media) change. Replacing with a file of pages only leaves the components and media as they are.
-- When overwriting or replacing everything, settings such as the site settings are also read and overwritten. Users, devices, the site ID and the MCP API key stay as they are.
-- When replacing, the page history also becomes the file's; a file saved without history leaves the history empty.
-- IDs that a new page or component could not have (such as a page ID starting with a reserved folder name) are not read and are listed in the result.
-- Media are checked as on upload (name and type); SVG files are cleaned of scripts as on upload. A single file larger than the server's upload limit cannot be read and is listed in the result.
-- The result appears in the toast at the bottom right; the screen is not reloaded.
-- Build the site to update the public pages with what was read. In Cloud, media that are read are sent to the public site at once.
+Choose one of three behaviors for existing IDs or names. The default is “Do not overwrite”.
+
+- **Do not overwrite (add only what is missing)** — Add only items not present on the current site. Settings are not imported. Useful for importing parts from another site.
+- **Overwrite** — Replace matching IDs or names with the file's contents. Items absent from the file remain. Pages before replacement are kept in history (SQLite and Cloud).
+- **Replace everything (what the file lacks is deleted)** — Make the current site match the file. Use this to restore a backup. Confirmation is required before execution.
+
+Only types included in the file (pages, components, images) change. Settings are imported only when overwriting or replacing everything; users, devices, site ID, and MCP API key stay unchanged. Invalid IDs, such as reserved names, are skipped and shown in the results.
+
+##### [upload]{.material-symbols-outlined} Read{.m-btn .m-btn-gray}
+
+Import the selected files. Results appear at the bottom right without reloading the screen. Build the site to reflect imported pages on the public site.
+
+In the Cloud edition, importing images sends them directly to the public site (building the entire site). If sending fails, the images are not imported; import the same files again. {.cloud}
+
+#### Restore D1 to a specified time {#cloud-d1-restore .cloud}
+
+If you make a mistake, for example, restore the entire database to a specified time within Cloudflare's retention period (the most recent seven days on the free plan). To use this, register a token with D1 edit permission in Cloudflare publication settings.
+
+Only D1 contents are restored: pages, components, settings, users, devices, and media information. Media files and the public site are not restored. After restoring, build the site and check pages and images. Devices registered after that time will no longer work and may need to be registered again.
+
+##### Time to restore
+
+Enter the date and time to restore.
+
+##### [history]{.material-symbols-outlined} Restore D1 to specified time{.m-btn .m-btn-gray}
+
+Restore the database to the entered time.
 
 #### Export the public site {#site-export}
 
-Downloads the current public site as a single ZIP file. In the PHP editions, pages published dynamically are included as files too.
+Download the current public site as a ZIP. Use this to move it to another server as a static site or keep a copy of its published state. In the PHP editions, dynamically published pages are also included as files. In the Cloud edition, published files are collected from the public site.
 
-- **Convert to relative paths**: links between pages and to images are written from each file's own position, so they keep working when the site moves to another address or folder. The PHP editions write pages as `pageID.html`.
-- Without it, links start with the site's address.
-- Server files such as `.htaccess` are not included.
+##### Convert to relative paths
 
-#### Data migration in Cloud
+Write links between pages and image locations relative to the files. Links remain valid if the site's address or folder changes. If not selected, paths start with the site address.
 
-The Cloud edition also has "Restore D1 to a past time". See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md).
+##### [download]{.material-symbols-outlined} Download the public site{.m-btn .m-btn-gray}
 
+Download the public site as a ZIP. Server files such as `.htaccess` are not included.
 ### Site Settings {#site-settings}
 
-The first row places the immutable site ID on the left and the site name on the right. Explanations appear below their input fields.
-
-Common site settings show the site name on the left and the read-only site ID on the right in equal-width columns. The site URL follows on the next row, with its explanation below the field. Static generation method hints use normal font weight.
-
-#### Site ID (for AI)
-
-An immutable ID generated for each site. AI uses it to avoid confusing one mikanBox site with another when several sites are connected. On existing sites, it is generated when Site Settings are saved or when AI first requests the site information.
+Set the site name, defaults used when a page has no settings of its own, and tracking tags added to every page. Set the site name first after installation.
 
 #### Site Name
 
-Sets the site's name. Output via `{{SITE_NAME}}`. `{{FULL_TITLE}}` is displayed as "Page Title - Site Name," and is also used for things like bookmark titles and search-result titles.
+The name of the site. Output it with `{{SITE_NAME}}`. `{{FULL_TITLE}}` uses the form “Page title - Site name” and is also used as the title in bookmarks and search results.
 
-#### Site URL
+#### Site ID (for AI)
 
-Identifies the target site to AI. Normally leave it blank: HTTP connections infer the directory containing the site's `index.php`. This is separate from the SSG output directory or deployment destination. Override only to identify another public URL; it does not move or redirect the site, or change SSG output. CLI connections lack HTTP information, so configure the URL explicitly when needed.
+An unchangeable ID created automatically for each site. It helps AI identify the correct site when connected to more than one.
+
+#### Site URL {.flat .sqlite}
+
+The URL AI uses to identify the site. Leave it blank to detect the site's address automatically. This is separate from the SSG output and publication locations. Enter a URL only if you want to give AI a different address.
+
+#### Site URL {.cloud}
+
+Shows the public URL as read-only.
 
 #### Site Environment
 
-Choose Production, Staging, Development, Local, or Unspecified. Through MCP, AI can call `get_site_info` to check this environment together with the site ID, name, and URL.
-
-This is advisory metadata, not an automatic restriction on access or operations. For example, seeing Production before making test edits gives AI a reason to choose a development site or ask for clarification. Check it together with the immutable site ID. It was introduced with MCP site identity support in v2.3.
+Choose production, staging, development, local, or unspecified. AI can check this environment alongside the site ID, name, and URL. It indicates the site's purpose and does not restrict operations or access.
 
 #### Site Description
 
-Sets the site's overall description. When a page doesn't have its own description set, this is used as its description in search results. Output via `{{SITE_DESCRIPTION}}`.
+Used as the page description when a page has none. Output it with `{{SITE_DESCRIPTION}}`.
 
 #### Common Keywords
 
-Sets the site's keywords. When a page doesn't have its own keywords set, these are used as its search keywords.
+Used when a page has no keywords of its own.
 
 #### Global OGP Image
 
-Sets the site-wide OGP image. When a page doesn't have its own OGP image set, this is used as the image shown when shared on social media. Output via `{{SITE_OGP_IMAGE}}`. Recommended size: 1200 × 630 px.
+Used as the image shared on social media when a page has no OGP image. Output it with `{{SITE_OGP_IMAGE}}`. The recommended size is 1200 × 630 px.
 
 #### Pages per page (in list)
 
-Sets how many items appear per page before the "Pages" list paginates (default: 30). If the total number of pages is below this count, pagination links aren't shown.
+Choose how many entries appear on each page of the Pages list (default: 30).
 
 #### Media items per page (in list)
 
-Sets how many items appear per page before the "Media" list paginates (default: 100).
+Choose how many entries appear on each page of the Media list (default: 100).
+
+#### Registration Categories (comma-separated) {.flat .sqlite}
+
+Register category options for filtering and editing pages.
+
+#### Allow external Markdown {.flat .sqlite}
+
+Allow Markdown documents from other sites to be fetched with `{{EXT_MD:url}}`. See [Embedding Markdown documents from other sites](#external-markdown) for the default and permitted URLs.
+
+#### Shared loading {#common-loading}
+
+Load tracking tags, such as analytics tags, on every page without adding them separately to each page. To use a Google tag or Tag Manager, enter and save the Tracking ID. Rebuild static pages to apply the change. To exclude a particular page, select [“Do not load tracking tags on this page”](#page-edit-no-tracking) when editing it.
+
+##### Tracking ID
+
+Enter a Google tag ID (`G-…`) or a Tag Manager container ID (`GTM-…`).
+
+##### Enter code directly (advanced)
+
+Open this to use custom tracking code. Fields appear for head code and optional code immediately after the body starts. The entered code is inserted as is and takes priority over the tracking ID. Tracking tags written directly in content or components cannot be excluded per page.
 
 #### [save]{.material-symbols-outlined} Save{.m-btn .m-btn-blue}
 
-Saves the "Site Settings" content.
+Save the Site Settings.
+### Cloudflare Publish Settings {#cloudflare-publish-settings .cloud}
 
-### Devices and Users [SQLite Edition only]{.type-badge .badge-sqlite} {#site-users}
+Configure the Cloudflare connection used to publish pages and images from the admin panel to the public site. Set it up once after installation and before the first build. **Build Static Site** cannot publish until this is configured.
 
-Manages the devices that can open the admin screen and the editor accounts. Each editor can register devices, and edit history records the editor's name. There are no passwords (see [Initial Setup and Sign-in](#first-setup)). Keeping devices safe (screen lock, handling a lost device) is your responsibility. Stop a lost device here from another device.
+#### How to Obtain a Cloudflare API Token
+
+Open this for instructions on issuing a token in Cloudflare. Publication requires Workers Scripts Edit permission. Add D1 edit permission if you also use D1 export or point-in-time restore under Data Management.
+
+#### Cloudflare Account ID
+
+The destination Cloudflare account ID is already filled in. Leave it as is.
+
+#### Worker Name
+
+The admin Worker name specified during installation is already filled in. Leave it as is. To change the public Worker, see [Connecting the Public Worker](#public-worker).
+
+#### Cloudflare API Token
+
+Enter the API token you issued. The saved value is encrypted and cannot be displayed again. If you revoke the token in Cloudflare or change the site's `JWT_SECRET`, register a valid token again.
+
+#### Save{.m-btn .m-btn-gray}
+
+Saves the connection settings. The adjacent indicator shows whether the connection is configured.
+
+#### Connecting the Public Worker {#public-worker .cloud .detail}
+
+Set the public Worker name and public site address in `vars.CLOUDFLARE_PUBLIC_WORKER_NAME` and `vars.PUBLIC_SITE_URL` in the admin `wrangler.production.json`. Use separate Workers for administration and publication. Redeploy the admin Worker if you change these settings. See [Configuration Values](#cloud-install-config).
+
+If the public Worker is undergoing a gradual deployment, consolidate traffic to one version in Cloudflare before building.
+
+### Devices and Users {#site-users .sqlite .cloud}
+
+Manage devices (browsers) that can access the admin panel and editor accounts. Use this to add another computer of your own, invite someone, or stop a lost device. Editor names are recorded in edit history. Passwords are not used. Users are responsible for managing their own devices, including screen locks.
 
 #### Users and Devices
 
-Each user is shown with their own devices. You see the username and display name, and each device's name, registration time, last use and expiry. Your own device is marked "(this device)".
+Each user's devices are shown with device name, registration date, last use, and expiration. Your current device is marked accordingly. If someone registers a new device, a notice appears the next time you open the admin panel. Stop any device you do not recognize.
 
-- [Stop]{.m-btn .m-btn-red} — Stops that device and cancels unused codes it issued. It is signed out immediately and needs an add code to be used again. Stopping your own device is the same as logging out. There is no log-out button at the top right of the admin screen.
-- A device added with a code cannot stop other devices or delete users for 3 days after it is registered. This prevents someone with a stolen code from locking the owner out. The first device has no such limit.
-- When someone registers a new device, a notice appears the next time you open the admin screen. If you do not recognize it, stop it in this list.
-- Your own user has a "Display name" field. Change the name shown in edit history and similar places, then press "Save". The username cannot be changed.
-- [[delete]{.material-symbols-outlined}Delete]{.m-btn .m-btn-red} — Deletes another user, together with their devices and unused codes, including invitations issued by those devices. This cannot be undone. You cannot delete the user you are signed in as, or the only user. If a database operation fails while stopping a device or deleting a user, all related changes are rolled back and an error is shown.
+##### Display Name
 
-#### Add a Device
+This input appears only for your own user. Enter the name displayed in edit history and elsewhere. The username cannot be changed.
 
-Issues an add code. Open the admin screen on the new device and enter the code. A code is valid for 3 hours and works once. The code is shown right under the button you pressed, only right after it is issued, and cannot be viewed later.
+##### Save{.m-btn .m-btn-gray}
 
-##### Invite Someone
+Saves the display name.
 
-Issue an invite code and hand it to the person you want to invite. You do not choose a user ID or display name. When the invited person enters the code and a device name on the sign-in screen, a screen appears where they choose a user ID and display name (alphanumeric characters, underscores and hyphens only). Registering creates that user and registers the device. A user ID that someone else uses cannot be chosen; if it is refused, the code is not spent. An invite code is valid for 6 hours and works once (longer than an add code, so it can reach someone far away; from v2.30.1).
+##### Stop{.m-btn .m-btn-red}
 
-#### Unused Codes
+Shown for each device. Use it for a lost or no longer needed device. It stops the device and invalidates unused codes issued by it. The stopped device is signed out immediately and needs a new addition code to be used again. Stopping your current device signs you out.
 
-Codes that have been issued but not used. "Cancel" invalidates one.
+A device added with a code cannot stop other devices or delete users for three days after registration. This prevents a device added with a stolen code from locking out the owner. {.detail}
 
-#### Unused Devices Expire After
+In Cloud, the device also cannot change other users or perform D1 point-in-time restoration during those three days. {.cloud .detail}
 
-Choose 30, 90 or 180 days. Each use of a device extends its period. A device that has expired must be added again with a code.
+##### Delete{.m-btn .m-btn-red}
 
-**If every device is lost:** register again from a new token, as described in [When Every Device Is Lost (Recovery)](#device-recovery).
+Shown for each other user. Deletes the user, their devices, and unused codes. This cannot be undone. You cannot delete the signed-in user or the last remaining user.
 
-### Change Password [flat Edition only]{.type-badge .badge-flat} {#site-password}
+#### [add]{.material-symbols-outlined} Add a device
 
-Changes the admin panel's login password.
+Allows another browser or computer of your own to access the site. Open this to display the button for issuing a code. Open the admin panel on the new device and enter the code.
+
+##### [add]{.material-symbols-outlined} Issue a code{.m-btn .m-btn-blue}
+
+Issues an addition code. It is valid for three hours and can be used once. It is displayed only immediately after issuance and cannot be viewed later.
+
+##### [add]{.material-symbols-outlined} Issue an invite code{.m-btn .m-btn-blue}
+
+Found under **Invite someone**. Use it to invite someone to edit with you. Issue the invitation code and give it to them. The invitee enters the code and device name on the sign-in screen, chooses a user ID and display name, and registers. The ID may contain ASCII letters, digits, underscores, and hyphens. The code is valid for six hours and can be used once.
+
+#### Unused codes
+
+Lists issued codes that have not yet been used.
+
+##### Cancel{.m-btn .m-btn-gray}
+
+Shown for each code. Invalidates it, for example if it was sent to the wrong person.
+
+#### Unused devices expire after
+
+Choose 30, 90, or 180 days before a device that has not been used automatically expires. Each use extends the period. Add an expired device again using a code.
+
+##### Save{.m-btn .m-btn-gray}
+
+Saves the validity period.
+
+If all devices are lost, recover using a setup token ([SQLite recovery](#device-recovery)). {.sqlite}
+
+If all devices are lost, recover using `SETUP_TOKEN` ([Cloud recovery](#cloud-device-recovery)). {.cloud}
+
+#### Device Authentication Behind a Proxy {#device-auth-proxy .sqlite .detail}
+
+After ten failed device registration or recovery attempts from the same IP address, attempts from that IP are blocked for 15 minutes. Behind a proxy, all users may appear to share an IP. If multiple users are restricted together, ask the web server administrator to configure trusted proxies and pass each user's IP in `REMOTE_ADDR`. No admin panel setting is needed.
+
+### Change Password {#site-password .flat}
+
+Change the admin panel sign-in password.
+
+#### Site ID for password saving
+
+A read-only field that helps the browser distinguish this site's password. It prevents confusion between passwords saved in the browser when multiple sites share a domain.
 
 #### Current Password
 
-Enter the password you currently use to log in.
+Enter the current password.
 
 #### New Password
 
-Enter a new password (at least 7 characters).
+Enter a new password of at least seven characters.
 
 #### [save]{.material-symbols-outlined} Save{.m-btn .m-btn-blue}
 
-Changes and saves the password.
+Changes and saves the password. Changing it here while signed in does not change MCP API keys.
 
-**If you forget your password:** Using FTP or a file manager, edit the `mikanData/settings.json` file on the server and clear the value of `password_hash`. The initial password setup screen will appear on your next visit. From v2.21.3, setting the password again on that screen retires the MCP API key. Issue a new one under [MCP API Key](#site-mcp-key) and switch your AI clients to it. Changing the password with the form above while signed in keeps the key.
-
----
+If you forget the password, open `mikanData/settings.json` on the server using FTP or another method and clear the value of `password_hash`. On the next access, the initial password setup screen appears; a setup token is also required on a server. Resetting the password this way invalidates MCP API keys, so issue them again under [MCP API Key](#site-mcp-key).
 
 ### MCP API Key {#site-mcp-key}
 
-Issue and manage the API key that lets an AI agent (like Claude Code) connect to this site over MCP.
+Issue and manage API keys that allow AI agents such as Claude Code to operate this site through MCP. Use this when you want AI to create pages or modify designs.
 
-The mikanBox administration MCP server supports stateless **MCP 2026-07-28** and, during the compatibility transition, initialize-based MCP 2025-11-25, 2025-06-18, and 2025-03-26. Every protocol mode requires the administration API key.
+#### Enable MCP
 
-Connect with the AI application's native Remote MCP (Streamable HTTP) feature.
+A checkbox. Clear it and save to disable admin MCP while retaining the keys. Re-enable it to connect with the same keys. Disabling it while not in use improves security. Public help MCP remains available while it is disabled.
 
-- MCP endpoint: `site URL/mikanBox/mcp` (the old `mcp.php` URL also remains available)
-- Protocols: `2026-07-28`, `2025-11-25`, `2025-06-18`, and `2025-03-26`
-- Authentication: `Authorization: Bearer your-issued-API-key` or `X-API-Key: your-issued-API-key`
+#### Save{.m-btn .m-btn-gray}
 
-In clients that support fixed request headers, configure the issued API key using either header above. Never put the API key in the URL query string.
+Saves the Enable MCP setting.
 
-Every tool carries annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`) that state whether it only reads data or may overwrite or delete existing data. MCP clients that understand these annotations use them to ask for confirmation before high-impact operations such as updating or deleting a page. Tools that return page or component bodies also carry `untrustedContentHint`, so the retrieved text is treated as reference material and never as instructions to the AI.
+#### [add]{.material-symbols-outlined} Add an API key {#mcp-key-issue}
 
-Claude's custom connector screen supports authless or OAuth authentication. Its OAuth Client ID and OAuth Client Secret fields are not API-key fields. Until mikanBox implements OAuth, the administration MCP cannot be registered safely as a Claude custom connector. Do not paste the API key into the Client ID or Client Secret field. The authless public help MCP can be registered as a custom connector using only its URL.
+Open this to display the key issuance fields. Give each key a name; up to 20 keys can be issued. Separate keys for each tool or machine identify which key performed an action in the activity log and let you disable only a problematic key.
 
-Treat the API key like a password. Never store it in a public repository or shared file. An AI client holding the MCP API key can also write JavaScript into pages and components, and that script also runs when a signed-in administrator opens the public pages or visual editing. Give the key only to AI clients you trust as much as an administrator. While you are not using it, you can stop the administration MCP (see "Enabling MCP and its last-use time"). If several mikanBox sites are connected, AI calls `get_site_info` on first connection and before writes to confirm the target site.
+##### Key name (AI tool, machine name, etc.)
 
-A page's [output format](#output-formats) is set through `output_format` (`html` / `html_md` / `md` / `json` / `xml` / `csv` / `txt` / `js` / `css` / `db`), `md_footer_comps` (an array of footer component IDs) and `expand_tags` (whether a data page expands tags; the format's default when omitted) in `create_page` and `update_page`. `get_page` and `list_pages` also return `output_format`. Updating a published page with `update_page` no longer changes its update date (`updated_at`); it becomes the current time only when a page goes from non-public to public, the same as on the admin screen (since 2.17.0). `status` is `draft`, `public_dynamic` or `public_static`; the former `db` is accepted and saved as `output_format` `db` with Public (Dynamic).
+Enter the name of the AI tool or machine that will use the key, such as “Claude Code / MacBook.”
 
-`preview_page` returns the result in the page's output format without saving and regardless of status (with only an `id` it shows the saved content; pass the body and other fields to render them unsaved; a new `id` works too), which is how to check tag expansion. `get_site_info` now returns `version` (the mikanBox version; when it differs from the last connection, read the tool list and `get_ai_context` again). The project rules in `get_ai_context` (`documents`) also include an entry that points at output formats (`mikanbox-output-formats`).
+##### [auto_awesome]{.material-symbols-outlined} Issue key{.m-btn .m-btn-blue}
 
-Starting with mikanBox 2.5.1, the MCP connection instructions tell AI to call `get_ai_context` on first connection. This tool returns every [AI Instructions]{.type-badge .badge-ai} component—such as `DESIGN.md`, `BRAND.md`, and `CONTENTS.md`—in a single response. AI treats the returned content as site-specific project instructions for content, design, and code changes. AI instructions are for design and content work. They are treated as never containing instructions about the MCP key, sign-in or authentication, site settings, or the server or the program itself; AI does not follow such content if it appears there, and the user's instructions take precedence when they conflict (stated in the connection instructions from v2.21.3). Updating an instruction component updates what AI receives the next time it loads the context.
+Issues a new key and displays it in the API key field below. Other keys are unaffected.
 
-#### Connection URL
+##### Connection URL
 
-The URL of this site's administration MCP. "Copy" puts it on the clipboard so you can paste it straight into the client's settings.
+The URL for this site's admin MCP.
 
-- [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the connection URL to the clipboard.
+###### [content_copy]{.material-symbols-outlined} Copy{.m-btn .m-btn-gray}
 
-#### API Key
+Copies the connection URL to the clipboard. Paste it directly into the client configuration.
 
-You can issue any number of named API keys (from v2.29.0; up to 20). Open “Add an API key”, and in “Key name (AI tool, machine name, etc.)” enter the name of the AI tool or machine that will use it (for example “Claude Code on MacBook”), then issue it. Issuing a separate key for each AI tool or machine shows in the history which key acted, and lets you revoke just the one that is a problem. You can set one key in several tools, but the history cannot tell them apart and revoking it stops them all.
+##### API Key
 
-The API key is shown only once, when it is issued (from v2.28.0). The server keeps only the key's fingerprint (SHA-256), not the key itself, so a leaked settings file or backup does not reveal it. It cannot be shown again later: copy it right away and set it in the tool you connect. If you lose it, revoke that key and issue a new one. A key issued in v2.28.0 keeps working, as a single key without a name (a key from before v2.28.0, which was stored in plain text, no longer works from v2.29.1: issue a new one).
+Displayed only immediately after issuance. It cannot be displayed again later.
 
-Issued keys are listed under “Issued API keys” with their name, issue date and last-use time. “Enable MCP” and its Save button form one box.
+###### [content_copy]{.material-symbols-outlined} Copy{.m-btn .m-btn-gray}
 
-- [[content_copy]{.material-symbols-outlined}Copy]{.m-btn .m-btn-gray} — Copies the just-issued API key to the clipboard. Paste the generated key into the settings of whatever tool you're connecting (e.g. `.mcp.json` for Claude Desktop).
-- [[auto_awesome]{.material-symbols-outlined}Issue key]{.m-btn .m-btn-blue} — Enter a “Key name” and press it to issue a new key and show it in the “API key” field below it (the connection URL is in the same box). Other keys are not affected.
-- [Revoke]{.m-btn .m-btn-gray} — Revokes that key in the list. AI tools that use it can no longer connect. The other keys keep working.
+Copies the API key to the clipboard. Paste it promptly into the connecting tool's configuration, such as `.mcp.json`. If lost, disable the key and issue a new one.
 
-You can also avoid writing the key in plain text in a local file such as `.mcp.json`. On macOS, store it in the Keychain (`security add-generic-password -s mikanbox-mcp -a mcp -w 'KEY'`) and read it each time you connect. For example, with `mcp-remote`, set `command` to `sh` and `args` to `["-c", "exec npx mcp-remote@0.1.38 CONNECTION_URL --header \"Authorization:Bearer $(security find-generic-password -s mikanbox-mcp -w)\""]`.
+#### Issued API keys
 
-An MCP API key stops working when you revoke it in the list, when the [SQLite Edition]{.type-badge .badge-sqlite} is recovered with a setup token or handed over with `reset-accounts.txt`, and when the [flat Edition]{.type-badge .badge-flat} password is set again after `password_hash` was emptied (the last two from v2.21.3). An ordinary password change while signed in, stopping a device and deleting a user leave it unchanged.
+Lists issued keys by name, issue date, and last use. Until first use, it indicates that the key has not yet been used.
 
-#### Enabling MCP and its last-use time (PHP editions)
+##### Disable{.m-btn .m-btn-gray}
 
-Clear “Enable MCP” and save to stop management MCP while retaining its key. HTTP requests receive 403, and local stdio connections reject their next request. An already running request is not cancelled. Public help MCP remains available. Existing connections remain enabled after updating; enabling again permits the same key. Revoke a leaked key as well as disabling access. This switch does not restrict tools that can edit server files directly.
+Shown for each key. Disable keys that are no longer needed or may have leaked. AI tools using that key can no longer connect; other keys remain usable.
 
-Each key's last successful HTTP authentication is shown in UTC in the list. Its timestamp is written at most once per hour per key. Invalid keys and public help requests do not update it. A key that was just issued shows “Not used yet.” Local stdio requests do not use an API key and are excluded.
+#### Connecting
 
-### Cloud: where media is kept
+Register the connection URL in the AI application's Remote MCP (Streamable HTTP) feature and specify the API key in a header: `Authorization: Bearer issued-API-key` or `X-API-Key: issued-API-key`. Never put the API key in the URL or paste it into the OAuth field of a Claude custom connector. Public help MCP requires no authentication and can be registered with its URL alone.
 
-In the Cloud edition (from v0.13.0) media files (images, and uploaded JS and CSS) are kept only on the public site. An uploaded file is sent to the public site at once, and appears in the media list once it is confirmed there. The D1 database keeps pages, history, settings and the information about each media file (name, size and so on).
+Treat API keys like passwords; do not write them in public repositories or shared files. An AI with a key can also write JavaScript for pages and components, so give keys only to AI you trust as much as an administrator.
 
-Cloudflare's free plan allows 20,000 files of up to 25 MiB each on the public site (mikanBox allows 10 MB per file and 10,000 files). The public site is the only place the media is kept, so save it regularly with "Save" (JSON and media) under Site → Data management. See the [Cloud manual](https://github.com/yoshihik0/mikanBox-cloud/blob/HEAD/docs/cloud_en.md) for details.
+On connection, AI reads all registered [AI Instructions]{.type-badge .badge-ai} and uses them as site-specific instructions. AI instructions do not include instructions concerning MCP keys, login, site settings, the server, or the program itself. {.detail}
 
-## Design {#design-mgmt}
+#### When API Keys Become Invalid
 
-Manages three types of components: [Page]{.type-badge .badge-page}, which builds the design for a whole page; [Part]{.type-badge .badge-part}, which builds shared building blocks; and [AI Instructions]{.type-badge .badge-ai}, for writing instructions aimed at AI.
+- When the key is disabled in the list
+- In SQLite, after recovery using a setup token or handoff with `reset-accounts.txt` {.sqlite}
+- In flat, after clearing `password_hash` and setting the password again {.flat}
+- In Cloud, after [device recovery](#cloud-device-recovery) {.cloud}
 
-#### [add]{.material-symbols-outlined} Create New{.m-btn .m-btn-blue}
+Ordinary password changes, stopping devices, and deleting users do not change keys. {.flat .sqlite}
 
-Right next to the "Design" heading (the same place as in the page list). Creates a new component. Clicking opens the design-edit area.
+#### What Admin MCP Can Do {.detail}
 
-#### Searching components
+Use it to edit or delete pages and components, edit AI instructions, preview, and upload media. In SQLite and Cloud, page save history is also available.
 
-Typing in the field at the right of the heading row narrows the list to components whose ID or memo contains the text. It works together with the type filter.
+#### Using MCP in Cloud {.cloud .detail}
 
-### Component List
+Specify pages by page ID. Media uploads are limited to 10 MB per file. If a file with the same name exists, a sequential suffix (`_1`, `_2`, and so on) is added. After generating static HTML, [build in the admin panel](#static-build-button) to deliver it to the public side.
 
-The list is ordered AI instructions → pages → parts (parts start with `_global_head`, `_header` and `_footer`, then follow ID order).
+#### Let AI Read Public Help {#cloud-public-help}
 
-#### Edit
+To ask AI about usage or settings, register the public help URL in the AI application's Remote MCP (Streamable HTTP). The URL alone is enough to connect. AI searches and reads the public help.
 
-Clicking the [[edit]{.material-symbols-outlined}Edit]{.m-btn .m-btn-blue} button opens the edit screen for that component.
+- For flat and SQLite, append `/mcp` to the URL of the site where mikanBox is installed. {.flat .sqlite}
+- For Cloud, append `/public-mcp` to the admin Worker URL. To read in a browser, open `/public-help.html?language=ja` on the same Worker. {.cloud}
 
+In a WebMCP-compatible browser, an in-browser agent in the admin panel can also search public help. WebMCP is not available on static Cloud public pages. {.cloud}
 
-Use the selector to the right of “Ask AI” in the component list: All (default), Page, Part, AI instructions, or Standard components. A standard component has an ID beginning with `_`; type filters use the component type setting. Omit `_` for ordinary new or duplicated components, but use it when standard classification is intended. These names are not rejected on save.
-#### Component ID
+### Recent security activity {#site-audit}
 
-The component's identifier. Clicking it also opens the edit screen. IDs starting with "_" are system components provided out of the box — you're free to edit and reuse them.
+This is the history of actions performed on the site. Use it to check when, by whom, and what was done and spot unfamiliar changes. Investigate changes absent from the log with [Check for Tampering](#site-integrity). The log does not affect public page display.
 
-`{{COMPONENT:_global_head}}` contains shared settings for inside the `<head>` tag, and already includes `{{HEAD_CSS}}`, which aggregates and outputs all CSS. `{{HEAD_CSS}}` is optional and specifies where CSS is inserted. If repeated, only the first occurrence outputs CSS and the remaining tags are removed. If omitted, CSS is inserted before `</head>`, or at the beginning of the HTML when there is no closing head tag. For content pasted straight from AI output, select "None (use the content HTML directly)" as the Design Component; for everything else, `_layout` is a good starting point. Of course, you're free to create as many of your own as you like — and those don't need to start with "_".
+#### Tabs
 
-#### No wrapper and shared loading
+Records appear newest first in three tabs: **Important**, **Site edits**, and **Failed sign-ins**.
 
-Select “None (use the content HTML directly)” to display content without a layout wrapper. Enable Raw HTML for complete HTML documents. In MCP, use `wrapper_comp: "__none"`; omission still defaults to `_layout`.
+- **Important** — Enabling or disabling MCP; issuing or disabling MCP keys; restoring data (importing with “replace everything”); [accepting an integrity check](#site-integrity-accept); and program updates (in Cloud, recorded on the first access after updating). PHP editions also record restoration to an earlier version. SQLite and Cloud also record device registration and stopping, code issuance, user deletion, and recovery.
+- **Site edits** — Adding, changing, or deleting pages, components, media, and site settings, and importing data. Actions are recorded whether made in the admin panel, visual editor, or MCP. For site settings, only changed field names are recorded, not values.
+- **Failed sign-ins** — Failed password or other authentication attempts.
 
-Across editions, existing title and meta tags in the document are preserved. Only missing information is supplied inside head: UTF-8 charset, viewport `width=device-width, initial-scale=1.0`, and a title matching `{{FULL_TITLE}}`. Description and OGP image are supplied only when absent and page or site settings provide a value. Japanese and English titles are used as entered, without automatic translation. Robots and canonical tags are not added automatically. A missing head is created; HTML fragments receive a minimal html/head/body document. Existing duplicate metadata is not removed automatically.
+#### Highlighting and Unusual Activity
 
-In Site settings, under Shared loading, enter a Google tag ID (`G-…`) or a Tag Manager container ID (`GTM-…`) as the Tracking ID to insert the tracking tag into public pages automatically. The kind is detected from the prefix. `G-…` inserts gtag.js in head; `GTM-…` inserts the head script and also a noscript right after the opening body tag. Leave it empty to disable.
+Records matching either of the following are highlighted with a pale color. There is no setting for this.
 
-For server-side GTM, Consent Mode initialization or anything the standard tag does not cover, open “Enter code directly (advanced)” below it and paste the code into “Head code” and, if needed, “Code right after the opening body tag”. The code is inserted exactly as entered and `{{...}}` tags are not expanded. While code is entered it takes priority over the Tracking ID, and the ID field becomes read-only.
+- The combination of actor and IP range has never appeared in earlier records.
+- The actor is blank or unknown.
 
-If you used the earlier “Tracking component” setting, opening the settings screen shows that part’s HTML in “Head code”. Saving moves it to the new setting and leaves the original part untouched. A part that contains component tags, JavaScript or CSS is not moved automatically and keeps working as before until you save.
+For example, if you previously operated the site only from home and work, an action from another location is highlighted. Once you have confirmed that it was yours, press **This is my change (accept)** in the integrity check result to clear highlighting through that point.
 
-“Do not load tracking tags on this page” appears below the page’s Design Component selector only when a Tracking ID, head code or body code is set. It suppresses the automatic head and body insertion, and, if the earlier tracking component is still in use, normal inclusion of that component. MCP supports `exclude_tracking: true`. Handwritten tracking code and tracking code in other components are not suppressed. Previews follow the same page setting. Rebuild static pages after changing settings.
+#### What Each Record Contains {.detail}
 
+The date and time, action type, actor (signed-in username, or “MCP” for MCP), target (page, component, or media ID, or setting name), and masked IP. Passwords, keys, tokens, content, setting values, and full IP addresses are not stored.
 
-#### Type
+#### Retention and Grouping {.detail}
 
-Shows the component's type. In the list, [AI Instructions]{.type-badge .badge-ai} components are sorted to the top as a group.
+The most recent 50 important actions, 50 failed sign-ins, and 500 site edits are retained. Consecutive saves of the same item by the same person within ten minutes are grouped into one line. Saves that only change the update date without changing content are not recorded.
 
-- [Page]{.type-badge .badge-page} — A component with "Use as a Page Component" checked. Selectable under "Design Component" in the Page Edit screen.
-- [Part]{.type-badge .badge-part} — A building block embedded inside a page or another component.
-- [AI Instructions]{.type-badge .badge-ai} — Instructions meant to be read by an AI agent, like your site's design rules (`DESIGN.md`, `BRAND.md`, etc.).
+#### What Is Not Recorded
 
-#### Tag Name
-
-Shows the tag used to embed the component (e.g. `{{COMPONENT:header}}`). Clicking it copies it to the clipboard, ready to paste into a page's body content or another component's HTML.
+- Public page views. Only write operations are recorded.
+- Changes made directly to server files without the admin panel or MCP, such as FTP uploads. Use the integrity check to detect them. {.flat .sqlite}
+- Changes made directly to D1 through the Cloudflare dashboard or wrangler. A record remains, but the actor is unknown and left blank. {.cloud}
 
 ---
 
-## Design Edit {#design-edit}
+## Design {#design-mgmt}
 
-A screen for defining a component's structure (HTML/CSS/JavaScript) and settings.
+Use this screen to view and manage components. Page layouts, shared parts, and AI instructions are managed as components.
 
-#### Component ID
+#### [add]{.material-symbols-outlined} Create New{.m-btn .m-btn-blue}
 
-The component's identifier. Required. Alphanumeric characters and underscores are allowed. Called from a template as `{{COMPONENT:ID}}`. When the type is set to "AI Instructions," dots (`.`) are also allowed, and a trailing `.md` is added automatically on save if not already present.
+Create a component. Clicking opens the design editor.
 
-#### Memo
+#### Filter components
 
-A private note visible only to admins. Excluded from public pages and APIs. Authenticated management MCP clients, including AI, can read it as working context. Reading a note does not grant permission to publish it.
+Filter the list by component type. You can combine this with search.
+
+- All
+- Page
+- Part
+- AI instructions
+- Standard components — Show only IDs beginning with `_`.
+
+#### Keyword search
+
+Search component IDs and notes. The list filters as you type. You can combine this with the type filter.
+
+### Component list
+
+The list is ordered [AI instructions]{.type-badge .badge-ai}, [Page]{.type-badge .badge-page}, then [Part]{.type-badge .badge-part}. Within each type, `_global_head`, `_header`, and `_footer` appear first, followed by the others in ID order.
+
+#### Actions (Edit)
+
+- [[edit]{.material-symbols-outlined} Edit]{.m-btn .m-btn-blue} — Open the design editor. You can also click the ID.
+
+See [Design editor](#design-edit) for details.
+
+#### ID
+
+The component's identifier is the name used to call it from other pages and components. IDs beginning with `_` mark standard components. You normally omit this prefix from components you create.
+
+See [ID](#design-edit-id) in the design editor section.
 
 #### Type
 
-Choose one of three types via radio button.
+Displays [Part]{.type-badge .badge-part}, [Page]{.type-badge .badge-page}, or [AI instructions]{.type-badge .badge-ai}.
 
-- [Part]{.type-badge .badge-part} — A building block meant to be embedded inside a page or another component.
-- [Page]{.type-badge .badge-page} — A component that lays out an entire page. Selecting this shows it as a [Page]{.type-badge .badge-page} in the Design list, and makes it selectable under "Design Component" on the Page Edit screen. The following extra tags become available:
-  - `{{CONTENT}}` — Inserts the page's body content at this position.
-  - `{{HEAD_CSS}}` — Aggregates and inserts page and component CSS. If omitted, CSS is inserted before `</head>` (at the beginning of the HTML if there is no closing head tag). If repeated, only the first occurrence is used and the remaining tags are removed.
-- [AI Instructions]{.type-badge .badge-ai} — Hides fields not needed for AI instructions, like the CSS editor and the "Scope CSS" checkbox, and switches the body field into plain text input (usable as Markdown or HTML). Write anything you want an AI agent to read here — design rules and the like. You can even have AI generate this content itself.
+See [Type](#design-edit-type) in the design editor section.
 
-#### HTML (when Type is "Part" or "Page")
+#### Tag name
 
-Write the component's content as HTML. See the guide at the bottom of the edit screen for the custom tags available here. You can also nest other components inside it.
+This is an embedding tag such as `{{COMPONENT:header}}`. Click to copy it. Paste it into a page body or another component's HTML to call the component. Select page components under “Design Component” in the page editor.
 
-#### Content (Markdown / HTML) (when Type is "AI Instructions")
+---
 
-Freely write whatever you want to convey to an AI agent. Either Markdown or HTML is fine.
+## Design editor {#design-edit}
 
-On an MCP connection, `get_ai_context` loads all AI-instruction components in one call. You can keep `DESIGN.md`, `BRAND.md`, `CONTENTS.md`, and other concerns as separate manageable components while still conveying them efficiently to AI.
+Edit a component's content and settings. This screen opens when you click “Create New”, a component ID, or its edit button.
 
-#### CSS (Scoped styles for this component) (when Type is "Part" or "Page")
+In the SQLite edition, editing is restricted while another editor is working on the component. {.sqlite}
 
-Write styles meant to apply only within this component. Custom tags can also be used inside this CSS.
+The fields displayed depend on the selected [type](#design-edit-type). Fields that vary by type state so below their heading. Fields without such a note appear for every type.
 
-#### Scope CSS (Prevent leaking to other parts) (when Type is "Part" or "Page")
+| Field | Part | Page | AI instructions |
+|---|:-:|:-:|:-:|
+| ID, type, note | Yes | Yes | Yes |
+| HTML / Markdown | HTML | HTML | Markdown |
+| CSS | Yes | Yes | Yes (optional) |
+| Scope CSS | Yes | Yes | — |
+| JavaScript | Yes | Yes | — |
+| Markdown syntax and tag guide | Yes | Yes | — |
 
-A checkbox. Normally recommended to leave ON. Prevents the CSS you write here from affecting other parts of the site. Only uncheck this when building a global reset CSS meant to apply site-wide, or a part meant for the `<head>`.
+#### ID {#design-edit-id}
 
-To keep scoping enabled while making only a specific selector global, wrap the entire selector in `:global(...)`. Example: `:global(.hero_box) { display: none; }`. Components with scoping disabled are already global, so they do not need `:global(...)`.
+The name used to call the component from another page or part with `{{COMPONENT:ID}}`. A leading `_` marks a standard component; normally omit it for components you create.
 
-#### JavaScript (when Type is "Part" or "Page")
+- PHP editions accept ASCII letters, digits, hyphens, and underscores. You can use `/` as a separator and dots within each segment. AI instruction IDs receive a `.md` suffix when needed. {.flat .sqlite}
+- Cloud accepts ASCII letters, digits, hyphens, underscores, and a trailing `.md`. Enter `.md` yourself when you want it on an AI instruction ID. {.cloud}
 
-Since 2.6.12, JS is output once per component ID per page. Versions 2.6.10–2.6.11 output it for each inclusion.
+#### Type {#design-edit-type}
 
-Write code without `<script>` tags in the collapsible field, whose heading uses the same bold weight as the CSS field. With a normal `{{COMPONENT:ID}}` inclusion, JS is output at the end of the page body once per component ID per page. Nested components are collected in parent-before-child order; repeated IDs keep their first collection position. Card-list and search-result templates share the same ID deduplication with normal inclusions. Any layout-wrapper JS not already collected follows, then page JS. Different component IDs and page JS are each output even if their code is identical. Code is not automatically scoped. AI Instructions hide the JS field and are neither served nor executed as JavaScript.
+Choose one of three component roles. The selection changes the fields below.
 
-The JavaScript field uses the same “JavaScript ▼” heading as other collapsible sections. Click anywhere on its heading row to expand or collapse it.
+| Type | Purpose | Usage |
+|---|---|---|
+| [Part]{.type-badge .badge-part} | Headers, navigation, and similar parts | Paste `{{COMPONENT:ID}}` into the body or another part |
+| [Page]{.type-badge .badge-page} | Layout for an entire page | Mark the body position with `{{CONTENT}}` in HTML, then select it under “Design Component” in the page editor |
+| [AI instructions]{.type-badge .badge-ai} | Design and operational rules | Write instructions in a document such as `DESIGN.md` |
 
-Including `{{COMPONENT:Test}}` embeds its JavaScript in the page HTML. To load a standalone script, upload it to [Media](#media-mgmt) and reference `media/filename.js`. Even when the same component appears multiple times on a page, its JavaScript is initially executed only once. Event handlers run each time the event occurs. Also, CSS scoping does not apply to JavaScript. JS-field code is used without custom-tag expansion. For example, when a component has three buttons, the code is initially executed only once: use `document.querySelectorAll()` to find all three and attach a click handler to each. `document.querySelector()` finds only the first one. Design any required loading order in your code. The MCP tools `create_page`, `update_page`, `create_component`, and `update_component` also accept the `js` field.
+#### Note
+
+A note for the admin screen. Authenticated management MCP clients can also read it. It does not appear on public pages.
+
+#### HTML / Markdown
+
+The field heading changes to “HTML” or “Markdown” according to the type.
+
+- Part / Page — Write the structure in HTML. Other components can be embedded. For Page, use `{{CONTENT}}` to mark the body position.
+- AI instructions — Write instructions for AI in Markdown or HTML. They do not appear on public pages.
+
+See the guide at the bottom of the screen or [available tags](#tags) for custom tags.
+
+#### CSS
+
+Write the component's styles. For AI instructions, this is an optional field for sample styles such as buttons and may be left empty. Basic information tags such as `{{SITE_URL}}` and `{{PAGE_URL:ID}}` are available in CSS.
+
+Page components can use `{{HEAD_CSS}}` to specify the insertion point for combined CSS.
+
+#### Scope CSS
+
+Shown only for Part and Page types.
+
+When on, CSS applies only within the component (the default). Turn it off to apply CSS site-wide. To apply a particular rule outside the component while scoping remains on, wrap its selector, for example `:global(.hero_box)`.
+
+#### JavaScript
+
+Shown only for Part and Page types. The field is expanded if it contains code.
+
+Write code without `<script>` tags. Code from the same component is output only once per page, even if the component appears multiple times, so initial execution occurs once. Custom tags are not expanded in this field.
 
 #### [save]{.material-symbols-outlined} Save{.m-btn .m-btn-blue}
 
-Saves the component.
+Save all component content. To apply changes to statically published pages, [build](#static-build-button).
 
 #### [arrow_back]{.material-symbols-outlined} Back to List{.m-btn .m-btn-gray}
 
-Returns to the Design screen. Note that unsaved changes will be lost.
+Return to the component list. If there are unsaved changes, these choices appear:
+
+- [[save]{.material-symbols-outlined} Save and Close]{.m-btn .m-btn-blue} — Save and return to the list.
+- [[delete]{.material-symbols-outlined} Discard and Close]{.m-btn .m-btn-red} — Discard changes and return to the list.
+- [Cancel]{.m-btn .m-btn-gray} — Continue editing.
 
 #### [delete]{.material-symbols-outlined} Delete{.m-btn .m-btn-red}
 
-Permanently deletes the component. This cannot be undone.
+Shown only when editing an existing component.
 
-At the bottom of the edit screen, the list of available tags (tag guide) appears collapsed. Click to expand it.
+Permanently delete the component. This cannot be undone. Check pages that used the deleted component.
+
+#### Markdown syntax and tag guide
+
+Shown only for Part and Page types.
+
+Open a short [Markdown](#markdown) guide and the [tag guide](#tags) at the bottom of the screen.
 
 ---
 
 ## Media {#media-mgmt}
 
-A screen for uploading and managing image, audio, and video files.
+View and manage uploaded files. Upload images, JS, and CSS for use on pages. The PHP editions also support audio and video uploads.
 
+#### Filter by file type
 
-### Uploading JS and CSS libraries
+Filter the list by file type. You can combine this with search and category filtering.
 
-You can upload browser-ready `.js` and `.css` files through Media. Code files must be nonempty UTF-8 text, at most 10 MB each; PHP server upload limits also apply. Use ASCII letters, numbers, `_`, `-`, and `.` in filenames. Other characters are replaced with `_`, and extensions are normalized to lowercase. Paths and dangerous double extensions are rejected.
+- All types
+- Images
+- Audio {.flat .sqlite}
+- Video {.flat .sqlite}
+- JS
+- CSS
 
-JS/CSS files receive no category prefix and remain visible across categories. Image resizing and WebP conversion do not apply. The file-type filter offers images, audio, video, JS, and CSS. Code cards provide **Copy URL** and **Copy embed tag**, without executing the uploaded code in the admin screen. Renaming cannot change an extension. Existing files are never overwritten: PHP editions add a numeric suffix; Cloud asks for another filename. Prefer versioned filenames such as `library-1.2.3.min.js` for updates.
+#### Keyword search
 
-Paste embed tags into page content or a design component's HTML, rather than the JS/CSS code fields:
+Search for part of a filename. The list filters as you type. You can combine this with type and category filters.
 
-```html
-<link rel="stylesheet" href="media/library-1.2.3.min.css">
-<script src="media/library-1.2.3.min.js" defer></script>
-```
+### Upload
 
-These `media/` paths are completed for nested pages, and the files are included in static exports. Uploading does not automatically insert tags into pages. Follow the library's instructions for loading order and attributes such as `type="module"`. Uploading a complete folder hierarchy is not supported. If JS/CSS references other files by relative paths, arrange those files accordingly.
+#### Choose a file
 
-Uploads require a trusted administrator or MCP API key, just like code editing. Format validation does not guarantee safe code: check its source and contents. PHP editions save files under `media/` and configure JavaScript/CSS MIME types and `nosniff` on Apache. On other servers, configure `text/javascript` / `text/css` and `X-Content-Type-Options: nosniff`. Cloud stores them in D1 and serves them at `/media/filename`. Backup and restore include these files. Page/component code fields remain in D1. MCP `upload_media` also accepts JS/CSS.
-
-### Upload Area
-
-#### Choose File
-
-Click "Choose File" to select the file to upload. Dropping a file onto the Media section uploads it as soon as it's dropped. Other sections (except the import file fields) do not accept drops.
+Choose files to upload. You can also add them by dragging and dropping them into the Media area.
 
 #### [upload]{.material-symbols-outlined} Upload{.m-btn .m-btn-blue}
 
-Uploads the selected file.
+Add the selected files. If a file with the same name exists, a sequence number (`_1`, `_2`, and so on) is appended.
 
-#### Upload Options...
+When a category filter is active, the category name is automatically prefixed to image and other filenames, for example `blog_photo.jpg`. This does not apply to JS, CSS, or names already beginning with ASCII alphanumeric characters followed by `_`.
 
-Click "Upload Options..." to expand it. The supported formats and a note on JS/CSS (they run on public pages, so upload only files you trust) are shown here too. These choices apply only at upload time and are remembered by your browser, so the same settings are reused next time. They apply to drag-and-drop uploads as well.
+##### Cloud uploads and publication {#cloud-media-delivery .cloud}
 
-- **Limit long edge to N px** — When an image's long edge exceeds the given value, it is scaled down on upload while keeping its aspect ratio. The default is 2000px. Photos straight from a phone or camera are often several thousand pixels wide, which badly hurts page speed; this setting prevents that.
-- **Convert to WebP (jpg / png only)** — Re-encodes the image as WebP, typically 25-35% smaller. The extension becomes `.webp`, so the filename changes. jpg is converted lossily (quality 82) and png losslessly, so text and thin lines in screenshots and diagrams are not smeared.
+Uploaded files are sent to the public site. **Files used on draft pages are also published as soon as they are uploaded.** Files successfully sent to the public destination appear in the list.
 
-Both options are destructive: **the original image data is not kept.** Do not use them for files you intend to distribute at full size.
+If the site has never been published, the first upload builds the entire site. Keep the screen open until it finishes.
 
-gif and svg are never converted - gif because the animation would be lost, and svg because it is a vector format that never degrades when scaled.
+If asked to resend other files, build the site and retry the upload.
 
-If an image has too many pixels to fit in the server's memory limit, it is stored unchanged and a message says so; the upload itself still succeeds.
+#### Upload Options
 
-Media guidance shows supported formats, JS/CSS requirements, and how to use files on a page. The image conversion note and server maximum-size display are omitted. Markdown can omit the path; HTML uses `media/filename`.
+Open “Upload Options” below the button to see supported formats and processing settings. Settings are saved in the browser and also apply to drag-and-drop uploads.
 
-#### Supported Formats &amp; Limits
+##### Supported formats
 
-Supports jpg, png, gif, webp, svg, mp3, m4a, and mp4. The maximum file size depends on your server's configuration.
+The supported formats are JPEG, PNG, GIF, WebP, and SVG for images, and JS and CSS for code. The PHP editions also accept MP3, M4A, and MP4. JS and CSS run on public pages. Add files only after checking their source and contents.
 
-Uploaded files are stored in the `media` directory. How to reference them in Markdown or HTML:
+##### Limit longest side to ( ) px
 
-- Markdown: `![description](filename)`, or `{{IMAGE:filename}}` (also `{{AUDIO:filename}}`, `{{VIDEO:filename}}`)
-- HTML: Use `media/filename` as the standard URL (for example, `<img src="media/filename">`). For images, the existing `images/filename` and bare filename forms remain supported.
+Limit the longest side of an image. Initially on, it reduces images over 2,000px. You can change the value. It does not apply to GIF or SVG.
 
-If you navigate to the Media screen from the Pages screen while a category filter is active and upload a file there, that category name is automatically prepended to the filename (e.g. uploading `photo.jpg` while filtered to category "blog" produces `blog_photo.jpg`). However, if the filename already starts with some prefix (alphanumeric characters followed by `_`), it won't be prefixed twice.
+##### Convert to WebP
 
-A filename can include multiple category names separated by `_`. For example, naming a file `blog_news_001.jpg` makes it show up whether you filter by category "blog" or by category "news." Also, any filename starting with `g_` (e.g. `g_logo.png`) is always treated as a shared "global" image, shown regardless of which category filter is active.
+Save JPEG and PNG images as WebP.
 
-### Filtering by Category
+Turn off processing before adding images you want to distribute at their original size or in their original format.
 
-Navigating to the Media screen from the Pages screen while a category filter is active automatically narrows the list down to filenames carrying that category's prefix (e.g. `blog_photo.jpg`). Alongside a "Filtering by category '...'" message, the following buttons appear.
+##### Details: Upload and processing limits {.detail}
 
-#### [filter_list]{.material-symbols-outlined} Apply category filter{.m-btn .m-btn-blue}
+- JS and CSS must be UTF-8 and no larger than 10 MB per file.
+- In the PHP editions, upload limits and available image processing also depend on server settings. {.flat .sqlite}
+- Cloud supports up to 10 MB per file and 10,000 files. Image processing applies to images with a longest side of at most 16,000px and at most 40 million pixels. {.cloud}
 
-Enables filtering by the current category (this is the default state).
+#### Category filter state {#media-category-state}
 
-#### [visibility_off]{.material-symbols-outlined} Do not filter by category{.m-btn .m-btn-orange}
+Shown above the list only when a category is selected at the top of the admin screen. It indicates that the list is filtered to files prefixed with the category name, such as `blog_photo.jpg`. Files beginning with `g_` are global and, like JS and CSS, appear in every category.
 
-Temporarily lifts the filter and shows every media file.
+##### [visibility_off]{.material-symbols-outlined} Do not filter by category{.m-btn .m-btn-orange}
 
-### Media List
+Temporarily clear the filter and show all media.
 
-#### Preview
+##### [filter_list]{.material-symbols-outlined} Apply category filter{.m-btn .m-btn-blue}
 
-Images are shown as thumbnails. Video and audio files show an icon instead.
+Shown only while filtering is disabled. Apply the category filter again.
 
-#### File name (click to copy)
+### File list
 
-Clicking the filename copies it to the clipboard, ready to paste into a page's body content.
+Files appear as cards, newest updates first.
 
-#### Format &amp; size display
+#### Thumbnail, filename, and format
 
-Shows the file's format (e.g. JPG) and, for images, its resolution (width × height).
+Each card shows an image thumbnail (or a file-type icon for non-images), filename, format, and dimensions. Click the filename to copy it.
+
+To use an image, specify `![Description](filename.png)` in Markdown or `media/filename` in HTML.
 
 #### [delete]{.material-symbols-outlined} Delete{.m-btn .m-btn-red}
 
-Deletes the media file. This cannot be undone.
+Remove a file. Deletion cannot be undone.
 
-#### Resize...
+In Cloud, deleting a published file builds the site to remove it. Other saved changes to public pages are also published at that time. {.cloud}
 
-Click "Resize..." to expand it. Enter either Width (W) or Height (H) and press [[save]{.material-symbols-outlined}]{.m-btn .m-btn-blue} to resize it while keeping the aspect ratio (jpg, png, and webp only). A resize cannot be undone.
+#### Copy URL{.m-btn .m-btn-gray}
 
-gif is not supported. The image library used here can only read the first frame of a gif, so resizing one would discard the animation. To change the size of a gif, rebuild it with a dedicated tool and upload the result.
+Shown only for JS and CSS files. Copy the file URL to the clipboard.
 
-If an image has too many pixels to fit in the server's memory limit, it is left unchanged and a message says so.
+In Cloud, the copied URL is for the management side. To share the public URL, append `/media/filename` to the public site address. {.cloud}
 
-#### Rename▼
+#### Copy embed tag{.m-btn .m-btn-gray}
 
-Click "Rename▼" to expand it. Edit the filename and press [[save]{.material-symbols-outlined}]{.m-btn .m-btn-blue} to rename the media file. If that filename is already referenced somewhere in an existing page or component, a confirmation dialog appears with these choices:
+Shown only for JS and CSS files. Copy a `<script>` or `<link>` tag to the clipboard for pasting into a page body or component HTML.
 
-- **Update Links** — Renames the file and also rewrites every reference to it inside pages/components to the new filename.
-- **Rename File Only** — Renames only the file itself, leaving existing references untouched (note that those references will then point to a missing file).
-- **Keep Original** — Cancels the rename.
+#### Resize
 
-In the PHP editions, a reference in the common site OGP also prompts for confirmation. “Update Links” updates matching filenames in page content, CSS, JavaScript and page OGP, component HTML, CSS and JavaScript, and the common site OGP. Similar filenames, notes and past revisions are left unchanged. In the SQLite edition, the operation stops if an affected page or component is being edited. Rebuild static pages to reflect the changes.
+Shown only for JPEG, PNG, and WebP files.
+
+Open “Resize” to show width (W) and height (H) fields and [[save]{.material-symbols-outlined}]{.m-btn .m-btn-blue}. Enter a width or height and save. Entering only one preserves the aspect ratio. In Cloud, images can only be reduced, and the resized image is sent to the public destination. {.cloud}
+
+#### Rename
+
+Open “Rename” to show a filename field and [[save]{.material-symbols-outlined}]{.m-btn .m-btn-blue}. Enter a new name without changing the extension. Select “Update Links” to update references in pages and components as well.
+
+To switch references on static pages, [build](#static-build-button) after the change. In Cloud, the old URL no longer in use is removed at the next build. {.cloud}
+
+##### Details: Updating references when renaming {.detail}
+
+“Update Links” covers filenames used in bodies, CSS, JavaScript, components, and OGP images. Check external links and URLs constructed by JavaScript separately.
+
+In SQLite and Cloud, the operation stops if a page whose references would be updated is being edited. Finish editing and retry. {.sqlite .cloud}
+
+#### Convert to WebP{.m-btn .m-btn-blue}
+
+Shown only for JPEG and PNG files. Convert to WebP and update references in pages and components because the extension changes. Conversion stops if a WebP file with the target name already exists. Build after conversion to switch references on static pages.
+
+In Cloud, the converted WebP is sent to the public destination, and the old URL no longer in use is removed at the next build. {.cloud}
+
+### When media changes reach the public site {#cloud-media-timing .cloud}
+
+In Cloud, the publication timing depends on the media operation:
+
+- **Delete a published file** — Immediately builds the whole site to remove it. Other saved page changes not yet built are also published.
+- **Upload** — On an already published site, sends only that file to the public site immediately. Other pages do not change.
+- **Resize** — Immediately sends the reduced image to the public site, replacing the image of the same name. Other pages do not change.
+- **Rename or convert to WebP** — Updates references in pages and components immediately. Changes to public pages and removal of old files take effect at the next build. A converted WebP image is sent to the public site immediately.
+
+### Pagination
+
+When the list spans multiple pages, page numbers and item counts appear below it. Navigate with [Previous]{.m-btn .m-btn-gray} and [Next]{.m-btn .m-btn-gray}. Change the number displayed in <a href="#site-settings">site-wide settings</a>.
 
 ---
-
-
-### Media operations
-
-Filename search and pagination use the same layout across editions. Search applies within the current category filter.
-
-Expand “Upload options▼” to configure uploads. After uploading, renaming, resizing, converting to WebP, or deleting a file, the media list retains its scroll position where possible. File actions appear in this order: “Resize▼”, “Rename▼”, “Convert to WebP”. Resize dimensions and filename inputs use the same height and save button size. Enter a width or height to preserve the aspect ratio.
-
-“Convert to WebP” appears only for existing JPEG (jpg/jpeg) and PNG images, not WebP, GIF, SVG, audio or video. Pressing it asks for confirmation first (the image and the links to it change) in all three editions. PHP requires server WebP encoding support. Conversion changes the extension to `.webp` and updates page content/CSS/JavaScript/OGP, component HTML/CSS/JavaScript, and the site OGP image. Memos and past revisions are unchanged. An existing WebP target is never overwritten; the source and references remain intact. Rebuild static pages afterward. Cloud converts the image in the browser and updates storage and delivery; keep the screen open until complete.
-
 ## Markdown {#markdown}
 
-The page body supports standard Markdown syntax.
-
-A guide to the available syntax is shown at the bottom of the Page Edit screen.
+You can use Markdown syntax, such as headings and lists, in the page body. A guide to supported syntax appears at the bottom of the page editor.
 
 ### Markdown and HTML
 
-Markdown and HTML can be mixed. The body is treated as Markdown by default, but any line starting with one of the HTML tags below is treated as raw HTML code (not converted by Markdown).
+Markdown and HTML can be mixed. A line beginning with one of the following tags (ignoring leading whitespace) is treated as HTML, and Markdown syntax on that line is not converted.
 
-`html` `head` `body` `div` `section` `article` `aside` `header` `footer` `main` `nav` `form` `p` `h1`–`h6` `ul` `ol` `li` `dl` `dt` `dd` `table` `thead` `tbody` `tr` `th` `td` `blockquote` `pre` `figure` `figcaption` `details` `summary` `dialog` `a` `span` `button` `select` `video` `audio` `script` `style` `link` `meta` `<!-- comment -->` and more
+`a` `address` `article` `aside` `blockquote` `body` `button` `canvas` `caption` `col` `colgroup` `dd` `details` `dialog` `div` `dl` `dt` `fieldset` `figcaption` `figure` `footer` `form` `h1`–`h6` `head` `header` `hr` `html` `iframe` `legend` `li` `link` `main` `menu` `meta` `nav` `noscript` `ol` `optgroup` `option` `p` `pre` `script` `section` `select` `source` `span` `style` `summary` `table` `tbody` `td` `tfoot` `th` `thead` `title` `tr` `ul` `video` `audio`
 
-Both opening and closing tags (e.g. `</div>`, `</a>`) count. You don't need blank lines around them either way — it makes no difference to the output.
+This applies to both opening and closing tags, as well as `<!DOCTYPE html>` at the beginning of a line and comments with a space immediately after `<!--`, such as `<!-- comment -->`. In a multiline HTML block, Markdown syntax such as bold is not converted until a blank line or a line containing only a closing tag. Code blocks and tables are processed before HTML blocks.
 
-If a block is surrounded by blank lines with no HTML tags or Markdown symbols, it's treated as a "paragraph" and wrapped in `<p>…</p>`. A line break inside a paragraph becomes `<br>` (never right before/after an HTML tag). You can also mix HTML tags into a paragraph.
-
-For layouts too complex for a Markdown+HTML mix to handle, turn on the "Raw HTML" checkbox on the Page Edit screen to fully disable Markdown processing and output the HTML exactly as written.
+When pasting a complex HTML layout, turn on “Raw HTML” in the page editor to treat the body as HTML without Markdown conversion. 🍊mikanBox custom tags are still expanded.
 
 ### Paragraphs
 
-Surrounding a block with blank lines treats it as a paragraph — as long as it has no HTML tags or Markdown symbols — wrapping it in a tag like `<p>content</p>`. A line break within a paragraph inserts a `<br>` tag. You can also insert HTML tags within a paragraph.
+**Text separated by blank lines** becomes paragraphs, output as `<p>content</p>`. You can use Markdown syntax such as bold and inline HTML tags inside paragraphs. Line breaks inside a paragraph become `<br>`. A `<br>` is not inserted immediately before or after an HTML tag.
 
 ### Headings
 
-Using `## Heading` at the start of a line treats it as a heading, output as `<h2>Heading</h2>`. Since `#` (producing `<h1>`) is normally reserved for the page title, within the body content it's best to use `## Heading` / `### Subheading`. A space is required after the `#` symbol(s).
+A line starting with `## Heading` is treated as a heading and output as `<h2>Heading</h2>`. **A half-width or full-width space is required after the `#` characters.**
+
+Use one to six `#` characters. Since the `<h1>` tag represented by `#` is usually used for the page title, use `## Heading` or `### Subheading` in the body.
 
 Markdown: `## Heading`
 HTML: `<h2>Heading</h2>`
 
-### Other Block Elements
+### Lists
 
-Lists, numbered lists, quotes, horizontal rules, and inline code are each converted to their matching HTML when used at the start of a line.
+Use `-`, `*`, or `+` for bullet lists. For both bulleted and numbered lists, **a half-width or full-width space is required after the marker**.
 
 Markdown: `- List item`
 HTML: `<ul><li>List item</li></ul>`
@@ -1346,74 +2034,95 @@ HTML: `<ul><li>List item</li></ul>`
 Markdown: `* List item`
 HTML: `<ul><li>List item</li></ul>`
 
-Numbered list `1.`: `<ol><li>`
 Markdown: `1. Numbered list item`
 HTML: `<ol><li>Numbered list item</li></ol>`
 
-List items can use either `-` or `*`. A space is required after the symbol for the above.
+### Blockquotes
+
+Use `>` for a blockquote. The space after `>` is optional. Consecutive quoted lines are combined into one blockquote.
 
 Markdown: `> Quote`
 HTML: `<blockquote>Quote</blockquote>`
 
-A space after the symbol is optional here.
+### Horizontal rules
 
-Markdown: `---`
+Write three or more `-`, `*`, or `_` characters without spaces on a line to create a horizontal rule.
+
+Markdown: `---`, `***`, or `___`
 HTML: `<hr>`
 
-### Code Blocks
+### Code blocks
 
-Wrap code in lines that hold only three or more backticks or three or more tildes (`~`). The closing line uses the same character and at least as many of them as the opening line. Inside, nothing is converted: not Markdown, not HTML, not `{{tags}}`. It is shown exactly as written. In HTML it becomes `<pre><code>…</code></pre>`.
+Enclose code between lines of at least three backticks (&#96;) or tildes (`~`). Up to three leading half-width spaces are allowed. The closing line must use the same character at least as many times as the opening line. Markdown, HTML, and `{{tags}}` inside the block are not converted and are displayed as written. The HTML output is `<pre><code>…</code></pre>`.
 
-- A single word after the opening line (for example `php`, `json`, `html`) adds a class that starts with `language-`, as in `<code class="language-php">`. Use it in CSS or a highlighting library to style each language.
-- To show a three-backtick code block inside code (for example on a page that explains Markdown), make the outer fence four or more backticks, or use tildes. A fence that is longer than the inner one is not closed by it.
-- If you forget the closing line, everything from the opening line to the end is treated as code.
+- Add a single language name using ASCII letters, numbers, hyphens, and underscores after the opening fence (for example, `php`, `json`, or `html`) to add a class beginning with `language-`, such as `<code class="language-php">`. Use this with CSS or a highlighting library to style each language.
+- To include a code block fenced with three backticks inside a code block, for example on a page explaining Markdown, use four or more backticks or tildes for the outer fence. An inner fence shorter than the outer fence will not close it.
+- If you omit the closing fence, everything from the opening fence to the end is treated as code.
 
-### Inline Elements Usable Mid-Sentence
+### Inline elements
 
-Markdown: `**bold**`
-HTML: `<strong>bold</strong>`
+Markdown: `**Bold**`
+HTML: `<strong>Bold</strong>`
 
-Markdown: `*italic*`
-HTML: `<em>italic</em>`
+Markdown: `*Italic*`
+HTML: `<em>Italic</em>`
+
+Markdown: `~~Strikethrough~~`
+HTML: `<del>Strikethrough</del>`
+
+Markdown: &#96;code&#96;
+HTML: `<code>code</code>`
+
+Enclose inline code in single backticks. For example, you can display a variable name as `name`.
+
+To display a backtick (&#96;) itself as a character, enter the following in the body:
+
+| Purpose | Enter in the body | Display |
+|---|---|---|
+| Display one character in ordinary text | `&#96;` | &#96; |
+| Display it in code | `<code>&#96;name&#96;</code>` | <code>&#96;name&#96;</code> |
+
+Backslash escaping and enclosing code in pairs of backticks are not supported.
 
 ### Links
 
-Links can be written as `[link text](URL)`. This is output as `<a href="URL">link text</a>`.
+Write links as `[Link text](URL)`. They are output as `<a href="URL">Link text</a>`.
 
-Markdown: `[link text](URL)`
-HTML: `<a href="URL">link text</a>`
+Markdown: `[Link text](URL)`
+HTML: `<a href="URL">Link text</a>`
 
-### Using Media
+You can use relative URLs, links within the page (`#heading-ID`), and `https:`, `http:`, `mailto:`, and `tel:`. Other explicit schemes are output as `#`.
 
-To display an image, embed it with `![image description](filename)`. Whatever's inside `[ ]` becomes the image description, and it's output as `<img src="image URL" alt="image description">`. Any image you've uploaded via Media management can be used just by specifying its filename. The same is possible with the custom tag `{{IMAGE:filename}}`. Audio and video files managed in Media management can be used via `{{AUDIO:filename}}` and `{{VIDEO:filename}}`.
+### Using media
 
-Markdown: `![image description](filename)`
-HTML: `<img src="image URL" alt="image description">`
+Embed an image using `![Image description](filename)`. The text in `[ ]` describes the image, and the output is `<img src="image URL" alt="Image description">`. For images uploaded in Media, you only need the filename. You can also use the custom tag `{{IMAGE:filename}}`.
 
-Custom tag: `{{IMAGE:filename}}`
-HTML: `<img src="image URL">`
+Markdown: `![Image description](filename)`
+HTML: `<img src="image URL" alt="Image description">`
 
-#### Automatically Added Attributes
+#### Automatically added attributes
 
-When you reference an image that lives in the `media` directory, the generated `<img>` tag carries a few performance attributes automatically. Nothing changes in how you write the page.
+When you insert an image from Media using Markdown image syntax or `{{IMAGE:filename}}`, attributes are automatically added to the output `<img>` tag if its dimensions can be obtained.
 
-- `width` / `height` - the image's intrinsic pixel size. The browser can reserve the right space before the image arrives, so the layout no longer shifts as images appear.
-- `fetchpriority="high"` - added to the first large image on the page, so the image that defines the first impression is fetched with priority.
-- `loading="lazy" decoding="async"` - added to large images after the first, deferring them until they are near the viewport.
+In the Cloud edition, they are added during the static build. {.cloud}
 
-Small images under 200px in both dimensions (logos, icons, dividers) get only `width` / `height` and no loading hint: deferring a few kilobytes saves nothing and only delays rendering.
+- `width` / `height` — The image's original dimensions in pixels. The browser reserves space before loading, reducing layout shifts.
+- `fetchpriority="high"` — Prioritizes the first large image in processing order.
+- `loading="lazy" decoding="async"` — Delays loading the remaining large images until they approach the viewport.
 
-Nothing is added for svg, for images at external URLs, or for filenames not present in the `media` directory. An `<img>` tag written directly into a wrapper or component is output exactly as written.
+Small images under 200px in both dimensions, such as logos, icons, and dividers, receive only `width` / `height` and no loading instructions. Deferring images of a few KB has little benefit and can delay their display.
 
-Custom tag: `{{AUDIO:filename}}`
-HTML: `<audio src="audio URL" controls></audio>`
+These attributes are not added to SVGs, images at external URLs, or images outside Media. They are not automatically added to `<img>` tags written directly in HTML either.
 
-Custom tag: `{{VIDEO:filename}}`
-HTML: `<video src="video URL" controls></video>`
+#### Audio and video {#markdown-audio-video}
 
-### Displaying Tables
+In the PHP editions, embed uploaded files with `{{AUDIO:filename}}` or `{{VIDEO:filename}}`. {.flat .sqlite}
 
-Tables are laid out with cells separated by `|`. A `|---|` row is required to mark it as a table. The first row becomes the header row `<th>`, and row 3 onward becomes data rows `<td>`. Adding colons, as in `|:---|:---:|---:|`, controls alignment.
+In the Cloud edition, embed externally hosted audio or video using HTML such as `<audio src="https://example.com/audio.mp3" controls></audio>` or `<video src="https://example.com/video.mp4" controls></video>`. {.cloud}
+
+### Tables
+
+Start each table row with `|` and separate cells with `|`. After the heading, write a separator row such as `|---|`, followed by one or more data rows. The first row becomes the heading row `<th>`, and the third and subsequent rows become data rows `<td>`. Use colons to specify alignment, as in `|:---|:---:|---:|`.
 
 `| Default | Left | Center | Right |`
 `|---|:---|:---:|---:|`
@@ -1423,71 +2132,93 @@ Tables are laid out with cells separated by `|`. A `|---|` row is required to ma
 |---|:---|:---:|---:|
 | A | B | C | D |
 
-### Specifying a Class / ID (mikanBox-specific Markdown Extension)
+### Classes and IDs (custom extension)
 
-Adding `{.className}` or `{#idName}` at the end of a Markdown line lets you attach a CSS `class` or `id` to that line's block element.
+Add `{.className}` or `{#idName}` at the end of a Markdown line to set a `class` or `id` on a heading, paragraph, and so on. To set both, combine them in one pair of braces, as in `{.className #idName}`. For a multiline paragraph, place them at the end of the paragraph.
 
 Markdown: `## Heading{.highlight}`
 HTML: `<h2 class="highlight">Heading</h2>`
 
-Markdown: `paragraph text{.note #intro}`
-HTML: `<p class="note" id="intro">paragraph text</p>`
+Markdown: `Paragraph text{.note #intro}`
+HTML: `<p id="intro" class="note">Paragraph text</p>`
 
-For inline text, the `[text]{.className}` syntax outputs a `<span>` carrying the given class/ID. Multiple classes and IDs can also be combined.
+To apply attributes to part of a line, write `[text]{.className}` to wrap the text in a `<span>`. You can combine multiple classes and one ID.
 
-Markdown: `[red text]{.red}`
-HTML: `<span class="red">red text</span>`
+Markdown: Here is `[red text]{.red}`.
+HTML: Here is `<span class="red">red text</span>`.
 
-Markdown: `[**bold** for emphasis]{.highlight .bold}`
-HTML: `<span class="highlight bold"><strong>bold</strong> for emphasis</span>`
+Markdown: `[**Bold** emphasis]{.highlight .bold}`
+HTML: `<span class="highlight bold"><strong>Bold</strong> emphasis</span>`
 
-Markdown: `[anchor]{#my-id .note}`
-HTML: `<span id="my-id" class="note">anchor</span>`
+Markdown: An `[anchor]{#my-id .note}`
+HTML: An `<span id="my-id" class="note">anchor</span>`
 
-#### Nested Spans (e.g. Buttons with Icons) (mikanBox-specific Markdown Extension)
+#### Nested spans (such as buttons with icons) (custom extension)
 
-The `[text]{.className}` syntax can be nested. The inner `[...]{...}` is processed first, and the outer span wraps around it. Three or more levels of nesting are also possible.
+`[text]{.className}` can be nested. Inner `[...]{...}` spans are processed first, and the outer span wraps them. Three or more levels are also possible.
 
 Markdown: `[[save]{.material-symbols-outlined}Save]{.m-btn .m-btn-blue}`
 HTML: `<span class="m-btn m-btn-blue"><span class="material-symbols-outlined">save</span>Save</span>`
 
-This is handy for embedding icons from an icon font, such as Material Symbols, inside a button-style span or badge. Note that the content of a `[...]{...}` cannot contain a bare `[` without a matching `{...}`, since nested brackets are interpreted as spans.
+This is useful for embedding icons from icon fonts such as Material Symbols in button-like spans or badges. The contents of `[...]{...}` cannot contain a bare `[` without a corresponding `{...}`, because nested brackets are interpreted as spans.
 
-These are mikanBox-specific Markdown extensions and won't work in other Markdown renderers (like GitHub's).
+These are 🍊mikanBox-specific Markdown extensions and do not work in other Markdown renderers such as GitHub.
 
 ---
+## Components (custom tags) {#components}
 
-## Components (Custom Tags) {#components}
+### Using tags
 
-### Using Tags
+Custom tags can be used in page bodies and component HTML. The CSS field expands basic information tags such as `{{TITLE}}`, `{{SITE_URL}}`, and `{{PAGE_URL:ID}}`.
 
-Inside a page's body/CSS, or a component's body/CSS, you can use built-in tags such as `{{TITLE}}`. See the guide at the bottom of the Page Edit and Design Edit screens for the full list of available tags.
+**Custom tags are not expanded in dedicated JavaScript fields** on pages or components. To use a value in JavaScript, write something like `data-site-url="{{SITE_URL}}"` in HTML and read the element's `dataset.siteUrl` from JavaScript.
 
-### Using Components
+For pages with the JavaScript output format, turn on “Expand tags” in the editor to expand tags in the body. See the guide at the bottom of the screen and the [available tags](#tags).
 
-Any component you've created under Design management can be embedded into a page or another component as `{{COMPONENT:ID}}`.
+### Using components
 
-### Images, Audio, and Video
+Components created in Design can be embedded in pages or other components using `{{COMPONENT:ID}}`.
 
-Images, audio, and video can be embedded as `{{IMAGE:filename}}`, `{{AUDIO:filename}}`, and `{{VIDEO:filename}}`.
+### AI question box on public pages {#cloud-ai-question}
 
-`{{IMAGE:filename}}` → `<img src="media/filename">`
-`{{AUDIO:filename}}` → `<audio src="media/filename" controls></audio>`
-`{{VIDEO:filename}}` → `<video src="media/filename" controls></video>`
+This box lets visitors ask an external AI about public materials such as FAQs and guides. Place it by writing `{{COMPONENT:_ai_question}}` in the page body. By default, it references the public page on which it is placed.
+
+#### Set the sources and prompt
+
+1. Publish the materials, such as an FAQ. If you choose “HTML + Markdown” or “Markdown” as the public page's [output format](#page-edit-output-format), you can also use the published `.md` URL.
+2. Open `_ai_question` in Design and specify public URLs in `data-sources=""` in the HTML. Separate multiple URLs with `|`.
+3. To change the text sent to the AI, edit the `template` at the end of the HTML. `%QUESTION%` is replaced with the visitor's question and `%SOURCE_URLS%` with the list of source URLs. `%SOURCE_URL%` is the first URL and `%PAGE_URL%` is the URL of the public page containing the box.
+4. Adjust the question box text and layout in HTML and colors and spacing in CSS. For a static page, build and check the public page.
+
+If you used the old standard component in the Cloud edition without editing it, it is replaced with the new standard component during an update. Components edited on your site remain available. If the HTML is a single line, `{{AI_QUESTION}}`, you can use the following tag to specify sources easily. To edit the HTML, CSS, or prompt, use the component in `mikanBox/import/ja/components/_ai_question.json` in the distribution or the initial Cloud edition content.
+
+```text
+{{AI_QUESTION:sources=https://example.com/faq.md | https://example.com/guide/}}
+```
+
+Visitors enter a question, then copy the displayed prompt and paste it into ChatGPT or Claude. Whether the AI can read the materials depends on the external AI. To specify a section of the public mikanBox help, use `{{AI_QUESTION:sectionID}}`.
+
+### Images, audio, and video
+
+Embed images with `{{IMAGE:filename}}`.
+
+In the PHP editions, embed uploaded audio or video with `{{AUDIO:filename}}` or `{{VIDEO:filename}}`. {.flat .sqlite}
+
+Audio and video cannot be uploaded to Media in the Cloud edition. To embed externally hosted files, specify their URLs in HTML `<audio>` or `<video>` tags. {.cloud}
 
 ### Navigation {#navigation}
 
-A list of links: `{{NAV_LINKS:category}}` is output as a `<li>` list.
+Use `{{NAV_LINKS:category}}` to output a list of links as `<li>` elements.
 
-To output image-bearing cards instead, use `{{NAV_CARDS:category:componentID}}`. The card's design can be defined via a component. If you omit the component ID, the standard design (the `_nav_card` component) is used.
+To output cards with images, use `{{NAV_CARDS:category:componentID}}`. Define the card design in a component. If you omit the component ID, the standard design (`_nav_card`) is used.
 
-The order of the list or cards follows each page's "Order" setting. Pages with an order below 0 and [data-format](#data-formats) pages are excluded.
+Set the order of lists or cards using the page's “Order”. Pages with a sort order below 0 and [data format](#data-formats) pages are excluded.
 
-For both, setting the category to "all" outputs a list of every page, and leaving it empty outputs a list of pages with no category assigned. Since a page can have multiple categories, setting categories thoughtfully lets you build many different kinds of navigation.
+Use `all` as the category to include all categories, or leave the category argument empty for pages without a category. A page can have multiple categories, so appropriate categories allow many navigation arrangements.
 
 #### List options
 
-After the positional arguments (category, card component ID), add `name=value` options joined with `:`.
+After positional arguments (category and card component ID), append `name=value` options separated by `:`.
 
 ```
 {{NAV_LINKS:news:limit=5}}
@@ -1495,469 +2226,464 @@ After the positional arguments (category, card component ID), add `name=value` o
 {{NAV_CARDS:news:sort=old}}
 ```
 
-|Option|Meaning|
+| Option | Meaning |
 |---|---|
-|`sort=new`|Newest update date first (same date: display order)|
-|`sort=old`|Oldest update date first (same date: display order)|
-|`limit=N`|Up to N items from the top (per category with `@same`)|
-|`sep=text`|Inserted between items (mainly to build JSON arrays in data formats). The value runs to the next `:` or `}}` as written; only `\n` (newline) and `\t` (tab) are interpreted|
+| `sort=new` | Newest update first (sort order breaks ties) |
+| `sort=old` | Oldest update first (sort order breaks ties) |
+| `limit=N` | At most the first N items (per category for `@same`) |
+| `sep=string` | Separator between items, mainly for JSON arrays in data formats. The value is used as written up to the next `:` or `}}`, except that `\n` (newline) and `\t` (tab) are interpreted specially. |
 
-The update date is set when a page is created, updated when the page goes from non-public to public, and kept when a published page is edited. It works as the publication date, which is what `sort=new` uses. There is no offset and no automatic pager: make a page listing everything and link to it, or build one from [catalog data and JavaScript](#catalog-pager).
+`sort=new` and `sort=old` use the [update date](#page-editor-date) stored on each page. There is no offset or automatic pager. Create and link to a complete list, or use [catalog data and JavaScript](#catalog-pager).
 
-#### Related pages: `@same`
+#### Related pages `@same`
 
-`{{NAV_LINKS:@same}}` and `{{NAV_CARDS:@same:componentID}}` list the pages that share at least one category (other than those starting with "_") with the page being shown, excluding the page itself. If that page has no such category, nothing is output; with one, a flat list; with two or more, the list is grouped by category. A page in both categories appears in both groups, which shows why it is related. The order is the display order, or the `sort` option when given.
+Automatically list pages sharing categories with the current page. Use `{{NAV_LINKS:@same}}` for links or `{{NAV_CARDS:@same}}` for cards. The current page itself is excluded.
 
-Grouped HTML is a nested `<ul>` for `NAV_LINKS` (`li.nav-group` holding `span.nav-group-label` and a `ul` of links) and one `div.nav-group` per category for `NAV_CARDS` (`div.nav-group-label` and the cards). In Markdown versions it is a nested list.
+For example, a page with `coffee` and `tokyo` produces a list for each category. Pages with both appear in both lists. A single category produces a list without a category label; no categories produce no output. Categories starting with `_`, such as `_nav`, are not used to find related pages.
 
-#### Showing categories: `{{CATEGORY}}`
+By default, items use “Order”. For example, `{{NAV_LINKS:@same:sort=new:limit=3}}` displays up to three items per category, newest first.
 
-`{{CATEGORY}}` outputs the page's categories in the order written, except those starting with "_". In HTML each is wrapped in `<span class="category">coffee</span>`; in Markdown versions and data formats they are comma-separated (`coffee, tokyo`). `{{CATEGORY:all}}` includes the "_" categories. Inside a card component it outputs the categories of that card's page.
+To style categories separately, use `.nav-group` for the group and `.nav-group-label` for the category label. In the Markdown version, category lists are nested lists.
 
-### Embedding Another Page
+#### Displaying categories with `{{CATEGORY}}`
 
-The content of another page can be embedded via `{{POST_MD:ID}}`. This is handy when you want just one small part (like an announcements section) of a complex AI-built page to be easily editable — build that part as a simple Markdown page and embed it. The embedded page can be set to "Draft" so it stays hidden when viewed on its own.
+`{{CATEGORY}}` outputs the page's categories in their specified order, excluding those beginning with `_`. In HTML each is wrapped in `<span class="category">coffee</span>`; in Markdown and data formats they are comma-separated (`coffee, tokyo`). `{{CATEGORY:all}}` includes categories beginning with `_`. Inside a card component it outputs the categories of the card's page.
 
-### Embedding a Markdown Document from Another Site
+### Embedding another page
 
-A Markdown document hosted on another site, like GitHub, can be embedded via `{{EXT_MD:url}}`. Not only can you edit it directly on GitHub, but you can also adopt an "AI-friendly" workflow where having an AI agent rewrite the file on GitHub is all it takes to update the site.
+Embed another page's content with `{{POST_MD:ID}}`. Moving part of a body to another page lets you edit items such as announcements separately.
 
-**PHP setting:** Enable “Allow external Markdown” in Site settings. New sites default to OFF. Existing sites without the setting retain the feature if saved pages or components contain `EXT_MD`. When OFF, rendering, previews and builds make no external requests. When ON, the PHP cURL extension is required. Only public HTTP/HTTPS destinations are allowed; private addresses and redirects are rejected. Use the document's direct URL. Each response is limited to 1 MiB and the transfer to five seconds. Unavailable documents produce no visible content. External HTML is displayed as text, and mikanBox template tags are not executed. DATA/DATAROW values are also text; do not use untrusted values as JavaScript, CSS or URL-attribute code. Rebuild existing static output after disabling the setting.
+In the PHP editions, the embedded page may remain a draft and need not be published separately. {.flat .sqlite}
 
-**Not available in the Cloud edition.** `EXT_MD` fetches a document from an external server. The Cloud edition does not fetch it, so nothing is shown where the tag is.
+Public Cloud pages cannot load draft or pending-approval pages with `POST_MD`. Those pages also do not appear in `NAV_LINKS`, `NAV_CARDS`, `@same`, feeds, or the API. {.cloud}
 
-### Page Components
+### Embedding external Markdown {#external-markdown}
 
-A component that lays out an entire page should include `{{CONTENT}}` to output the body content. Optionally place `{{HEAD_CSS}}` to specify the CSS insertion point. If omitted, CSS is inserted before `</head>` (at the beginning of the HTML if there is no closing head tag). If repeated, only the first occurrence outputs CSS and the remaining tags are removed. See the `_layout` bundled component for the basic structure.
+Embed Markdown hosted elsewhere, such as GitHub, with `{{EXT_MD:url}}`. Besides editing directly on GitHub, you can update the site by asking an AI agent to change the file there.
+
+**PHP edition setting:** Toggle “Allow loading external Markdown” in site settings. It is OFF for new sites. Existing sites without the setting retain access if saved pages or components contain `EXT_MD`. When OFF, display, preview, and build make no external requests. When ON, the PHP cURL extension is required. Only public HTTP/HTTPS addresses are fetched; internal addresses and redirects are rejected. Use the document's direct URL. Documents may be up to about 1 MB and requests take at most 5 seconds. If a document cannot be loaded, that portion is not displayed. Turning the setting OFF does not change generated HTML until it is rebuilt. {.flat .sqlite}
+
+In the Cloud edition, content is not displayed at `EXT_MD`. HTML retains only the comment `<!-- EXT_MD is not available in the Cloud edition -->`; Markdown and data outputs display nothing. {.cloud}
+
+### Page components
+
+In components that lay out a whole page, insert `{{CONTENT}}` to output the body. Use `{{HEAD_CSS}}` to specify where CSS is inserted. If omitted, CSS is inserted immediately before `</head>` (or at the start of HTML if there is no closing tag). If there are multiple markers, CSS is output only at the first and the rest are removed. See the initial `_layout` component for the basic structure.
 
 ---
 
-## Available Tags {#tags}
+## Available tags {#tags}
 
-|Tag|Description|
+### Tags available in all editions
+
+| Tag | Description |
 |---|---|
 |`{{ TITLE }}`|Page title|
-|`{{ FULL_TITLE }}`|Page Title - Site Name|
-|`{{ UPDATE_DATE }}`|Page's updated date (YYYY-MM-DD)|
-|`{{ UPDATE_DATE:JP }}`|Page's updated date (Japanese format)|
-|`{{ UPDATE_DATE:SLASH }}`|Page's updated date (YYYY/MM/DD)|
-|`{{ IS_NEW:N }}`|"new" if updated within N days, else empty|
-|`{{ DESCRIPTION }}`|Page description (falls back to the site's common description if empty)|
-|`{{ KEYWORDS }}`|Page's keywords|
+|`{{ FULL_TITLE }}`|Page title - site name|
+|`{{ UPDATE_DATE }}`|Update date (YYYY-MM-DD)|
+|`{{ UPDATE_DATE:JP }}`|Update date (YYYY年MM月DD日)|
+|`{{ UPDATE_DATE:SLASH }}`|Update date (YYYY/MM/DD)|
+|`{{ IS_NEW:N }}`|“new” if updated within N days; otherwise empty|
+|`{{ DESCRIPTION }}`|Page description (site-wide description if empty)|
+|`{{ KEYWORDS }}`|Page keywords|
 |`{{ OGP_IMAGE }}`|Page thumbnail / OGP image URL|
 |`{{ PAGE_URL }}`|Page URL|
-|`{{ PAGE_URL:ID }}`|URL of the given page, with its output format's extension (data pages add `?v=`). [Details](#page-url-id)|
-|`{{ CATEGORY }}`|Page's categories (excluding those starting with "_")|
-|`{{ CATEGORY:all }}`|All of the page's categories|
-|`{{ SITE_URL }}`|Site URL. Also usable in Markdown link destinations (e.g. `[Details]({{SITE_URL}}/about)`)|
+|`{{ PAGE_URL:ID }}`|URL of the specified page, with its output format extension and `?v=` for data pages. [Details](#page-url-id)|
+|`{{ CATEGORY }}`|Page categories excluding those beginning with `_`|
+|`{{ CATEGORY:all }}`|All page categories|
+|`{{ SITE_URL }}`|Site URL. Also usable in Markdown links, e.g. `[Details]({{SITE_URL}}/about)`|
 |`{{ SITE_NAME }}`|Site title|
-|`{{ SITE_DESCRIPTION }}`|Site's common description|
-|`{{ SITE_OGP_IMAGE }}`|Site's common OGP image URL|
-|`{{ COMPONENT:ID }}`|Embeds a component|
-|`{{ IMAGE:filename }}`|Displays a static image|
-|`{{ AUDIO:filename }}`|Inserts an audio module|
-|`{{ VIDEO:filename }}`|Displays a video|
-|`{{ AI_QUESTION }}`|Displays the public mikanBox AI question box|
-|`{{ AI_QUESTION:Help section ID }}`|Displays the AI question box with an initial Help section context|
-|`{{ NAV_LINKS:category }}`|Shows pages in the given category as links|
-|`{{ NAV_LINKS:all }}`|Shows every page as links|
-|`{{ NAV_LINKS:(empty) }}`|Shows pages with no category as links|
-|`{{ NAV_CARDS:category:componentID (optional) }}`|Shows pages in the given category as cards|
-|`{{ NAV_CARDS:all:componentID (optional) }}`|Shows every page as cards|
-|`{{ NAV_CARDS:(empty):componentID (optional) }}`|Shows pages with no category as cards|
-|`{{ NAV_LINKS:category:sort=new:limit=N }}`|A list with options: `sort=new`, `sort=old`, `limit=N`, `sep=text` (same for NAV_CARDS). [Details](#navigation)|
-|`{{ NAV_LINKS:@same }}`|Pages sharing a non-"_" category with the page being shown (same for NAV_CARDS)|
-|`{{ POST_MD:ID }}`|Embeds the given page as Markdown|
-|`{{ EXT_MD:url }}`|Embeds Markdown from the given URL (not available in Cloud)|
-|`{{DATA:key}}value{{/DATA}}`|Defines data (visible). Key (case-insensitive) may only use alphanumeric characters and underscores. Value can be in any language.|
-|`{{DATA:key:GHOST}}value{{/DATA}}`|Defines data (hidden). Key may only use alphanumeric characters and "_".|
-|`{{DATAROW:rowID}} {{DATA:key}}value{{/DATA}} {{/DATAROW}}`|Defines table-format data. key and rowID may only use alphanumeric characters and "_".|
-|`{{ POST_MD::key }}`|Displays data from within the current page|
-|`{{ POST_MD::pageID:key }}`|Displays data from the given page ID|
-|`{{ EXT_MD:url:key }}`|Displays data from an external page (not available in Cloud)|
-|`{{ POST_MD::#rowID:key }}`|Displays table-format data from within the current page|
-|`{{ POST_MD:pageID#rowID:key }}`|Displays table-format data from the given page ID|
-|`{{ EXT_MD:url#rowID:key }}`|Displays table-format data from an external page (not available in Cloud)|
-|`{{ CONTENT }}`|**Page wrapper only**: inserts the body content|
-|`{{ HEAD_CSS }}`|Optional CSS insertion point: aggregates CSS and outputs it at the first occurrence, removing the remaining tags. If omitted, inserts before `</head>` (at the beginning of the HTML if there is no closing head tag). By default, this is already placed inside the `_global_head` component.|
+|`{{ SITE_DESCRIPTION }}`|Site-wide description|
+|`{{SITE_KEYWORDS}}`|Site-wide keywords|
+|`{{BASE_URL}}`|Same site URL as `{{SITE_URL}}` (for compatibility)|
+|`{{PAGE_TITLE}}`|Value of the page title field|
+|`{{PAGE_DESCRIPTION}}`|Value of the page description field|
+|`{{PAGE_KEYWORDS}}`|Value of the page keywords field|
+|`{{PAGE_OGP_IMAGE}}`|URL of the image specified in the page OGP image field|
+|`{{ SITE_OGP_IMAGE }}`|Site-wide OGP image URL|
+|`{{ COMPONENT:ID }}`|Embed a component|
+|`{{IS_ACTIVE}}`|In a card component, `active` for the current page's card; otherwise empty|
+|`{{LINK}}`|In a card component, the target page URL (for compatibility with `{{PAGE_URL}}`)|
+|`{{ IMAGE:filename }}`|Display an image|
+|`{{ AUDIO:filename }}`|Embed uploaded audio in the PHP editions|
+|`{{ VIDEO:filename }}`|Embed uploaded video in the PHP editions|
+|`{{ AI_QUESTION }}`|Display an [AI question box](#cloud-ai-question) referencing the current public page|
+|`{{ AI_QUESTION:sources=publicURL }}`|Display an AI question box referencing the specified public materials|
+|`{{ AI_QUESTION:sectionID }}`|Display an AI question box referencing a section of the public mikanBox help|
+|`{{ NAV_LINKS:category }}`|Display pages in a category as links|
+|`{{ NAV_LINKS:all }}`|Display all pages as links|
+|`{{NAV_LINKS}}`|Display pages without a category as links|
+|`{{ NAV_CARDS:category:componentID }}`|Display pages in a category as cards; component ID is optional|
+|`{{ NAV_CARDS:all:componentID }}`|Display all pages as cards; component ID is optional|
+|`{{NAV_CARDS}}` or `{{NAV_CARDS::componentID}}`|Display pages without a category as cards|
+|`{{ NAV_LINKS:category:sort=new:limit=N }}`|List with options: `sort=new`, `sort=old`, `limit=N`, `sep=string` (also for NAV_CARDS). [Details](#navigation)|
+|`{{ NAV_LINKS:@same }}`|Pages sharing a category other than those beginning with `_` with the current page (also for NAV_CARDS)|
+|`{{ POST_MD:ID }}`|Embed the page with the specified ID as Markdown|
+|`{{DATA:key}}value{{/DATA}}`|Define and display data. A key starts with an ASCII letter, followed by ASCII letters, digits, or underscores. Keys are case-sensitive; values may contain Japanese.|
+|`{{DATA:key:GHOST}}value{{/DATA}}`|Define hidden data. Key rules are the same as for displayed DATA.|
+|`{{DATAROW:rowID}} {{DATA:key}}value{{/DATA}} {{/DATAROW}}`|Define tabular data. rowID may contain ASCII letters, digits, underscores, and hyphens. Key rules are the same as for DATA.|
+|`{{ POST_MD::key }}`|Display data from the current page|
+|`{{POST_MD:pageID:key}}`|Display data from the specified page|
+|`{{ POST_MD::#rowID:key }}`|Display tabular data from the current page|
+|`{{ POST_MD:pageID#rowID:key }}`|Display tabular data from the specified page|
+|`{{CONTENT}}`|**Page Wrapper only:** Insert the body|
+|`{{HEAD_CSS}}`|Insertion point for combined CSS. The first marker is used. If omitted, CSS is inserted before `</head>`, or at the start of HTML if there is no closing tag. Initially in `_global_head`.|
 
-※ If you want to show the current year (e.g. for a copyright notice), we recommend doing it with JavaScript instead (e.g. `<script>document.write(new Date().getFullYear())</script>`). This way the year is always current without going through any server-side processing.
+### Fetching external Markdown {.flat .sqlite}
+
+| Tag | Description |
+|---|---|
+|`{{ EXT_MD:url }}`|Embed Markdown from the specified URL|
+|`{{ EXT_MD:url:key }}`|Display data from an external page|
+|`{{ EXT_MD:url#rowID:key }}`|Display tabular data from an external page|
+
+Enable this in site-wide settings. See [embedding external Markdown](#external-markdown).
+
+### Site search {.sqlite}
+
+| Tag | Description |
+|---|---|
+|`{{SEARCH_RESULTS}}`|Display site search results. Specify a component for one result, e.g. `{{SEARCH_RESULTS:_search_result_item}}`.|
+|`{{RESULT_TITLE}}`|In a search result component, the found page's title|
+|`{{RESULT_SNIPPET}}`|In a search result component, an excerpt relevant to the query|
+|`{{RESULT_URL}}`|In a search result component, the found page's URL|
+|`{{RESULT_DATE}}`|In a search result component, the found page's update date|
+
+### Search and JavaScript placement {.cloud}
+
+| Tag | Description |
+|---|---|
+|`{{SEARCH_RESULTS}}`|Display a Google site search form. The form is the same even if a result component ID is supplied.|
+|`{{HEAD_JS}}`|Insertion point for combined JavaScript in HTML. It is output at every marker; if omitted, it is inserted before `</body>`, or at the end if there is no closing tag.|
+
+Search terms are sent to Google. Only pages indexed by Google are searched, so newly published pages may take time to appear.
+
+### Displaying the year
+
+JavaScript can display the current year, for example `<script>document.write(new Date().getFullYear())</script>`. This keeps the year current without server-side processing.
 
 ---
 
-## Bundled Components {#init-comps}
+## Initial components {#init-comps}
 
-The components bundled with a fresh install. You can view and edit these in the Design management screen. The flat Edition, which has no keyword search, does not bundle `_search_box`, `_search_result_item`, or the search results page.
+You can inspect and edit the components included at installation in Design. The flat edition includes 11; the SQLite and Cloud editions each include 13.
 
-|ID|Type|Role / Description|
+Images referenced by Cloud sample pages are not included. Add them through Media if you want to use images in the samples. {.cloud}
+
+### Initial components in all editions
+
+| ID | Type | Purpose and content |
 |---|---|---|
-|`_layout`| [Page]{.type-badge .badge-page}|The standard shared layout. Combines `{{COMPONENT:_global_head}}`, `{{COMPONENT:_header}}`, `{{CONTENT}}`, `{{COMPONENT:_footer}}`, and `{{HEAD_CSS}}` into a basic structure. Regular Markdown pages should select this.|
-|`_global_head`|[Part]{.type-badge .badge-part}|A collection of shared tags to insert inside the HTML `<head>` section — things like Google Analytics or web font loading that are common across every page. By default, `{{HEAD_CSS}}` is already placed here to specify the CSS insertion point. CSS scoping is disabled (global).|
-|`_header`|[Part]{.type-badge .badge-part}|The site's shared header. A standard header component including the site name and navigation links. The navigation uses `{{NAV_LINKS:_nav}}` (pages in the structural category `_nav`).|
-|`_footer`|[Part]{.type-badge .badge-part}|The site's shared footer. A standard footer component including copyright and footer navigation.|
-|`_nav_card`|[Part]{.type-badge .badge-part}|The standard card design used for card-style navigation when a component ID is omitted. Outputs a card showing the thumbnail image, title, description, and date.|
-|`_md_footer`|[Part]{.type-badge .badge-part}|A sample footer component for [Markdown versions](#markdown-version). `{{NAV_LINKS:@same:limit=5}}` adds a list of related pages. Used only when chosen in "Markdown version footer components" in the page editor (not a default).|
-|`json_item`|[Part]{.type-badge .badge-part}|A sample entry for a JSON catalog, used as `{{NAV_CARDS:category:json_item:sep=,}}` ([Catalogs &amp; Page Lists](#catalog-pager)).|
-|`_ai_question`|[Part]{.type-badge .badge-part}|The public AI question box. Place it with `{{COMPONENT:_ai_question}}` to pass the question, current page, and official public manual reference to an external AI.|
-|`_search_box`|[Part]{.type-badge .badge-part}|The design for a search box. Its form includes `<input type="hidden" name="page" value="search">`, so submitting it takes you to the "search" page (which displays results using `_search_result_item`).|
-|`_search_result_item`|[Part]{.type-badge .badge-part}|The design for a single search result entry. Placed on the search results page as `{{SEARCH_RESULTS:_search_result_item}}`.|
-|`DESIGN_sample.md`|[AI Instructions]{.type-badge .badge-ai}|A sample instruction document for having AI generate or edit your design. Rename its ID to `DESIGN.md` to activate it. You can even have AI write the content itself. Similarly useful files include `BRAND.md` (brand information) and `CONTENTS.md` (content policy).|
-|`AGENTS_sample.md`|[AI Instructions]{.type-badge .badge-ai}|A sample instruction document that hands your mikanBox page production rules to an AI. Rename its ID to `AGENTS.md` to activate it. It covers the separate content, CSS and JavaScript fields, writing the content in Markdown, turning shared parts into components, handling media, and publication status and builds.|
+|`_layout`|[Page]{.type-badge .badge-page}|Standard shared layout combining `{{COMPONENT:_global_head}}`, `{{COMPONENT:_header}}`, `{{CONTENT}}`, and `{{COMPONENT:_footer}}`. `{{HEAD_CSS}}` is in `_global_head`. Select this for ordinary Markdown pages.|
+|`_global_head`|[Part]{.type-badge .badge-part}|Shared tags inserted in HTML `<head>`, such as Google Analytics or web fonts. Initially contains `{{HEAD_CSS}}` to specify the CSS insertion point. CSS scoping is disabled (global).|
+|`_header`|[Part]{.type-badge .badge-part}|Shared header with site name and navigation. Uses `{{NAV_LINKS:_nav}}` for pages in the structural `_nav` category.|
+|`_footer`|[Part]{.type-badge .badge-part}|Shared footer containing copyright, footer navigation, and so on.|
+|`_nav_card`|[Part]{.type-badge .badge-part}|Default card design when a card navigation component ID is omitted. Displays thumbnail, title, description, and date.|
+|`_md_footer`|[Part]{.type-badge .badge-part}|Sample footer component for the [Markdown version](#markdown-version). Adds related links using `{{NAV_LINKS:@same:limit=5}}`. Used only when selected in the page editor, not by default.|
+|`sample_card`|[Part]{.type-badge .badge-part}|Sample card display. Use with `{{NAV_CARDS:category:sample_card}}`.|
+|`json_item`|[Part]{.type-badge .badge-part}|Sample item for a JSON catalog. Use with `{{NAV_CARDS:category:json_item:sep=,}}` ([catalog and page list](#catalog-pager)).|
+|`_ai_question`|[Part]{.type-badge .badge-part}|[AI question box for public pages](#cloud-ai-question). Place with `{{COMPONENT:_ai_question}}`.|
+|`DESIGN_sample.md`|[AI instructions]{.type-badge .badge-ai}|Sample instructions for AI design generation and editing. Duplicate or edit it to write your own rules as `DESIGN.md`, for example, or ask AI to write them. Similar files could include `BRAND.md` for brand information or `CONTENTS.md` for content policy.|
+|`AGENTS_sample.md`|[AI instructions]{.type-badge .badge-ai}|Sample page production instructions for AI. Duplicate or edit it to write your own rules as `AGENTS.md`, for example. It covers field usage, Markdown bodies, shared components, media, publication settings, and builds.|
+
+### Initial search components {.sqlite .cloud}
+
+| ID | Type | Purpose and content |
+|---|---|---|
+|`_search_box`|[Part]{.type-badge .badge-part}|Sends a query from a form to the search page (`search`).|
+|`_search_result_item`|[Part]{.type-badge .badge-part}|Design for one SQLite search result. Also included in Cloud, where public site search uses Google.|
 
 ---
+## Embedding and loading data, and the API {#data-embedding}
 
-## Embedding, Loading &amp; API {#data-embedding}
+### Data formats
 
-### Data Formats
+You can use the following data formats:
 
-Three kinds of information can be handled:
-
-- Markdown: Markdown data, either inside the site or from an external source (e.g. GitHub)
-- Data: Individual key-value data, similar to WordPress custom fields
-- Database: Table-format data, via `{{DATAROW}}`
+- Markdown: Markdown data within the site or from an external source such as GitHub
+- Data: Individual key-value data, like WordPress custom fields
+- DataBase: Tabular data using `{{DATAROW}}`
 
 ### Loading Markdown
 
-#### You can load another page as Markdown
+#### Load another page as Markdown
 
-Not just components — another page itself can also be loaded as Markdown. Rather than editing a complex page directly, you can update a simple page meant just for updates, and have it reflected automatically.
+In addition to components, you can load another entire page as Markdown. Instead of directly editing a complex page, update a simple page used as its source.
 
-#### You can load a page from another site as Markdown
+#### Load a page from another site as Markdown
 
-By loading a page hosted on another site, like GitHub, as Markdown, you can update your site's content without touching the site itself. External HTML is displayed as text, and mikanBox template tags are not executed.
+Load Markdown from another site, such as GitHub, to update your site without directly accessing it. HTML in external documents is displayed as text, and 🍊mikanBox template tags are not executed. JavaScript is also prevented from running for security.
 
-### Outputting a GitHub Page as Markdown
+### Output a GitHub page as Markdown
 
-A Markdown file's page on GitHub can be loaded by changing its URL to point at the raw data.
+To load a GitHub Markdown file, change its URL to the raw data URL:
 
 Before: [https://github.com/yoshihik0/testData/blob/main/md-test.md](https://github.com/yoshihik0/testData/blob/main/md-test.md)
 
 After: [https://raw.githubusercontent.com/yoshihik0/testData/main/md-test.md](https://raw.githubusercontent.com/yoshihik0/testData/main/md-test.md)
 
-#### Conversion rule
-github.com → raw.githubusercontent.com
-/blob/ → / (removed)
+#### Conversion rules
 
-To load it:
+github.com → raw.githubusercontent.com
+/blob/ → / (remove `blob`)
+
+Load with:
 `{{EXT_MD:https://raw.githubusercontent.com/yoshihik0/testData/main/md-test.md}}`
 
-#### For sources other than GitHub:
+#### Other services
 
-Dropbox: change to `?dl=1`
-Google Docs: make it public, then use `/export?format=txt`
+Dropbox: Change to `?dl=1`.
+Google Docs: Publish the document and use `/export?format=txt`.
 
-### Embedding &amp; Using Data on a Page
+### Embedding and using data in a page
 
-Just write `{{DATA:key}}data{{/DATA}}` to embed information into a page, similar to a WordPress custom field, and use it within that page or from other pages. The key may use alphanumeric characters and "_". Adding `:GHOST`, as in `{{DATA:key:GHOST}}data{{/DATA}}`, keeps it hidden on the page itself.
+Write `{{DATA:key}}data{{/DATA}}` to embed information in a page, like WordPress custom fields, and use it in that page or another. Keys may use ASCII letters, digits, and `_`. Add `:GHOST`, as in `{{DATA:key:GHOST}}data{{/DATA}}`, to hide it on the page.
 
-Using it from within the page: `{{POST_MD::key}}`
-Using it from another page: `{{POST_MD:pageID:key}}`
+Use on the same page: `{{POST_MD::key}}`
+Use from another page: `{{POST_MD:pageID:key}}`
 
-### Embedding &amp; Using Data on Another Site
+### Embedding and using data from another site
 
-The `{{DATA:key}}data{{/DATA}}` format can also be loaded from a page on another site, such as GitHub. Since you can update the content without touching the site directly, pairing this with AI-friendly GitHub makes automated operation easier too.
+The `{{DATA:key}}data{{/DATA}}` format can also be loaded from pages on other sites such as GitHub. Since updates do not require direct access to the site, using an AI-friendly service such as GitHub makes automation easier.
 
-Using data from another site: `{{EXT_MD:url:key}}`
+Use data from another site: `{{EXT_MD:url:key}}`
 
-### DB Less DB: Embedding a Database Into a Page
+### DB Less DB
 
-Just write `{{DATAROW:rowID}}{{DATA:key}}data{{/DATA}}{{/DATAROW}}` to embed table-format data into a page, and use it within that page or from other pages. The page itself becomes a database, without ever using an actual database.
+Write `{{DATAROW:rowID}}{{DATA:key}}data{{/DATA}}{{/DATAROW}}` to embed tabular data and use it on the same or another page. The page itself can act as a database without using a database.
 
-Displaying table-format data from within the page: `{{POST_MD::#rowID:key}}`
-Displaying table-format data from a page ID: `{{POST_MD:pageID#rowID:key}}`
+Display tabular data on the same page: `{{POST_MD::#rowID:key}}`
+Display tabular data from the specified page: `{{POST_MD:pageID#rowID:key}}`
 
-### You Can Also Load a Database From Another Site
+### Load a database from another site
 
-The `{{DATAROW:rowID}}{{DATA:key}}data{{/DATA}}{{/DATAROW}}` format can also be loaded from a page on another site, such as GitHub.
+The `{{DATAROW:rowID}}{{DATA:key}}data{{/DATA}}{{/DATAROW}}` format can also be loaded from pages on other sites such as GitHub.
 
-External page, table-format: `{{EXT_MD:url#rowID:key}}`
+External page tabular data: `{{EXT_MD:url#rowID:key}}`
 
-### Converting CSV Data
+### Convert CSV data
 
-Use “CSV Import” on the Site screen in the PHP editions or Data migration and import in the Cloud edition to convert CSV data into `{{DATAROW}}` format.
+[CSV Import on the Site screen](#csv-import) converts CSV data from Excel and similar applications into `{{DATAROW}}` format.
 
-Select the CSV file exported from Excel, then click
-#### [content_copy]{.material-symbols-outlined} Convert &amp; Copy{.m-btn .m-btn-gray}
-to copy the converted data. Paste it into a page's body content to use it.
+Select a CSV file exported from Excel, then click:
 
-Reads the first row as field names and converts every other row into a `{{DATAROW:number}}` block, copied to the clipboard. After copying, paste it into the body content of a page and save.
+#### [content_copy]{.material-symbols-outlined} Convert & Copy{.m-btn .m-btn-gray}
 
-### It Can Even Act as a Headless CMS
+Paste the copied data into a page body. The first row is read as field names; each following row is converted into a `{{DATAROW:sequence number}}` block and copied to the clipboard. Paste it into the page editor body and save.
 
-Publishing a page that embeds `{{DATAROW}}` with the output format "[mikanBox DB](#mikanbox-db)" makes it readable externally as an API.
+### Use as a headless CMS
 
-`https://yoursite.com/api/pageID.json` (when served dynamically, `/api/pageID` works too)
+Publish a page containing `{{DATAROW}}` with the “[mikanBox DB](#mikanbox-db)” output format to make it accessible externally through the API.
+
+`https://yoursite.com/api/pageID.json` (`/api/pageID` also works with dynamic PHP output and in the Cloud edition)
 
 Example: [https://yoshihiko.com/mikanbox/demo/api/sample-DB](https://yoshihiko.com/mikanbox/demo/api/sample-DB)
 
-### Build Cards for All Kinds of Information
+### Create cards for various information
 
-This data can also be used inside card-style displays (record listings), making it possible to build things like product listings.
+This information can also be used in card displays (lists of records), allowing you to create product listings and more.
 
-|Tag|Content|
+| Tag | Content |
 |:---|:---|
 |`{{TITLE}}`|Page title|
-|`{{UPDATE_DATE}}`|Updated date|
-|`{{UPDATE_DATE:JP}}`|Updated date, Japanese format|
-|`{{UPDATE_DATE:SLASH}}`|Updated date, slash-separated|
-|`{{IS_NEW:30}}`|"new" within N days, else empty|
+|`{{UPDATE_DATE}}`|Update date (YYYY-MM-DD)|
+|`{{UPDATE_DATE:JP}}`|Update date (YYYY年MM月DD日)|
+|`{{UPDATE_DATE:SLASH}}`|Update date (YYYY/MM/DD)|
+|`{{IS_NEW:30}}`|`new` within N days; otherwise empty|
 |`{{DESCRIPTION}}`|Page description|
-|`{{OGP_IMAGE}}`|Page's OGP image URL|
-|`{{PAGE_URL}}`|Page's full URL|
-|`{{POST_MD::name}}`|Displays data|
-|`{{POST_MD::date}}`|Displays data|
-|`{{POST_MD::#test:book}}`|Displays row data|
-|`{{IS_ACTIVE}}`|"active" if the current page, else empty|
+|`{{OGP_IMAGE}}`|Page OGP image URL|
+|`{{PAGE_URL}}`|Full page URL|
+|`{{POST_MD::name}}`|Display data|
+|`{{POST_MD::date}}`|Display data|
+|`{{POST_MD::#test:book}}`|Display row data|
+|`{{IS_ACTIVE}}`|`active` for the current page; otherwise empty|
 
-## Output Formats (Markdown Versions and Data) {#output-formats}
+## Output formats (Markdown version and data) {#output-formats}
 
-Each page has one "Output format". The default is HTML, so existing pages do not change. mikanBox itself delivers plain data (Markdown versions, JSON and so on); how it is shown is left to JavaScript or an external renderer.
+Select an “Output Format” in the page editor and write the body. Use “Preview” to check the output before saving. The publication URL appears below the output format. Changes to statically published pages take effect when you [build](#static-build-button).
 
-|Output format|Output|Typical use|
+| Purpose | Format | Output |
 |---|---|---|
-|HTML|HTML only (as before)|Ordinary pages|
-|HTML + Markdown|HTML and a Markdown version|Pages meant for reading|
-|Markdown|Markdown version only|Documents for Markdown readers and AI; Markdown-only sites|
-|JSON, XML, CSV, Text, JavaScript, CSS|The body as it is|Catalogs, per-category RSS, data exports, `llms.txt`, the site's JS and CSS|
-|mikanBox DB|The `{{DATA}}` and `{{DATAROW}}` data in the body, as JSON (`/api/ID.json`)|An API for data embedded in a page|
+| Create a regular page | HTML (default) | HTML page |
+| Add a Markdown version to an HTML page | HTML + Markdown | HTML page and `/ID.md` |
+| Publish a Markdown-only document | Markdown | `/ID.md` |
+| Publish a catalog or file | JSON, XML, CSV, Text, JavaScript, CSS | `/ID.extension` |
+| Publish body data through the API | mikanBox DB | `/api/ID.json` |
 
-### URL Rules {#output-urls}
+Visual editing is available for HTML and HTML + Markdown pages.
 
-For a page at `/ID`, everything with an extension lives at `/ID.extension`.
+### URL rules {#output-urls}
 
-|Kind|Directory style|File-name style|
-|---|---|---|
-|HTML|`/ID/`|`/ID.html`|
-|Markdown version|`/ID.md`|`/ID.md`|
-|Data formats|`/ID.json` etc.|`/ID.json` etc.|
+For page ID `news`, the Markdown version is `/news.md` and JSON is `/news.json`. The extension follows the output format. The home page's Markdown version is `/index.md`.
 
-- The URL style setting ([Output structure](#site-ssg)) affects HTML only. The top page's Markdown version is `/index.md`; for a nested ID such as `coffee/gallery` it is `/coffee/gallery.md`.
-- Page IDs cannot contain a dot (`.`). The extension comes from the output format. An existing page whose ID contains a dot keeps working and stays editable as long as its ID is not changed.
-- When served dynamically, a Markdown-only page also answers at `/ID` with its Markdown version, and `/ID.html` returns 404. A data page answers only at `/ID.extension`.
-- A static build writes `ID.md` beside the HTML, and `ID.extension` for data pages. A Markdown-only page has no file at `/ID/`, so it is readable only at `/ID.md` (links inside the site always point at `/ID.md` explicitly). No `.htaccess` is written, so an `.htaccess` you placed on the server is never overwritten.
-- `rss`, `sitemap` and `podcast` cannot use the XML format, because `/rss.xml` and the others are system files. The `404` page can only be HTML.
-- **Garbled text and reading from other sites (static files)** — Markdown versions and data pages served dynamically by mikanBox carry `charset=utf-8` and `Access-Control-Allow-Origin: *` (so Markdown viewers and other sites can read them from the browser). Static files are sent by the web server as they are, so the server configuration handles them:
-  - **Apache** — The site-root `.htaccess` written at first setup contains, between marker comments, `AddCharset utf-8 .md .txt .csv .js .css .json`, `AddType text/markdown .md`, and `Access-Control-Allow-Origin: *` for `.md`, `.txt`, `.csv`, `.json` and `.xml` (each part wrapped in `IfModule`, so a missing module causes no error). A system update appends this block when it is missing and brings an older mikanBox block up to date, changing nothing else (if the file cannot be written, the message after the update says so). Uploaded `.js` and `.css` in Media get a charset too.
-  - **nginx** — `.htaccess` has no effect. Add to the server configuration, for example, `charset utf-8; charset_types text/markdown text/plain text/csv text/css application/javascript application/json;`, a `types` entry that maps `.md` to `text/markdown`, and `location ~ \.(md|txt|csv|json|xml)$ { add_header Access-Control-Allow-Origin *; }` (ask your hosting provider if you cannot change it). With the "folder" structure, a static build into the site's own folder creates `page-name/index.html` for each page. If nginx's `index` does not include `index.html`, opening that folder returns 403 (for example the 404 page). Add `index.html`, for example `index index.php index.html;`.
-  - Static `.md`, `.txt` and `.csv` files start with a UTF-8 BOM (an encoding marker), so browsers show them correctly even when the server sends no charset. Browser `fetch` removes the BOM. Some tools that do not understand a BOM will see an invisible character before the front matter. `.json`, `.xml`, `.js` and `.css` get no BOM (`.json` is UTF-8 by definition, and `.xml` declares its encoding inside the file).
-  - When you put a static build on another server, configure that server the same way.
-- Files built earlier for a page that is no longer Public (Static) (changed to dynamic or draft) are removed when that page is saved or its status changes (MCP included), or by a full static build, so a static file never hides a dynamic page or keeps a draft public.
+#### PHP edition URLs {.flat .sqlite}
 
-### Markdown Versions {#markdown-version}
+Static HTML is written as `/ID/` or `/ID.html` depending on the [output structure](#site-ssg). Markdown versions and data formats use URLs with extensions regardless of the output structure.
 
-Pages whose output format is "HTML + Markdown" or "Markdown" publish a Markdown version at `/ID.md` (`Content-Type: text/markdown; charset=utf-8`). Raw Markdown runs no JavaScript, and every link target and image source is visible to the reader.
+#### Cloud edition URLs {#cloud-output-urls .cloud}
 
-```
+HTML is written to `/ID.html` and can also be opened at `/ID` and `/ID/`. For Markdown-only pages, these URLs open `/ID.md`. Use URLs with extensions for data formats.
+
+HTML for page ID `news/index` is written to `/news/index.html` and can also be opened at `/news/index` and `/news/index/`. If no `news` page exists, `/news` and `/news/` also open it.
+
+There is a site-wide limit of 2,000 URL aliases for HTML and Markdown pages. The build reports if this limit is exceeded.
+
+### Publish a Markdown version {#markdown-version}
+
+Select “HTML + Markdown” to publish HTML as well, or “Markdown” for Markdown only. The body is output as Markdown without the HTML layout. Internal links and image URLs become absolute URLs at the publication destination.
+
+In the PHP editions, if you use a relative-link upload folder and leave the publication root URL blank, the Markdown version also uses relative links for internal pages and images and omits the leading `url`. Setting the publication root URL produces absolute URLs. {.flat .sqlite}
+
+Use “Markdown version footer components” in the page editor to select a component appended to the document. For example, the included `_md_footer` adds links to related pages.
+
+#### Details: What the Markdown version contains {.detail}
+
+Page information is added at the start of the document. `date` is the date of “Updated”.
+
+```yaml
 ---
 title: "Page title"
 date: 2026-11-08
-description: "Page summary"
+description: "Page description"
 url: "https://example.com/page/"
 categories: "coffee, tokyo"
 ---
-
-Body…
-
-(footer components)
 ```
 
-- The front matter holds `title`, `date` (the update date), `description` (only when the page has its own summary), `url` (the HTML version's URL; omitted for Markdown-only pages) and `categories` (excluding those that start with "_"; omitted when there are none).
-- The wrapper (`_layout`, header, footer) is not used. The body is the saved Markdown as it is, not converted to HTML. HTML inside the body is output as text.
-- **In an upload folder with relative links and an empty published root URL**, the Markdown version also writes internal links and images as relative links, and the front matter has no `url`. Once the published root URL is set, they are written as absolute URLs.
-- The HTML version of an HTML + Markdown page carries `<link rel="alternate" type="text/markdown" href="…/ID.md">`. Like RSS autodiscovery, tools and AI can find the Markdown version from the HTML page.
+`url` is included only when an HTML version exists. Links to other pages on the site use their Markdown URLs if available. Text in code blocks, inline code, and HTML comments is preserved.
 
-#### How Tags Are Handled in Markdown Versions
+### Publish a data format file {#data-formats}
 
-|Handling|Tags|
-|---|---|
-|Expanded|`NAV_LINKS`, `NAV_CARDS` (a `- [Title](URL)` list; cards become the same list; `@same` with two or more categories gives a nested list), `POST_MD` (all forms), `EXT_MD` (all forms), `{{DATA:key}}value{{/DATA}}` (the value only), `IMAGE` (`![](absolute URL)`), `AUDIO` and `VIDEO` (a `[filename](absolute URL)` link), `CATEGORY`, `PAGE_URL:ID`|
-|Replaced with text|`TITLE`, `FULL_TITLE`, `UPDATE_DATE` (all forms), `IS_NEW`, `DESCRIPTION`, `KEYWORDS`, `OGP_IMAGE`, `PAGE_URL`, `SITE_URL`, `SITE_NAME`, `SITE_DESCRIPTION`, `SITE_OGP_IMAGE` (no HTML escaping)|
-|Removed|`COMPONENT` (except the chosen footer components), `AI_QUESTION`, `SEARCH_RESULTS`, `CONTENT`, `HEAD_CSS`, `IS_ACTIVE`, `DATAROW` blocks, GHOST data|
+Select JSON, XML, CSV, Text, JavaScript, or CSS and write the contents in “Body”. For example, a CSS page with ID `site-style` is published at `/site-style.css`. Data format pages do not appear in navigation lists, sitemaps, RSS, or search.
 
-Code blocks, inline code and HTML comments are output exactly as written.
+“Expand tags” is on by default for JSON, XML, CSV, and Text, and off by default for JavaScript and CSS. Turn it on to use 🍊mikanBox custom tags in JavaScript or CSS.
 
-#### Links and Images
+### Publish body data through the API {#mikanbox-db}
 
-URLs normally become absolute (in an upload folder with relative links and an empty published root URL, they are relative to where the Markdown file is placed). `![](ogp.jpg)` and `media/…` become absolute media URLs. An internal link such as `[Details](about)` points at `/ID.md` when the target page publishes a Markdown version, and at its HTML URL otherwise. External links, `#`, `mailto:` and `tel:` stay as they are. Matching a link to a page is shared with the HTML version. After you change a target's output format, rebuild the static site and the Markdown versions that link to it get the new URL too.
+Publish with “mikanBox DB” as the output format to expose `{{DATA}}` and `{{DATAROW}}` in the body at `/api/ID.json`. Headings and explanatory text in the body are not included in the API. Choose “JSON” to write the entire file in a free-form structure.
 
-#### Footer Components
+#### Details: mikanBox DB output example {.detail}
 
-Each page can add zero or more components to the end of its Markdown version, in order (none by default). Write them in Markdown; their tags follow the table above. A sample, `_md_footer`, is included.
-
-```
-## Related pages
-{{NAV_LINKS:@same:limit=5}}
-```
-
-### Data Formats {#data-formats}
-
-Pages whose output format is JSON, XML, CSV, Text, JavaScript or CSS publish the body as it is at `/ID.extension`: no wrapper, no HTML completion, no Markdown conversion.
-
-|Format|Extension|Content-Type|
-|---|---|---|
-|JSON|`.json`|`application/json; charset=utf-8`|
-|XML|`.xml`|`application/xml; charset=utf-8`|
-|CSV|`.csv`|`text/csv; charset=utf-8`|
-|Text|`.txt`|`text/plain; charset=utf-8`|
-|JavaScript|`.js`|`text/javascript; charset=utf-8`|
-|CSS|`.css`|`text/css; charset=utf-8`|
-
-Every format is sent with `X-Content-Type-Options: nosniff`.
-
-- **Tag expansion** can be switched per page. By default JSON, XML, CSV and Text expand tags, and JavaScript and CSS do not (so code that uses `{{ }}` is not broken). When tags are expanded, values are escaped for the format: as a string in JSON; `&` `<` `>` `"` `'` as entities in XML; values containing a separator, quote or newline wrapped in `"…"` in CSV; as they are in Text. Values inside a `NAV_CARDS` item component follow the same rule. `COMPONENT` inserts just the component's content, without CSS or a scope.
-- Write JavaScript and CSS in the body. The page CSS and JS fields, design component, OGP image, description and keywords are not used, so the editor hides them.
-- Data pages are parts of a site rather than content, so they are never included in `NAV_LINKS`, `NAV_CARDS` (including `all`), `@same`, `sitemap.xml`, `rss.xml` or search results. Publication works as for any page: drafts are not served, and a static build writes only "Public (Static)" pages.
-- The preview shows the raw text that is actually published. [Visual Editing](#visual-edit) works only on pages that publish HTML.
-- To read the table data in a body (`{{DATAROW}}`) as an API, use the output format "[mikanBox DB](#mikanbox-db)".
-
-### mikanBox DB {#mikanbox-db}
-
-With the output format "mikanBox DB", the `{{DATA}}` and `{{DATAROW}}` data in the body is turned into JSON of a fixed shape and returned at `/api/ID.json`. Nothing is shown as a page (no HTML, no Markdown version). This is the former "DB" status (up to 2.17), moved to the output format.
-
-The JSON looks like this. `fields` holds the `{{DATA:key}}` values outside `{{DATAROW}}` (GHOST included), and `rows` holds each `{{DATAROW}}`. **Headings, prose and anything else outside the data are not included.**
+`fields` contains page-wide data, and `rows` contains each row written with `{{DATAROW}}`. Preview the JSON before publishing.
 
 ```json
 {
-    "id": "sample_data",
-    "title": "Data sample",
-    "fields": { "BOOK_TITLE": "Macbeth", "AUTHOR": "Shakespeare" },
-    "rows": [
-        { "id": 1, "GOODS": "Apple", "PRICE": "300" },
-        { "id": 2, "GOODS": "Banana", "PRICE": "200" }
-    ]
+  "id": "sample_data",
+  "title": "Product list",
+  "fields": { "SHOP": "Fruit shop" },
+  "rows": [{ "id": 1, "GOODS": "Apple", "PRICE": "300" }]
 }
 ```
 
-- The status works as for any page: Public (Dynamic) and Public (Static) serve the API, and Draft stops it.
-- A static build writes the file `api/ID.json`, and removes it when the page becomes a draft. When served dynamically, the same JSON is also returned at the older `/api/ID` (a static build has only `/api/ID.json`).
-- The URL shown under the output format is `/api/ID.json`. `{{PAGE_URL:ID}}` pointing at such a page gives `/api/ID.json` with `?v=`, like other data formats. The editor preview shows the JSON the API returns.
-- These pages are not included in lists, sitemap, RSS or search. Other pages can still read their values with `{{POST_MD:ID:key}}` and `{{POST_MD:ID#rowID:key}}`.
-- Pages saved with the "DB" status up to 2.17 are read as "output format mikanBox DB + Public (Dynamic)" and saved that way the next time they are saved. Their `/api/ID` URL keeps working. `status: db` over MCP is treated the same way.
+### Embed a page URL {#page-url-id}
 
-|Kind|What is served|URL|
-|---|---|---|
-|mikanBox DB|The `{{DATA}}` and `{{DATAROW}}` data in the body, converted to a fixed JSON shape|`/api/ID.json`|
-|Data formats (JSON etc.)|The body itself, in the shape you write (tags can be expanded)|`/ID.extension`|
-
-Choose "mikanBox DB" to serve data embedded in a page as an API; choose a data format such as JSON to write the file's shape yourself.
-
-### Embedding a Page's URL: `{{PAGE_URL:ID}}` {#page-url-id}
+Specify a page ID to insert its URL according to the output format. For JavaScript or CSS written on data format pages, load it from HTML as follows:
 
 ```html
 <link rel="stylesheet" href="{{PAGE_URL:site-style}}">
 <script src="{{PAGE_URL:site}}"></script>
-→ <script src="https://example.com/site.js?v=3f9a2c1b"></script>
 ```
 
-Outputs the URL of the given page, with its output format's extension. Data pages get `?v=` with a hash of their content, so browsers pick up the new file whenever the content changes. A static build hashes the built output (so a catalog that changes because other pages changed gets a new value too); dynamic pages hash the body. HTML and Markdown pages get no `?v=`. `{{PAGE_URL}}` without an argument is, as before, the URL of the page being shown.
-
-Keep external libraries (files you do not edit yourself) in [Media](#media-mgmt), and write your own site code in JavaScript and CSS pages. Code in a component’s JavaScript field is embedded in the HTML of pages that use the component.
+Data format URLs include `?v=` so browsers load the new file when content changes. `{{PAGE_URL}}` without an ID is the current page URL.
 
 ---
 
-## Building Page Lists from Catalog Data and JavaScript {#catalog-pager}
+## Create a paginated list with catalog data {#catalog-pager}
 
-mikanBox has no built-in pager or catalog file. Combine a [data-format](#data-formats) page with a JavaScript page instead. Static builds write them as files, so this works on servers without PHP too. Samples are included (`sample_list`, `json_item`, `sample_pager`, `sample_list_page`).
+Create paginated lists by loading a JSON catalog with JavaScript. Open the included `sample_list_page` to see a working example. To make your own list, create a catalog and load it from the page displaying the list.
 
-#### 1. The catalog page
+### Create a JSON catalog
 
-Create a page whose output format is JSON (for example ID `news-list` → `/news-list.json`).
+Create a page, set its output format to “JSON”, use `news-list` as the example ID, and turn on “Expand tags”. The following example outputs pages in the `news` category with the newest updates first.
 
-```
+```text
 [{{NAV_CARDS:news:json_item:sort=new:sep=,}}]
 ```
 
-The item component `json_item` describes one entry:
+The included `json_item` creates one list item. Replace `news` with your category name, or use `all` for all pages. Preview the JSON before publishing.
 
-```
-{"title":"{{TITLE}}","url":"{{PAGE_URL}}","date":"{{UPDATE_DATE}}","categories":"{{CATEGORY:all}}"}
-```
+### Display the list
 
-Values are escaped for JSON, and `sep=,` puts a comma between items, so the result is a valid JSON array.
-
-#### 2. The JavaScript page
-
-A page whose output format is JavaScript (for example ID `pager` → `/pager.js`) reads the catalog and shows 20 entries at a time with page navigation. The included `sample_pager` works as it is.
-
-#### 3. The page that shows the list
+Paste the following into the body of the HTML page displaying the list. The included JavaScript page `sample_pager` loads the catalog and displays 20 items at a time.
 
 ```html
 <div class="mikan-pager" data-src="{{PAGE_URL:news-list}}" data-per-page="20"></div>
-<script src="{{PAGE_URL:pager}}"></script>
+<script src="{{PAGE_URL:sample_pager}}"></script>
 ```
 
-- You can make a catalog of every page (`all`), or, for a large site, lighter catalogs per category or with `limit`.
-- An HTML catalog (`<li data-date="…">` and so on) can also be read from JavaScript with `DOMParser`.
-- `rss.xml` holds only the 20 newest pages of the whole site, with no category choice, so it is not suited as the source of a list. Per-category RSS can be made with an XML page.
-- For the list options (`sort`, `limit`, `sep`), see [Navigation](#navigation).
+`news-list` is the catalog ID and `20` is the number of items per page. Publish the catalog, JavaScript, and list pages. For static publication, [build](#static-build-button).
 
 ---
 
-## Podcast Distribution {#podcast}
+## Podcast publishing {#podcast}
 
-Create a page with an audio file attached, set its category to "podcast," and an RSS feed containing only "podcast"-category pages is output at the URL below, letting you distribute a podcast.
+Create a page with embedded audio and set its category to `podcast`. An RSS feed containing only pages in that category is produced at the following URL, allowing you to publish a podcast:
 
 `https://yoursite.com/podcast.xml`
 
-Mainly embed the following information. `AUDIO_FILE` is required.
+The following data is commonly embedded. AUDIO_FILE is required.
 
 `{{DATA:AUDIO_FILE:GHOST}}episode01.mp3{{/DATA}}`
 `{{DATA:DURATION:GHOST}}25:30{{/DATA}}`
 `{{DATA:FILE_SIZE:GHOST}}24500000{{/DATA}}`
 
-### Data Available on a Podcast Page
+### Podcast fields
 
-`{{DATA:AUDIO_FILE:GHOST}}episode01.mp3{{/DATA}}` ← required
+`{{DATA:AUDIO_FILE:GHOST}}episode01.mp3{{/DATA}}` ← Required
 `{{DATA:DURATION:GHOST}}25:30{{/DATA}}`
 `{{DATA:FILE_SIZE:GHOST}}24500000{{/DATA}}`
 `{{DATA:EPISODE_NUM:GHOST}}1{{/DATA}}`
 `{{DATA:SEASON:GHOST}}1{{/DATA}}`
-`{{DATA:SUBTITLE:GHOST}}This episode covers...{{/DATA}}`
+`{{DATA:SUBTITLE:GHOST}}This episode's theme is...{{/DATA}}`
 `{{DATA:EPISODE_IMAGE:GHOST}}ep01-cover.jpg{{/DATA}}`
 `{{DATA:EPISODE_TYPE:GHOST}}full{{/DATA}}`
 `{{DATA:EXPLICIT:GHOST}}false{{/DATA}}`
 
-The title `{{DATA:TITLE}}` and description `{{DATA:DESCRIPTION}}` are pulled automatically from the page's own settings.
+The title `{{DATA:TITLE}}` and description `{{DATA:DESCRIPTION}}` are obtained automatically from page settings.
 
-Which data fields are usable varies by platform.
+Available data varies by service.
 
-### Steps to Distribute a Podcast
+### Publish a podcast
 
-1. Create a podcast episode page in 🍊mikanBox (category "podcast")
-2. `https://yoursite.com/podcast.xml` is generated automatically
-3. Register that URL with each platform
+1. Create a podcast episode page in 🍊mikanBox with the `podcast` category.
+2. Open `https://yoursite.com/podcast.xml` to check it (in Cloud, after [building](#static-build-button) and publishing).
+3. Register the URL with each platform.
 
-Registration links:
-| Platform | Where to register |
+Registration:
+
+| Platform | Registration site |
 |:---|:---|
 |Apple Podcasts|podcastsconnect.apple.com|
 |Spotify|podcasters.spotify.com|
-|Google Podcasts|google.com/podcasts/publish|
+|YouTube / YouTube Music|[Publish a podcast using an RSS feed](https://support.google.com/youtubemusic/answer/13525207?hl=ja)|
 |Amazon Music|music.amazon.com/podcasts|
 
-Once registered, every time you add a new episode page, each platform automatically fetches `podcast.xml` again and updates on its own.
+After registration, platforms automatically fetch `podcast.xml` and update whenever you add an episode page.
 
-Just upload the audio file to 🍊mikanBox's Media, and you're all set.
+In the PHP editions, upload the audio file to Media and specify its filename in `AUDIO_FILE`. {.flat .sqlite}
+
+In the Cloud edition, specify the URL of externally hosted audio in `AUDIO_FILE`, for example `https://example.com/episode01.mp3`. Build whenever you add or change an episode. {.cloud}
 
 ---
 
-## Sitemap, RSS &amp; API {#site-mapfeed}
+## Sitemap, RSS, and API {#site-mapfeed}
 
-These URLs are, by default, generated fresh by PHP on every request (dynamic). However, if [Static Site Generation (SSG)](#site-ssg)'s output directory is set to the same location as the site root, these also get written out as real files on every static build, and are then served as static files reflecting only the content at build time (not updated again until the next build).
+Normally PHP dynamically generates the latest content at these URLs on each request. However, if the [static site generation (SSG)](#site-ssg) output directory is the site root, these are also written as files on each static build and served with the content from that build until the next build. {.flat .sqlite}
+
+The Cloud edition [builds](#static-build-button) the sitemap, RSS, Podcast RSS, and mikanBox DB JSON as files and serves them at the public address. The 404 page is excluded from sitemaps and feeds. {.cloud}
 
 ### Sitemap
 
-The sitemap is output at the following URL.
+The sitemap is available at:
 
 `https://yoursite.com/sitemap.xml`
 
 Example: [https://yoshihiko.com/mikanbox/demo/sitemap.xml](https://yoshihiko.com/mikanbox/demo/sitemap.xml)
 
-[Data-format](#data-formats) pages are left out of the sitemap, RSS and Podcast RSS. Markdown-only pages are listed by their `/ID.md` URL.
+[Data format](#data-formats) pages are excluded from the sitemap, RSS, and Podcast RSS. Markdown-only pages appear with `/ID.md` URLs.
 
 ### RSS
 
-The RSS feed is output at the following URL.
+The RSS feed is available at:
 
 `https://yoursite.com/rss.xml`
 
@@ -1965,7 +2691,7 @@ Example: [https://yoshihiko.com/mikanbox/demo/rss.xml](https://yoshihiko.com/mik
 
 ### Podcast RSS
 
-Attach audio to a page, set its category to "podcast," and an RSS feed containing only "podcast"-category pages is output at the URL below, letting you distribute a podcast.
+Embed audio and set the category to `podcast` to publish a podcast using the RSS feed containing only pages in that category:
 
 `https://yoursite.com/podcast.xml`
 
@@ -1973,46 +2699,45 @@ Example: [https://yoshihiko.com/mikanbox/demo/podcast.xml](https://yoshihiko.com
 
 ### API
 
-Publishing a page that embeds `{{DATAROW}}` with the output format "[mikanBox DB](#mikanbox-db)" makes it readable externally as an API.
+Publish a page containing `{{DATAROW}}` with the “[mikanBox DB](#mikanbox-db)” output format to make it accessible externally through the API.
 
-`https://yoursite.com/api/pageID.json` (when served dynamically, `/api/pageID` works too)
+`https://yoursite.com/api/pageID.json` (`/api/pageID` also works with dynamic PHP output and in the Cloud edition)
 
 Example: [https://yoshihiko.com/mikanbox/demo/api/sample-DB](https://yoshihiko.com/mikanbox/demo/api/sample-DB)
 
 ---
 
-## Publishing an AI-generated Design As-Is {#ai-guide}
+## Publish AI-generated designs {#ai-guide}
 
-### Prompt for Having AI Build an Entire Page
+### Prompt for a complete page
 
-`Output it as a single HTML file including CSS and JS. Use media/filename for images.`
+`Output a single HTML file including CSS and JavaScript. Use media/filename for images.`
 
-Add the above to your design prompt.
+Add this instruction to your design prompt.
 
-### How to Use a Page Built Entirely by AI
+### Use the generated page
 
-Once you've generated the page, place it using these steps:
+After generating a page, place it as follows:
 
-1. On the "Page Edit" screen, select "None (use the content HTML directly)" as the Design Component.
-2. Paste the full content of the generated HTML into "Content" and save.
+1. In the page editor, choose “None (use the content HTML directly)” for the design component.
+2. Paste the entire generated HTML into “Body” and save.
 
-### If You Want to Build Shared Parts Across Multiple Pages
+### Shared parts across pages
 
-You can split out and manage shared parts (header, footer, contents inside `&lt;head&gt;`, etc.) separately.
+Shared parts such as headers, footers, and content inside &lt;head&gt; can be managed separately.
 
-- Register them separately as `_header`, `_footer`, `_global_head`, and so on.
-- Selecting `_layout` as the "Design Component" makes these work automatically.
-- To reflect each page's SEO information (title, description, OGP image, etc.), include `{{COMPONENT:_global_head}}` inside your component.
-- CSS managed at the site level or per page is inserted automatically. Use `{{HEAD_CSS}}` to specify its insertion point.
+- Separate and register them as `_header`, `_footer`, `_global_head`, and so on.
+- Select `_layout` as the design component to use them automatically.
+- Include `{{COMPONENT:_global_head}}` in the component to reflect each page's SEO information, such as title, description, and OGP image.
+- Site-wide and page-specific CSS is inserted automatically. To specify its insertion point, place `{{HEAD_CSS}}`.
 
 ---
 
 ## Announcement {#announcement}
 
-The creator of this program is available for hire to design, build, and operate a CMS based on this program, including its UI design.
-Feel free to reach out as well for anything in UI design, information architecture, DX promotion, applied AI, internal communications, design education, or content production.
+The creator of this program can provide CMS design, UI design, construction, and operation based on this program. You are also welcome to get in touch about UI design, information architecture, digital transformation, AI use, internal communications, design education, or content production.
 
-Books: "The Design Classroom," "The Design Class," "The Basic Rules of Flat Design" (Japanese titles, published in Japan)
+Books: 『デザインの教室』, 『デザインの授業』, 『フラットデザインの基本ルール』
 
 [https://yoshihiko.com](https://yoshihiko.com)
 
@@ -2025,20 +2750,58 @@ Books: "The Design Classroom," "The Design Class," "The Basic Rules of Flat Desi
 Copyright (c) 2026 [yoshihiko.com](http://yoshihiko.com)
 
 <div class="license-block">
-Permission is hereby granted, free of charge, to use this software and associated documentation files, subject to the conditions below, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software.<br><br>
-<strong>Condition:</strong> The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.<br><br>
-<strong>Disclaimer:</strong> The software is provided "as is," without warranty of any kind, express or implied. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
+Permission is granted, free of charge, to use this software and associated documentation under the following conditions, including without limitation commercial use, modification, distribution, and sublicensing.<br><br>
+<strong>Condition:</strong> The above copyright notice and this permission notice must be included in all copies or substantial portions of the software.<br><br>
+<strong>Disclaimer:</strong> The software is provided “as is”, without warranty of any kind, express or implied. The author or copyright holder is not liable for any claim, damages, or other liability arising from contract, tort, or otherwise.
 </div>
 
-
-### Authentication and private working data in 2.16.6
-
-Flat password changes invalidate other browser sessions. Updating to 2.16.6 requires signing in again. Keep Internet-facing installations behind server access restrictions until initial setup is complete; the simple localhost setup is unchanged.
-
-SQLite JSON migration retains its source data under the protected data directory's `private-import/` folder. On access after updating, old import packages under the management folder are moved to protected storage. If an old backup contained credentials, the MCP key is invalidated: issue a new key in the admin screen. Configure the web server to deny the entire data directory and the management folder's `import/` path.
-
-Management notes, including site notes, are available to authenticated management MCP clients as working context. They are excluded from public pages, public APIs and public-help MCP. Reading a note is not permission to publish it.
-
-SVG files are selected and uploaded by trusted administrators and may contain code. Upload processing does not guarantee complete sanitization. Check their source and contents.
-
-From v2.21.2, the PHP editions serve SVG files under `media/` with a header that stops scripts (`Content-Security-Policy: sandbox`) when they are opened directly. On Apache this needs `mod_headers`. An existing `media/.htaccess` gets the setting appended on the first visit after updating (lines you added yourself stay). SVGs shown with `<img>` look the same as before.
+<script>
+(function () {
+  var main = document.querySelector('main'), bar = document.querySelector('.manual-editions');
+  if (!main || !bar) return;
+  var editions = ['flat', 'sqlite', 'cloud'], nodes = Array.from(main.children);
+  function level(el) { var m = /^H([1-6])$/.exec(el.tagName); return m ? +m[1] : 0; }
+  function applicable(el, edition) { var own = editions.filter(function(e) { return el.classList.contains(e); }); return edition === 'all' || !own.length || own.indexOf(edition) !== -1; }
+  nodes.forEach(function(el, i) {
+    if (level(el) && el.classList.contains('detail')) {
+      for (var j = i + 1; j < nodes.length && (!level(nodes[j]) || level(nodes[j]) > level(el)); j++) nodes[j].classList.add('detail');
+    }
+    var own = editions.filter(function(e) { return el.classList.contains(e); });
+    if (own.length && level(el)) { var badge = document.createElement('span'); badge.className = 'manual-edition-badge'; badge.textContent = own.join(' / '); el.appendChild(badge); }
+  });
+  var groups = [], run = [];
+  function flush() {
+    if (!run.length) return;
+    var group = run.slice(), button = document.createElement('button');
+    button.type = 'button'; button.className = 'manual-more'; button.textContent = "Show details"; button.setAttribute('aria-expanded', 'false');
+    group[0].before(button); groups.push({button:button, nodes:group});
+    button.addEventListener('click', function() { var open = button.getAttribute('aria-expanded') !== 'true'; button.setAttribute('aria-expanded', String(open)); button.textContent = open ? "Hide details" : "Show details"; group.forEach(function(el) { el.classList.toggle('manual-open', open); }); });
+    run = [];
+  }
+  nodes.forEach(function(el) { if (el.classList.contains('detail')) run.push(el); else flush(); }); flush();
+  function apply(edition) {
+    if (editions.concat('all').indexOf(edition) < 0) edition = 'all';
+    document.body.dataset.edition = edition;
+    main.querySelectorAll('.manual-hidden').forEach(function(el) { el.classList.remove('manual-hidden'); });
+    nodes.forEach(function(el, i) {
+      if (!applicable(el, edition)) {
+        el.classList.add('manual-hidden'); var n = level(el);
+        if (n) for (var j = i + 1; j < nodes.length && (!level(nodes[j]) || level(nodes[j]) > n); j++) nodes[j].classList.add('manual-hidden');
+      }
+    });
+    main.querySelectorAll('li, span, td, tr').forEach(function(el) { if (!applicable(el, edition)) el.classList.add('manual-hidden'); });
+    groups.forEach(function(g) { g.button.classList.toggle('manual-hidden', !g.nodes.some(function(el) { return !el.classList.contains('manual-hidden'); })); });
+    bar.querySelectorAll('[data-edition-choice]').forEach(function(b) { b.setAttribute('aria-pressed', String(b.dataset.editionChoice === edition)); });
+    document.querySelectorAll('nav.sidebar a[href^="#"]').forEach(function(a) { var target = document.getElementById(a.getAttribute('href').slice(1)); a.parentElement.classList.toggle('manual-hidden', !!target && target.classList.contains('manual-hidden')); });
+    try { localStorage.setItem('mikanbox-manual-edition', edition); } catch (_) {}
+  }
+  bar.querySelectorAll('[data-edition-choice]').forEach(function(b) { b.addEventListener('click', function() { apply(b.dataset.editionChoice); }); });
+  var details = document.getElementById('manual-details');
+  details.addEventListener('change', function() { main.classList.toggle('manual-show-details', details.checked); });
+  main.classList.add('manual-details-ready');
+  var selected = new URLSearchParams(location.search).get('edition');
+  try { selected = selected || localStorage.getItem('mikanbox-manual-edition'); } catch (_) {}
+  apply(selected || 'all');
+})();
+</script>
+</main>
