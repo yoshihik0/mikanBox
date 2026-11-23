@@ -61,6 +61,16 @@ body[data-edition="sqlite"] nav.sidebar a.cloud {
   vertical-align: -0.2em;
   font-size: 1em;
 }
+.manual-editions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 0; }
+.manual-editions button, .manual-more { font:inherit; cursor:pointer; border:1px solid #9ca3af; background:#fff; border-radius:5px; padding:4px 10px; }
+.manual-editions button[aria-pressed="true"] { background:#1f2937; color:#fff; }
+.manual-hidden { display:none !important; }
+.manual-details-ready:not(.manual-show-details) .detail:not(.manual-open) { display:none !important; }
+.manual-more { display:block; margin:12px 0; }
+.manual-show-details .manual-more { display:none !important; }
+.manual-editions label { margin-left:8px; }
+.manual-edition-badge { font-size:.7em; margin-left:.5em; padding:1px 6px; border:1px solid #9ca3af; border-radius:4px; color:#374151; }
+</style>
 
 # 🍊mikanBox User Manual <small class="manual-version">flat・SQLite v2.30.5 / Cloud v0.21.3</small>
 
