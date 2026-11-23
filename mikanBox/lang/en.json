@@ -545,6 +545,8 @@
     "page_id_conflict_message": "\"%s\" is already in use. Overwriting replaces that page with your edits.",
     "page_id_conflict_rename": "\"%s\" is already in use. Overwriting replaces that page with your edits and removes the page at its original ID, \"%s\".",
     "page_id_conflict_change": "Change ID",
+    "page_id_conflict_backup": "Keep the previous page as a draft",
+    "msg_page_overwrite_backup": "The previous page was kept as draft “%s”.",
     "all_pages": "All",
     "err_404_body": "The page could not be found.",
     "err_403_pending_body": "This page is currently pending approval (private). Use the preview share URL or log in to the admin panel to view it. If the share URL has expired, get a new one from the page's edit screen.",

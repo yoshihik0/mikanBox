@@ -434,7 +434,16 @@ function mikanBoxLoadExactPage(string $id): ?array {
     return is_array($data) ? $data : null;
 }
 
-function mikanBoxCommitEditorPage(string $id, string $oldId, array $data, ?array $target): bool {
+function mikanBoxEditorBackupIdExists(string $id): bool {
+    $stmt = getDb()->prepare('SELECT id FROM posts WHERE id IN (:id, :alias) LIMIT 1');
+    $stmt->bindValue(':id', $id, SQLITE3_TEXT);
+    $stmt->bindValue(':alias', $id . '/index', SQLITE3_TEXT);
+    $result = $stmt->execute();
+    return $result->fetchArray(SQLITE3_NUM) !== false;
+}
+
+function mikanBoxCommitEditorPage(string $id, string $oldId, array $data, ?array $target, ?array $backup): bool {
+    if ($backup !== null && !saveData(POSTS_DIR, $backup['id'], $backup['data'])) return false;
     $editor = $_SESSION['admin_username'] ?? 'admin';
     if ($oldId !== '' && $id !== $oldId && !createRevision($oldId, $editor)) return false;
     if ($target !== null && !createRevision($id, $editor)) return false;

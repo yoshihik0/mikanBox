@@ -100,23 +100,32 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-auth-audit-') as td:
     assert save_page('collision-target',title='Target')[1]['success']
     status,conflict=save_page('collision-target','collision-source','Edited')
     assert status==409 and not conflict['success']
+    assert conflict['page_id_conflict']['keep_backup']
     assert save_page('collision-target','collision-target','Changed target')[1]['success']
-    status,refreshed=save_page('collision-target','collision-source','Edited',overwrite_page=conflict['page_id_conflict']['token'])
+    status,refreshed=save_page('collision-target','collision-source','Edited',overwrite_page=conflict['page_id_conflict']['token'],backup_overwritten_page='1')
     assert status==409 and refreshed['page_id_conflict']['token'] != conflict['page_id_conflict']['token']
     assert php(site,'echo loadData(POSTS_DIR,"collision-source")["title"]."|".loadData(POSTS_DIR,"collision-target")["title"];') == 'Source|Changed target'
-    status,saved=save_page('collision-target','collision-source','Edited',overwrite_page=refreshed['page_id_conflict']['token'])
+    assert php(site,'echo loadData(POSTS_DIR,"collision-target-bk")===null ? "missing" : "exists";') == 'missing'
+    assert save_page('collision-target-bk/index',title='Alias')[1]['success']
+    status,saved=save_page('collision-target','collision-source','Edited',overwrite_page=refreshed['page_id_conflict']['token'],backup_overwritten_page='1')
     assert status==200 and saved['success'] and saved['editId']=='collision-target'
+    assert 'collision-target-bk-2' in saved['message']
+    assert php(site,'$p=loadData(POSTS_DIR,"collision-target-bk-2"); echo $p["title"]."|".$p["status"];') == 'Changed target|draft'
+    assert php(site,'echo loadData(POSTS_DIR,"collision-target-bk/index")["title"];') == 'Alias'
     assert php(site,'echo loadData(POSTS_DIR,"collision-source")===null ? loadData(POSTS_DIR,"collision-target")["title"] : "source still exists";') == 'Edited'
     status,conflict=save_page('collision-target',title='New content')
     assert status==409
-    assert save_page('collision-target',title='New content',overwrite_page=conflict['page_id_conflict']['token'])[1]['success']
+    assert save_page('collision-target',title='New content',overwrite_page=conflict['page_id_conflict']['token'],backup_overwritten_page='0')[1]['success']
+    assert php(site,'echo loadData(POSTS_DIR,"collision-target-bk-3")===null ? "missing" : "exists";') == 'missing'
     assert save_page('static-target',title='Static JSON',status='public_static',output_format='json')[1]['success']
     published=site/'static-target.json'
     published.write_text('{"previous":true}')
     status,conflict=save_page('static-target',title='Draft HTML')
     assert status==409 and published.exists()
-    assert save_page('static-target',title='Draft HTML',overwrite_page=conflict['page_id_conflict']['token'])[1]['success']
+    assert save_page('static-target',title='Draft HTML',overwrite_page=conflict['page_id_conflict']['token'],backup_overwritten_page='1')[1]['success']
     assert not published.exists()
+    assert php(site,'$p=loadData(POSTS_DIR,"static-target-bk"); echo $p["title"]."|".$p["status"]."|".$p["output_format"];') == 'Static JSON|draft|json'
+    assert not (site/'static-target-bk.json').exists()
     assert save_page('folder/index',title='Nested')[1]['success']
     assert save_page('folder',title='Exact')[1]['success']
     if edition=='sqlite':

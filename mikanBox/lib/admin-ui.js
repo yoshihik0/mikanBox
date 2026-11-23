@@ -34,6 +34,7 @@
     dialog.innerHTML = '<h3 style="margin-top:0; margin-bottom:12px; font-size:1.05rem; display:flex; align-items:center; gap:8px; color:var(--text);">'
       + '<span class="material-symbols-outlined" style="color:#ef4444;">warning</span> <span id="global-confirm-title"></span></h3>'
       + '<p id="global-confirm-message" style="font-size:0.9rem; line-height:1.5; margin-bottom:20px; color:#475569; white-space:pre-line;"></p>'
+      + '<div id="global-confirm-option" hidden style="margin-bottom:16px"><label><input type="checkbox"> <span></span></label></div>'
       + '<div class="dialog-buttons" style="display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;">'
       + '<button type="button" id="btn-global-confirm-cancel" class="btn btn-small" style="background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1;"></button>'
       + '<button type="button" id="btn-global-confirm-ok" class="btn btn-small btn-red"></button></div>';
@@ -41,11 +42,16 @@
     return dialog;
   }
 
-  function confirmDialog(message, title = '', okText = '', okClass = 'btn-red', cancelText = '') {
+  function confirmDialog(message, title = '', okText = '', okClass = 'btn-red', { cancelText = '', checkboxLabel = '', checked = false } = {}) {
     return new Promise((resolve) => {
       const dialog = ensureDialog();
       const cancel = dialog.querySelector('#btn-global-confirm-cancel');
       const ok = dialog.querySelector('#btn-global-confirm-ok');
+      const option = dialog.querySelector('#global-confirm-option');
+      const checkbox = option.querySelector('input');
+      option.hidden = !checkboxLabel;
+      option.querySelector('span').textContent = checkboxLabel;
+      checkbox.checked = checked;
       dialog.querySelector('#global-confirm-title').textContent = title || S().confirmTitle || '';
       dialog.querySelector('#global-confirm-message').textContent = message;
       cancel.textContent = cancelText || S().cancel || 'Cancel';
@@ -60,12 +66,12 @@
         cancel.removeEventListener('click', onCancel);
         ok.removeEventListener('click', onOk);
         dialog.removeEventListener('close', onClose);
-        resolve(value);
+        resolve(checkboxLabel ? { confirmed: value, checked: checkbox.checked } : value);
       };
       const finish = (value) => { settle(value); if (dialog.open) dialog.close(); };
       const onCancel = () => finish(false);
       const onOk = () => finish(true);
-      const onClose = () => settle(false);
+      const onClose = () => { if (!dialog.open) settle(false); };
       cancel.addEventListener('click', onCancel);
       ok.addEventListener('click', onOk);
       dialog.addEventListener('close', onClose);
@@ -81,10 +87,17 @@
     if (submitter?.name) data.set(submitter.name, submitter.value);
     data.set('ajax_request', '1');
     data.delete('overwrite_page');
+    data.delete('backup_overwritten_page');
     let result = await postData(data);
+    let keepBackup = true;
     while (result.json.page_id_conflict) {
       const conflict = result.json.page_id_conflict;
-      if (!await confirmDialog(result.json.message, conflict.title, conflict.overwrite, 'btn-red', conflict.change_id)) {
+      const answer = await confirmDialog(result.json.message, conflict.title, conflict.overwrite, 'btn-red', {
+        cancelText: conflict.change_id,
+        checkboxLabel: conflict.keep_backup,
+        checked: keepBackup,
+      });
+      if (!(typeof answer === 'boolean' ? answer : answer.confirmed)) {
         returnToEditor();
         const id = form.elements.namedItem('id');
         id?.focus();
@@ -93,6 +106,8 @@
       }
       data.set('id', conflict.id);
       data.set('overwrite_page', conflict.token);
+      keepBackup = typeof answer !== 'boolean' && answer.checked;
+      data.set('backup_overwritten_page', keepBackup ? '1' : '0');
       result = await postData(data);
     }
     return result;

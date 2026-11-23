@@ -965,11 +965,12 @@ function mikanBoxValidatePageSave($id, $oldId, array $data, array $settings): ?s
     return null;
 }
 
-function mikanBoxSaveEditorPage(string $id, string $oldId, string $confirmation, callable $prepare): array {
-    return mikanBoxWithEditorPageWrite(function () use ($id, $oldId, $confirmation, $prepare) {
+function mikanBoxSaveEditorPage(string $id, string $oldId, string $confirmation, bool $keepBackup, callable $prepare): array {
+    return mikanBoxWithEditorPageWrite(function () use ($id, $oldId, $confirmation, $keepBackup, $prepare) {
         $source = $oldId === '' ? null : mikanBoxLoadExactPage($oldId);
         if ($oldId !== '' && $source === null) return ['message' => t('err_page_save')];
         $target = $id === $oldId ? $source : mikanBoxLoadExactPage($id);
+        $backup = null;
         if ($id !== $oldId && $target !== null) {
             $token = hash('sha256', serialize([$id, $oldId, $target]));
             if (!hash_equals($token, $confirmation)) {
@@ -981,14 +982,32 @@ function mikanBoxSaveEditorPage(string $id, string $oldId, string $confirmation,
                         'title' => t('page_id_conflict_title'),
                         'overwrite' => t('transfer_mode_overwrite'),
                         'change_id' => t('page_id_conflict_change'),
+                        'keep_backup' => t('page_id_conflict_backup'),
                     ],
                 ];
             }
+            if ($keepBackup) {
+                $backupId = mikanBoxEditorBackupId($id);
+                if ($backupId === null) return ['message' => t('err_page_save')];
+                $draft = mikanBoxNormalizeLegacyPage($target);
+                $draft['status'] = 'draft';
+                $backup = ['id' => $backupId, 'data' => $draft];
+            }
         }
         $data = $prepare(mikanBoxNormalizeLegacyPage($source ?? $target));
-        if (!mikanBoxCommitEditorPage($id, $oldId, $data, $target)) return ['message' => t('err_page_save')];
-        return ['data' => $data, 'source' => mikanBoxNormalizeLegacyPage($source), 'target' => mikanBoxNormalizeLegacyPage($target)];
+        if (!mikanBoxCommitEditorPage($id, $oldId, $data, $target, $backup)) return ['message' => t('err_page_save')];
+        return ['data' => $data, 'source' => mikanBoxNormalizeLegacyPage($source), 'target' => mikanBoxNormalizeLegacyPage($target), 'backup_id' => $backup['id'] ?? null];
     });
+}
+
+function mikanBoxEditorBackupId(string $id): ?string {
+    for ($n = 1; $n <= 10000; $n++) {
+        $suffix = $n === 1 ? '-bk' : '-bk-' . $n;
+        $candidate = rtrim(substr($id, 0, 200 - strlen($suffix)), '/') . $suffix;
+        if (mikanBoxIdIsReserved($candidate)) continue;
+        if (!mikanBoxEditorBackupIdExists($candidate)) return $candidate;
+    }
+    return null;
 }
 
 /**

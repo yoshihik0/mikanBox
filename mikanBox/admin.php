@@ -345,7 +345,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         ], $settings);
         $result = [];
         if ($message === null) {
-            $result = mikanBoxSaveEditorPage($id, $oldId, (string)($_POST['overwrite_page'] ?? ''), function ($existingPageData) use ($status) {
+            $result = mikanBoxSaveEditorPage($id, $oldId, (string)($_POST['overwrite_page'] ?? ''), ($_POST['backup_overwritten_page'] ?? '') === '1', function ($existingPageData) use ($status) {
                 $updatedAt = $_POST['updated_at'] ?? date('Y-m-d H:i:s');
                 $data = [
                     'title' => $_POST['title'] ?? '',
@@ -373,6 +373,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
                 return $data;
             });
             $message = $result['message'] ?? t('msg_page_saved', $id);
+            if (isset($result['backup_id'])) $message .= ' ' . t('msg_page_overwrite_backup', $result['backup_id']);
         }
 
         $pageSaveFailed = !isset($result['data']);
