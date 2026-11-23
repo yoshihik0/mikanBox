@@ -4,5 +4,5 @@
     "is_global": true,
     "is_wrapper": false,
     "is_ai_doc": false,
-    "memo": "公開ページにAI質問ボックスを配置するパーツです。ページ本文へ {{COMPONENT:_ai_question}} と記述して使います。質問、現在のページ、公式公開マニュアルだけを外部AIへ渡し、APIキーや非公開情報は扱いません。"
+    "memo": "公開ページにAI質問ボックスを置くパーツです。{{COMPONENT:_ai_question}} を配置すると、表示中の公開ページを参照します。別の公開資料を指定するには {{AI_QUESTION:sources=https://example.com/faq.md|https://example.com/guide/}} を使います。訪問者は質問と参照先を含むプロンプトを確認し、外部AIに貼り付けます。"
 }

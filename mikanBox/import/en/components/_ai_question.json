@@ -4,5 +4,5 @@
     "is_global": true,
     "is_wrapper": false,
     "is_ai_doc": false,
-    "memo": "Places the public AI question box. Add {{COMPONENT:_ai_question}} to a page body. It sends only the question, current page, and official public manual reference to the external AI; it does not handle API keys or private information."
+    "memo": "Add this part to a public page with {{COMPONENT:_ai_question}} to use that page as the reference. To specify other public sources, use {{AI_QUESTION:sources=https://example.com/faq.md|https://example.com/guide/}}. Visitors review and copy the prompt before pasting it into an external AI service."
 }

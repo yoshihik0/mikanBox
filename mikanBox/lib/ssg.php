@@ -142,6 +142,7 @@ class MikanBoxSSG {
         }
         $this->renderer->setDataHashes($dataHashes);
 
+        $includeAiQuestionAsset = false;
         foreach ($otherPages as $pageId) {
             $format = mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId));
             if (mikanBoxFormatHasMarkdown($format)) {
@@ -169,6 +170,7 @@ class MikanBoxSSG {
                 !empty($this->options['copy_media'])
             );
             $html = $this->renderer->render($pageId);
+            if (str_contains($html, 'data-mikanbox-ai-question')) $includeAiQuestionAsset = true;
 
             if ($pageId === 'index') {
                 $targetFile = $this->outputDir . '/index.html';
@@ -184,6 +186,13 @@ class MikanBoxSSG {
 
         if (!empty($this->options['copy_media'])) {
             $results = array_merge($results, $this->copyMediaDirectory());
+            if ($includeAiQuestionAsset) {
+                $asset = MikanBoxRenderer::AI_QUESTION_ASSET;
+                $script = @file_get_contents(CORE_DIR . '/' . $asset);
+                $results[] = $script === false
+                    ? 'Error: Could not read the AI question box script.'
+                    : $this->writeOutputFile($this->outputDir . '/' . basename(CORE_DIR) . '/' . $asset, $script);
+            }
         }
 
         $siteUrl = rtrim($this->renderer->getConfiguredSiteUrl(), '/');
