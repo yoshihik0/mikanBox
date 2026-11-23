@@ -110,12 +110,6 @@ class MikanBoxSSG {
                 if ($this->deletePage($staleId) > 0) $results[] = "Removed stale static files: $staleId";
             }
         }
-        $settings = $GLOBALS['mikanbox_settings'] ?? [];
-        $markdownAvailable = mikanBoxMarkdownAvailable(array_merge($settings, [
-            'ssg_mode' => $this->options['output_mode'] ?? 'server',
-            'ssg_link_mode' => $this->options['link_mode'] ?? 'relative',
-            'ssg_root_url' => $this->renderer->getConfiguredSiteUrl(),
-        ]));
 
         // Data pages first: HTML pages embed a hash of their built output in {{PAGE_URL:ID}}.
         $dataPages = [];
@@ -151,14 +145,11 @@ class MikanBoxSSG {
         foreach ($otherPages as $pageId) {
             $format = mikanBoxPageOutputFormat(loadData(POSTS_DIR, $pageId));
             if (mikanBoxFormatHasMarkdown($format)) {
-                if ($markdownAvailable) {
-                    // Markdown versions use absolute URLs, so their depth does not matter.
-                    $this->renderer->setStaticMode(true, substr_count($pageId, '/'), $this->options['structure'], $this->options['link_mode'], !empty($this->options['copy_media']));
-                    $markdown = $this->renderer->renderMarkdown($pageId);
-                    if ($markdown !== null) $results[] = $this->writeOutputFile($this->outputDir . '/' . $pageId . '.md', $markdown);
-                } else {
-                    $results[] = "Error: A published root URL is required for the Markdown version of $pageId";
-                }
+                // The file is /ID.md whatever the URL style, so its depth is the number of slashes in the ID
+                // (it decides the relative links when there is no published root URL).
+                $this->renderer->setStaticMode(true, substr_count($pageId, '/'), $this->options['structure'], $this->options['link_mode'], !empty($this->options['copy_media']));
+                $markdown = $this->renderer->renderMarkdown($pageId);
+                if ($markdown !== null) $results[] = $this->writeOutputFile($this->outputDir . '/' . $pageId . '.md', $markdown);
             }
             if (!mikanBoxFormatHasHtml($format)) {
                 $this->deleteHtmlFiles($pageId);
@@ -242,7 +233,7 @@ class MikanBoxSSG {
         $core = $this->normalizePath(realpath(CORE_DIR) ?: CORE_DIR);
         $siteRoot = $this->normalizePath(realpath(dirname(CORE_DIR)) ?: dirname(CORE_DIR));
         $media = defined('MEDIA_DIR')
-            ? $this->normalizePath(realpath(MEDIA_DIR) ?: MEDIA_DIR)
+            ? $this->normalizePath(realpath(mikanBoxMediaDirectory()) ?: mikanBoxMediaDirectory())
             : $siteRoot . '/media';
         $data = defined('DATA_DIR')
             ? $this->normalizePath(realpath(DATA_DIR) ?: DATA_DIR)
@@ -273,11 +264,11 @@ class MikanBoxSSG {
     }
 
     private function copyMediaDirectory() {
-        if (!defined('MEDIA_DIR') || !is_dir(MEDIA_DIR)) {
+        if (!defined('MEDIA_DIR') || !is_dir(mikanBoxMediaDirectory())) {
             return [];
         }
 
-        $source = $this->normalizePath(realpath(MEDIA_DIR) ?: MEDIA_DIR);
+        $source = $this->normalizePath(realpath(mikanBoxMediaDirectory()) ?: mikanBoxMediaDirectory());
         $destination = $this->normalizePath($this->outputDir . '/media');
         $realDestination = realpath($destination) ?: (realpath(dirname($destination)) ?: dirname($destination)) . '/media';
         $sourceRoot = self::lowerPath($source) . '/';
@@ -300,14 +291,14 @@ class MikanBoxSSG {
         $results = [];
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator(
-                MEDIA_DIR,
+                mikanBoxMediaDirectory(),
                 FilesystemIterator::SKIP_DOTS | FilesystemIterator::CURRENT_AS_FILEINFO
             ),
             RecursiveIteratorIterator::SELF_FIRST
         );
         foreach ($iterator as $item) {
             if ($item->isLink()) continue;
-            $relative = substr($item->getPathname(), strlen(rtrim(MEDIA_DIR, '/')) + 1);
+            $relative = substr($item->getPathname(), strlen(rtrim(mikanBoxMediaDirectory(), '/')) + 1);
             $target = $destination . '/' . $relative;
             if ($item->isDir()) {
                 if (!is_dir($target) && !mkdir($target, 0777, true)) {
@@ -384,7 +375,7 @@ class MikanBoxSSG {
         $siteRoot = dirname(CORE_DIR);
         $paths = [CORE_DIR, $siteRoot . '/media', $siteRoot . '/setup-token'];
         if (defined('DATA_DIR')) $paths[] = DATA_DIR;
-        if (defined('MEDIA_DIR')) $paths[] = MEDIA_DIR;
+        if (defined('MEDIA_DIR')) $paths[] = mikanBoxMediaDirectory();
         if (function_exists('mikanBoxSetupTokenDir')) $paths[] = mikanBoxSetupTokenDir();
         $key = implode("\0", $paths);
         if (isset($cache[$key])) return $cache[$key];

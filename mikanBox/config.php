@@ -3,7 +3,7 @@ if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVE
 // ==========================================
 // mikanBox Basic Settings
 // ==========================================
-define('MIKANBOX_VERSION', '2.30.3');
+define('MIKANBOX_VERSION', '2.30.4');
 if (!defined('CORE_DIR')) define('CORE_DIR', __DIR__);
 
 // Site-specific options survive self-updates because local-config.php is not
@@ -17,6 +17,7 @@ if (is_file($localConfigFile)) require_once $localConfigFile;
 if (!defined('MIKANBOX_DATA_DIR_NAME')) define('MIKANBOX_DATA_DIR_NAME', 'mikanData');
 
 require_once __DIR__ . '/lib/storage.php';
+require_once __DIR__ . '/lib/media-location.php';
 define(
     'MIKANBOX_DATA_DIR_BASENAME',
     mikanBoxNormalizeDataDirectoryName(
@@ -33,10 +34,6 @@ define(
 );
 define('POSTS_DIR', DATA_DIR . '/posts');
 define('COMPONENTS_DIR', DATA_DIR . '/components');
-define('MEDIA_DIR', mikanBoxResolveMediaDirectory(
-    defined('MIKANBOX_MEDIA_DIR') ? MIKANBOX_MEDIA_DIR : null, CORE_DIR, DATA_DIR
-));
-define('MEDIA_BASE_URL', mikanBoxNormalizeMediaUrl(defined('MIKANBOX_MEDIA_URL') ? MIKANBOX_MEDIA_URL : null));
 define('SETTINGS_FILE', DATA_DIR . '/settings.json');
 define('DB_FILE', DATA_DIR . '/mikanBox.sqlite');
 
@@ -88,7 +85,6 @@ HTACCESS;
         @file_put_contents($htaccessPath, rtrim($existing, "\n") . "\n\n# mikanBox svg sandbox\n<FilesMatch \"(?i)\\.svgz?$\">\n    <IfModule mod_headers.c>\n        Header set Content-Security-Policy \"sandbox\"\n        Header set X-Content-Type-Options \"nosniff\"\n    </IfModule>\n</FilesMatch>\n");
     }
 }
-secureMediaDirectory(MEDIA_DIR);
 // -----------------------------------------------------------------
 // Timezone settings
 date_default_timezone_set('Asia/Tokyo');
@@ -98,7 +94,10 @@ mikanBoxStartSession();
 
 // Centralized loading of site settings (shared across all files)
 require_once __DIR__ . '/lib/functions.php';
-$GLOBALS['mikanbox_settings'] = loadSettings();
+$GLOBALS['mikanbox_settings'] = mikanBoxMediaLocationSettings('loadSettings');
+define('MEDIA_DIR', mikanBoxActiveMediaDirectory($GLOBALS['mikanbox_settings']));
+define('MEDIA_BASE_URL', mikanBoxActiveMediaUrl($GLOBALS['mikanbox_settings']));
+secureMediaDirectory(MEDIA_DIR);
 define('SITE_NAME', $GLOBALS['mikanbox_settings']['site_name'] ?? 'mikanBox');
 
 // Signing in means holding a registered device's cookie; the session only caches the result.

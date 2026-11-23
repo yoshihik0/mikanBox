@@ -332,89 +332,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
     }
 
     if ($_POST['save_action'] === 'save_page') {
-        $id = $_POST['id'] ?: 'page_' . time();
+        $id = (string)($_POST['id'] ?? '');
+        if ($id === '') $id = 'page_' . time();
         $status = $_POST['status'] ?? 'draft';
-        $oldId = $_POST['old_id'] ?? null;
+        $oldId = (string)($_POST['old_id'] ?? '');
 
-        // A new ID (a new page or a renamed one) passes the one shared check: characters,
-        // "/" structure and reserved folder names (case-insensitive). An existing page whose ID is
-        // not changed stays editable even if it was saved under older, looser rules.
-        $isUnchangedId = !empty($oldId) && (string)$oldId === (string)$id && loadData(POSTS_DIR, $oldId) !== null;
-        $idError = $isUnchangedId ? null : mikanBoxValidateNewId((string)$id, 'page');
-        if ($idError !== null) {
-            $message = $idError;
-        } // Duplicate slug check: warn if creating new page with existing ID
-        elseif (empty($oldId) && loadData(POSTS_DIR, $id) !== null) {
-            $message = t('err_slug_exists', $id);
-        } elseif (($formatError = mikanBoxValidatePageSave($id, (string)($oldId ?? ''), [
+        // A legacy ID can still be edited in place. New IDs pass the current validation.
+        $idError = $id === $oldId ? null : mikanBoxValidateNewId($id, 'page');
+        $message = $idError ?? mikanBoxValidatePageSave($id, $oldId, [
             'category' => trim($_POST['category'] ?? ''),
             'output_format' => (string)($_POST['output_format'] ?? 'html'),
-        ], $settings)) !== null) {
-            $message = $formatError;
-        } else {
+        ], $settings);
+        $result = [];
+        if ($message === null) {
+            $result = mikanBoxSaveEditorPage($id, $oldId, (string)($_POST['overwrite_page'] ?? ''), function ($existingPageData) use ($status) {
+                $updatedAt = $_POST['updated_at'] ?? date('Y-m-d H:i:s');
+                $data = [
+                    'title' => $_POST['title'] ?? '',
+                    'category' => trim($_POST['category'] ?? ''),
+                    'status' => $status,
+                    'description' => $_POST['description'] ?? '',
+                    'memo' => $_POST['memo'] ?? '',
+                    'keywords' => $_POST['keywords'] ?? '',
+                    'ogp_image' => $_POST['ogp_image'] ?? '',
+                    'content_md' => $_POST['content_md'] ?? '',
+                    'css' => $_POST['css'] ?? '',
+                    'js' => $_POST['js'] ?? '',
+                    'is_html' => isset($_POST['is_html']) ? true : false,
+                    'wrapper_comp' => ($_POST['wrapper_comp'] ?? '') ?: '_layout',
+                    'exclude_tracking' => isset($_POST['tracking_option_present']) ? isset($_POST['exclude_tracking']) : !empty($existingPageData['exclude_tracking'] ?? false),
+                    'sort_order' => (int)($_POST['sort_order'] ?? 0),
+                    'updated_at' => $updatedAt
+                ] + mikanBoxPageFormatFields([
+                    'output_format' => (string)($_POST['output_format'] ?? 'html'),
+                    'md_footer_comps' => (string)($_POST['md_footer_comps'] ?? ''),
+                    'expand_tags' => isset($_POST['expand_tags_present']) ? isset($_POST['expand_tags']) : null,
+                ], $existingPageData ?: null);
+                $data = mikanBoxNormalizeLegacyPage($data); // a "db" status from an old form means output format "mikanBox DB"
+                $data = mikanBoxApplyPageDates($data, $existingPageData ?: null);
+                return $data;
+            });
+            $message = $result['message'] ?? t('msg_page_saved', $id);
+        }
 
-        $updatedAt = $_POST['updated_at'] ?? date('Y-m-d H:i:s');
-
-        $existingPageData = loadData(POSTS_DIR, $oldId ?: $id);
-
-        $data = [
-            'title' => $_POST['title'] ?? '',
-            'category' => trim($_POST['category'] ?? ''),
-            'status' => $status,
-            'description' => $_POST['description'] ?? '',
-            'memo' => $_POST['memo'] ?? '',
-            'keywords' => $_POST['keywords'] ?? '',
-            'ogp_image' => $_POST['ogp_image'] ?? '',
-            'content_md' => $_POST['content_md'] ?? '',
-            'css' => $_POST['css'] ?? '',
-            'js' => $_POST['js'] ?? '',
-            'is_html' => isset($_POST['is_html']) ? true : false,
-            'wrapper_comp' => ($_POST['wrapper_comp'] ?? '') ?: '_layout',
-            'exclude_tracking' => isset($_POST['tracking_option_present']) ? isset($_POST['exclude_tracking']) : !empty($existingPageData['exclude_tracking'] ?? false),
-            'sort_order' => (int)($_POST['sort_order'] ?? 0),
-            'updated_at' => $updatedAt
-        ] + mikanBoxPageFormatFields([
-            'output_format' => (string)($_POST['output_format'] ?? 'html'),
-            'md_footer_comps' => (string)($_POST['md_footer_comps'] ?? ''),
-            'expand_tags' => isset($_POST['expand_tags_present']) ? isset($_POST['expand_tags']) : null,
-        ], $existingPageData ?: null);
-        $data = mikanBoxNormalizeLegacyPage($data); // a "db" status from an old form means output format "mikanBox DB"
-        $data = mikanBoxApplyPageDates($data, $existingPageData ?: null);
-        $updatedAt = $data['updated_at'];
-        $oldFormat = mikanBoxPageOutputFormat($existingPageData);
-        
-        // Save revision of current page state before saving new data
-        $editorUsername = $_SESSION['admin_username'] ?? 'admin';
-        createRevision($id, $editorUsername);
-
-        if (saveData(POSTS_DIR, $id, $data)) {
-            // Delete old file if URL slug (ID) has changed
-            $oldId = $_POST['old_id'] ?? null;
-            if ($oldId && $oldId !== $id) {
-                deleteData(POSTS_DIR, $oldId);
-                if (function_exists('mbv_hist_forget')) mbv_hist_forget($oldId);   // ビジュアル編集の履歴
-                
-                // Update post revisions to map to the new slug
-                try {
-                    $db = getDb();
-                    $stmtUpdate = $db->prepare("UPDATE post_revisions SET post_id = :new_id WHERE post_id = :old_id");
-                    $stmtUpdate->bindValue(':new_id', $id, SQLITE3_TEXT);
-                    $stmtUpdate->bindValue(':old_id', $oldId, SQLITE3_TEXT);
-                    $stmtUpdate->execute();
-                } catch (Exception $e) {}
-
-                // Also delete old static files
-                require_once __DIR__ . '/lib/ssg.php';
-                $ssg = new MikanBoxSSG($renderer, $activeSsgAbsPath);
-                $ssg->deletePage($oldId, $oldFormat);
-            } elseif ($oldFormat !== $data['output_format']) {
-                // The files the previous output format produced (/id.md, /id.json, ...) go away.
-                require_once __DIR__ . '/lib/ssg.php';
-                (new MikanBoxSSG($renderer, $activeSsgAbsPath))->deletePage($id, $oldFormat);
+        $pageSaveFailed = !isset($result['data']);
+        $pageIdConflict = $result['page_id_conflict'] ?? null;
+        if (!$pageSaveFailed) {
+            $data = $result['data'];
+            $updatedAt = $data['updated_at'];
+            require_once __DIR__ . '/lib/ssg.php';
+            $ssg = new MikanBoxSSG($renderer, $activeSsgAbsPath);
+            if ($oldId !== '' && $oldId !== $id) {
+                if (function_exists('mbv_hist_forget')) mbv_hist_forget($oldId);
+                $ssg->deletePage($oldId, mikanBoxPageOutputFormat($result['source']));
+            }
+            if ($result['target'] !== null) {
+                if ($id !== $oldId && function_exists('mbv_hist_forget')) mbv_hist_forget($id);
+                $targetFormat = mikanBoxPageOutputFormat($result['target']);
+                if ($targetFormat !== $data['output_format']) $ssg->deletePage($id, $targetFormat);
             }
 
-            // --- Automatic SSG Build/Delete Check ---
-            require_once __DIR__ . '/lib/ssg.php';
             $ssgOpts = [
                 'structure' => $settings['ssg_structure'] ?? 'directory',
                 'copy_media' => ($settings['ssg_mode'] ?? 'server') === 'export',
@@ -425,26 +402,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
             if ($status !== 'public_static') {
                 $ssg->deletePage($id);
             }
-            // ----------------------------------------
-            if ($id !== 'index') {
-                $editId = $id; 
-            }
-            $message = t('msg_page_saved', $id);
-            
-            // Redirect if from preview button
+
             if (isset($_POST['save_and_preview'])) {
-                // Use renderer to get canonical link (already root-relative)
-                $previewUrl = $renderer->getPageLink($id, '');
-                // Convert to relative if needed, but since it's / based, it should work fine from root
-                // Actually, header("Location: /path") works.
-                header("Location: " . $previewUrl);
+                header('Location: ' . $renderer->getPageLink($id, ''));
                 exit;
             }
-            $editId = $id; // Keep in edit mode after creation
-        } else {
-            $message = t('err_page_save');
+            $editId = $id;
         }
-        } // end duplicate slug check
     }
     elseif ($_POST['save_action'] === 'save_page_status') {
         $id = $_POST['id'];
@@ -881,6 +845,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $settings['ssg_structure'] = $settings['ssg_mode'] === 'export' ? $settings['ssg_export_structure'] : $settings['ssg_server_structure'];
         $settings['ssg_link_mode'] = in_array($_POST['ssg_link_mode'] ?? '', ['relative', 'absolute'], true) ? $_POST['ssg_link_mode'] : 'relative';
         if (isset($_POST['ssg_root_url'])) $settings['ssg_root_url'] = trim($_POST['ssg_root_url']);
+        try {
+            $settings = mikanBoxApplySsgMediaLocation($settings, $_POST);
+        } catch (RuntimeException $error) {
+            mikanBoxAdminDone('admin.php?view=settings#ssg', $error->getMessage(), [], false);
+        }
         if (saveSettings($settings)) {
             $message = t('msg_update_success');
         } else {
@@ -928,6 +897,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_action'])) {
         $settings['ssg_mode'] = $ssgMode;
         $settings['ssg_link_mode'] = $ssgLinkMode;
         if (isset($_POST['ssg_root_url'])) $settings['ssg_root_url'] = trim($_POST['ssg_root_url']);
+        try {
+            $settings = mikanBoxApplySsgMediaLocation($settings, $_POST);
+        } catch (RuntimeException $error) {
+            mikanBoxAdminDone('admin.php?view=settings#ssg', $error->getMessage(), [], false);
+        }
         $renderer = new MikanBoxRenderer($settings);
 
         $ssgOpts = [
@@ -1180,15 +1154,19 @@ skip_post_actions:
 // Return JSON response for AJAX saves and skip rendering page
 if (isset($_POST['ajax_request'])) {
     $responseData = [
-        'success' => $success ?? true,
+        'success' => ($success ?? true) && empty($pageSaveFailed),
         'message' => $message ?? t('msg_update_success'),
         'editId' => $editId ?? null
     ];
     if (isset($resolvedFilename)) {
         $responseData['filename'] = $resolvedFilename;
     }
+    if (isset($pageIdConflict)) {
+        http_response_code(409);
+        $responseData['page_id_conflict'] = $pageIdConflict;
+    }
     // Compute preview URL for page saves so JS can inject/update the preview button
-    if (($_POST['save_action'] ?? '') === 'save_page' && !empty($editId)) {
+    if (($_POST['save_action'] ?? '') === 'save_page' && empty($pageSaveFailed) && isset($editId)) {
         $savedStatus = $_POST['status'] ?? 'draft';
         $ssgStruct = $settings['ssg_structure'] ?? 'directory';
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -2516,7 +2494,7 @@ function getIcon($name) {
 
     let _spaEditorAbortController = null;
 
-    function spaOpenEditor(type, editId, revId = null) {
+    function spaOpenEditor(type, editId, revId = null, afterSave = false) {
         // Release old lock of same type if any
         releaseLockFrontend(type);
 
@@ -2544,7 +2522,7 @@ function getIcon($name) {
         // （空にしてから読み込むと、画面が一瞬縮んで位置が飛ぶ）
         const replacing = !!document.getElementById(editorId);
 
-        fetch(url, { signal: _spaEditorAbortController.signal })
+        return fetch(url, { signal: _spaEditorAbortController.signal })
             .then(r => r.text())
             .then(html => {
                 const slot = document.getElementById(slotId);
@@ -2584,7 +2562,7 @@ function getIcon($name) {
                 if (revId) editorParams.set('rev', revId);
                 if (qVal) editorParams.set('q', qVal);
                 const newUrl = 'admin.php?' + editorParams.toString() + '#' + editorId;
-                history.pushState({ spaEditor: true, type, editId, revId }, '', newUrl);
+                if (!afterSave) history.pushState({ spaEditor: true, type, editId, revId }, '', newUrl);
 
                 if (editId) {
                     acquireLockFrontend(type, editId);
@@ -2592,7 +2570,7 @@ function getIcon($name) {
 
                 // 開くときも、どのエディタも同じ動き: 先頭へスクロールしながら、新しく開くときだけ育つように現れる
                 // (タイマーで始める: 裏のタブではアニメーションのフレームが止まるため)
-                setTimeout(() => settleScroll(() => ({ el: document.getElementById(editorId), block: 'start' })), 0);
+                if (!afterSave) setTimeout(() => settleScroll(() => ({ el: document.getElementById(editorId), block: 'start' })), 0);
                 if (!replacing) MikanUI.expand(editor);
             })
             .catch(err => {
@@ -2879,28 +2857,16 @@ function getIcon($name) {
                     document.getElementById('btn-modal-save').disabled = true;
                     
                     try {
-                        const formData = new FormData(form);
-                        // Only override save_action when the button itself declares a name
-                        // (e.g. delete buttons). Some save buttons (like the component editor's)
-                        // rely solely on the form's hidden save_action input and have no name/value
-                        // of their own — appending an empty pair here would clobber that hidden value.
-                        if (saveBtn.name) {
-                            formData.append(saveBtn.name, saveBtn.value);
-                        }
-                        formData.append('ajax_request', '1');
-                        const res = await fetch(window.location.href, { method: 'POST', body: formData });
-                        if (res.ok) {
-                            const json = await res.json().catch(() => ({}));
-                            if (json.success) {
-                                window.isDirty = false;
-                                unsavedModal.style.display = 'none';
-                                spaHandlePendingNavigation();
-                            } else {
-                                showToast(json.message || '<?= t('err_save_failed') ?>', true);
-                            }
-                        } else {
-                            showToast('<?= t('err_save_failed') ?>', true);
+                        const result = form.id === 'page-form'
+                            ? await MikanUI.postPage(form, saveBtn, () => { unsavedModal.style.display = 'none'; })
+                            : await MikanUI.post(form, saveBtn);
+                        if (result.cancelled) return;
+                        if (result.ok) {
+                            window.isDirty = false;
                             unsavedModal.style.display = 'none';
+                            spaHandlePendingNavigation();
+                        } else {
+                            showToast(result.json.message || '<?= t('err_save_failed') ?>', true);
                         }
                     } catch(e) {
                         showToast('<?= t('err_network_error_detail') ?>', true);
@@ -2940,9 +2906,14 @@ function getIcon($name) {
                     if (!formData.has('save_action') && actionInput) formData.append('save_action', actionInput.value);
                     formData.append('ajax_request', '1');
                     
-                    const res = await fetch(window.location.href, { method: 'POST', body: formData });
-                    if (res.ok) {
-                        const json = await res.json().catch(()=>({}));
+                    const result = action === 'save_page'
+                        ? await MikanUI.postPage(form, submitter)
+                        : await fetch(window.location.href, { method: 'POST', body: formData }).then(async res => {
+                            return { ok: res.ok, json: await res.json().catch(() => ({})) };
+                        });
+                    if (result.cancelled) return;
+                    const { ok, json } = result;
+                    if (ok) {
                         if (json.success === false) { showToast(json.message || <?= json_encode(t('err_save_failed')) ?>, true); return; }
                         window.isDirty = false;
                         showToast(json.message || '<?= t('msg_update_success') ?? '保存しました' ?>', !json.success);
@@ -2954,18 +2925,28 @@ function getIcon($name) {
                             return;
                         }
 
-                        // update old_id for new records seamlessly without reload
-                        const idInput = form.querySelector('input[name="id"]');
-                        const oldIdInput = form.querySelector('input[name="old_id"]');
-                        if (oldIdInput && idInput && !oldIdInput.value) {
+                        const idInput = form.elements.namedItem('id');
+                        const oldIdInput = form.elements.namedItem('old_id');
+                        if (action === 'save_page' && typeof json.editId === 'string') {
+                            const previousId = oldIdInput.value;
+                            idInput.value = oldIdInput.value = json.editId;
+                            if (json.editId !== previousId) {
+                                const params = listUrlParams('pages');
+                                params.set('edit', json.editId);
+                                history.replaceState({ spaEditor: true, type: 'page', editId: json.editId }, '', 'admin.php?' + params + '#page-editor');
+                                refreshPageList();
+                                await spaOpenEditor('page', json.editId, null, true);
+                                return;
+                            }
+                        } else if (oldIdInput && idInput && !oldIdInput.value) {
                             oldIdInput.value = idInput.value;
                         }
 
-                        // Refresh page/comp list in background after save
                         if (action === 'save_page') {
                             refreshPageList();
                             const newId = idInput ? idInput.value : '';
                             if (newId && pageLockedId !== newId) {
+                                await releaseLockFrontend('page');
                                 acquireLockFrontend('page', newId);
                             }
 
@@ -3065,8 +3046,7 @@ function getIcon($name) {
                         }
                     } else {
                         // 401 (signed out) and 403 (stale token) come back as JSON with their own message.
-                        const failure = await res.json().catch(()=>({}));
-                        showToast(failure.message || '<?= t('err_save_failed') ?>', true);
+                        showToast(json.message || '<?= t('err_save_failed') ?>', true);
                     }
                 } catch(err) {
                     showToast('<?= t('err_network_error') ?>', true);

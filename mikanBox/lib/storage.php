@@ -12,6 +12,12 @@ function mikanBoxResolveMediaDirectory($configured, string $core, string $data):
     if ($path === false || !is_dir($path)) {
         throw new RuntimeException('MIKANBOX_MEDIA_DIR must be an existing absolute directory.');
     }
+    mikanBoxValidateMediaDirectoryPath($path, $core, $data);
+    return rtrim($path, '/\\');
+}
+
+function mikanBoxValidateMediaDirectoryPath(string $path, string $core, string $data): void {
+    $site = dirname($core);
     $normalize = fn($value) => strtolower(rtrim(str_replace('\\', '/', $value), '/')) . '/';
     $media = $normalize($path);
     if (str_starts_with($normalize(realpath($site) ?: $site), $media)) {
@@ -23,7 +29,6 @@ function mikanBoxResolveMediaDirectory($configured, string $core, string $data):
             throw new RuntimeException('MIKANBOX_MEDIA_DIR must be separate from private mikanBox directories.');
         }
     }
-    return rtrim($path, '/\\');
 }
 
 function mikanBoxNormalizeMediaUrl($configured): string {

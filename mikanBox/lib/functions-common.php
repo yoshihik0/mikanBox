@@ -828,6 +828,7 @@ function mikanBoxSiteBasePath(array $settings): string {
 
 /** The site URL as it is being served right now (scheme, host and base path, no trailing slash). */
 function mikanBoxDynamicSiteUrl(array $settings): string {
+    unset($settings['ssg_root_url']);
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     // The Host header comes from the visitor. A real host name has no character that escaping
     // changes; anything else is shown as text and can never form a {{TAG}}.
@@ -897,13 +898,6 @@ function mikanBoxPageIsListed($pageData): bool {
     return !mikanBoxIsDataFormat($format) && !mikanBoxIsApiFormat($format);
 }
 
-/** Markdown versions use absolute URLs, so they need a site URL. Only a relative export without one lacks it. */
-function mikanBoxMarkdownAvailable(array $settings): bool {
-    $isRelativeExport = ($settings['ssg_mode'] ?? 'server') === 'export'
-        && ($settings['ssg_link_mode'] ?? 'relative') === 'relative';
-    return !$isRelativeExport || trim((string)($settings['ssg_root_url'] ?? '')) !== '';
-}
-
 /** Footer component IDs, in order: wrappers, AI documents and unknown IDs are dropped. */
 function mikanBoxNormalizeFooterComponents($value): array {
     if (is_string($value)) $value = explode(',', $value);
@@ -964,12 +958,37 @@ function mikanBoxValidatePageSave($id, $oldId, array $data, array $settings): ?s
         return t('err_output_format_invalid');
     }
     if (mikanBoxIsErrorPage($id) && $format !== 'html') return t('err_output_format_404');
-    if (mikanBoxFormatHasMarkdown($format) && !mikanBoxMarkdownAvailable($settings)) return t('err_output_format_md_unavailable');
     $extension = mikanBoxFormatExtension($format);
     if ($extension !== null && in_array(strtolower($id . '.' . $extension), ['sitemap.xml', 'rss.xml', 'podcast.xml'], true)) {
         return t('err_output_format_reserved', $id . '.' . $extension);
     }
     return null;
+}
+
+function mikanBoxSaveEditorPage(string $id, string $oldId, string $confirmation, callable $prepare): array {
+    return mikanBoxWithEditorPageWrite(function () use ($id, $oldId, $confirmation, $prepare) {
+        $source = $oldId === '' ? null : mikanBoxLoadExactPage($oldId);
+        if ($oldId !== '' && $source === null) return ['message' => t('err_page_save')];
+        $target = $id === $oldId ? $source : mikanBoxLoadExactPage($id);
+        if ($id !== $oldId && $target !== null) {
+            $token = hash('sha256', serialize([$id, $oldId, $target]));
+            if (!hash_equals($token, $confirmation)) {
+                return [
+                    'message' => t($oldId === '' ? 'page_id_conflict_message' : 'page_id_conflict_rename', $id, $oldId),
+                    'page_id_conflict' => [
+                        'id' => $id,
+                        'token' => $token,
+                        'title' => t('page_id_conflict_title'),
+                        'overwrite' => t('transfer_mode_overwrite'),
+                        'change_id' => t('page_id_conflict_change'),
+                    ],
+                ];
+            }
+        }
+        $data = $prepare(mikanBoxNormalizeLegacyPage($source ?? $target));
+        if (!mikanBoxCommitEditorPage($id, $oldId, $data, $target)) return ['message' => t('err_page_save')];
+        return ['data' => $data, 'source' => mikanBoxNormalizeLegacyPage($source), 'target' => mikanBoxNormalizeLegacyPage($target)];
+    });
 }
 
 /**
@@ -1015,6 +1034,11 @@ function mikanBoxPublicPageUrl($pid, $data, array $settings, $staticRelPath): ?s
     $status = $data['status'] ?? 'draft';
     if (!in_array($status, ['public_dynamic', 'public_static'], true)) return null;
     $root = $status === 'public_static' ? $staticRelPath : '../';
+    $publicMediaUrl = $settings['media_output']['url'] ?? '';
+    if ($status === 'public_static' && ($settings['ssg_mode'] ?? 'server') === 'server'
+        && is_string($settings['media_output']['directory'] ?? null) && str_ends_with($publicMediaUrl, '/media/')) {
+        $root = substr($publicMediaUrl, 0, -6);
+    }
     $format = mikanBoxPageOutputFormat($data);
     if (mikanBoxIsApiFormat($format)) return $root . 'api/' . $pid . '.json';
     $extension = mikanBoxFormatExtension($format);
@@ -1131,20 +1155,47 @@ function generateRssXml($settings) {
 }
 
 function mikanBoxConfiguredMediaUrl(): string {
-    return defined('MEDIA_BASE_URL') ? MEDIA_BASE_URL : '';
+    return $GLOBALS['mikanbox_media_url'] ?? (defined('MEDIA_BASE_URL') ? MEDIA_BASE_URL : '');
+}
+
+function mikanBoxMediaUrlPrefixes(): array {
+    $current = mikanBoxConfiguredMediaUrl();
+    $previous = $GLOBALS['mikanbox_settings']['media_output']['previous_urls'] ?? [];
+    return array_values(array_filter(array_merge([$current], $previous)));
+}
+
+function mikanBoxMediaRelativeUrl(string $url): ?string {
+    foreach (mikanBoxMediaUrlPrefixes() as $base) {
+        $prefix = $base;
+        if (str_starts_with($url, '//')) {
+            $prefix = substr($base, strpos($base, ':') + 1);
+        } elseif (str_starts_with($url, '/')) {
+            $prefix = (string)parse_url($base, PHP_URL_PATH);
+        }
+        if ($prefix !== '' && str_starts_with($url, $prefix)) return substr($url, strlen($prefix));
+    }
+    return null;
+}
+
+function mikanBoxMediaDirectory(): string {
+    return $GLOBALS['mikanbox_media_directory'] ?? MEDIA_DIR;
 }
 
 function generatePodcastXml($settings) {
     $renderer  = new MikanBoxRenderer($settings);
     $siteUrl   = rtrim($renderer->getSiteUrl(), '/');
     $mediaUrl  = $renderer->getMediaBaseUrl();
+    $resolveMedia = function (string $url) use ($mediaUrl): string {
+        if ($url === '') return '';
+        $local = mikanBoxMediaRelativeUrl($url);
+        if ($local !== null && mediaValidFilename((string)parse_url($local, PHP_URL_PATH))) return $mediaUrl . $local;
+        if (preg_match('/^https?:\/\//i', $url)) return $url;
+        return $mediaUrl . preg_replace('~^media/~', '', ltrim($url, '/'));
+    };
     $siteTitle = htmlspecialchars($settings['site_name'] ?? 'mikanBox');
     $siteDesc  = htmlspecialchars($settings['description'] ?? '');
     $author    = $siteTitle;
-    $ogpImage  = $settings['ogp_image'] ?? '';
-    if (!empty($ogpImage) && !preg_match('/^https?:\/\//', $ogpImage)) {
-        $ogpImage = $mediaUrl . ltrim($ogpImage, '/');
-    }
+    $ogpImage  = $resolveMedia($settings['ogp_image'] ?? '');
     $allPosts = getSortedPostIds();
     $items = [];
     foreach ($allPosts as $pageId) {
@@ -1172,9 +1223,8 @@ function generatePodcastXml($settings) {
             preg_match('/\{\{DATA:' . $key . '(?::GHOST)?\}\}([^{]+)\{\{\/DATA\}\}/i', $content, $m);
             return trim($m[1] ?? '');
         };
-        $audioFile   = $dataGet('AUDIO_FILE');
+        $audioFile   = $resolveMedia($dataGet('AUDIO_FILE'));
         if (empty($audioFile)) continue;
-        if (!preg_match('/^https?:\/\//', $audioFile)) $audioFile = $mediaUrl . $audioFile;
         $duration    = $dataGet('DURATION');
         $fileSize    = (int)$dataGet('FILE_SIZE');
         $episodeNum  = $dataGet('EPISODE_NUM');
@@ -1182,10 +1232,7 @@ function generatePodcastXml($settings) {
         $subtitle    = $dataGet('SUBTITLE');
         $episodeType = $dataGet('EPISODE_TYPE') ?: 'full';
         $explicit    = $dataGet('EXPLICIT') ?: 'false';
-        $epImage     = $dataGet('EPISODE_IMAGE');
-        if (!empty($epImage) && !preg_match('/^https?:\/\//', $epImage)) {
-            $epImage = $mediaUrl . $epImage;
-        }
+        $epImage     = $resolveMedia($dataGet('EPISODE_IMAGE'));
         $ext     = strtolower(pathinfo($audioFile, PATHINFO_EXTENSION));
         $mime    = ['mp3' => 'audio/mpeg', 'm4a' => 'audio/mp4', 'ogg' => 'audio/ogg', 'wav' => 'audio/wav'][$ext] ?? 'audio/mpeg';
         $title   = htmlspecialchars($data['title'] ?? $item['id']);
@@ -1566,7 +1613,11 @@ function mediaResetImageFlow() {
  * or null when it is remote, missing, or a format with no pixel dimensions.
  */
 function mediaLocalPathForUrl($url) {
-    if (preg_match('#^(?:https?:)?//#i', $url)) return null;
+    if (preg_match('#^(?:https?:)?//#i', $url)) {
+        $url = mikanBoxMediaRelativeUrl($url);
+        if ($url === null) return null;
+        if (!mediaValidFilename((string)parse_url($url, PHP_URL_PATH))) return null;
+    }
     $name = basename((string)parse_url($url, PHP_URL_PATH));
     if ($name === '' || strtolower(pathinfo($name, PATHINFO_EXTENSION)) === 'svg') return null;
     $path = MEDIA_DIR . '/' . $name;

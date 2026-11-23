@@ -112,10 +112,10 @@ REGEX, $text, $matches, PREG_SET_ORDER | PREG_UNMATCHED_AS_NULL);
         mikanBoxTransferMediaReference($match[1] ?? $match[2], $used);
     }
     if ($script) {
-        preg_match_all(<<<'REGEX'
-~["']((?:\{\{\s*(?:SITE_URL|BASE_URL)\s*\}\}/|(?:\.{1,2}/)*|/)media/[^"'\s<>]+)["']~i
-REGEX, $text, $literals);
-        foreach ($literals[1] as $literal) mikanBoxTransferMediaReference($literal, $used);
+        $bases = '(?:\{\{\s*(?:SITE_URL|BASE_URL)\s*\}\}/|(?:\.{1,2}/)*|/)media/';
+        foreach (mikanBoxMediaUrlPrefixes() as $base) $bases .= '|' . preg_quote($base, '~');
+        preg_match_all('~(["\x27`])((?:' . $bases . ')[^"\x27`\s<>]+)\1~i', $text, $literals);
+        foreach ($literals[2] as $literal) mikanBoxTransferMediaReference($literal, $used);
     }
     preg_match_all('~\bsrcset\s*=\s*(["\'])(.*?)\1~is', $text, $sets);
     foreach ($sets[2] as $set) {
@@ -127,8 +127,7 @@ REGEX, $text, $literals);
 
 function mikanBoxTransferMediaReference(string $path, array &$used): void {
     $path = preg_replace('~^\{\{\s*(?:SITE_URL|BASE_URL)\s*\}\}/~i', '/', trim($path));
-    $mediaUrl = mikanBoxConfiguredMediaUrl();
-    if ($mediaUrl !== '' && str_starts_with($path, $mediaUrl)) $path = substr($path, strlen($mediaUrl));
+    $path = mikanBoxMediaRelativeUrl($path) ?? $path;
     $path = rawurldecode(preg_split('~[?#]~', $path, 2)[0]);
     if (preg_match('~^(?:(?:\.{1,2}/)*(?:(?:media|images)/)?|/(?:[A-Za-z0-9_.-]+/)*(?:media|images)/|/)([A-Za-z0-9_.-]+)$~', $path, $match)
         && preg_match('~\.(?:jpe?g|png|gif|webp|svg|mp3|m4a|mp4|js|css)$~i', $match[1])) {

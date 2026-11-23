@@ -26,7 +26,7 @@ class MikanBoxRenderer {
     // 'data' the body of a data-format page (json, xml, csv, txt, js, css).
     private $outputMode = 'html';
     private $dataFormat = '';
-    private $forceAbsolute = false;   // Markdown versions always use absolute URLs
+    private $forceAbsolute = false;   // Markdown versions use absolute URLs, except in a relative export without a published root URL
     private $linkToMarkdown = false;  // in Markdown versions, link to other pages' Markdown versions
     private $currentPageInfo = [];    // stored fields of the page being rendered (for @same)
     private $pageCache = [];
@@ -304,9 +304,10 @@ class MikanBoxRenderer {
         }
         if ($trackingCode !== null) $trackingHtml = $trackingCode['head'];
         // A page that also publishes a Markdown version announces it, the way RSS is discovered.
-        if (mikanBoxPageOutputFormat($pageData) === 'html_md' && mikanBoxMarkdownAvailable($this->siteSettings)) {
+        if (mikanBoxPageOutputFormat($pageData) === 'html_md') {
+            $markdownHref = $this->markdownIsRelative() ? $this->extensionUrl($pageId, 'md') : $this->absoluteExtensionUrl($pageId, 'md');
             $trackingHtml = '<link rel="alternate" type="text/markdown" href="'
-                . htmlspecialchars($this->absoluteExtensionUrl($pageId, 'md'), ENT_QUOTES) . '">' . $trackingHtml;
+                . htmlspecialchars($markdownHref, ENT_QUOTES) . '">' . $trackingHtml;
         }
         $html = $this->completeHead($html, $pageTitle, $pageDesc, $this->resolveMediaUrl(resolveMediaPath($ogpImage)), $trackingHtml);
         if ($trackingCode !== null) $html = $this->insertBodyStart($html, $trackingCode['body']);
@@ -317,7 +318,7 @@ class MikanBoxRenderer {
             $cssMediaBase = mikanBoxConfiguredMediaUrl() !== '' || $this->bundledMedia || $this->isRelativeStaticMode()
                 ? $this->getMediaBaseUrl()
                 : $this->getSiteBasePath() . 'media/';
-            $cssLine = $this->rewriteAbsoluteCssMedia($cssLine);
+            $cssLine = $this->rewriteCssMediaUrls($cssLine);
             $cssLine = preg_replace_callback(
                 '/url\(\s*(["\']?)(?:images|media)\/([^)"\']+)\1\s*\)/i',
                 fn($m) => 'url(' . $m[1] . $cssMediaBase . $m[2] . $m[1] . ')',
@@ -664,6 +665,11 @@ class MikanBoxRenderer {
         return $this->staticMode && $this->ssgLinkMode === 'relative' && !$this->forceAbsolute;
     }
 
+    /** A relative export with no published root URL: Markdown versions then use relative links too. */
+    private function markdownIsRelative() {
+        return $this->staticMode && $this->ssgLinkMode === 'relative' && $this->getConfiguredSiteUrl() === '';
+    }
+
     private function getStaticRootPrefix() {
         return str_repeat('../', max(0, (int)$this->depth));
     }
@@ -699,7 +705,11 @@ class MikanBoxRenderer {
 
     private function rewriteAbsoluteMediaUrl(string $url): string {
         $configured = mikanBoxConfiguredMediaUrl();
-        $bases = [$configured];
+        $local = mikanBoxMediaRelativeUrl($url);
+        if ($local !== null && preg_match('/\A[A-Za-z0-9_.-]+(?:[?#][^\s]*)?\z/', $local)) {
+            return $this->getMediaBaseUrl() . $local;
+        }
+        $bases = [];
         if ($configured !== '' || $this->isRelativeStaticMode()) {
             foreach ([$this->getSiteUrl(), mikanBoxDynamicSiteUrl($this->siteSettings), $this->siteSettings['site_url'] ?? '', $this->getConfiguredSiteUrl()] as $root) {
                 if ($root !== '') $bases[] = rtrim($root, '/') . '/media/';
@@ -715,20 +725,59 @@ class MikanBoxRenderer {
         return $url;
     }
 
-    private function rewriteAbsoluteCssMedia(string $css): string {
-        return preg_replace_callback('/url\(\s*(["\']?)(https?:\/\/[^)"\'\s]+)\1\s*\)/i',
-            fn($m) => 'url(' . $m[1] . $this->rewriteAbsoluteMediaUrl($m[2]) . $m[1] . ')', $css);
+    private function rewriteCssMediaUrls(string $css): string {
+        return preg_replace_callback('/url\(\s*(["\']?)((?:https?:\/\/|\/)[^)"\'\s]+|[A-Za-z0-9_.-]+(?:[?#][^)"\'\s]+)?)\1\s*\)/i',
+            function ($m) {
+                $url = mikanBoxConfiguredMediaUrl() !== '' ? $this->rewriteMediaCandidateUrl($m[2]) : $this->rewriteAbsoluteMediaUrl($m[2]);
+                return $url === $m[2] ? $m[0] : 'url(' . $m[1] . $url . $m[1] . ')';
+            }, $css);
     }
 
-    private function rewriteAbsoluteMediaAttributes(string $text): string {
+    private function rewriteMediaAttributes(string $text): string {
         if (mikanBoxConfiguredMediaUrl() === '') return $text;
-        return preg_replace_callback('~(<(?:a|img|video|audio|source|script|link)\b[^>]*?\s(?:src|href|poster)\s*=\s*)(["\'])(https?://[^"\']+)\2~i',
-            fn($m) => $m[1] . $m[2] . $this->rewriteAbsoluteMediaUrl($m[3]) . $m[2], $text);
+        return preg_replace_callback('~<(?:a|img|video|audio|source|script|link)\b(?:[^"\'<>]++|"[^"]*"|\'[^\']*\')*+>~i', function ($tag) {
+            return preg_replace_callback('~(\s([\w:-]+)\s*=\s*)(["\'])(.*?)\3~s', function ($attr) {
+                $value = $attr[4];
+                switch (strtolower($attr[2])) {
+                    case 'srcset':
+                        // A URL may contain commas. Preserve commas within a URL token and
+                        // rewrite each candidate up to the next descriptor or separator.
+                        $value = preg_replace_callback('~\G([\s,]*)(\S++)(?:(?<=,)|([^,]*,?))~',
+                            function ($candidate) {
+                                $url = rtrim($candidate[2], ',');
+                                return $candidate[1] . $this->rewriteMediaCandidateUrl($url)
+                                    . substr($candidate[2], strlen($url)) . ($candidate[3] ?? '');
+                            }, $value) ?? $value;
+                        break;
+                    case 'src':
+                    case 'href':
+                        $value = $this->rewriteAbsoluteMediaUrl($value);
+                        break;
+                    case 'poster':
+                        $value = $this->rewriteMediaCandidateUrl($value);
+                        break;
+                }
+                return $attr[1] . $attr[3] . $value . $attr[3];
+            }, $tag[0]) ?? $tag[0];
+        }, $text) ?? $text;
+    }
+
+    private function rewriteMediaCandidateUrl(string $url): string {
+        if (preg_match('~\A(?:\./)?(?:media|images)/([A-Za-z0-9_.-]+(?:[?#][^\s]*)?)\z~', $url, $m)) {
+            return $this->getMediaBaseUrl() . $m[1];
+        }
+        if (preg_match('~\A([A-Za-z0-9_.-]+)(?:[?#][^\s]*)?\z~', $url, $m)
+            && mediaValidFilename($m[1]) && is_file(mikanBoxMediaDirectory() . '/' . $m[1])) {
+            return $this->getMediaBaseUrl() . $url;
+        }
+        return $this->rewriteAbsoluteMediaUrl($url);
     }
 
     private function resolveMediaUrl($url) {
         if (empty($url)) return $url;
         if (preg_match('/^(?:https?:\/\/|data:)/i', $url)) return $this->rewriteAbsoluteMediaUrl($url);
+        $rewritten = $this->rewriteAbsoluteMediaUrl($url);
+        if ($rewritten !== $url) return $rewritten;
         $path = ltrim($url, '/');
         if (str_starts_with($path, 'media/')) return $this->getMediaBaseUrl() . substr($path, 6);
         if ($this->isRelativeStaticMode()) {
@@ -973,7 +1022,7 @@ class MikanBoxRenderer {
             $attrs = $m[2];
             $src = $m[3];
 
-            if (preg_match('/^(?:https?:\/\/|data:)/i', $src)) {
+            if (preg_match('~^(?:(?:https?:)?//|data:)~i', $src)) {
                 $rewritten = $this->rewriteAbsoluteMediaUrl($src);
                 return $rewritten === $src ? $m[0] : "<{$tag}{$attrs}src=\"{$rewritten}\"";
             }
@@ -982,7 +1031,7 @@ class MikanBoxRenderer {
             $filename = basename($src);
             return "<{$tag}{$attrs}src=\"{$mediaBase}{$filename}\"";
         }, $html);
-        $html = $this->rewriteAbsoluteCssMedia($this->rewriteAbsoluteMediaAttributes($html));
+        $html = $this->rewriteCssMediaUrls($this->rewriteMediaAttributes($html));
         return preg_replace_callback(
             '/url\(\s*(["\']?)(?:images|media)\/([^)"\']+)\1\s*\)/i',
             fn($m) => 'url(' . $m[1] . $mediaBase . $m[2] . $m[1] . ')',
@@ -1446,7 +1495,7 @@ class MikanBoxRenderer {
     private function beginOutput($pageId, $mode, $format, array $pageData) {
         $this->outputMode = $mode;
         $this->dataFormat = $format;
-        $this->forceAbsolute = $mode === 'md';
+        $this->forceAbsolute = $mode === 'md' && !$this->markdownIsRelative();
         $this->linkToMarkdown = $mode === 'md';
         $this->pageCache = [];
         $this->currentPageId = $pageId;
@@ -1502,7 +1551,8 @@ class MikanBoxRenderer {
 
     /**
      * The Markdown version: front matter, the saved Markdown with tags handled for
-     * Markdown readers, then the chosen footer components. Every URL is absolute.
+     * Markdown readers, then the chosen footer components. Every URL is absolute (relative in a
+     * relative export without a published root URL, where the front matter has no url).
      * Returns null when the page has no Markdown version or is private.
      */
     public function renderMarkdown($pageId, $previewData = null) {
@@ -1523,7 +1573,7 @@ class MikanBoxRenderer {
             $quote = fn($v) => '"' . str_replace(['\\', '"', "\r\n", "\r", "\n"], ['\\\\', '\\"', '\n', '\n', '\n'], (string)$v) . '"';
             $front = ['---', 'title: ' . $quote($pageData['title'] ?? $pageId), 'date: ' . substr((string)($pageData['updated_at'] ?? date('Y-m-d H:i:s')), 0, 10)];
             if (trim((string)($pageData['description'] ?? '')) !== '') $front[] = 'description: ' . $quote(trim($pageData['description']));
-            if (mikanBoxPageOutputFormat($pageData) === 'html_md') {
+            if (mikanBoxPageOutputFormat($pageData) === 'html_md' && !$this->markdownIsRelative()) {
                 $this->linkToMarkdown = false;
                 $front[] = 'url: ' . $quote($this->buildPageUrl($pageId));
                 $this->linkToMarkdown = true;
@@ -1559,7 +1609,7 @@ class MikanBoxRenderer {
         $text = $this->replaceBasicTags($text, $pageData, ...$this->pageMeta($pageData));
         $text = $this->replaceNavTags($text);
         $text = $this->replaceTextContentTags($text, $depth);
-        $text = $this->rewriteAbsoluteMediaAttributes($this->completeMarkdownLinks($text));
+        $text = $this->rewriteMediaAttributes($this->completeMarkdownLinks($text));
         // Removed tags can leave runs of empty lines; code blocks are still protected here.
         $text = preg_replace("/\n[ \t]*\n(?:[ \t]*\n)+/", "\n\n", $text);
         // Restore in reverse order: a comment may contain a code placeholder.
@@ -1661,13 +1711,16 @@ class MikanBoxRenderer {
         $origin = preg_match('~\A(https?://[^/]+)~i', $siteUrl, $o) ? $o[1] : $siteUrl;
         return preg_replace_callback('/(!?)\[((?:\\\\.|[^\[\]\n\\\\])*)\]\(\s*([^)\s]+)((?:\s+"[^"\n]*")?)\s*\)/u', function($m) use ($allPosts, $siteUrl, $origin) {
             $url = $m[3];
-            if (preg_match('/^(?:[a-z][a-z0-9+.\-]*:|\/\/|#)/i', $url)) {
-                $resolved = $this->rewriteAbsoluteMediaUrl($url);
-                if ($resolved === $url) return $m[0];
-            } elseif ($m[1] === '!') {
+            $resolved = $this->rewriteAbsoluteMediaUrl($url);
+            if ($resolved !== $url) {
+                return $m[1] . '[' . $m[2] . '](' . $this->escapeMarkdownUrl($resolved) . $m[4] . ')';
+            }
+            if (preg_match('/^(?:[a-z][a-z0-9+.\-]*:|\/\/|#)/i', $url)) return $m[0];
+            if ($m[1] === '!') {
                 $resolved = $this->getMediaBaseUrl() . basename(parse_url($url, PHP_URL_PATH) ?: $url);
             } else {
                 $resolved = $this->resolveInternalLink($url, $allPosts);
+                if ($resolved === null && $this->markdownIsRelative()) return $m[0];
                 if ($resolved === null) {
                     if ($url === './' || $url === '.') $resolved = $siteUrl . '/';
                     elseif (str_starts_with($url, '/')) $resolved = $origin . $url;

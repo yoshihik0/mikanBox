@@ -68,7 +68,7 @@ function mikanBoxIntegrityMediaChanged(string $name, bool $deleted, string $from
     $code = in_array(mikanBoxIntegrityExt($name), MIKANBOX_INTEGRITY_CODE_EXT, true);
     $fromCode = $from !== '' && in_array(mikanBoxIntegrityExt($from), MIKANBOX_INTEGRITY_CODE_EXT, true);
     if (!$code && !$fromCode) return;
-    $hash = (!$deleted && $code && defined('MEDIA_DIR') && is_file(MEDIA_DIR . '/' . $name)) ? (string)hash_file('sha256', MEDIA_DIR . '/' . $name) : '';
+    $hash = (!$deleted && $code && defined('MEDIA_DIR') && is_file(mikanBoxMediaDirectory() . '/' . $name)) ? (string)hash_file('sha256', mikanBoxMediaDirectory() . '/' . $name) : '';
     mikanBoxIntegrityMutate(function(&$state) use ($name, $deleted, $from, $hash, $fromCode) {
         $state['media'] ??= ['files' => [], 'complete' => false];
         if ($fromCode) unset($state['media']['files'][$from]);
@@ -194,7 +194,7 @@ function mikanBoxIntegrityCheckPublic(string $outputDir, array $state): array {
     if ($complete) {
         $site = str_replace('\\', '/', (string)(realpath(dirname(CORE_DIR)) ?: dirname(CORE_DIR)));
         $skip = [];
-        foreach ([CORE_DIR, defined('DATA_DIR') ? DATA_DIR : '', defined('MEDIA_DIR') ? MEDIA_DIR : ''] as $dir) if ($dir !== '' && ($real = realpath($dir))) $skip[str_replace('\\', '/', $real)] = true;
+        foreach ([CORE_DIR, defined('DATA_DIR') ? DATA_DIR : '', defined('MEDIA_DIR') ? mikanBoxMediaDirectory() : ''] as $dir) if ($dir !== '' && ($real = realpath($dir))) $skip[str_replace('\\', '/', $real)] = true;
         $dirs = ['' => true];
         foreach ($files as $path => $unused) { for ($d = dirname($path); $d !== '.' && $d !== '' && $d !== '/'; $d = dirname($d)) $dirs[$d] = true; }
         $recursive = $root !== $site;   // a folder of its own is scanned whole; the site folder only where pages are
@@ -230,15 +230,15 @@ function mikanBoxIntegrityCheckMedia(array $state): array {
     if (!defined('MEDIA_DIR') || !is_array($base) || !is_array($base['files'] ?? null)) return ['baseline' => false];
     $files = $base['files'];
     $current = [];
-    foreach ($files as $name => $unused) $current[$name] = is_file(MEDIA_DIR . '/' . $name) ? (string)hash_file('sha256', MEDIA_DIR . '/' . $name) : '';
+    foreach ($files as $name => $unused) $current[$name] = is_file(mikanBoxMediaDirectory() . '/' . $name) ? (string)hash_file('sha256', mikanBoxMediaDirectory() . '/' . $name) : '';
     $complete = !empty($base['complete']);
-    if ($complete && is_dir(MEDIA_DIR)) {
-        $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(MEDIA_DIR, FilesystemIterator::SKIP_DOTS));
+    if ($complete && is_dir(mikanBoxMediaDirectory())) {
+        $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(mikanBoxMediaDirectory(), FilesystemIterator::SKIP_DOTS));
         $seen = 0;
         foreach ($it as $file) {
             if (++$seen > 20000) break;
             if (!$file->isFile() || $file->isLink() || !in_array(mikanBoxIntegrityExt($file->getFilename()), MIKANBOX_INTEGRITY_CODE_EXT, true)) continue;
-            $name = str_replace('\\', '/', substr($file->getPathname(), strlen(rtrim(MEDIA_DIR, '/')) + 1));
+            $name = str_replace('\\', '/', substr($file->getPathname(), strlen(rtrim(mikanBoxMediaDirectory(), '/')) + 1));
             if (!isset($files[$name])) $current[$name] = (string)hash_file('sha256', $file->getPathname());
         }
     }

@@ -92,4 +92,35 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-auth-audit-') as td:
      assert 'IMPORT_PRIVATE_MARKER' not in Browser().req(url+'/import-note')[1]
      print(edition+': the data tool reads only media files; imported notes stay private')
 
+    editor=url+'/mikanBox/admin.php?view=pages'
+    def save_page(id,old_id='',title='',status='draft',**extra):
+     response,body=b.post(editor,{'save_action':'save_page','ajax_request':'1','id':id,'old_id':old_id,'title':title,'status':status,**extra})
+     return response,json.loads(body)
+    assert save_page('collision-source',title='Source')[1]['success']
+    assert save_page('collision-target',title='Target')[1]['success']
+    status,conflict=save_page('collision-target','collision-source','Edited')
+    assert status==409 and not conflict['success']
+    assert save_page('collision-target','collision-target','Changed target')[1]['success']
+    status,refreshed=save_page('collision-target','collision-source','Edited',overwrite_page=conflict['page_id_conflict']['token'])
+    assert status==409 and refreshed['page_id_conflict']['token'] != conflict['page_id_conflict']['token']
+    assert php(site,'echo loadData(POSTS_DIR,"collision-source")["title"]."|".loadData(POSTS_DIR,"collision-target")["title"];') == 'Source|Changed target'
+    status,saved=save_page('collision-target','collision-source','Edited',overwrite_page=refreshed['page_id_conflict']['token'])
+    assert status==200 and saved['success'] and saved['editId']=='collision-target'
+    assert php(site,'echo loadData(POSTS_DIR,"collision-source")===null ? loadData(POSTS_DIR,"collision-target")["title"] : "source still exists";') == 'Edited'
+    status,conflict=save_page('collision-target',title='New content')
+    assert status==409
+    assert save_page('collision-target',title='New content',overwrite_page=conflict['page_id_conflict']['token'])[1]['success']
+    assert save_page('static-target',title='Static JSON',status='public_static',output_format='json')[1]['success']
+    published=site/'static-target.json'
+    published.write_text('{"previous":true}')
+    status,conflict=save_page('static-target',title='Draft HTML')
+    assert status==409 and published.exists()
+    assert save_page('static-target',title='Draft HTML',overwrite_page=conflict['page_id_conflict']['token'])[1]['success']
+    assert not published.exists()
+    assert save_page('folder/index',title='Nested')[1]['success']
+    assert save_page('folder',title='Exact')[1]['success']
+    if edition=='sqlite':
+     assert 'Changed target' in php(site,'echo json_encode(getDb()->querySingle("SELECT GROUP_CONCAT(title) FROM post_revisions WHERE post_id = \'collision-target\'"));')
+    print(edition+': page ID collision, refreshed approval, and overwrite verified')
+
    finally:proc.terminate();proc.wait(timeout=5)

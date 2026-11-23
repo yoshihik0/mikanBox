@@ -34,6 +34,9 @@
   function post(url, body) { if (body && typeof body === 'object') body.sid = SID; return jfetch(url, { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body: JSON.stringify(body) }); }
   function scopeEl() { return document.querySelector('.mikan-content-scope'); }
   var PAGES = window.__VISUAL_PAGES || [];
+  var pageIds = new Set(PAGES.map(function (p) { return p.id; }));
+  var editorPageLinks = new WeakSet();
+  var publicPageUrl = ADMIN.publicPage ? new URL(ADMIN.publicPage) : null;
   var DOC = !!window.__VISUAL_DOC;   // Raw HTML の、<html>…<body> を持つ文書のページ（ブロックの目印は入れず、文書の木をたどって選ぶ）
   // 最近開いたページ（このブラウザだけ。サイトごと）
   var RKEY = 'fv-recent:' + (ADMIN.site || '/');
@@ -64,24 +67,48 @@
       }
     });
   }
-  /** サイト内のページへのリンクを、ビジュアル編集の同じページへ向ける（普通のURLでは404になることがあるため） */
+  function pageIdForLink(url, base, ids) {
+    var path;
+    try { path = decodeURIComponent(url.pathname); } catch (e) { return null; }
+    if (!path.startsWith(base)) return null;
+    var slug = path.slice(base.length).replace(/^\/+|\/+$/g, '').replace(/\.html$/, '');
+    if (!slug || slug === 'index.php') slug = url.searchParams.get('page') || 'index';
+    if (ids.has(slug)) return slug;
+    return ids.has(slug + '/index') ? slug + '/index' : null;
+  }
+  /** サイト内の HTML ページを、ビジュアル編集で開く。 */
   function rewriteLinks(rootEl) {
-    var ids = {}; PAGES.forEach(function (p) { ids[p.id] = 1; });
     [].slice.call(rootEl.querySelectorAll('a[href]')).forEach(function (a) {
-      if (a.closest('.fv-ui')) return;
-      var u; try { u = new URL(a.getAttribute('href'), location.href); } catch (e) { return; }
+      if (a.closest('.fv-ui') || a.hasAttribute('download') || editorPageLinks.has(a)) return;
+      var href = a.getAttribute('href').trim();
+      if (!href || href.startsWith('#')) return;
+      var u; try { u = new URL(href, publicPageUrl || location.href); } catch (e) { return; }
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return;
       function out() { a.target = '_blank'; a.rel = 'noopener'; a.setAttribute('data-fv-out', '1'); }   // 編集画面ではないところへ行くリンクは、別タブ（編集画面から出ない）
-      if (u.origin !== location.origin) { out(); return; }
-      if (ADMIN.pick && u.pathname.indexOf(ADMIN.pick) === 0) return;
-      var base = ADMIN.site || '/', path = decodeURIComponent(u.pathname);
-      if (u.pathname === location.pathname && u.hash) return;   // 同じページの中（#…）
-      if (path.indexOf(base) !== 0) { out(); return; }
-      path = path.slice(base.length).replace(/^\/+/, '').replace(/\.html$/, '').replace(/\/index$/, '').replace(/\/+$/, '');
-      var id = (path === '' || path === 'index.php') ? (u.searchParams.get('page') || 'index') : path;
-      if (ids[id]) a.setAttribute('href', ADMIN.view + id.split('/').map(encodeURIComponent).join('/') + u.hash); else out();
+      var isAdmin = u.origin === location.origin;
+      var isPublic = publicPageUrl && u.origin === publicPageUrl.origin;
+      if (!isAdmin && !isPublic) { out(); return; }
+      if (isAdmin && ADMIN.pick === u.pathname && rootEl.ownerDocument === document) return;
+      var id = pageIdForLink(u, ADMIN.site || '/', pageIds);
+      if (!id) {
+        if (publicPageUrl) a.setAttribute('href', u.href);
+        out();
+        return;
+      }
+      if (id === PAGE && u.hash) { a.setAttribute('href', u.hash); return; }
+      a.setAttribute('href', ADMIN.view + id.split('/').map(encodeURIComponent).join('/') + u.hash);
+      editorPageLinks.add(a);
     });
   }
+  function followPageLink(e) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    var link = e.target.closest && e.target.closest('a[href]');
+    if (!link || !editorPageLinks.has(link) || (link.target && link.target !== '_self')) return;
+    e.preventDefault();
+    goUrl(link.getAttribute('href'));
+  }
   applyLn(document.body); rewriteLinks(document.body);
+  document.addEventListener('click', followPageLink);
 
   // ---------------------------------------------------------------- ドック（右下のボタン）
   var dock = el('div', 'fv-dock fv-ui');
@@ -329,7 +356,7 @@
       var doc = new DOMParser().parseFromString(html, 'text/html');
       var neu = doc.querySelector('.mikan-content-scope'), cur = scopeEl();
       if (!neu || !cur) { sessionStorage.setItem('fv-scroll', String(y)); location.reload(); return; }
-      liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; swapScope(sc, neu); applyLn(sc); if (d === document) rewriteLinks(sc); });   // 画面幅の確認の中も、同じ本文にそろえる
+      liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; swapScope(sc, neu); applyLn(sc); if (d === document || publicPageUrl) rewriteLinks(sc); });   // 画面幅の確認の中も、同じ本文にそろえる
       window.scrollTo(0, y);
       domText = text === undefined ? null : text;
       refreshHistory();
@@ -390,7 +417,7 @@
       } else if (i > 0) { at = marks[i - 1].e; at.parentNode.insertBefore(frag, at.nextSibling); }
       else { at = marks[0].s; at.parentNode.insertBefore(frag, at); }
       for (var m = ob.length - j; m < ob.length; m++) { var b = nb[m - ob.length + nb.length]; setLn(marks[m], b.start + '-' + b.end); }
-      applyLn(p.sc); if (doc === document) rewriteLinks(p.sc);
+      applyLn(p.sc); if (doc === document || publicPageUrl) rewriteLinks(p.sc);
     });
     domText = text;
     return true;
@@ -557,7 +584,7 @@
       btn: tgMd, icon: 'edit_note', title: T('visual_js_md_panel'), note: T('visual_js_panel_note'), ph: T('visual_js_md_placeholder'),
       load: function () { return jfetch(API('source') + '&id=' + encodeURIComponent(PAGE), { cache: 'no-store' }).then(function (x) { bodyIsHtml = !!x.j.is_html; domText = x.j.text; return x.j.text; }); },
       save: function (o, n) { return post(API('save-md'), { id: PAGE, old: o, new: n }); },
-      live: function (text) { if (localBody(text)) { markTarget(); return Promise.resolve(true); } return post(API('render'), { id: PAGE, text: text }).then(function (x) { if (!x.ok) return false; var neu = new DOMParser().parseFromString(x.j.html, 'text/html').querySelector('.mikan-content-scope'); if (!neu) return false; liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; swapScope(sc, neu); applyLn(sc); if (d === document) rewriteLinks(sc); }); markTarget(); domText = text; return true; }).catch(function () { return false; }); }
+      live: function (text) { if (localBody(text)) { markTarget(); return Promise.resolve(true); } return post(API('render'), { id: PAGE, text: text }).then(function (x) { if (!x.ok) return false; var neu = new DOMParser().parseFromString(x.j.html, 'text/html').querySelector('.mikan-content-scope'); if (!neu) return false; liveDocs().forEach(function (d) { var sc = d.querySelector('.mikan-content-scope'); if (!sc) return; swapScope(sc, neu); applyLn(sc); if (d === document || publicPageUrl) rewriteLinks(sc); }); markTarget(); domText = text; return true; }).catch(function () { return false; }); }
     }
   };
   function closePanel(force, then) {
@@ -753,6 +780,7 @@
     var st = d.createElement('style'); st.textContent = 'html.fv-inspect *{cursor:crosshair!important}.fv-target{outline:2px solid #3b9bd8!important;outline-offset:2px}.fv-hover{outline:1px dashed #3b9bd8!important;outline-offset:2px;cursor:text}html.fv-inspect .fv-hover{outline:0!important}'; d.head.appendChild(st);
     bindEdit(d);
     var sc = d.querySelector('.mikan-content-scope'); if (sc) { applyLn(sc); }
+    if (publicPageUrl) { rewriteLinks(d.body); d.addEventListener('click', followPageLink); }
     d.addEventListener('mouseover', function (e) {
       if (!inspecting) return;
       var b = frameBox(e, e.target.getBoundingClientRect());

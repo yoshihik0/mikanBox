@@ -127,7 +127,6 @@
 
                     <?php
                     $currentFormat = mikanBoxPageOutputFormat($editData ?? []);
-                    $markdownAvailable = mikanBoxMarkdownAvailable($settings);
                     $isErrorPage = ($editId ?? '') === '404';
                     $dynamicBase = mikanBoxDynamicSiteUrl($settings);
                     $staticBase = rtrim((string)($settings['ssg_root_url'] ?? ''), '/');
@@ -146,7 +145,7 @@
                                 data-dynamic-base="<?= htmlspecialchars($dynamicBase) ?>" data-static-base="<?= htmlspecialchars($staticBase) ?>"
                                 data-structure="<?= htmlspecialchars($settings['ssg_structure'] ?? 'directory') ?>">
                                 <?php foreach (['html', 'html_md', 'md'] as $_fmt):
-                                    $_disabled = ($_fmt !== 'html' && $isErrorPage) || (mikanBoxFormatHasMarkdown($_fmt) && !$markdownAvailable && $currentFormat !== $_fmt); ?>
+                                    $_disabled = $_fmt !== 'html' && $isErrorPage; ?>
                                 <option value="<?= $_fmt ?>" <?= $currentFormat === $_fmt ? 'selected' : '' ?> <?= $_disabled ? 'disabled' : '' ?>><?= t('output_format_' . $_fmt) ?></option>
                                 <?php endforeach; ?>
                                 <optgroup label="<?= t('output_format_data_group') ?>">
@@ -157,9 +156,6 @@
                                 </optgroup>
                             </select>
                             <small class="sub-text sub-text-block output-url-line"><?= t('output_url_label') ?>: <code id="output-format-url"></code></small>
-                            <?php if (!$markdownAvailable): ?>
-                            <small class="sub-text sub-text-block"><?= t('output_format_md_unavailable_hint') ?></small>
-                            <?php endif; ?>
                             <small class="sub-text sub-text-block" data-formats="json xml csv txt js css"><?= t('output_format_data_hint') ?></small>
                             <small class="sub-text sub-text-block" data-formats="db"><?= t('output_format_db_hint') ?></small>
                         </div>

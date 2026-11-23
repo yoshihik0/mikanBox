@@ -41,14 +41,14 @@
     return dialog;
   }
 
-  function confirmDialog(message, title = '', okText = '', okClass = 'btn-red') {
+  function confirmDialog(message, title = '', okText = '', okClass = 'btn-red', cancelText = '') {
     return new Promise((resolve) => {
       const dialog = ensureDialog();
       const cancel = dialog.querySelector('#btn-global-confirm-cancel');
       const ok = dialog.querySelector('#btn-global-confirm-ok');
       dialog.querySelector('#global-confirm-title').textContent = title || S().confirmTitle || '';
       dialog.querySelector('#global-confirm-message').textContent = message;
-      cancel.textContent = S().cancel || 'Cancel';
+      cancel.textContent = cancelText || S().cancel || 'Cancel';
       ok.textContent = okText || S().confirmOk || 'OK';
       ok.className = 'btn btn-small ' + okClass;
       // Answer at once on a click (not when the dialog's own "close" event arrives, which a
@@ -73,6 +73,29 @@
       dialog.showModal();
       cancel.focus();
     });
+  }
+
+  async function postPage(form, submitter, returnToEditor = () => {}) {
+    if (!await ensureSession()) return { ok: false, json: { message: expiredMessage() } };
+    const data = new FormData(form);
+    if (submitter?.name) data.set(submitter.name, submitter.value);
+    data.set('ajax_request', '1');
+    data.delete('overwrite_page');
+    let result = await postData(data);
+    while (result.json.page_id_conflict) {
+      const conflict = result.json.page_id_conflict;
+      if (!await confirmDialog(result.json.message, conflict.title, conflict.overwrite, 'btn-red', conflict.change_id)) {
+        returnToEditor();
+        const id = form.elements.namedItem('id');
+        id?.focus();
+        id?.select();
+        return { ...result, cancelled: true };
+      }
+      data.set('id', conflict.id);
+      data.set('overwrite_page', conflict.token);
+      result = await postData(data);
+    }
+    return result;
   }
 
   // ---- Is this browser still signed in? -----------------------------------------------
@@ -114,6 +137,9 @@
     if (submitter && submitter.name) data.set(submitter.name, submitter.value);
     for (const [key, value] of Object.entries(extra)) data.set(key, value);
     data.set('ajax_request', '1');
+    return postData(data);
+  }
+  async function postData(data) {
     const response = await fetch(window.location.href, { method: 'POST', body: data, credentials: 'same-origin' });
     let json = null;
     try { json = await response.json(); } catch (_) { /* not JSON */ }
@@ -317,7 +343,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', checkDataProtection);
   else checkDataProtection();
 
-  window.MikanUI = { toast, confirm: confirmDialog, post, ensureSession, refresh, keepPosition, expand, collapse, fadeOut, scrollToY };
+  window.MikanUI = { toast, confirm: confirmDialog, post, postPage, ensureSession, refresh, keepPosition, expand, collapse, fadeOut, scrollToY };
   window.showToast = toast;
   window.showConfirmDialog = confirmDialog;
 })();

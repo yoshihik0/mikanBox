@@ -414,11 +414,46 @@ function mikanBoxStorageSaveSettings($settings) {
  * @param array $data Data to save
  * @return bool Success or failure
  */
+function mikanBoxWithEditorPageWrite(callable $write): array {
+    $db = getDb();
+    $error = ['message' => t('err_page_save')];
+    if (!$db->exec('BEGIN IMMEDIATE')) return $error;
+    $committed = false;
+    try {
+        $result = $write();
+        if (!isset($result['data'])) return $result;
+        $committed = $db->exec('COMMIT');
+        return $committed ? $result : $error;
+    } finally {
+        if (!$committed) $db->exec('ROLLBACK');
+    }
+}
+
+function mikanBoxLoadExactPage(string $id): ?array {
+    $data = mikanBoxLoadDataRaw(POSTS_DIR, $id);
+    return is_array($data) ? $data : null;
+}
+
+function mikanBoxCommitEditorPage(string $id, string $oldId, array $data, ?array $target): bool {
+    $editor = $_SESSION['admin_username'] ?? 'admin';
+    if ($oldId !== '' && $id !== $oldId && !createRevision($oldId, $editor)) return false;
+    if ($target !== null && !createRevision($id, $editor)) return false;
+    if (!saveData(POSTS_DIR, $id, $data)) return false;
+    if ($oldId === '' || $id === $oldId) return true;
+    if (!deleteData(POSTS_DIR, $oldId)) return false;
+    $db = getDb();
+    $move = $db->prepare('UPDATE post_revisions SET post_id = :id WHERE post_id = :old');
+    $move->bindValue(':id', $id, SQLITE3_TEXT);
+    $move->bindValue(':old', $oldId, SQLITE3_TEXT);
+    if (!$move->execute()) return false;
+    return mikanBoxTrimRevisions($db, $id);
+}
+
 function mikanBoxStorageSaveData($dir, $id, $data) {
     // Allow slashes for hierarchy but prevent directory traversal (no ..)
     $id = ltrim($id, '/\\');
     $id = preg_replace('/[^a-zA-Z0-9_\-\/\.]/', '', $id);
-    if (empty($id)) return false;
+    if ($id === '') return false;
 
     if ($dir === POSTS_DIR) {
         $db = getDb();
@@ -428,6 +463,7 @@ function mikanBoxStorageSaveData($dir, $id, $data) {
         $sort_order = isset($data['sort_order']) ? (int)$data['sort_order'] : 0;
         $updated_at = $data['updated_at'] ?? date('Y-m-d H:i:s');
         $dataJson = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        if ($dataJson === false) return false;
         
         $stmt = $db->prepare("INSERT OR REPLACE INTO posts (id, title, category, status, sort_order, updated_at, data) VALUES (:id, :title, :category, :status, :sort_order, :updated_at, :data)");
         $stmt->bindValue(':id', $id, SQLITE3_TEXT);
@@ -474,7 +510,7 @@ function mikanBoxLoadDataRaw($dir, $id) {
     // Allow slashes for hierarchy but prevent directory traversal
     $id = ltrim($id, '/\\');
     $id = preg_replace('/[^a-zA-Z0-9_\-\/\.]/', '', $id);
-    if (empty($id)) return null;
+    if ($id === '') return null;
 
     if ($dir === POSTS_DIR) {
         $db = getDb();
@@ -581,7 +617,7 @@ function getSortedPostIds() {
 function mikanBoxStorageDeleteData($dir, $id) {
     $id = ltrim($id, '/\\');
     $id = preg_replace('/[^a-zA-Z0-9_\-\/\.]/', '', $id);
-    if (empty($id)) return false;
+    if ($id === '') return false;
 
     if ($dir === POSTS_DIR) {
         $db = getDb();
@@ -857,17 +893,16 @@ function createRevision($postId, $editorUsername) {
     $stmtInsert->bindValue(':editor_id', $editorUsername, SQLITE3_TEXT);
     $stmtInsert->bindValue(':created_at', date('Y-m-d H:i:s'), SQLITE3_TEXT);
     
-    $stmtInsert->execute();
-    
-    // Keep max 10 revisions per page to avoid database bloat
-    try {
-        $db->exec("DELETE FROM post_revisions WHERE id IN (
-            SELECT id FROM post_revisions WHERE post_id = '" . $db->escapeString($postId) . "' 
-            ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET 10
-        )");
-    } catch (Exception $e) {}
-    
-    return true;
+    return $stmtInsert->execute() !== false && mikanBoxTrimRevisions($db, $postId);
+}
+
+function mikanBoxTrimRevisions(SQLite3 $db, string $postId): bool {
+    $stmt = $db->prepare('DELETE FROM post_revisions WHERE id IN (
+        SELECT id FROM post_revisions WHERE post_id = :id
+        ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET 10
+    )');
+    $stmt->bindValue(':id', $postId, SQLITE3_TEXT);
+    return $stmt->execute() !== false;
 }
 
 /**
