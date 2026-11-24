@@ -72,7 +72,7 @@ body[data-edition="sqlite"] nav.sidebar a.cloud {
 .manual-edition-badge { font-size:.7em; margin-left:.5em; padding:1px 6px; border:1px solid #9ca3af; border-radius:4px; color:#374151; }
 </style>
 
-# 🍊mikanBox 操作マニュアル <small class="manual-version">flat・SQLite v2.30.5 / Cloud v0.21.3</small>
+# 🍊mikanBox 操作マニュアル <small class="manual-version">flat・SQLite v2.30.5 / Cloud v0.21.4</small>
 
 🍊mikanBoxには、SQLiteデータベースを使う**🍊mikanBox**（SQLite版）、データベースを使わないJSONファイルベースの**🍊mikanBox flat**（flat版）、Cloudflare上で管理も公開も行う**🍊mikanBox Cloud**（Cloud版）があります。基本的な使い方は共通なので、このヘルプは3つの版に対応しています。ページ上部のボタン（flat／sqlite／cloud／all）で、読みたい版に表示を切り替えられます。版によって内容が異なる箇所には、バッジで区別を示します。
 
@@ -1216,11 +1216,9 @@ APIトークンはGitHubのSecretsに直接登録します。設定用JSONにAPI
 
 ワークフローは公式の最新公開リリースを取得します。公開プレリリースも対象です。管理用Workerの接続やルートを変更したら、GitHubに登録した設定も更新します。ワークフロー自体の修正が公開されたら、自分のリポジトリにも取り込みます。
 
-#### 更新が中断したとき・前の版に戻すとき {#cloud-update-recovery .cloud .detail}
+#### 更新が中断したとき {#cloud-update-recovery .cloud .detail}
 
 通信が切れた場合は、管理画面を開き直し、「更新を再開」が出たら押します。失敗した場合は、画面のメッセージかGitHub Actionsで失敗した工程を確認します。D1の更新だけが済んでいる場合があります。権限や設定を直してから再試行します。適用済みのマイグレーションは再適用されません。
-
-管理画面が開けない場合も、Cloudflareダッシュボードにある管理用Workerのデプロイ履歴から、配信中の版を確認できます。前の版に戻す場合は、その版が現在のD1で動くことを確かめてから、デプロイ履歴で切り替えます。Workerの切り替えだけではD1の構造やデータは戻りません。前の版に合わせて[D1を復元](#cloud-d1-restore)する必要がある場合は、復元時点よりあとに保存した編集も取り消されます。
 
 ### 改ざんをチェック {#site-integrity}
 
@@ -1695,7 +1693,7 @@ AIは、接続すると、登録されているすべての [AI指示]{.type-bad
 使い方や設定をAIに尋ねたいときは、AIアプリのRemote MCP（Streamable HTTP）に公開ヘルプのURLを登録します。URLだけで接続できます。AIは公開ヘルプを検索して読みます。
 
 - flat・SQLite版の接続先は、mikanBoxを設置したサイトのURLの末尾に `/mcp` を付けたものです。 {.flat .sqlite}
-- Cloud版の接続先は、管理用WorkerのURLの末尾に `/public-mcp` を付けたものです。ブラウザから読むには、同じWorkerの `/public-help.html?language=ja` を開きます。 {.cloud}
+- Cloud版の接続先は、管理用WorkerのURLの末尾に `/public-mcp` を付けたものです。 {.cloud}
 
 WebMCPに対応するブラウザでは、管理画面のブラウザ内エージェントからも公開ヘルプを検索できます。Cloud版の静的な公開ページでは、WebMCPは使えません。 {.cloud}
 
@@ -2832,6 +2830,17 @@ Copyright (c) 2026 [yoshihiko.com](http://yoshihiko.com)
   var selected = new URLSearchParams(location.search).get('edition');
   try { selected = selected || localStorage.getItem('mikanbox-manual-edition'); } catch (_) {}
   apply(selected || 'all');
+  // A link to a heading inside the details or another edition opens it, so links from the admin screen land.
+  function reveal() {
+    var id = ''; try { id = decodeURIComponent(location.hash.slice(1)); } catch (_) {}
+    var el = id && document.getElementById(id);
+    if (!el || !main.contains(el)) return;
+    if (el.classList.contains('manual-hidden') || el.closest('.manual-hidden')) apply('all');
+    if ((el.classList.contains('detail') || el.closest('.detail')) && !details.checked) { details.checked = true; main.classList.add('manual-show-details'); }
+    el.scrollIntoView();
+  }
+  reveal();
+  window.addEventListener('hashchange', reveal);
 })();
 </script>
 </main>

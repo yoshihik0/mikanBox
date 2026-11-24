@@ -72,7 +72,7 @@ body[data-edition="sqlite"] nav.sidebar a.cloud {
 .manual-edition-badge { font-size:.7em; margin-left:.5em; padding:1px 6px; border:1px solid #9ca3af; border-radius:4px; color:#374151; }
 </style>
 
-# 🍊mikanBox User Manual <small class="manual-version">flat・SQLite v2.30.5 / Cloud v0.21.3</small>
+# 🍊mikanBox User Manual <small class="manual-version">flat・SQLite v2.30.5 / Cloud v0.21.4</small>
 
 🍊mikanBox comes in three editions: **🍊mikanBox** (the SQLite edition), which uses an SQLite database; **🍊mikanBox flat** (the flat edition), which uses JSON files without a database; and **🍊mikanBox Cloud** (the Cloud edition), which uses Cloudflare for both management and publication. Their basic usage is shared, so this help covers all three. Use the buttons at the top of the page (flat / sqlite / cloud / all) to select an edition. Badges identify content that differs by edition.
 
@@ -1210,11 +1210,9 @@ Register the API token directly in GitHub Secrets. Do not put the API token, `JW
 
 The workflow fetches the latest official public release, including public prereleases. If you change the admin Worker's bindings or routes, update the configuration registered in GitHub too. When a correction to the workflow itself is released, incorporate it into your repository.
 
-#### Interrupted updates and rollback {#cloud-update-recovery .cloud .detail}
+#### Interrupted updates {#cloud-update-recovery .cloud .detail}
 
 If the connection is lost, reopen the admin screen and select Resume update if it appears. If it fails, check the screen message or failed GitHub Actions step. The D1 update may already have completed. Correct permissions or configuration and try again. Applied migrations are not applied again.
-
-Even if the admin screen cannot be opened, you can check the deployed version in the admin Worker's deployment history in the Cloudflare dashboard. Before rolling back, confirm that the previous version works with the current D1, then switch in deployment history. Switching the Worker alone does not restore D1 structure or data. If you need to [restore D1](#cloud-d1-restore) to match the previous version, edits saved after the restoration point will also be undone.
 
 ### Check for tampering {#site-integrity}
 
@@ -1686,7 +1684,7 @@ Specify pages by page ID. Media uploads are limited to 10 MB per file. If a file
 To ask AI about usage or settings, register the public help URL in the AI application's Remote MCP (Streamable HTTP). The URL alone is enough to connect. AI searches and reads the public help.
 
 - For flat and SQLite, append `/mcp` to the URL of the site where mikanBox is installed. {.flat .sqlite}
-- For Cloud, append `/public-mcp` to the admin Worker URL. To read in a browser, open `/public-help.html?language=ja` on the same Worker. {.cloud}
+- For Cloud, append `/public-mcp` to the admin Worker URL. {.cloud}
 
 In a WebMCP-compatible browser, an in-browser agent in the admin panel can also search public help. WebMCP is not available on static Cloud public pages. {.cloud}
 
@@ -2812,6 +2810,17 @@ Permission is granted, free of charge, to use this software and associated docum
   var selected = new URLSearchParams(location.search).get('edition');
   try { selected = selected || localStorage.getItem('mikanbox-manual-edition'); } catch (_) {}
   apply(selected || 'all');
+  // A link to a heading inside the details or another edition opens it, so links from the admin screen land.
+  function reveal() {
+    var id = ''; try { id = decodeURIComponent(location.hash.slice(1)); } catch (_) {}
+    var el = id && document.getElementById(id);
+    if (!el || !main.contains(el)) return;
+    if (el.classList.contains('manual-hidden') || el.closest('.manual-hidden')) apply('all');
+    if ((el.classList.contains('detail') || el.closest('.detail')) && !details.checked) { details.checked = true; main.classList.add('manual-show-details'); }
+    el.scrollIntoView();
+  }
+  reveal();
+  window.addEventListener('hashchange', reveal);
 })();
 </script>
 </main>
