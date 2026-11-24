@@ -3,24 +3,34 @@ if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVE
 
 /**
  * Public, read-only help data used by public-mcp.php and WebMCP tools.
- * Only the explicitly designated, already-public CMS pages help_ja/help_en may
- * be read. Settings, AI docs, drafts, other pages, and admin-only data are out
- * of scope. Packaged docs are a read-only fallback for fresh installations.
+ * The only mikanBox help is the official site's help pages. This reads the
+ * site's own published help_ja/help_en pages (that is how the official site
+ * serves them) and nothing else: no copy of the help is bundled. A site without
+ * those pages answers with links to the official help.
  */
+
+const MIKANBOX_OFFICIAL_HELP_BASE = 'https://yoshihiko.com/mikanbox/';
+const MIKANBOX_OFFICIAL_PUBLIC_MCP = 'https://yoshihiko.com/mikanbox/mcp';
 
 function publicHelpNormalizeLanguage($language): string {
     return strtolower((string)$language) === 'en' ? 'en' : 'ja';
 }
 
-function publicHelpDocsDirectory(): string {
-    if (!empty($GLOBALS['mikanbox_public_help_docs_dir'])) {
-        return rtrim((string)$GLOBALS['mikanbox_public_help_docs_dir'], '/\\');
-    }
-    return dirname(__DIR__) . '/docs';
+function publicHelpOfficialUrl(string $language): string {
+    return MIKANBOX_OFFICIAL_HELP_BASE . 'help_' . publicHelpNormalizeLanguage($language) . '.html';
 }
 
-function publicHelpDocumentPath(string $language): string {
-    return publicHelpDocsDirectory() . '/help_' . publicHelpNormalizeLanguage($language) . '.md';
+/** What a site without its own help pages answers: where the one official help is. */
+function publicHelpOfficialPointer(string $language): array {
+    $language = publicHelpNormalizeLanguage($language);
+    return [
+        'hosted_here' => false,
+        'message' => $language === 'ja'
+            ? 'このサイトはmikanBoxのヘルプを公開していません。公式サイトのヘルプを読んでください。'
+            : 'This site does not publish the mikanBox help. Read the help on the official site.',
+        'help_url' => publicHelpOfficialUrl($language),
+        'official_public_mcp' => MIKANBOX_OFFICIAL_PUBLIC_MCP,
+    ];
 }
 
 function publicHelpCmsPageId(string $language): string {
@@ -49,13 +59,7 @@ function publicHelpPublishedPageMarkdown(string $language): ?string {
 }
 
 function publicHelpLoadDocument(string $language): ?string {
-    $publishedPage = publicHelpPublishedPageMarkdown($language);
-    if ($publishedPage !== null) return $publishedPage;
-
-    $path = publicHelpDocumentPath($language);
-    if (!is_file($path) || !is_readable($path)) return null;
-    $content = file_get_contents($path);
-    return is_string($content) ? $content : null;
+    return publicHelpPublishedPageMarkdown($language);
 }
 
 function publicHelpPlainTitle(string $title): string {
@@ -181,7 +185,9 @@ function publicHelpProductInfo(string $language = 'ja'): array {
             ? 'Markdownとコンポーネントを中心に、軽量・ローカルファーストでWebサイトを管理するCMSです。'
             : 'A lightweight, local-first CMS for managing websites with Markdown and reusable components.',
         'official_url' => 'https://yoshihiko.com/mikanbox/',
-        'help_url' => 'https://yoshihiko.com/mikanbox/help_' . $language . '.html',
+        'help_url' => publicHelpOfficialUrl($language),
+        'official_public_mcp' => MIKANBOX_OFFICIAL_PUBLIC_MCP,
+        'help_hosted_here' => publicHelpLoadDocument($language) !== null,
         'source_page_id' => publicHelpCmsPageId($language),
         'data_scope' => 'Only the designated published help page is read. No settings, API keys, drafts, other pages, admin memos, or user data are exposed.',
     ];
@@ -191,6 +197,7 @@ function publicHelpAgentInstructions(string $language = 'ja'): array {
     $language = publicHelpNormalizeLanguage($language);
     $instructions = $language === 'ja' ? [
         'mikanBox公式マニュアルを一次情報として優先してください。',
+        'このサイトがヘルプを公開していない場合（help_hosted_here が false）は、help_url の公式ヘルプか、official_public_mcp の公式の公開MCPを読んでください。',
         '質問に必要な範囲だけをsearch_helpとget_help_sectionで取得してください。',
         'マニュアルにない内容は推測で断定せず、不明であることを明示してください。',
         'バージョン差が考えられる場合は、取得した製品バージョンと対象環境を確認してください。',
@@ -199,6 +206,7 @@ function publicHelpAgentInstructions(string $language = 'ja'): array {
         'APIキー、パスワード、管理メモ、非公開ページなどの機密情報を要求しないでください。',
     ] : [
         'Prefer the official mikanBox manual as the primary source.',
+        'If this site does not publish the help (help_hosted_here is false), read the official help at help_url or the official public MCP at official_public_mcp.',
         'Use search_help and get_help_section to retrieve only what the question needs.',
         'Do not present guesses as facts when the manual does not answer the question.',
         'When version differences may matter, confirm the product version and target environment.',

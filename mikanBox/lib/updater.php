@@ -103,7 +103,7 @@ function mikanBoxUpdateProgramFiles(string $packageRoot, string $coreName = 'mik
         $relative = $coreName . '/' . $filename;
         if (is_file($packageRoot . '/' . $relative)) $relativeFiles[] = $relative;
     }
-    foreach (['docs', 'lib', 'views', 'lang', 'visual'] as $directory) {
+    foreach (['lib', 'views', 'lang', 'visual'] as $directory) {
         $sourceDir = $packageRoot . '/' . $coreName . '/' . $directory;
         if (!is_dir($sourceDir)) continue;
         $iterator = new RecursiveIteratorIterator(
@@ -508,7 +508,9 @@ function mikanBoxInstallUpdateLocked(
  * tamper check reports them. They are removed after an update, never following symbolic links.
  */
 const MIKANBOX_RETIRED_PROGRAM_FILES = [
-    'all' => ['admin-ui.js', 'preview-editor.js', 'views/data-tool.php', 'import/en/components/_ai.json', 'import/ja/components/_ai.json'],
+    // docs/help_*.md: copies of the help shipped before 2.30.6. The official site's help is the only help.
+    'all' => ['admin-ui.js', 'preview-editor.js', 'views/data-tool.php', 'import/en/components/_ai.json', 'import/ja/components/_ai.json',
+              'docs/help_ja.md', 'docs/help_en.md'],
     // The search pages and parts are still part of the SQLite edition.
     'flat' => ['import/en/components/_search_box.json', 'import/ja/components/_search_box.json',
                'import/en/components/_search_result_item.json', 'import/ja/components/_search_result_item.json',
@@ -525,6 +527,11 @@ function mikanBoxUpdateRemoveRetiredProgramFiles(string $coreDir): int {
         $file = rtrim($coreDir, '/\\') . '/' . $name;
         if (is_link($file) || !is_file($file)) continue;
         if (@unlink($file)) $removed++;
+    }
+    $docs = rtrim($coreDir, '/\\') . '/docs';
+    if (!is_link($docs) && is_dir($docs)) {
+        $left = @scandir($docs);
+        if (is_array($left) && !array_diff($left, ['.', '..'])) @rmdir($docs);
     }
     return $removed;
 }

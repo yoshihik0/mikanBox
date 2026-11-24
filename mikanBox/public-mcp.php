@@ -259,6 +259,9 @@ function publicHelpValidateArguments(string $name, array $arguments): ?string {
 
 function publicHelpExecuteTool(string $name, array $arguments): array {
     $language = publicHelpNormalizeLanguage($arguments['language'] ?? 'ja');
+    if (in_array($name, ['search_help', 'get_help_section'], true) && publicHelpLoadDocument($language) === null) {
+        return publicHelpOfficialPointer($language) + ($name === 'search_help' ? ['results' => []] : []);
+    }
     return match ($name) {
         'search_help' => [
             'query' => trim((string)($arguments['query'] ?? '')),
