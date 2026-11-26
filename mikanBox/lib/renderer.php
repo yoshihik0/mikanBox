@@ -829,7 +829,7 @@ class MikanBoxRenderer {
         $scriptUrl = $this->bundledMedia ? $this->getStaticRootPrefix() . $scriptPath
             : rtrim($this->getSiteBasePath(), '/') . '/' . $scriptPath;
         if ($scriptVersion !== '') $scriptUrl .= '?v=' . rawurlencode($scriptVersion);
-        $attributes = $this->bundledMedia ? ' data-webmcp="off"' : '';
+        $attributes = '';
         if (!$this->notFound && in_array($this->currentPageInfo['status'] ?? '', ['public_dynamic', 'public_static'], true)) {
             $attributes .= $this->isRelativeStaticMode() ? ' data-current-page'
                 : ' data-page-url="' . htmlspecialchars($this->buildPageUrl($this->currentPageId), ENT_QUOTES) . '"';
@@ -840,16 +840,13 @@ class MikanBoxRenderer {
     }
 
     private function replaceSpecialTags($html) {
-        $aiQuestion = '/\{\{\s*AI_QUESTION\s*(?::\s*(?:sources\s*=([^{}\r\n]*)|([A-Za-z0-9_-]+))\s*)?\}\}/u';
+        // {{AI_QUESTION}} refers to the page itself, {{AI_QUESTION:sources=URL | URL}} to the given
+        // public references. Any other form (such as the help-section form removed in 2.31.0) shows nothing.
+        $aiQuestion = '/\{\{\s*AI_QUESTION\s*(?::([^{}\r\n]*))?\}\}/u';
         $html = preg_replace_callback($aiQuestion, function($matches) {
-            $section = $matches[2] ?? '';
-            $attributes = '';
-            if ($section !== '') {
-                $attributes = ' data-section="' . htmlspecialchars($section, ENT_QUOTES) . '"';
-            } elseif (isset($matches[1])) {
-                $attributes = ' data-sources="' . htmlspecialchars(trim($matches[1]), ENT_QUOTES) . '"';
-            }
-            return '<div data-mikanbox-ai-question' . $attributes . '></div>';
+            if (!isset($matches[1])) return '<div data-mikanbox-ai-question></div>';
+            if (!preg_match('/^\s*sources\s*=(.*)$/su', $matches[1], $sources)) return '';
+            return '<div data-mikanbox-ai-question data-sources="' . htmlspecialchars(trim($sources[1]), ENT_QUOTES) . '"></div>';
         }, $html);
 
         // 3. Navigation Tags: {{NAV_LINKS:category}}, {{NAV_CARDS:category:template}}

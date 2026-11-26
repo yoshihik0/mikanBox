@@ -99,7 +99,7 @@ function mikanBoxUpdateProgramFiles(string $packageRoot, string $coreName = 'mik
     foreach (['index.php'] as $relative) {
         if (is_file($packageRoot . '/' . $relative)) $relativeFiles[] = $relative;
     }
-    foreach (['.htaccess', 'admin.php', 'admin.css', 'ai-question.js', 'build.php', 'config.php', 'mcp.php', 'public-mcp.php', 'visual.php'] as $filename) {
+    foreach (['.htaccess', 'admin.php', 'admin.css', 'ai-question.js', 'build.php', 'config.php', 'mcp.php', 'visual.php'] as $filename) {
         $relative = $coreName . '/' . $filename;
         if (is_file($packageRoot . '/' . $relative)) $relativeFiles[] = $relative;
     }
@@ -509,8 +509,9 @@ function mikanBoxInstallUpdateLocked(
  */
 const MIKANBOX_RETIRED_PROGRAM_FILES = [
     // docs/help_*.md: copies of the help shipped before 2.30.6. The official site's help is the only help.
+    // public-mcp.php, lib/public-help.php: the public help MCP, removed in 2.31.0.
     'all' => ['admin-ui.js', 'preview-editor.js', 'views/data-tool.php', 'import/en/components/_ai.json', 'import/ja/components/_ai.json',
-              'docs/help_ja.md', 'docs/help_en.md'],
+              'docs/help_ja.md', 'docs/help_en.md', 'public-mcp.php', 'lib/public-help.php'],
     // The search pages and parts are still part of the SQLite edition.
     'flat' => ['import/en/components/_search_box.json', 'import/ja/components/_search_box.json',
                'import/en/components/_search_result_item.json', 'import/ja/components/_search_result_item.json',

@@ -98,7 +98,7 @@ if ($pageId === '' || $pageId === 'index.php') {
     }
 
     // Router compatibility (including PHP's built-in server): existing files
-    // such as /mikanBox/public-mcp.php must bypass the front controller.
+    // such as /mikanBox/mcp.php must bypass the front controller.
     $documentRoot = rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? ''), '/\\');
     $requestedFile = $documentRoot . '/' . ltrim((string)$reqUri, '/');
     if ($documentRoot !== '' && is_file($requestedFile)) {
@@ -133,14 +133,6 @@ if ($pageId === '' || $pageId === 'index.php') {
     $path = str_replace('index.php', '', $path);
     $path = trim($path, '/');
     $pageId = ($path !== '') ? $path : 'index';
-}
-
-// 2.8 Public read-only MCP endpoint: /mcp
-// The administration MCP remains under /mikanBox/mcp and requires an API key.
-if ($pageId === 'mcp') {
-    define('MIKANBOX_PUBLIC_MCP_ROUTE', true);
-    require CORE_DIR . '/public-mcp.php';
-    exit;
 }
 
 // 3. API endpoint for mikanBox DB pages: /api/{pageId}.json, and the older alias /api/{pageId}.

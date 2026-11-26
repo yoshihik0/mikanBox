@@ -71,7 +71,7 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-auth-audit-') as td:
     anon=Browser();status,html=anon.req(admin)
     assert key not in html
     print(edition, 'unauthenticated admin page never carries the MCP key')
-    for public_path in ['/private-audit','/api/private-audit','/mikanBox/public-mcp.php?action=get_product_info']:
+    for public_path in ['/private-audit','/api/private-audit','/mcp']:
      status,body=Browser().req(url+public_path)
      assert 'PAGE_PRIVATE_MARKER' not in body and 'SITE_PRIVATE_MARKER' not in body and 'COMPONENT_PRIVATE_MARKER' not in body
     print(edition, 'public page/API/help exclude notes')

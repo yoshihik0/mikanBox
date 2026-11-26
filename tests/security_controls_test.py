@@ -69,7 +69,7 @@ with tempfile.TemporaryDirectory(prefix='mikanbox-security-controls-') as tempor
                 check(mcp()[0]==403,'disabled management MCP denied')
                 php(site,'$s=loadSettings();$s["memo"]="Unrelated save";saveSettings($s);')
                 check(mcp()[0]==403,'unrelated settings cannot undo stop')
-                status,body=request('/mikanBox/public-mcp.php?action=get_product_info');check(status==200,'public help remains available')
+                status,body=request('/mikanBox/public-mcp.php?action=get_product_info');check(status==404,'the public help MCP is gone')
                 for path in ['/mikanData/security/events.jsonl.php','/mikanData/security/mcp.json.php','/mikanData/security/security-lock.php','/mikan%44ata/security/events.jsonl.php']:
                     check(request(path)[0] in [403,404], 'private security file denied '+path)
                 post({'save_action':'set_mcp_enabled','mcp_enabled':'1'})
